@@ -11,6 +11,46 @@ explicit és írd ide, vagy vedd fel új ND-ként.
 | **ND-07** | A fotorealisztikus render része-e a projektnek? | **Igen, M2-től folyamatosan** | A kép a generálás elsődleges kimenete (I3). Ha a render a végére kerülne, 8 milestone-nyi hibás irány derülne ki későn. |
 | **ND-23a** | Egységvektor-mintavétel a gömbön | **Elutasításos módszer**, csak `Math.Sqrt`-tel | Bitpontos, mert az IEEE-754 a `sqrt`-re korrekt kerekítést ír elő. Mérve: 1.903 átlagos iteráció (elmélet: 6/π = 1.910). |
 
+### ND-24 — Cubed sphere vetítés: transzcendens függvény + a területarány valós viselkedése
+
+A §2.2 (`docs/05-milestones.md`) szerinti egyenszögű vetítés
+`s = tan(u * pi/4)`-et használ a tile-területek kiegyenlítésére. A
+`tools/reference/cubed_sphere_ref.py` referencia-méréssel validáltuk (nem
+emlékezetből, ld. CLAUDE.md munkamódszer) — a mért érték eltért a dokumentum
+korábbi, emlékezetből idézett "~1.3" állításától:
+
+| Level | n×n (lap) | Mért max/min arány |
+|---|---|---|
+| 5 | 32×32 | 1.3795 |
+| 6 (klíma-alapszint) | 64×64 | 1.3969 |
+| 7 (bolygónézet render) | 128×128 | 1.4055 |
+| 9 (kontinensnézet) | 512×512 | 1.4120 |
+| 11 (régiónézet) | 2048×2048 | 1.4137 |
+| ∞ (kontinuum-határérték) | — | → √2 ≈ 1.41421 |
+
+**Döntés (mindkét részkérdésre):**
+
+1. **A `tan` transzcendens kockázata (ND-23b osztály):** a `TileId -> 3D
+   pozíció` leképezés **konstrukciós (baked)** számításnak minősül, nem
+   szimulációsnak. A pozíciókat egyszer, a rács felépítésekor számoljuk ki
+   `tan`-nal, verzióhoz kötött, hash-elt táblaként kezeljük — a szimuláció
+   (klíma, inszoláció) ebből olvas, nem újraszámolja. Így a `tan`
+   platformfüggése a rács-metaadatba szigetelődik, nem a szimuláció
+   kritikus útjába.
+2. **Az `AreaDistribution` teszt küszöbe LOD-szint szerint differenciált**
+   (a felhasználó által jóváhagyott "B" opció): a szigorú `< 1.40` küszöb
+   csak a szimuláció bázis-szintjére (level ≤ 6) vonatkozik, ahol a mérés
+   szerint van rá tartalék (1.3795–1.3969). A magasabb, render/nézet-célú
+   LOD-szinteken (level ≥ 7) a küszöb `< 1.42`, ami a mért kontinuum-
+   határértékhez (√2 ≈ 1.4142) igazodik, kis tartalékkal.
+
+**Indok:** a szigorú küszöb megtartása pont ott hozott volna hamis piros
+tesztet, ahol a vetítés matematikailag nem tud jobbat nyújtani (a `tan`-warp
+ismert tulajdonsága, hogy a lap-sarok/lap-közép Jacobi-arány √2-höz tart) —
+ez nem hiba, hanem a választott vetítés natúr viselkedése. Jobb vetítés
+keresése (a korábban felmerült "C" opció) külön munkát igényelt volna
+ismeretlen nyereségért, ezért elutasítva.
+
 ## Nyitott döntések
 
 ### ND-01 — Technológiai stack ⚠️ BLOKKOLÓ
@@ -39,54 +79,6 @@ bitre azonos platformok között. A `SampleGaussianUnsafe` emiatt `Unsafe` jelö
 
 **Sürgősség:** M4 (tektonika) előtt kell dönteni. A Gauss-eloszlás a lemez-
 sebességeknél és az esemény-magnitúdóknál jön elő.
-
-### ND-24 — Cubed sphere vetítés: transzcendens függvény + a területarány valós viselkedése ⚠️ BLOKKOLÓ (M2)
-
-A §2.2 (`docs/05-milestones.md`) szerinti egyenszögű vetítés
-`s = tan(u * pi/4)`-et használ a tile-területek kiegyenlítésére. Két külön
-kérdés merült fel, mindkettőt a `tools/reference/cubed_sphere_ref.py`
-referencia-méréssel validáltuk (nem emlékezetből, ld. CLAUDE.md munkamódszer):
-
-**1. A `tan` transzcendens (ND-23b kockázati osztály).** Nem garantáltan
-bitpontos platformok között. Kérdés: a `TileId -> 3D pozíció` leképezés
-**konstrukciós** (egyszer kiszámolva, verzióhoz kötve, hash-elve) vagy
-**szimulációs** (minden betöltésnél újraszámolt, ahol a platformfüggő eltérés
-összeadódhat, pl. inszoláció-számításnál) számításnak minősül?
-
-**2. A területarány mért értéke ELTÉR a dokumentált "~1.3"-tól, és
-LOD-szinttől függ — ez korábban nem volt mérve, csak emlékezetből idézve:**
-
-| Level | n×n (lap) | Mért max/min arány |
-|---|---|---|
-| 5 | 32×32 | 1.3795 |
-| 6 | 64×64 (klíma alapszint) | 1.3969 |
-| 7 | 128×128 (bolygónézet render) | **1.4055** |
-| 9 | 512×512 (kontinensnézet) | 1.4120 |
-| 11 | 2048×2048 (régiónézet) | 1.4137 |
-| ∞ (kontinuum-határérték) | — | → **√2 ≈ 1.41421** |
-
-Az arány a felbontással monoton nő, és **√2-höz tart** — ez a `tan`-warp
-ismert tulajdonsága (a lap-közép és a lap-sarok Jacobi-determinánsának
-aránya). A `docs/05-milestones.md` `AreaDistribution` tesztje `< 1.4`-et ír
-elő — ez level 5-6-nál épphogy teljesül (1.38-1.40, minimális tartalékkal),
-de **level 7-től ténylegesen elbukik** a jelenlegi vetítéssel, vagyis pont a
-render- és a magasabb LOD-szinteken, ahol a leginkább számít.
-
-| Opció | Előny | Hátrány |
-|---|---|---|
-| **A: `AreaDistribution` küszöb emelése ~1.42-1.45-re**, a mért kontinuum-határértékhez igazítva | Legkevesebb munka; a jelenlegi vetítés marad | A küszöb "post-hoc" a mért eredményhez igazodik, nem előre rögzített cél — gyengébb minőségi garancia |
-| **B: A tesztet csak a tényleges szimuláció-alapszintre (level 6) kötni**, magasabb LOD-okra nem terjeszteni ki | A dokumentált ~1.3-1.4 tartomány ott tartható | A render-szinteken (7+) a torzítás nem ellenőrzött, pedig ott vizuálisan jobban látszik |
-| **C: Jobb vetítés keresése** (pl. a COBE-féle kvadrilaterizált gömb-leképezés, vagy iteratív egyenlő-területű korrekció a `tan`-warp fölött) | Valódi javulás minden LOD-on | Több munka, új referencia-implementáció és -mérés kell, a `tan` transzcendens-kockázata (1. pont) is megmarad vagy nő |
-| **D: A pozíció konstrukciós (baked) kezelése** (a `tan`-kockázatra, 1. pont) — a pozíciókat egyszer számoljuk, hash-eljük, verzióhoz kötjük; a szimuláció ebből olvas, nem újraszámol | Kiiktatja a futásidejű platform-eltérés kockázatát | A world package mérete nő a pozíció-táblával |
-
-**Javaslat:** D-t (baked pozíció) elfogadásra javaslom az 1. kérdésre — ez
-nem tárgya vitának, egyértelműen jobb, mint futásidőben újraszámolni. A 2.
-kérdésre (a tényleges arány) **explicit felhasználói döntés kell** — ez nem
-konstrukciós apróság, hanem a render-minőség és a teszt-szigorúság közötti
-kompromisszum, amit nem szabad csendben eldönteni.
-
-**Sürgősség:** M2-ben, a `TileId`/Morton-implementáció előtt el kell dönteni,
-mert a választott vetítés hatással van a szomszédsági logikára is.
 
 ### A többi nyitott döntés
 

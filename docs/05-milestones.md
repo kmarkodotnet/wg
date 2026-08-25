@@ -75,13 +75,17 @@ Egy [-1,1] tartományú kocka-koordinátára:
     s = tan(u * pi/4)
 ```
 
-Ez kiegyenlíti a tile-területeket: a max/min területarány kb. **1.3**, szemben a
-naiv lineáris vetítés kb. **5.2**-es arányával.
+Ez kiegyenlíti a tile-területeket a naiv lineáris vetítés kb. **5.03**-as
+arányához képest — de a max/min területarány **LOD-szinttől függ** és
+√2 ≈ **1.4142**-höz tart a felbontással (mérve: `tools/reference/
+cubed_sphere_ref.py`, ld. ND-24 a `docs/04-decisions.md`-ben). Level 6-nál
+1.3969, level 11-nél már 1.4137 — ezért a `AreaDistribution` teszt küszöbe
+LOD-szint szerint differenciált (ld. lent).
 
-> ⚠️ A `tan` transzcendens függvény (ND-23b). A vetítést vagy előre kiszámolt
-> táblából interpoláljuk, vagy elfogadjuk, hogy ez **konstrukciós**, nem
-> szimulációs számítás. **Ezt M2-ben el kell dönteni** — vedd fel ND-24-ként,
-> ha nem triviális.
+> A `tan` transzcendens függvény (ND-23b osztály) kockázatát az ND-24 zárja
+> le: a `TileId -> pozíció` leképezés **konstrukciós (baked)** számítás —
+> egyszer kiszámolva, verzióhoz kötve, hash-elve; a szimuláció ebből olvas,
+> nem újraszámolja.
 
 ### 2.3 LOD-szintek
 
@@ -113,7 +117,7 @@ folyók, amik "elakadnak" a lap határán.
 | `NeighborSymmetry` | ha B szomszédja A-nak, akkor A is szomszédja B-nek — **kivétel nélkül** |
 | `NeighborCount` | minden tile-nak 4 szomszédja van, **kivéve a 8 sarok-tile-t, amiknek 3** |
 | `NoGaps` | a 6 lap tile-jainak uniója lefedi a gömböt, átfedés nélkül |
-| `AreaDistribution` | max/min tile-terület arány < 1.4 |
+| `AreaDistribution` | max/min tile-terület arány: level ≤ 6 esetén < 1.40, level ≥ 7 esetén < 1.42 (ND-24) |
 | `ParentChild` | `Parent(Child(t, i)) == t` minden i-re; a 4 gyerek uniója a szülő |
 | `LodInvariance` | level 6 makrostruktúra == level 9-ből aggregálva |
 
