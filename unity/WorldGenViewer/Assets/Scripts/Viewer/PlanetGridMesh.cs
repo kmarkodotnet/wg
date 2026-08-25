@@ -63,12 +63,29 @@ namespace WorldGen.Viewer
 
                         // Facetált normál (tile-onkénti lapos árnyékolás) - ez maga is
                         // vizuálisan kirajzolja a tile-határokat, a vonal-overlay mellett.
+                        // A gömb középpontjától kifelé kell mutatnia - ez geometriailag
+                        // garantált (a pozícióvektorral vett skalárszorzat előjeléből),
+                        // nem a háromszög-bejárási iránytól függ.
                         Vector3 normal = Vector3.Cross(p10 - p00, p01 - p00).normalized;
                         if (Vector3.Dot(normal, p00) < 0f) normal = -normal;
                         normals.Add(normal); normals.Add(normal); normals.Add(normal); normals.Add(normal);
 
-                        triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 1); triangles.Add(baseIndex + 2);
-                        triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 2); triangles.Add(baseIndex + 3);
+                        // A háromszög bejárási iránya (nem csak a normál-attribútum) dönti el
+                        // Unity alatt, hogy a felület melyik oldala látszik (culling). A
+                        // bejárás által implikált normált a fentebb már megbízhatóan kifelé
+                        // irányított "normal"-hoz igazítjuk - ha eltérne, megfordítjuk a
+                        // sorrendet, hogy minden lapon KONZISZTENSEN kifelé nézzen.
+                        Vector3 impliedNormal1 = Vector3.Cross(p10 - p00, p11 - p00);
+                        if (Vector3.Dot(impliedNormal1, normal) >= 0f)
+                        {
+                            triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 1); triangles.Add(baseIndex + 2);
+                            triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 2); triangles.Add(baseIndex + 3);
+                        }
+                        else
+                        {
+                            triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 2); triangles.Add(baseIndex + 1);
+                            triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 3); triangles.Add(baseIndex + 2);
+                        }
 
                         int b = borderVerts.Count;
                         borderVerts.Add(p00); borderVerts.Add(p10); borderVerts.Add(p11); borderVerts.Add(p01);
