@@ -8,5 +8,16 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!--
+      bin/obj a repo gyokerebeli artifacts/ ala kerul, NEM a projekt sajat
+      mappajaba. Ok: a src/WorldGen.Core-t a unity/WorldGenViewer helyi
+      package-kent hivatkozza forras szerint - ha a bin/obj ott maradna,
+      Unity a leforditott .dll-t precompiled pluginkent importalna, AMIG
+      az asmdef ugyanabbol a forrasbol EGY UJABB "WorldGen.Core" assembly-t
+      is fordit -> duplikalt assembly-nev utkozes.
+    -->
+    <BaseOutputPath>$(MSBuildThisFileDirectory)artifacts\bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
   </PropertyGroup>
 </Project>

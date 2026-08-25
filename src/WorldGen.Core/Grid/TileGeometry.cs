@@ -49,12 +49,27 @@ namespace WorldGen.Core.Grid
         }
 
         /// <summary>
+        /// A tile HATÁRAI folytonos lap-lokális [-1,1] koordinátában (nem a
+        /// közepe). Mesh-építéshez kell (a 4 sarok lekérdezéséhez) -
+        /// <see cref="PositionFromFaceUV"/>-vel kombinálva adja a sarkokat.
+        /// </summary>
+        public static void GetContinuousBounds(TileId id, out double uMin, out double uMax, out double vMin, out double vMax)
+        {
+            id.GetUV(out uint u, out uint v);
+            long n = 1L << id.Level;
+            uMin = (double)u / n * 2.0 - 1.0;
+            uMax = (double)(u + 1) / n * 2.0 - 1.0;
+            vMin = (double)v / n * 2.0 - 1.0;
+            vMax = (double)(v + 1) / n * 2.0 - 1.0;
+        }
+
+        /// <summary>
         /// Lap-lokális FOLYTONOS (uc,vc) koordináta -> egységvektor. A [-1,1]
         /// tartományon kívüli bemenet is elfogadott (a szomszédkereséshez
         /// kell, ld. <see cref="TileNeighbors"/>) - a tan-warp ott is
         /// véges és sima, amíg |uc|,|vc| jóval 2 alatt marad.
         /// </summary>
-        internal static void PositionFromFaceUV(int face, double uc, double vc, out double x, out double y, out double z)
+        public static void PositionFromFaceUV(int face, double uc, double vc, out double x, out double y, out double z)
         {
             double wx = WarpTan(uc);
             double wy = WarpTan(vc);

@@ -157,3 +157,49 @@ public class TileGeometryPlausibilityTests
         Assert.False(ax == bx && ay == by && az == bz);
     }
 }
+
+public class TileGeometryBoundsTests
+{
+    [Theory]
+    [InlineData(0, 0, 0, 0u, 0u)]
+    [InlineData(3, 28, 5, 268435455u, 268435455u)]
+    public void BoundsAtOriginAndMaxMatchExpectedRange(int face, int level, int _, uint u, uint v)
+    {
+        TileId id = TileId.FromFaceLevelUV(face, level, u, v);
+        TileGeometry.GetContinuousBounds(id, out double uMin, out double uMax, out double vMin, out double vMax);
+
+        long n = 1L << level;
+        Assert.Equal((double)u / n * 2.0 - 1.0, uMin);
+        Assert.Equal((double)(u + 1) / n * 2.0 - 1.0, uMax);
+        Assert.Equal((double)v / n * 2.0 - 1.0, vMin);
+        Assert.Equal((double)(v + 1) / n * 2.0 - 1.0, vMax);
+        Assert.True(uMin < uMax && vMin < vMax);
+    }
+
+    /// <summary>
+    /// Mesh-építéshez kritikus: két szomszédos (azonos lapon lévő) tile
+    /// osztott sarokpontja BITRE azonos pozíciót ad mindkét tile
+    /// szempontjából - különben a renderelt mesh-en rés (seam) látszana.
+    /// </summary>
+    [Fact]
+    public void AdjacentTilesOnSameFaceShareExactCornerPositions()
+    {
+        const int face = 2, level = 6;
+        TileId a = TileId.FromFaceLevelUV(face, level, 10, 5);
+        TileId b = TileId.FromFaceLevelUV(face, level, 11, 5); // a jobb szomszédja
+
+        TileGeometry.GetContinuousBounds(a, out _, out double aUMax, out double aVMin, out double aVMax);
+        TileGeometry.GetContinuousBounds(b, out double bUMin, out _, out double bVMin, out double bVMax);
+
+        Assert.Equal(aUMax, bUMin);
+        Assert.Equal(aVMin, bVMin);
+        Assert.Equal(aVMax, bVMax);
+
+        TileGeometry.PositionFromFaceUV(face, aUMax, aVMin, out double ax, out double ay, out double az);
+        TileGeometry.PositionFromFaceUV(face, bUMin, bVMin, out double bx, out double by, out double bz);
+
+        Assert.Equal(ax, bx);
+        Assert.Equal(ay, by);
+        Assert.Equal(az, bz);
+    }
+}
