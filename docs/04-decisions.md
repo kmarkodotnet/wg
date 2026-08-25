@@ -51,6 +51,27 @@ ez nem hiba, hanem a választott vetítés natúr viselkedése. Jobb vetítés
 keresése (a korábban felmerült "C" opció) külön munkát igényelt volna
 ismeretlen nyereségért, ezért elutasítva.
 
+### ND-25 — Szomszédszám a kocka sarkainál: 4, nem 3
+
+A §2.4 (`docs/05-milestones.md`) eredeti állítása szerint a 8 kocka-sarkot
+tartalmazó tile-oknak 3 szomszédja van 4 helyett. Kimerítő méréssel
+(`tools/reference/neighbor_ref.py`, level 3/4/5, MINDEN tile, 4-szomszédos
+él-adjacencia: jobbra/balra/fel/le a folytonos uv-térben, majd a már
+verifikált vetítéssel visszaprojektálva) ez **nem igazolódott**: mind a 24
+lap-sarok-tile pontosan 4 disztinkt, szimmetrikus szomszéddal rendelkezik,
+kivétel nélkül, minden mért szinten.
+
+**Döntés:** a `NeighborCount` teszt egységesen `== 4`-et vár el, kivétel
+nélkül (`docs/05-milestones.md` frissítve). Indoklás: egy négyzet alakú
+cella geometriailag mindig 4 éllel rendelkezik, a kocka sarkán ülő cella
+sem kivétel — a 2 lapváltó és 2 lapon-belüli él mind disztinkt szomszédhoz
+vezet. A "3" valószínűleg egy MÁSIK, 8-szomszédos (átlós/vertex-adjacencia)
+kapcsolódási módra vonatkozik, ahol a kocka geometriai csúcsánál ténylegesen
+csak 3 lap találkozik egy pontban — ez akkor válik relevánssá, ha M7-nél
+(hidrológia) D8-jellegű átlós folyásirány-modell kerül bevezetésre. Ha ez
+bekövetkezik, új ND szükséges a 8-szomszédos séma sarok-viselkedésére; ez
+NEM blokkolja a jelen (él-alapú) szomszédsági táblát.
+
 ## Nyitott döntések
 
 ### ND-01 — Technológiai stack ⚠️ BLOKKOLÓ

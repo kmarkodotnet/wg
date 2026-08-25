@@ -103,11 +103,21 @@ A cube-lapok találkozásánál a szomszédság nem triviális:
 
 - A 12 él mentén az `u/v` tengelyek **átfordulnak** — a szomszéd tile
   koordinátáit transzformálni kell.
-- A kocka **8 sarkánál 3 tile találkozik, nem 4**. Ez az eset külön kezelést
-  igényel.
+- A kocka 8 sarkánál 3 LAP találkozik.
 
 Ha ez rossz, folyólefolyásnál és szélmezőnél azonnal látható műterméket okoz —
 folyók, amik "elakadnak" a lap határán.
+
+> A "8 sarkánál 3 tile, nem 4" eredeti állítás **NEM igazolódott** kimerítő
+> méréssel (`tools/reference/neighbor_ref.py`, level 3/4/5, minden tile,
+> 4-szomszédos él-adjacencia): a 24 lap-sarok-tile mindegyikének is
+> pontosan 4 éle (és 4 él-szomszédja) van, szimmetria-hiba nélkül — egy
+> négyzet cella mindig 4 élű, sarkon is. A "3 szomszéd" valószínűleg egy
+> MÁSIK, 8-szomszédos (átlós) kapcsolódási módra igaz, ami a kocka
+> csúcsainál lesz releváns (ott ténylegesen csak 3 lap találkozik egy
+> pontban) — ez a hidrológia/szél D8-jellegű algoritmusainál (M7+) merülhet
+> fel újra, nem a jelen (él-alapú) szomszédsági táblánál. Ld. lezárt
+> döntésként `docs/04-decisions.md`.
 
 **Kötelező tesztek:**
 
@@ -115,7 +125,7 @@ folyók, amik "elakadnak" a lap határán.
 |---|---|
 | `RoundTrip` | `TileId → pozíció → TileId` azonos, minden szinten, minden lapon |
 | `NeighborSymmetry` | ha B szomszédja A-nak, akkor A is szomszédja B-nek — **kivétel nélkül** |
-| `NeighborCount` | minden tile-nak 4 szomszédja van, **kivéve a 8 sarok-tile-t, amiknek 3** |
+| `NeighborCount` | minden tile-nak (a 24 lap-sarok-tile is) pontosan 4 él-szomszédja van — mérve, nincs kivétel (ld. fenti megjegyzés) |
 | `NoGaps` | a 6 lap tile-jainak uniója lefedi a gömböt, átfedés nélkül |
 | `AreaDistribution` | max/min tile-terület arány: level ≤ 6 esetén < 1.40, level ≥ 7 esetén < 1.42 (ND-24) |
 | `ParentChild` | `Parent(Child(t, i)) == t` minden i-re; a 4 gyerek uniója a szülő |

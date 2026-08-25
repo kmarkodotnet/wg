@@ -45,7 +45,17 @@ namespace WorldGen.Core.Grid
             double uc = (u + 0.5) / n * 2.0 - 1.0;
             double vc = (v + 0.5) / n * 2.0 - 1.0;
 
-            int face = id.Face;
+            PositionFromFaceUV(id.Face, uc, vc, out x, out y, out z);
+        }
+
+        /// <summary>
+        /// Lap-lokális FOLYTONOS (uc,vc) koordináta -> egységvektor. A [-1,1]
+        /// tartományon kívüli bemenet is elfogadott (a szomszédkereséshez
+        /// kell, ld. <see cref="TileNeighbors"/>) - a tan-warp ott is
+        /// véges és sima, amíg |uc|,|vc| jóval 2 alatt marad.
+        /// </summary>
+        internal static void PositionFromFaceUV(int face, double uc, double vc, out double x, out double y, out double z)
+        {
             double wx = WarpTan(uc);
             double wy = WarpTan(vc);
 
