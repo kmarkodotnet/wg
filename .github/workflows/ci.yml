@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # A determinizmus a projekt legfontosabb invariansa, ezert a teszteknek
+  # TOBB PLATFORMON es TOBB ARCHITEKTURAN kell futniuk. Egyetlen elteres
+  # azt jelenti, hogy a seedek nem hordozhatok.
+  test:
+    name: ${{ matrix.os }} / ${{ matrix.config }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest, ubuntu-24.04-arm]
+        config: [Debug, Release]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c ${{ matrix.config }}
+
+      - name: Test
+        run: dotnet test --no-build -c ${{ matrix.config }} --verbosity normal
+
+  # A Python referencia az "orakulum". Ha ez elter a hivatalos Random123
+  # vektoroktol, a teljes tesztvektor-keszlet ervenytelen.
+  reference-oracle:
+    name: Referencia-orakulum verifikalasa
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Hivatalos KAT vektorok ellenorzese
+        working-directory: tools/reference
+        run: python verify_kat.py
+      - name: Tesztvektorok ujragenaralasa es osszehasonlitasa
+        working-directory: tools/reference
+        run: |
+          python gen_vectors.py
+          diff testvectors.json ../../tests/WorldGen.Core.Tests/testdata/testvectors.json \
+            && echo "A tesztvektorok reprodukalhatok" \
+            || (echo "ELTERES: a tesztvektorok nem reprodukalhatok a referenciabol" && exit 1)

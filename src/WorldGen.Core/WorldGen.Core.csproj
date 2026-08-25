@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    netstandard2.1 + C# 9 SZANDEKOS es KOTELEZO.
+    Ez az a metszet, ami MINDHAROM cel-stack alatt fordul:
+      - Unity 6 (netstandard2.1 API szint, C# 9 nyelvi szint)
+      - Godot 4 (.NET 8, visszafele kompatibilis)
+      - barmilyen .NET 8 gazdakornyezet
+    NE emeld a LangVersion-t es NE valts netstandard-rol, amig az ND-01
+    (stack-dontes) le nem zarult. Lasd CLAUDE.md.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>WorldGen.Core</AssemblyName>
+    <RootNamespace>WorldGen.Core</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

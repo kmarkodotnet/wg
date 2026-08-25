@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet *)", "Bash(python *)", "Bash(python3 *)",
+      "Bash(git *)", "Read", "Write", "Edit", "Glob", "Grep"
+    ],
+    "deny": [
+      "Bash(rm -rf /*)", "Read(.env*)", "Read(**/secrets/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_FILE_PATH\"; case \"$f\" in *.cs) dotnet format \"$f\" --include \"$f\" >/dev/null 2>&1 || true;; esac"
+          }
+        ]
+      }
+    ]
+  }
+}
