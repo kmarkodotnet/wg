@@ -40,9 +40,10 @@ tools/reference/             Python orákulum a verifikációhoz
 
 | Milestone | Státusz |
 |---|---|
-| M0 — Repo, CI | ✅ (ND-01 stack-döntés még nyitott) |
-| **M1 — Determinisztikus random** | ✅ kód kész, ⚠️ fordítás még nem ellenőrizve |
-| M2 — Grid + első render | Következő |
+| M0 — Repo, CI | ✅ (ND-01 lezárva: Unity 6 + HDRP) |
+| **M1 — Determinisztikus random** | ✅ `dotnet test` zöld, Python referenciával verifikálva |
+| **M2 — Grid** | ✅ `TileId`, Morton, koordináta-konverzió, szomszédság — mind tesztelve |
+| M2 — Render | Folyamatban, `unity-viewer` ágon |
 
 ## A négy invariáns
 

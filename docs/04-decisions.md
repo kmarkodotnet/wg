@@ -11,6 +11,31 @@ explicit és írd ide, vagy vedd fel új ND-ként.
 | **ND-07** | A fotorealisztikus render része-e a projektnek? | **Igen, M2-től folyamatosan** | A kép a generálás elsődleges kimenete (I3). Ha a render a végére kerülne, 8 milestone-nyi hibás irány derülne ki későn. |
 | **ND-23a** | Egységvektor-mintavétel a gömbön | **Elutasításos módszer**, csak `Math.Sqrt`-tel | Bitpontos, mert az IEEE-754 a `sqrt`-re korrekt kerekítést ír elő. Mérve: 1.903 átlagos iteráció (elmélet: 6/π = 1.910). |
 
+### ND-01 — Technológiai stack: Unity 6 + HDRP
+
+Részletes elemzés: `docs/03-unity-hdrp-evaluation.md`. Háromutas mérlegelés
+(Unity 6 + HDRP / Godot 4 + C# / Rust + wgpu) — a döntő érv: a HDRP kész,
+fizikailag megalapozott atmoszféra- (`PhysicallyBasedSky`), felhő- és
+víz-rendszere reálisan 6-10 hét renderelési munkát spórol, és a Burst
+compiler a szimulációs oldalon is közel Rust-szintű teljesítményt ad — a
+projekt két legnagyobb technikai kockázatát csökkenti egyszerre. A hiányzó
+double precision (floating origin kézzel) és a Burst determinizmus-csapdája
+valós, kezelt kockázat, nem elutasítási ok.
+
+**Döntés 4 feltétellel** (mind érvényben, az utolsó 3 új ND-ként nyitva):
+1. A `src/WorldGen.Core` és minden szimulációs modul motorfüggetlen marad
+   (netstandard2.1, nulla Unity-referencia) — **ez már érvényben van**
+   (ND-22), és a Unity-projekt (`unity/WorldGenViewer/`) ezt egy helyi
+   Unity package-ként (forrás szerint, nem másolva) hivatkozza.
+2. `Unity.Mathematics` + `[BurstCompile(FloatMode = FloatMode.Strict)]`
+   kötelező minden szimulációs kódon, CI-ellenőrzéssel → **ND-20**.
+3. A floating origin stratégia M2-ben megtervezve/megvalósítva → **ND-19**.
+4. A HDRP volumetrikus felhő űrből-nézeti működése M2-ben prototípussal
+   ellenőrizve → **ND-21**.
+
+Ha az 1. feltétel bármikor sérülne, a döntés visszafordítható: a viewer
+cserélődik, a mag nem.
+
 ### ND-24 — Cubed sphere vetítés: transzcendens függvény + a területarány valós viselkedése
 
 A §2.2 (`docs/05-milestones.md`) szerinti egyenszögű vetítés
@@ -74,18 +99,42 @@ NEM blokkolja a jelen (él-alapú) szomszédsági táblát.
 
 ## Nyitott döntések
 
-### ND-01 — Technológiai stack ⚠️ BLOKKOLÓ
+### ND-19 — Floating origin stratégia ⚠️ M2
 
-| Opció | Fő előny | Fő hátrány |
-|---|---|---|
-| **Unity 6 + HDRP** | `PhysicallyBasedSky` kész bolygó-atmoszférát ad; Burst közel Rust-szintű perf | Nincs double precision → floating origin kézzel; Burst `FloatMode` csapda; licenc-kiszámíthatóság |
-| **Godot 4 + C#** | `precision=double` build; MIT licenc | Atmoszféra, felhő, víz mind saját shader |
-| **Rust + wgpu** | Legjobb determinizmus és perf | Adatsűrű UI-ra gyenge; lassabb fejlesztés |
+Az ND-01 (Unity 6 + HDRP) miatt aktív. A `float32` világkoordináta 7420 km
+sugárnál a felszín közelében kb. 0.5-1 m felbontást ad — látható
+vertex-remegést és z-fightingot okoz a régiónézetben.
 
-Részletes elemzés: `docs/03-unity-hdrp-evaluation.md`.
+**Javaslat:** kamera-központú világeltolás (a világot mozgatjuk a kamera
+körül, nem fordítva) + logaritmikus depth buffer. Minden rendszernek
+(fizika, particle, UI-világhorgony) tudnia kell róla.
 
-**Amíg nyitott:** a `src/` netstandard2.1 + C# 9 marad, motor-referencia nélkül.
-A döntés így visszafordítható — rossz esetben a viewer cserélődik, a mag nem.
+**Sürgősség:** M2-ben eldöntve/megvalósítva, mielőtt a render-lépés
+elindul — utólag beépíteni fájdalmas.
+
+### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai
+
+Az ND-01 miatt aktív. A Burst alapból `FloatMode.Default`-ban fordít, ami
+engedélyezi a lebegőpontos műveletek átrendezését — ez csendben megsérti
+I1-et. Egyetlen hiányzó `[BurstCompile(FloatMode = FloatMode.Strict)]` csak
+platformok közötti hash-eltérésnél derül ki, ami nagyon drága hibakeresés.
+
+**Javaslat:** CI-szkript vagy Roslyn analyzer, ami hibát dob minden
+`WorldGen.*` névtérbeli `[BurstCompile]`-ra, aminek nincs
+`FloatMode = FloatMode.Strict` paramétere.
+
+**Sürgősség:** amint az első Burst-kód megjelenik a szimulációs oldalon —
+ne utólag foltozzuk be.
+
+### ND-21 — HDRP volumetrikus felhő űrből ⚠️ M2
+
+Az ND-01 miatt aktív. A HDRP volumetrikus felhőrendszere eredetileg
+földfelszíni nézetre készült; bizonytalan, hogy az űrből nézett teljes
+bolygó felhőzete milyen minőségű.
+
+**Javaslat:** M2-ben prototípussal ellenőrizni. Ha nem működik jól, a
+Planet nézet felhői saját shaderrel készülnek — ez befolyásolja a
+fidelity-becslést (`docs/02-fidelity-strategy.md`).
 
 ### ND-23b — Transzcendens függvények a kritikus úton
 
@@ -121,7 +170,4 @@ sebességeknél és az esemény-magnitúdóknál jön elő.
 | ND-16 | Neurális sütés hatóköre | Progresszív, zoomra — a teljes level 12 nem fér el | ND-13-mal |
 | ND-17 | Denoise strength plafon | 0.35, elevation-korrelációs teszttel | ND-13 után |
 | ND-18 | Erózió cél-LOD | 12 | M7 |
-| ND-19 | Floating origin (ha Unity) | Kamera-központú eltolás + logaritmikus depth | M2, ha Unity |
-| ND-20 | Burst `FloatMode.Strict` kikényszerítése (ha Unity) | Roslyn analyzer vagy CI-szkript | M1, ha Unity |
-| ND-21 | HDRP volumetrikus felhő űrből (ha Unity) | Prototípussal ellenőrizni; fallback saját shader | M2, ha Unity |
 | ND-22 | Core assembly-izoláció | netstandard2.1, nulla motor-referencia | **Érvényben** |

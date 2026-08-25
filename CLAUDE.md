@@ -130,13 +130,20 @@ Ha ilyet csinálsz, emeld a megfelelő verziószámot és írd le a döntésekbe
 
 ## Állapot
 
-**Kész:** M1 — determinisztikus random réteg (`src/WorldGen.Core/Random/`).
-**Következő:** M2 — `Core.Grid`: cubed sphere, Morton-`TileId`, LOD, szomszédság.
+**Kész:** M1 — determinisztikus random réteg. M2 rács-matek — `TileId`,
+Morton-kódolás, koordináta-konverzió, szomszédsági tábla
+(`src/WorldGen.Core/Grid/`), mind tesztelve.
+**Következő:** M2 render-lépése — `unity/WorldGenViewer/` (`unity-viewer`
+ágon), a forgatható gömb-render, ami vizuálisan validálja a rácsot.
 
 Részletek: `docs/05-milestones.md`.
 
-**A legfontosabb nyitott döntés: ND-01 (stack).** Amíg nyitott, a mag
-motorfüggetlen marad. Ne hozz olyan döntést, ami ezt előre eldönti.
+**ND-01 lezárva: Unity 6 + HDRP.** A `src/` motorfüggetlensége (netstandard2.1,
+nulla Unity-referencia) ettől függetlenül megmarad — a Unity-projekt a
+`src/WorldGen.Core`-t helyi package-ként, forrás szerint hivatkozza, nem
+másolja. Aktív nyitott döntések a választás miatt: **ND-19** (floating
+origin), **ND-20** (Burst `FloatMode.Strict` CI-kikényszerítés), **ND-21**
+(HDRP felhő űrből — prototípussal ellenőrizendő).
 
 ## Nyelv
 
