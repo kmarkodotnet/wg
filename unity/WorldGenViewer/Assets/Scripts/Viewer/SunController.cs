@@ -40,7 +40,9 @@ namespace WorldGen.Viewer
         [SerializeField] private double currentTimeDays = 0.0;
 
         [SerializeField] private bool autoAdvance = false;
-        [SerializeField] private double daysPerSecond = 5.0;
+        [Tooltip("5.0 tul gyors volt (napi forgas < 1 mp alatt lezajlott) - " +
+                 "0.05-tel egy teljes nap kb. 20 masodperc, jol kovetheto.")]
+        [SerializeField] private double daysPerSecond = 0.05;
 
         private void OnEnable() => ApplySunDirection();
         private void OnValidate() => ApplySunDirection();
@@ -64,7 +66,7 @@ namespace WorldGen.Viewer
                 orbitalPhase0, rotationPhase0,
                 out double x, out double y, out double z);
 
-            var sunDirection = new Vector3((float)x, (float)y, (float)z);
+            Vector3 sunDirection = BodyFrameConversion.ToUnity(x, y, z);
             // A fény a csillagtol a bolygo fele halad - a nap-irannyal
             // ELLENTETES iranyba "nez" (a Directional Light a sajat
             // +Z tengelye menten sugaroz).
