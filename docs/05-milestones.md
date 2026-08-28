@@ -244,3 +244,70 @@ pont, ahol megint vizuálisan be kell kapcsolódnod.
 
 Ugyanaz a minta, mint M1-M3-nál: **referencia → verifikálás → C# → mérés**,
 csak itt több al-lépésre bontva a nagyobb terjedelem miatt.
+
+---
+
+## M5 — Következő, részletes terv
+
+### Cél
+
+Éghajlati övek felismerhetők — biome-színek, hó/jégsapkák (vizuális
+kimenet, render csak a Unity-lépésben).
+
+### Hatókör (tudatosan szűkítve, a §28-32 teljes spec-tartalmához képest)
+
+A §28.1 teljes hőmérséklet-egyenlete (`T = T_radiative + T_greenhouse +
+T_ocean - T_altitude + T_weather + T_cycle`) hat komponensből áll. M5
+első körben csak a **fizikailag legmeghatározóbb kettőt** implementálja:
+
+- **T_radiative** (§28.2): Stefan–Boltzmann sugárzási egyensúly, a már
+  meglévő `OrbitalMechanics.Insolation`-ból (M3) számolt fluxusból.
+- **T_altitude** (§28.3): lapse rate × magasság, a már meglévő
+  `PlateBoundaryEffect`/`CrustElevation` (M4) elevációjából.
+
+**Halasztva** (dokumentált, nem hiányosság):
+- `T_greenhouse`, `T_ocean`, `T_weather`, `T_cycle` — finomítás, ha a
+  vizuális/numerikus eredmény indokolja.
+- Szél (§30), nedvesség/csapadék (§31), időjárás (§32) — ezek külön
+  al-rendszerek, saját referencia-előbb ciklust igényelnek; M5 első
+  köre a HŐMÉRSÉKLETI övekre és az ebből adódó jég/hó-classifikációra
+  szorítkozik, ami már önmagában kielégíti a "Kész, ha" kritériumot
+  (éghajlati övek felismerhetők = hideg pólus, meleg egyenlítő, hideg
+  magashegység).
+
+Ez ugyanaz a mintázat, mint M3-nál (kör pálya) és M4-nél (statikus
+lemez-pillanatkép): a milestone saját elfogadási kritériumát elégítjük ki
+először, nem a teljes spec-tartalmat egyszerre.
+
+### 5.1 Hőmérséklet (§28.2-28.3)
+
+```
+T_eq(F, A) = C * (F * (1 - A) / (4 * sigma))^(1/4)
+T_altitude = Γ * elevation
+T = T_eq - T_altitude
+```
+
+`sigma` a Stefan-Boltzmann állandó, `A` egyelőre fix albedo-közelítés
+(óceán/szárazföld szerint, később a §29 teljes albedo-modell), `Γ` a
+lapse rate (~6.5 °C/km, Föld-szerű illusztrációhoz).
+
+**FIGYELEM:** a negyedik gyök (`^(1/4)` = `Math.Pow(x, 0.25)`) **transzcendens
+függvény** — ND-23b/26 osztály. Ugyanazt a mintát követjük, mint ND-26-nál:
+M5-ben a kimenet egyelőre csak vizuális/biome-osztályozás bemenete, nem
+checkpointolt szimulációs állapot — ha ez változik, új ND-döntés kell.
+
+### 5.2 Biome/jég-osztályozás
+
+Egyszerű küszöb-alapú osztályozás a hőmérséklet + víz/szárazföld (M4)
+alapján: jégsapka (nagyon hideg), tundra, sivatag, erdő, óceán — ND-10
+("Biome-küszöbök") már nyitott döntésként szerepel erre.
+
+### 5.3 Javasolt sorrend
+
+1. `tools/reference/` — Python hőmérséklet-referencia, ismert fizikai
+   értékekhez mérve (pl. Föld átlaghőmérséklete becsült paraméterekkel)
+2. C# port + tesztek (5.1)
+3. Biome-osztályozás (5.2)
+4. Unity render-kiegészítés — vizuális ellenőrzésed szükséges
+
+Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → mérés**.
