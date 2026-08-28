@@ -367,3 +367,76 @@ végtelen ciklus, nincs helyben ragadás.
    szükséges
 
 Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → mérés**.
+
+---
+
+## M8 — Következő, részletes terv
+
+### Cél
+
+Minden panelmezőnek valós forrása van (I4) — World/Continent/Region
+panelek élesben (`docs/01-architecture.md` §2).
+
+### Hatókör (tudatosan szűkítve, a §2 + §6 teljes tartalmához képest)
+
+**Benne van:**
+- **Kontinens-szegmentálás** — már megvan (`SeaLevelCalibration.
+  CountContinents`, M7-ből újrahasznosítva), csak metrikákkal bővítve
+  (terület, biome-diverzitás).
+- **Régió-szegmentálás EGYSZERŰSÍTVE**: csak vízgyűjtő-alapú (a
+  `FlowNetwork` már meglévő szülő-fájából — minden szárazföld-tile
+  ugyanahhoz a régióhoz tartozik, mint az óceán-"gyökér" tile, amihez
+  végül lefolyik). A spec ND-05 hibrid kritériuma (vízgyűjtő ∪ biome-
+  klaszter ∪ domborzati törés) közül csak az első van benne — a
+  biome-klaszter/domborzati törés finomítás később.
+- **Alap névgenerálás**: szótag-tő (seedelt minta) + biome-alapú (nem
+  teljes morfológiai tipizálású) utótag-készlet.
+- **Néhány panel-mező**, aminek MÁR VAN valós forrása: Ocean coverage
+  (World), Name/Area/Biomes/River basins (Continent + Region).
+
+**Halasztva** (dokumentált, nem hiányosság):
+- **Morfológiai típusfelismerés** (§6.2 — delta/hegylánc/medence
+  mintafelismerés) — a biome-alapú utótag ennek egyszerűsített
+  közelítése.
+- **Deep-time identitáskövetés** (§6.4, ND-11) — a spec maga is "a
+  legnehezebb rész"-nek nevezi, és M10 (deep time) nélkül nincs mit
+  követni (nincs még lemezmozgás/szétszakadás esemény).
+- **Ordinális kvantálás kalibrálása** (§2.4, ND-09 — ~1000 generált
+  világ referencia-eloszlása kellene) — a legtöbb "Low/Moderate/High"
+  jellegű mező kimarad ebből a körből, csak a közvetlenül számolható
+  (terület, darabszám, %) mezők kerülnek be.
+- A legtöbb World/Continent/Region panel-mező (pl. Habitability,
+  Coastal complexity, Soil fertility) — ezek más, még nem épített
+  modulokra épülnek (talaj, részletes klíma).
+
+### 8.1 Régió-szegmentálás (vízgyűjtő-alapú)
+
+Minden szárazföld-tile "régiója" = az óceán-tile, amihez a `FlowNetwork`
+szülő-láncán végül lefolyik. Ez már rendelkezésre áll a priority-flood
+eredményéből, csak csoportosítani kell rá.
+
+### 8.2 Névgenerálás
+
+`Sample(seed, "NAME", featureId)` → szótagválasztás a `RandomDomain.
+Naming` doménből (M1-ben már fenntartva) + biome-alapú "hangulati"
+utótag-készlet (§6.3 mintájára: hideg → Frost-/Rime-, vizes → Silver-/
+Tide-).
+
+### 8.3 Aggregált metrikák
+
+Kontinensenként/régiónként: terület (Σ tile-terület), biome-diverzitás
+(distinct biome-ok száma), folyó-torkolatok száma (a régióba eső folyó-
+tile-ok, amik óceánba folynak).
+
+**Kötelező teszt:** minden generált panel-mezőre van egyértelmű,
+visszakövethető számítási lánc (I4) — nincs kitalált/placeholder érték.
+
+### 8.4 Javasolt sorrend
+
+1. `tools/reference/` — Python szegmentálás + névgenerálás + metrikák
+2. C# port + tesztek
+3. Unity render-kiegészítés (kontinens/régió-határok kiemelése,
+   esetleg egy egyszerű debug-panel a nevekkel/metrikákkal) —
+   vizuális ellenőrzésed szükséges
+
+Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → mérés**.
