@@ -8,8 +8,8 @@ enélkül nem derül ki időben, ha valami rossz irányba megy.
 | M0 | Döntések | ND-01, repo, CI | — | ✅ repo és CI kész; ND-01 **nyitott** |
 | **M1** | **Determinisztikus alap** | PRNG, tesztvektorok | — | ✅ **Kész** |
 | **M2** | **Grid + első render** | Cubed sphere, TileId, LOD, szomszédság, nyers gömb-render | Szürke gömb, tile-határokkal | ✅ **Vizuálisan megerősítve** |
-| M3 | Csillagászat + világítás | Csillagok, pálya, rotáció, insoláció | Megvilágított gömb, terminátorral | Évszakok látszanak a terminátor mozgásán |
-| M4 | Geológia + domborzat | Lemezek, kéreg, elevation, tengerszint | Kontinensek, óceánok, árnyékolt hegyek | `TEST-EARTH-001`: 50–75% víz, több kontinens |
+| **M3** | **Csillagászat + világítás** | Csillagok, pálya, rotáció, insoláció | Megvilágított gömb, terminátorral | ✅ **Vizuálisan megerősítve** |
+| **M4** | **Geológia + domborzat** | Lemezek, kéreg, elevation, tengerszint | Kontinensek, óceánok, árnyékolt hegyek | `TEST-EARTH-001`: 50–75% víz, több kontinens — **Következő** |
 | M5 | Klíma | Hőmérséklet, szél, nedvesség, csapadék | Biome-színek, hó, jégsapkák | Éghajlati övek felismerhetők |
 | M6 | Atmoszféra-render | Rayleigh-szórás, felhők, ciklonok | Planet nézet lényegében kész | Referenciakép 2 szintjén ~80% |
 | M7 | Hidrológia + erózió | Folyók, tavak, gleccser, A1 eróziós pass | Folyók a kontinensnézeten, mikro-vízrajz | Folyók hegyből tengerbe futnak |
@@ -156,3 +156,91 @@ LOD-on ki lehessen kapcsolni a határvonalakat). A "Kész, ha" kritérium
 5. Csak ezután a render
 
 Ez ugyanaz a minta, mint M1-nél: **referencia → verifikálás → C# → mérés**.
+
+---
+
+## M4 — Következő, részletes terv
+
+### Cél
+
+Kontinensek, óceánok, árnyékolt hegyek — `TEST-EARTH-001` teljesítése
+(50–75% víz, több kontinens).
+
+### Hatókör (tudatosan szűkítve, a §14-21 teljes spec-tartalmához képest)
+
+A specifikáció (§14 Tektonikai modell) teljes verziója **lemezmozgást**
+(§14.2, Euler-rotáció idővel), **lemez-születést/-halált** (§16),
+**differenciál-egyenletes uplift/erózió egyensúlyt** (§17-18) ír le — ez
+mind **deep-time** tartalom, amit a milestone-terv saját maga M10-re
+(Deep time) sorol. M4 "Kész, ha" kritériuma egy **statikus pillanatkép**:
+nem kell mozgó lemez ahhoz, hogy 50-75% víz és több kontinens meglegyen.
+
+M4-ben ezért:
+- **Lemezek helyzete fix** (nincs `P(t) = R(ωt)P_0` mozgás — az M10-re marad).
+- **Uplift/erózió statikus közelítés** (lemezhatár-típus szerinti fix
+  magasság-hozzájárulás, nem a §17.2 differenciálegyenlet id��ben integrálva).
+- **Lemez-születés/-halál (§16) nincs** — fix `plateCount` a világ elejétől.
+
+Ez ugyanaz a mintázat, mint az M3-nál (kör pálya, nem teljes Kepler-ellipszis)
+— a cél a milestone saját elfogadási kritériumának teljesítése, nem a teljes
+spec egyszerre.
+
+### 4.1 Lemez-generálás (§14.1)
+
+`plateCount` (tipikusan 6-30, ld. spec) Euler-pólus + szögsebesség
+lemezenként, a már meglévő `RandomDomain.Tectonics` / `RandomProperty.
+PlateSeedPoint`, `EulerPole`, `PlateVelocity` konstansokkal (ezek M1-ben
+már fenn vannak tartva, ld. `RandomDomain.cs`) és a már verifikált
+`DeterministicRandom.SampleUnitVector3`-mal (gömbi egyenletes mintavétel).
+
+Minden tile a **legközelebbi lemez-mag** alapján kap `PlateId`-t (gömbi
+Voronoi — legközelebbi Euler-pólus nagykör-távolság szerint).
+
+**Kötelező tesztek:** minden tile pontosan egy lemezhez tartozik; a
+lemezterületek eloszlása plauzibilis (nincs egy lemez, ami elnyeli az
+egész gömböt); a `PlateId`-hozzárendelés tiszta függvény (determinisztikus,
+sorrend-független).
+
+### 4.2 Kéregtípus és alap-elevation (§13, §17)
+
+Lemezenként `CrustType` (óceáni/kontinentális), seedelve úgy, hogy a
+végső víz-arány a 4.4 lépésben kalibrálható legyen. Alap-magasság
+kéregtípus szerint (óceáni: negatív bázis, kontinentális: pozitív bázis)
++ fraktál-zaj részlet (§13.2 `H_0` egyszerűsített, `w_c·C + w_f·F` tagokkal
+kezdve, `R`/ridged-hegység és `V`/vulkáni mező később, 4.3-ban).
+
+### 4.3 Lemezhatár-hatás (§14.3, statikus közelítés)
+
+Konvergens határ közelében uplift-bónusz (hegység-proxy), divergens
+határ közelében enyhe süllyedés (rift-proxy) — fix, távolság-alapú
+csillapítással a határtól, NEM időben integrált differenciálegyenlet.
+
+### 4.4 Tengerszint-kalibráció + `TEST-EARTH-001`
+
+A tengerszintet úgy állítjuk be (a magasság-eloszlás percentilise alapján),
+hogy a víz-arány a 50-75%-os célsávba essen. Ez teszi determinisztikusan
+mérhetővé és ismételhetővé a `TEST-EARTH-001` kritériumot.
+
+**Kötelező teszt:** `TEST-EARTH-001` — a világ víz-aránya 50-75% között,
+és legalább N (pl. 2) diszjunkt, minimális méretet meghaladó szárazföld-
+kontinens azonosítható (flood-fill / összefüggő komponens számlálással).
+
+### 4.5 Render (Unity-vizuális ellenőrzés)
+
+A `PlanetGridMesh` kiegészítése: a tile-vertexek radiálisan eltolva az
+elevation-nel arányosan (hegyek/óceánmedencék láthatóvá válnak), szín
+kéreg-típus/magasság szerint (kék óceán, zöld-barna szárazföld) — ez az a
+pont, ahol megint vizuálisan be kell kapcsolódnod.
+
+### 4.6 Javasolt sorrend
+
+1. `tools/reference/` — Python lemez-generálás (Voronoi-hozzárendelés) +
+   területeloszlás mérése
+2. C# port + tesztek (4.1)
+3. Python + C# kéregtípus/alap-elevation (4.2)
+4. Python + C# lemezhatár-hatás (4.3)
+5. Python + C# tengerszint-kalibráció + `TEST-EARTH-001` (4.4)
+6. Unity render-kiegészítés (4.5) — vizuális ellenőrzésed szükséges
+
+Ugyanaz a minta, mint M1-M3-nál: **referencia → verifikálás → C# → mérés**,
+csak itt több al-lépésre bontva a nagyobb terjedelem miatt.
