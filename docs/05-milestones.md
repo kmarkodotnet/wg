@@ -7,7 +7,7 @@ enélkül nem derül ki időben, ha valami rossz irányba megy.
 |---|---|---|---|---|
 | M0 | Döntések | ND-01, repo, CI | — | ✅ repo és CI kész; ND-01 **nyitott** |
 | **M1** | **Determinisztikus alap** | PRNG, tesztvektorok | — | ✅ **Kész** |
-| **M2** | **Grid + első render** | Cubed sphere, TileId, LOD, szomszédság, nyers gömb-render | Szürke gömb, tile-határokkal | **Következő** |
+| **M2** | **Grid + első render** | Cubed sphere, TileId, LOD, szomszédság, nyers gömb-render | Szürke gömb, tile-határokkal | ✅ **Vizuálisan megerősítve** |
 | M3 | Csillagászat + világítás | Csillagok, pálya, rotáció, insoláció | Megvilágított gömb, terminátorral | Évszakok látszanak a terminátor mozgásán |
 | M4 | Geológia + domborzat | Lemezek, kéreg, elevation, tengerszint | Kontinensek, óceánok, árnyékolt hegyek | `TEST-EARTH-001`: 50–75% víz, több kontinens |
 | M5 | Klíma | Hőmérséklet, szél, nedvesség, csapadék | Biome-színek, hó, jégsapkák | Éghajlati övek felismerhetők |
@@ -131,11 +131,21 @@ folyók, amik "elakadnak" a lap határán.
 | `ParentChild` | `Parent(Child(t, i)) == t` minden i-re; a 4 gyerek uniója a szülő |
 | `LodInvariance` | level 6 makrostruktúra == level 9-ből aggregálva |
 
-### 2.5 Render (a stack-döntés után)
+### 2.5 Render (a stack-döntés után) — ✅ vizuálisan megerősítve
 
 Forgatható gömb, tile-határok láthatók, LOD kamera-távolság szerint vált.
 Ennek a célja nem a szépség, hanem a **vizuális rács-validáció**: ha a
 szomszédság rossz, a tile-határokon látszani fog.
+
+A `unity/WorldGenViewer/Assets/Scripts/Viewer/PlanetGridMesh.cs` (rács →
+Unity mesh híd) Game módban ellenőrizve: szürke gömb, tile-határokkal,
+hézagok/geometriai hibák nélkül level 2, 5 és 6-nál. Level 7-nél
+(98 304 tile) a sok vékony határvonal moiré-mintázatot ad a képernyőn — ez
+**optikai aliasing**, nem geometriai hiba (a rács helyessége már unit
+tesztekkel és alacsonyabb LOD-on vizuálisan is bizonyított; a
+`PlanetGridMesh` időközben `showBorders` kapcsolót is kapott, hogy magas
+LOD-on ki lehessen kapcsolni a határvonalakat). A "Kész, ha" kritérium
+(szürke gömb, tile-határokkal) ezzel teljesült.
 
 ### 2.6 Javasolt sorrend
 

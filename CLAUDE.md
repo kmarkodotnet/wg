@@ -132,9 +132,15 @@ Ha ilyet csinálsz, emeld a megfelelő verziószámot és írd le a döntésekbe
 
 **Kész:** M1 — determinisztikus random réteg. M2 rács-matek — `TileId`,
 Morton-kódolás, koordináta-konverzió, szomszédsági tábla
-(`src/WorldGen.Core/Grid/`), mind tesztelve.
-**Következő:** M2 render-lépése — `unity/WorldGenViewer/` (`unity-viewer`
-ágon), a forgatható gömb-render, ami vizuálisan validálja a rácsot.
+(`src/WorldGen.Core/Grid/`), mind tesztelve. M2 render-lépése —
+`unity/WorldGenViewer/` (`unity-viewer` ágon): a `PlanetGridMesh` rács →
+Unity mesh híd Game módban vizuálisan megerősítve — szürke gömb,
+tile-határokkal, hézagok nélkül level 2/5/6-nál (level 7-nél a sűrű
+határvonalak optikai aliasingot adnak, ami nem geometriai hiba). Az M2
+"Kész, ha" kritériuma (szürke gömb, tile-határokkal) teljesült.
+**Következő:** M3 — csillagászat + világítás (megvilágított gömb,
+terminátorral), vagy előtte az ND-19 (floating origin) rendezése, mielőtt
+éles bolygóméretre váltanánk.
 
 Részletek: `docs/05-milestones.md`.
 

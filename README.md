@@ -43,7 +43,7 @@ tools/reference/             Python orákulum a verifikációhoz
 | M0 — Repo, CI | ✅ (ND-01 lezárva: Unity 6 + HDRP) |
 | **M1 — Determinisztikus random** | ✅ `dotnet test` zöld, Python referenciával verifikálva |
 | **M2 — Grid** | ✅ `TileId`, Morton, koordináta-konverzió, szomszédság — mind tesztelve |
-| M2 — Render | Folyamatban, `unity-viewer` ágon |
+| M2 — Render | ✅ Vizuálisan megerősítve (`unity-viewer` ágon): szürke gömb, tile-határokkal, level 2/5/6 hézagmentes |
 
 ## A négy invariáns
 
