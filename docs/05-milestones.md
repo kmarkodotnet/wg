@@ -13,7 +13,7 @@ enélkül nem derül ki időben, ha valami rossz irányba megy.
 | **M5** | **Klíma** | Hőmérséklet, szél, nedvesség, csapadék | Biome-színek, hó, jégsapkák | ✅ **Vizuálisan megerősítve** (hőmérséklet+biome-sáv, 138/138 teszt); szél/nedvesség/csapadék halasztva (ld. hatókör) |
 | M6 | Atmoszféra-render | Rayleigh-szórás, felhők, ciklonok | Planet nézet lényegében kész | Referenciakép 2 szintjén ~80% |
 | **M7** | **Hidrológia + erózió** | Folyók, tavak, gleccser, A1 eróziós pass | Folyók a kontinensnézeten, mikro-vízrajz | ✅ **Vizuálisan megerősítve** ("folyók hegyből tengerbe futnak" strukturálisan bizonyítva, 146/146 teszt); tavak/jég/erózió halasztva |
-| M8 | Features + panelek | Szegmentálás, névadás, aggregált metrikák | World/Continent/Region panelek élesben | Minden panelmezőnek valós forrása van (I4) |
+| **M8** | **Features + panelek** | Szegmentálás, névadás, aggregált metrikák | World/Continent/Region panelek élesben | Kontinens/régió-szegmentálás + névgenerálás ✅ **numerikusan kész** (153/153 teszt); a legtöbb panel-mező (Habitability, Coastal complexity stb.) halasztva; vizuális render hátra |
 | M9 | Continent + Region nézet | Magas LOD, displacement, kamera-átmenetek | Referenciakép 1, 3, 4 szintje | Zoom-átmenet folyamatos |
 | M10 | Deep time | Lemezmozgás, erózió, eljegesedés, tengerszint | Az időcsúszka él | TimeTravel + TimestepInvariance zöld |
 | M11 | Események | Becsapódás, vulkán, rift, split/merge | Kráterek, kitörések láthatók | Acceptance A–E zöld |
