@@ -9,8 +9,8 @@ enélkül nem derül ki időben, ha valami rossz irányba megy.
 | **M1** | **Determinisztikus alap** | PRNG, tesztvektorok | — | ✅ **Kész** |
 | **M2** | **Grid + első render** | Cubed sphere, TileId, LOD, szomszédság, nyers gömb-render | Szürke gömb, tile-határokkal | ✅ **Vizuálisan megerősítve** |
 | **M3** | **Csillagászat + világítás** | Csillagok, pálya, rotáció, insoláció | Megvilágított gömb, terminátorral | ✅ **Vizuálisan megerősítve** |
-| **M4** | **Geológia + domborzat** | Lemezek, kéreg, elevation, tengerszint | Kontinensek, óceánok, árnyékolt hegyek | `TEST-EARTH-001` ✅ **numerikusan teljesítve** (117/117 teszt) — vizuális render (§4.5) hátra |
-| **M5** | **Klíma** | Hőmérséklet, szél, nedvesség, csapadék | Biome-színek, hó, jégsapkák | Hőmérséklet+biome-osztályozás ✅ **numerikusan kész** (138/138 teszt); szél/csapadék halasztva (ld. hatókör); vizuális render hátra |
+| **M4** | **Geológia + domborzat** | Lemezek, kéreg, elevation, tengerszint | Kontinensek, óceánok, árnyékolt hegyek | ✅ **Vizuálisan megerősítve** — `TEST-EARTH-001` numerikusan is teljesítve (117/117 teszt). Ismert korlát: a §13.2 fraktál-zaj hiánya miatt a partvonalak/hegyláncok Voronoi-cella-szerűen szabályosak — tudatosan M13 (Polish)-ra halasztva. |
+| **M5** | **Klíma** | Hőmérséklet, szél, nedvesség, csapadék | Biome-színek, hó, jégsapkák | ✅ **Vizuálisan megerősítve** (hőmérséklet+biome-sáv, 138/138 teszt); szél/nedvesség/csapadék halasztva (ld. hatókör) |
 | M6 | Atmoszféra-render | Rayleigh-szórás, felhők, ciklonok | Planet nézet lényegében kész | Referenciakép 2 szintjén ~80% |
 | M7 | Hidrológia + erózió | Folyók, tavak, gleccser, A1 eróziós pass | Folyók a kontinensnézeten, mikro-vízrajz | Folyók hegyből tengerbe futnak |
 | M8 | Features + panelek | Szegmentálás, névadás, aggregált metrikák | World/Continent/Region panelek élesben | Minden panelmezőnek valós forrása van (I4) |
