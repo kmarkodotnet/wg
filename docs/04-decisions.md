@@ -143,6 +143,32 @@ fluxus/inszoláció ténylegesen szimulációs bemenetté (és checkpointolt
 állapottá) válik — analóg az ND-23b döntéssel (saját polinomiális
 implementáció vagy előre számolt tábla + interpoláció közül választva).
 
+**M5-nél visszatérve: ld. ND-27** — a kockázat továbbra is elfogadva marad,
+de a hatókör kibővül és egy kemény, visszavonhatatlan határidő kerül rá.
+
+### ND-27 — ND-26 visszatérése M5-nél: kockázat elfogadva, de M12 (checkpoint) előtt kötelező lezárni
+
+Az ND-26-ban rögzített visszatérési pont: a hőmérséklet-modell (§28.2,
+Stefan–Boltzmann sugárzási egyensúly, `Math.Pow(x, 0.25)`) ténylegesen a
+`OrbitalMechanics.Insolation`-t (Sin/Cos-alapú) használja szimulációs
+bemenetként, aminek kimenete (`TemperatureField`, ld. spec §5.4) idővel
+checkpointolt állapottá válik.
+
+**Döntés (felhasználó jóváhagyta a javaslatot):** a kockázat **továbbra is
+elfogadva** — az A opció (ld. ND-26 táblázata) marad érvényben, MOST MÁR a
+klíma-modulra is kiterjesztve, nem csak a csillagászatra. Indoklás: a
+jelenlegi cél a **vizuális validáció** (klímazónák felismerhetők-e), nem a
+végleges perzisztencia — a B (saját polinomiális implementáció) és C
+(előre számolt tábla) opciók jelentős önálló munkát igényelnek, amit nem
+indokolt a vizuális validáció előtt elvégezni.
+
+**KEMÉNY, VISSZAVONHATATLAN HATÁRIDŐ:** a `TemperatureField` (és minden
+rá épülő, Sin/Cos/Pow-alapú szimulációs mező) checkpointolása/perzisztálása
+(**M12**) **előtt** ezt a kockázatot **kötelezően fel kell számolni** — a B
+vagy C opció közül választva, véglegesen. M12-nél ez **nem halasztható
+tovább** — ha addig nem történik meg, M12 nem kezdődhet el a checkpoint-
+rendszeren, amíg ez nincs lezárva.
+
 ## Nyitott döntések
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai
