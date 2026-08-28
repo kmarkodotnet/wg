@@ -139,16 +139,17 @@ tile-határokkal, hézagok nélkül level 2/5/6-nál (level 7-nél a sűrű
 határvonalak optikai aliasingot adnak, ami nem geometriai hiba). Az M2
 "Kész, ha" kritériuma (szürke gömb, tile-határokkal) teljesült.
 **Következő:** M3 — csillagászat + világítás (megvilágított gömb,
-terminátorral), vagy előtte az ND-19 (floating origin) rendezése, mielőtt
-éles bolygóméretre váltanánk.
+terminátorral). Az ND-19 (floating origin) NEM blokkolja: a HDRP
+`Directional Light` csak irányt igényel, nem pozíciót, tehát M3-nak nem
+kell valós léptékű koordináta — ND-19 implementációja M9-re halasztva.
 
 Részletek: `docs/05-milestones.md`.
 
 **ND-01 lezárva: Unity 6 + HDRP.** A `src/` motorfüggetlensége (netstandard2.1,
 nulla Unity-referencia) ettől függetlenül megmarad — a Unity-projekt a
 `src/WorldGen.Core`-t helyi package-ként, forrás szerint hivatkozza, nem
-másolja. Aktív nyitott döntések a választás miatt: **ND-19** (floating
-origin), **ND-20** (Burst `FloatMode.Strict` CI-kikényszerítés), **ND-21**
+másolja. Aktív nyitott döntések a választás miatt: **ND-20** (Burst
+`FloatMode.Strict` CI-kikényszerítés), **ND-21**
 (HDRP felhő űrből — prototípussal ellenőrizendő).
 
 ## Nyelv

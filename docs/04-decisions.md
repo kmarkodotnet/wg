@@ -76,6 +76,30 @@ ez nem hiba, hanem a választott vetítés natúr viselkedése. Jobb vetítés
 keresése (a korábban felmerült "C" opció) külön munkát igényelt volna
 ismeretlen nyereségért, ezért elutasítva.
 
+### ND-19 — Floating origin implementációja: HALASZTVA M9-re
+
+Az ND-01 (Unity 6 + HDRP) aktiválta, M2/M3-ra sürgősnek jelölve — újragondolva
+M3 (csillagászat + fény) tervezésekor.
+
+**A felismerés:** a HDRP `Directional Light` (a Nap-szimulációhoz) fizikailag
+**nem rendelkezik érdemi pozícióval**, csak **iránnyal** (rotációval), mert
+végtelen távoli fényforrást modellez. Ebből következik: a Core-oldali
+(`double` pontosságú, motorfüggetlen) csillagászat-számítás sosem kell, hogy
+nyers, nagy-értékű pozícióként (pl. "150 millió km-re a Nap") kerüljön
+Unity-koordinátába — elég egy **normalizált irányvektor**, ami `float32`-ben
+is pontos, mérettől függetlenül.
+
+A `float32` precíziós probléma (amiért ND-19 eredetileg felmerült) csak akkor
+jelentkezne, ha a kamera **valós, km-skálájú bolygófelszín közelébe** kerülne.
+A bolygó jelenleg (és M3 után is) önkényes `radius=100` Unity-egységben van,
+nem valós méretben.
+
+**Döntés:** az implementáció **halasztva M9-re** (Continent + Region nézet),
+vagy amikorra ténylegesen éles bolygóméretre váltunk — M2/M3 nem függ tőle.
+A konkrét technika (kamera-központú eltolás + logaritmikus depth, vagy
+szektorált rebase — ld. `JakubNei/UnityProceduralPlanets` kutatás) továbbra
+is nyitott, csak nem sürgős.
+
 ### ND-25 — Szomszédszám a kocka sarkainál: 4, nem 3
 
 A §2.4 (`docs/05-milestones.md`) eredeti állítása szerint a 8 kocka-sarkot
@@ -98,19 +122,6 @@ bekövetkezik, új ND szükséges a 8-szomszédos séma sarok-viselkedésére; e
 NEM blokkolja a jelen (él-alapú) szomszédsági táblát.
 
 ## Nyitott döntések
-
-### ND-19 — Floating origin stratégia ⚠️ M2
-
-Az ND-01 (Unity 6 + HDRP) miatt aktív. A `float32` világkoordináta 7420 km
-sugárnál a felszín közelében kb. 0.5-1 m felbontást ad — látható
-vertex-remegést és z-fightingot okoz a régiónézetben.
-
-**Javaslat:** kamera-központú világeltolás (a világot mozgatjuk a kamera
-körül, nem fordítva) + logaritmikus depth buffer. Minden rendszernek
-(fizika, particle, UI-világhorgony) tudnia kell róla.
-
-**Sürgősség:** M2-ben eldöntve/megvalósítva, mielőtt a render-lépés
-elindul — utólag beépíteni fájdalmas.
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai
 
