@@ -12,7 +12,7 @@ enélkül nem derül ki időben, ha valami rossz irányba megy.
 | **M4** | **Geológia + domborzat** | Lemezek, kéreg, elevation, tengerszint | Kontinensek, óceánok, árnyékolt hegyek | ✅ **Vizuálisan megerősítve** — `TEST-EARTH-001` numerikusan is teljesítve (117/117 teszt). Ismert korlát: a §13.2 fraktál-zaj hiánya miatt a partvonalak/hegyláncok Voronoi-cella-szerűen szabályosak — tudatosan M13 (Polish)-ra halasztva. |
 | **M5** | **Klíma** | Hőmérséklet, szél, nedvesség, csapadék | Biome-színek, hó, jégsapkák | ✅ **Vizuálisan megerősítve** (hőmérséklet+biome-sáv, 138/138 teszt); szél/nedvesség/csapadék halasztva (ld. hatókör) |
 | M6 | Atmoszféra-render | Rayleigh-szórás, felhők, ciklonok | Planet nézet lényegében kész | Referenciakép 2 szintjén ~80% |
-| **M7** | **Hidrológia + erózió** | Folyók, tavak, gleccser, A1 eróziós pass | Folyók a kontinensnézeten, mikro-vízrajz | "Folyók hegyből tengerbe futnak" ✅ **numerikusan/strukturálisan bizonyítva** (146/146 teszt); tavak/jég/erózió halasztva; vizuális render hátra |
+| **M7** | **Hidrológia + erózió** | Folyók, tavak, gleccser, A1 eróziós pass | Folyók a kontinensnézeten, mikro-vízrajz | ✅ **Vizuálisan megerősítve** ("folyók hegyből tengerbe futnak" strukturálisan bizonyítva, 146/146 teszt); tavak/jég/erózió halasztva |
 | M8 | Features + panelek | Szegmentálás, névadás, aggregált metrikák | World/Continent/Region panelek élesben | Minden panelmezőnek valós forrása van (I4) |
 | M9 | Continent + Region nézet | Magas LOD, displacement, kamera-átmenetek | Referenciakép 1, 3, 4 szintje | Zoom-átmenet folyamatos |
 | M10 | Deep time | Lemezmozgás, erózió, eljegesedés, tengerszint | Az időcsúszka él | TimeTravel + TimestepInvariance zöld |
