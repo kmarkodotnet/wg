@@ -121,9 +121,7 @@ csak 3 lap találkozik egy pontban — ez akkor válik relevánssá, ha M7-nél
 bekövetkezik, új ND szükséges a 8-szomszédos séma sarok-viselkedésére; ez
 NEM blokkolja a jelen (él-alapú) szomszédsági táblát.
 
-## Nyitott döntések
-
-### ND-26 — Trigonometria a csillagászati modul kritikus útján ⚠️ M5 előtt
+### ND-26 — Trigonometria a csillagászati modul kritikus útján: kockázat elfogadva M3-ra
 
 Az M3 csillagászati modulja (`tools/reference/astronomy_ref.py`: nap-irány,
 tengelydőlés, forgás, szub-napponti pont, §27 inszoláció) `Sin`/`Cos`/
@@ -135,18 +133,17 @@ az idő előrehaladtával folyamatosan újraszámolódik (a nap iránya változi
 tehát valódi szimulációs-kritikus úton fut, amint a kimenete (§27 fluxus/
 inszoláció) tényleges szimulációs bemenetté válik.
 
-| Opció | Előny | Hátrány |
-|---|---|---|
-| **Kockázat elfogadása, M3-ra korlátozva** — a jelenlegi felhasználás kizárólag a Unity `Directional Light` rotációját vezérli (vizuális, nem checkpointolt/hash-elt szimulációs állapot) | Nincs plusz munka most, M3 nem blokkolt | M5 előtt véglegesen dönteni kell |
-| Saját polinomiális Sin/Cos/Atan2/Asin implementáció, verziózva | Teljes kontroll, bitpontos | Mind a 4 függvényre meg kell írni és validálni |
-| Előre számolt tábla + interpoláció | Csak összeadás/szorzás | Kevésbé természetes periodikus szögfüggvényekre, mint a Gauss-eloszlásnál (ND-23b) |
+**Döntés (felhasználó jóváhagyta):** a kockázat elfogadva, **M3-ra
+korlátozva** — a jelenlegi felhasználás kizárólag a Unity `Directional
+Light` rotációját vezérli (vizuális, nem checkpointolt/hash-elt
+szimulációs állapot), tehát a platformfüggő ULP-eltérés nem sérti I1-et.
 
-**Javaslat:** az első opció M3-ra. A klímamodell (M5) az, ahol a §27 fluxus/
-inszoláció ténylegesen szimulációs bemenetté (és checkpointolt állapottá)
-válik — addig a platformfüggő ULP-eltérés nem sérti I1-et, mert nincs
-mentett/hash-elt állapot, ami eltérhetne. Analóg az ND-23b döntéssel.
+**Sürgősség:** M5 (klíma) előtt **véglegesen** dönteni kell, amikor a §27
+fluxus/inszoláció ténylegesen szimulációs bemenetté (és checkpointolt
+állapottá) válik — analóg az ND-23b döntéssel (saját polinomiális
+implementáció vagy előre számolt tábla + interpoláció közül választva).
 
-**Sürgősség:** M5 (klíma) előtt véglegesen dönteni kell.
+## Nyitott döntések
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai
 
