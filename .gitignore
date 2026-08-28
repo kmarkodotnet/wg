@@ -24,3 +24,6 @@ unity/WorldGenViewer/*.csproj.meta
 *.unitypackage
 crashlytics-build.txt
 sysinfo.txt
+
+# felhasználó <-> Claude kommunikációs csatorna (képernyőképek), nem projekt-tartalom
+pics/

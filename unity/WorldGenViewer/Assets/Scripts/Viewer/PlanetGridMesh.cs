@@ -29,6 +29,12 @@ namespace WorldGen.Viewer
         private float radius = 100f;
 
         [SerializeField]
+        [Tooltip("A tile-határ vonalháló megjelenítése. Magas LOD-szinten (7+) " +
+                 "sok ezer vékony vonal moiré-mintázatot ad a képernyőn - ott " +
+                 "érdemes kikapcsolni, a szürke felület önmagában marad látható.")]
+        private bool showBorders = true;
+
+        [SerializeField]
         [Tooltip("Ha üres, egy alap fekete HDRP/Unlit anyagot hoz létre futásidőben.")]
         private Material borderMaterial;
 
@@ -104,12 +110,19 @@ namespace WorldGen.Viewer
             mesh.RecalculateBounds();
             GetComponent<MeshFilter>().sharedMesh = mesh;
 
+            Transform borderChild = transform.Find("Borders");
+
+            if (!showBorders)
+            {
+                if (borderChild != null) borderChild.gameObject.SetActive(false);
+                return;
+            }
+
             var borderMesh = new Mesh { indexFormat = IndexFormat.UInt32 };
             borderMesh.SetVertices(borderVerts);
             borderMesh.SetIndices(borderIndices, MeshTopology.Lines, 0);
             borderMesh.RecalculateBounds();
 
-            Transform borderChild = transform.Find("Borders");
             GameObject borderGo;
             if (borderChild == null)
             {
@@ -123,6 +136,7 @@ namespace WorldGen.Viewer
             else
             {
                 borderGo = borderChild.gameObject;
+                borderGo.SetActive(true);
             }
             borderGo.GetComponent<MeshFilter>().sharedMesh = borderMesh;
         }
