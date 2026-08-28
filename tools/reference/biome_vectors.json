@@ -1,0 +1,1004 @@
+{
+ "vectors": [
+  {
+   "temperatureK": 347.312,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 207.944,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 358.746,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 384.13599999999997,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 270.21299999999997,
+   "isOceanic": false,
+   "biome": "Tundra"
+  },
+  {
+   "temperatureK": 311.134,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 288.131,
+   "isOceanic": false,
+   "biome": "Temperate"
+  },
+  {
+   "temperatureK": 236.118,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 360.01,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 265.294,
+   "isOceanic": false,
+   "biome": "Tundra"
+  },
+  {
+   "temperatureK": 264.139,
+   "isOceanic": false,
+   "biome": "Tundra"
+  },
+  {
+   "temperatureK": 389.524,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 338.04499999999996,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 252.582,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 257.501,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 211.62,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 204.058,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 304.19,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 302.387,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 315.248,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 228.676,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 215.225,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 221.531,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 371.195,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 390.27,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 397.957,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 318.996,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 246.59199999999998,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 359.303,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 257.129,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 381.695,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 212.059,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 212.974,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 230.319,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 200.722,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 388.54499999999996,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 268.026,
+   "isOceanic": false,
+   "biome": "Tundra"
+  },
+  {
+   "temperatureK": 392.052,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 332.169,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 344.93899999999996,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 202.19,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 340.505,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 379.49,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 256.37,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 372.554,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 264.335,
+   "isOceanic": false,
+   "biome": "Tundra"
+  },
+  {
+   "temperatureK": 370.11699999999996,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 375.73199999999997,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 329.424,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 257.104,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 384.37,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 243.516,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 285.943,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 239.551,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 344.246,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 300.271,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 386.58299999999997,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 340.898,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 350.086,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 363.203,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 220.438,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 246.337,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 211.879,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 282.961,
+   "isOceanic": false,
+   "biome": "Temperate"
+  },
+  {
+   "temperatureK": 348.98400000000004,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 258.007,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 279.264,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 256.338,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 398.663,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 311.094,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 328.784,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 300.126,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 264.474,
+   "isOceanic": false,
+   "biome": "Tundra"
+  },
+  {
+   "temperatureK": 293.015,
+   "isOceanic": false,
+   "biome": "Temperate"
+  },
+  {
+   "temperatureK": 320.446,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 221.378,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 223.661,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 209.719,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 333.46299999999997,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 204.635,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 365.913,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 214.995,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 373.416,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 282.06,
+   "isOceanic": false,
+   "biome": "Temperate"
+  },
+  {
+   "temperatureK": 311.868,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 330.51300000000003,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 243.089,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 357.145,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 268.164,
+   "isOceanic": false,
+   "biome": "Tundra"
+  },
+  {
+   "temperatureK": 370.127,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 381.725,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 385.568,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 257.201,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 361.395,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 349.321,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 382.712,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 306.072,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 333.847,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 394.327,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 266.771,
+   "isOceanic": false,
+   "biome": "Tundra"
+  },
+  {
+   "temperatureK": 348.48,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 395.408,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 280.321,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 288.598,
+   "isOceanic": false,
+   "biome": "Temperate"
+  },
+  {
+   "temperatureK": 305.027,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 255.226,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 381.53499999999997,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 228.81,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 333.273,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 305.721,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 252.484,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 395.43100000000004,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 200.122,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 344.075,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 325.331,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 287.923,
+   "isOceanic": false,
+   "biome": "Temperate"
+  },
+  {
+   "temperatureK": 357.13800000000003,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 284.907,
+   "isOceanic": false,
+   "biome": "Temperate"
+  },
+  {
+   "temperatureK": 396.624,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 245.042,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 333.51300000000003,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 373.721,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 222.28300000000002,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 351.08500000000004,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 230.081,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 286.497,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 369.39,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 371.07,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 287.324,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 336.56,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 385.1,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 318.921,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 201.652,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 394.875,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 349.63599999999997,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 278.733,
+   "isOceanic": false,
+   "biome": "Temperate"
+  },
+  {
+   "temperatureK": 262.803,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 341.707,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 331.921,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 383.91499999999996,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 399.399,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 217.522,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 258.95,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 210.17,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 293.677,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 301.53700000000003,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 332.50800000000004,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 300.915,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 278.477,
+   "isOceanic": false,
+   "biome": "Temperate"
+  },
+  {
+   "temperatureK": 253.677,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 206.728,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 296.442,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 324.077,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 319.118,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 263.847,
+   "isOceanic": false,
+   "biome": "Tundra"
+  },
+  {
+   "temperatureK": 288.308,
+   "isOceanic": false,
+   "biome": "Temperate"
+  },
+  {
+   "temperatureK": 284.852,
+   "isOceanic": false,
+   "biome": "Temperate"
+  },
+  {
+   "temperatureK": 235.837,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 235.365,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 277.252,
+   "isOceanic": false,
+   "biome": "Tundra"
+  },
+  {
+   "temperatureK": 386.46799999999996,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 352.669,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 269.18399999999997,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 296.262,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 309.039,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 351.47,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 216.96699999999998,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 247.619,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 241.797,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 329.54499999999996,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 249.487,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 374.274,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 374.418,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 301.563,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 375.73400000000004,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 328.632,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 307.307,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 370.89099999999996,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 360.11,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 206.625,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 324.536,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 260.317,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 219.481,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 379.369,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 379.23699999999997,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 370.339,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 225.304,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 331.156,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 343.221,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 288.093,
+   "isOceanic": false,
+   "biome": "Temperate"
+  },
+  {
+   "temperatureK": 263.779,
+   "isOceanic": false,
+   "biome": "Tundra"
+  },
+  {
+   "temperatureK": 285.017,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 342.803,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 205.216,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 359.57,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 211.493,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  },
+  {
+   "temperatureK": 364.123,
+   "isOceanic": false,
+   "biome": "Tropical"
+  },
+  {
+   "temperatureK": 205.75,
+   "isOceanic": false,
+   "biome": "IceSheet"
+  },
+  {
+   "temperatureK": 390.094,
+   "isOceanic": true,
+   "biome": "Ocean"
+  },
+  {
+   "temperatureK": 250.40800000000002,
+   "isOceanic": true,
+   "biome": "SeaIce"
+  }
+ ]
+}
