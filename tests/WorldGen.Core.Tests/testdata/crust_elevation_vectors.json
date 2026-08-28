@@ -1,0 +1,3620 @@
+{
+ "worldSeed": 184482873278464,
+ "plateCount": 12,
+ "oceanicFlags": [
+  true,
+  true,
+  true,
+  false,
+  false,
+  true,
+  true,
+  false,
+  true,
+  true,
+  false,
+  false
+ ],
+ "vectors": [
+  {
+   "face": 2,
+   "level": 6,
+   "u": 58,
+   "v": 3,
+   "plateId": 3,
+   "elevation": 1149.162576263875,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 46,
+   "v": 53,
+   "plateId": 9,
+   "elevation": -4097.275391915471,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 4,
+   "v": 59,
+   "plateId": 6,
+   "elevation": -3695.5906217637407,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 17,
+   "v": 40,
+   "plateId": 1,
+   "elevation": -3547.8519474733257,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 52,
+   "v": 18,
+   "plateId": 2,
+   "elevation": -3859.3521838220327,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 55,
+   "v": 8,
+   "plateId": 5,
+   "elevation": -4389.302613959989,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 38,
+   "v": 52,
+   "plateId": 2,
+   "elevation": -3733.2928958858834,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 30,
+   "v": 26,
+   "plateId": 4,
+   "elevation": 768.1133393848478,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 55,
+   "v": 24,
+   "plateId": 5,
+   "elevation": -3961.94128295055,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 35,
+   "v": 17,
+   "plateId": 8,
+   "elevation": -4032.281039422827,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 6,
+   "v": 45,
+   "plateId": 1,
+   "elevation": -3946.921395524158,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 46,
+   "v": 44,
+   "plateId": 5,
+   "elevation": -4345.7679540056215,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 22,
+   "v": 16,
+   "plateId": 4,
+   "elevation": 308.627031166351,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 45,
+   "v": 38,
+   "plateId": 8,
+   "elevation": -3869.0823265507724,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 27,
+   "v": 31,
+   "plateId": 9,
+   "elevation": -4097.892431492325,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 11,
+   "v": 38,
+   "plateId": 6,
+   "elevation": -3896.29682187801,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 0,
+   "v": 22,
+   "plateId": 7,
+   "elevation": 405.3748066161705,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 57,
+   "v": 11,
+   "plateId": 2,
+   "elevation": -4405.421922471482,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 17,
+   "v": 29,
+   "plateId": 6,
+   "elevation": -4233.681937761017,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 55,
+   "v": 21,
+   "plateId": 10,
+   "elevation": 389.9450894358764,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 63,
+   "v": 23,
+   "plateId": 4,
+   "elevation": 510.2046107949511,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 35,
+   "v": 21,
+   "plateId": 2,
+   "elevation": -4213.8547829762665,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 4,
+   "v": 52,
+   "plateId": 6,
+   "elevation": -4186.621206714643,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 32,
+   "v": 53,
+   "plateId": 1,
+   "elevation": -4218.440082963681,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 34,
+   "v": 21,
+   "plateId": 3,
+   "elevation": 1282.443227612071,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 6,
+   "v": 30,
+   "plateId": 6,
+   "elevation": -3897.026092418897,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 28,
+   "v": 36,
+   "plateId": 1,
+   "elevation": -4309.698685172045,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 23,
+   "v": 6,
+   "plateId": 11,
+   "elevation": 354.04665567120037,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 17,
+   "v": 53,
+   "plateId": 0,
+   "elevation": -3724.2746538262472,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 9,
+   "v": 61,
+   "plateId": 3,
+   "elevation": 1084.9061563715186,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 1,
+   "v": 34,
+   "plateId": 2,
+   "elevation": -3604.884526660797,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 56,
+   "v": 4,
+   "plateId": 3,
+   "elevation": 838.722093323693,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 16,
+   "v": 59,
+   "plateId": 0,
+   "elevation": -4054.2094282597345,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 33,
+   "v": 48,
+   "plateId": 2,
+   "elevation": -4337.152225941897,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 16,
+   "v": 57,
+   "plateId": 0,
+   "elevation": -4043.0794539346584,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 55,
+   "v": 54,
+   "plateId": 11,
+   "elevation": 493.5051032637465,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 0,
+   "v": 42,
+   "plateId": 1,
+   "elevation": -3971.7097120628864,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 35,
+   "v": 1,
+   "plateId": 10,
+   "elevation": 529.3198126529215,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 28,
+   "v": 21,
+   "plateId": 6,
+   "elevation": -4106.241492191127,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 36,
+   "v": 17,
+   "plateId": 3,
+   "elevation": 707.4489976355277,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 51,
+   "v": 32,
+   "plateId": 2,
+   "elevation": -3704.432944503918,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 59,
+   "v": 44,
+   "plateId": 5,
+   "elevation": -4352.348699253294,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 9,
+   "v": 53,
+   "plateId": 6,
+   "elevation": -4022.860362611382,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 46,
+   "v": 15,
+   "plateId": 3,
+   "elevation": 809.9470861152091,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 51,
+   "v": 7,
+   "plateId": 7,
+   "elevation": 1183.2990450333173,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 31,
+   "v": 28,
+   "plateId": 1,
+   "elevation": -4388.197451796568,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 28,
+   "v": 57,
+   "plateId": 6,
+   "elevation": -4480.751143784801,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 24,
+   "v": 59,
+   "plateId": 0,
+   "elevation": -3889.6612870925146,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 49,
+   "v": 28,
+   "plateId": 5,
+   "elevation": -3508.155720449177,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 42,
+   "v": 17,
+   "plateId": 3,
+   "elevation": 720.1915364867193,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 53,
+   "v": 44,
+   "plateId": 3,
+   "elevation": 1249.961712197487,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 46,
+   "v": 19,
+   "plateId": 3,
+   "elevation": 973.7438576582445,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 33,
+   "v": 49,
+   "plateId": 2,
+   "elevation": -3650.2990826660075,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 28,
+   "v": 9,
+   "plateId": 8,
+   "elevation": -3880.092622893055,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 43,
+   "v": 53,
+   "plateId": 6,
+   "elevation": -3549.548184708762,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 58,
+   "v": 20,
+   "plateId": 5,
+   "elevation": -4056.072677897989,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 44,
+   "v": 21,
+   "plateId": 10,
+   "elevation": 606.4389625883657,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 39,
+   "v": 23,
+   "plateId": 10,
+   "elevation": 705.4824516039783,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 1,
+   "v": 53,
+   "plateId": 11,
+   "elevation": 665.7668538118751,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 45,
+   "v": 19,
+   "plateId": 10,
+   "elevation": 530.017854825667,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 5,
+   "v": 23,
+   "plateId": 1,
+   "elevation": -4309.5621152422,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 12,
+   "v": 11,
+   "plateId": 9,
+   "elevation": -3663.3669472223146,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 40,
+   "v": 60,
+   "plateId": 3,
+   "elevation": 326.50798639151463,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 48,
+   "v": 1,
+   "plateId": 10,
+   "elevation": 851.6278513115113,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 18,
+   "v": 3,
+   "plateId": 2,
+   "elevation": -3882.2668233965546,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 47,
+   "v": 62,
+   "plateId": 5,
+   "elevation": -4116.208018852741,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 52,
+   "v": 56,
+   "plateId": 6,
+   "elevation": -4215.514457876853,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 25,
+   "v": 40,
+   "plateId": 11,
+   "elevation": 354.645078090794,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 12,
+   "v": 49,
+   "plateId": 9,
+   "elevation": -4142.802122023076,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 45,
+   "v": 25,
+   "plateId": 10,
+   "elevation": 934.00089145614,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 11,
+   "v": 44,
+   "plateId": 1,
+   "elevation": -4114.966100125303,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 58,
+   "v": 27,
+   "plateId": 5,
+   "elevation": -3895.334480288592,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 30,
+   "v": 41,
+   "plateId": 4,
+   "elevation": 404.2140349959425,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 57,
+   "v": 30,
+   "plateId": 5,
+   "elevation": -4199.674231559173,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 24,
+   "v": 56,
+   "plateId": 1,
+   "elevation": -4168.677022895791,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 4,
+   "v": 56,
+   "plateId": 3,
+   "elevation": 1137.3549735798342,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 9,
+   "v": 45,
+   "plateId": 11,
+   "elevation": 1262.374317992168,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 19,
+   "v": 8,
+   "plateId": 2,
+   "elevation": -3552.4492747452605,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 33,
+   "v": 59,
+   "plateId": 0,
+   "elevation": -3698.811471423788,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 41,
+   "v": 62,
+   "plateId": 6,
+   "elevation": -4480.339786163746,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 42,
+   "v": 32,
+   "plateId": 5,
+   "elevation": -4007.04595287094,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 49,
+   "v": 20,
+   "plateId": 10,
+   "elevation": 1160.7030162329766,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 29,
+   "v": 0,
+   "plateId": 10,
+   "elevation": 668.9335190070573,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 28,
+   "v": 52,
+   "plateId": 3,
+   "elevation": 1028.474198151198,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 23,
+   "v": 41,
+   "plateId": 9,
+   "elevation": -4219.753737033762,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 3,
+   "v": 27,
+   "plateId": 4,
+   "elevation": 1226.7802757310646,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 60,
+   "v": 31,
+   "plateId": 11,
+   "elevation": 320.3653242769547,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 25,
+   "v": 11,
+   "plateId": 8,
+   "elevation": -3901.9360525895727,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 47,
+   "v": 57,
+   "plateId": 3,
+   "elevation": 446.41282102423617,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 8,
+   "v": 48,
+   "plateId": 4,
+   "elevation": 860.6496779721059,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 16,
+   "v": 14,
+   "plateId": 1,
+   "elevation": -3744.30399079367,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 33,
+   "v": 57,
+   "plateId": 0,
+   "elevation": -4390.460797963398,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 0,
+   "v": 0,
+   "plateId": 7,
+   "elevation": 320.5493304604842,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 31,
+   "v": 53,
+   "plateId": 0,
+   "elevation": -3870.034321966945,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 49,
+   "v": 12,
+   "plateId": 3,
+   "elevation": 652.2047360938953,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 52,
+   "v": 40,
+   "plateId": 3,
+   "elevation": 489.23971321881186,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 4,
+   "v": 10,
+   "plateId": 11,
+   "elevation": 422.50233414386037,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 58,
+   "v": 39,
+   "plateId": 2,
+   "elevation": -3594.6394497500087,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 56,
+   "v": 22,
+   "plateId": 10,
+   "elevation": 975.8977930744895,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 7,
+   "v": 28,
+   "plateId": 9,
+   "elevation": -3862.310581968145,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 57,
+   "v": 41,
+   "plateId": 2,
+   "elevation": -4339.136794586254,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 46,
+   "v": 49,
+   "plateId": 3,
+   "elevation": 668.5244513109376,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 11,
+   "v": 40,
+   "plateId": 4,
+   "elevation": 776.9214171525985,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 6,
+   "v": 34,
+   "plateId": 4,
+   "elevation": 1280.013243564812,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 57,
+   "v": 4,
+   "plateId": 10,
+   "elevation": 833.995422618511,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 45,
+   "v": 21,
+   "plateId": 3,
+   "elevation": 1235.7856141506518,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 26,
+   "v": 40,
+   "plateId": 4,
+   "elevation": 1138.2090610417956,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 26,
+   "v": 0,
+   "plateId": 5,
+   "elevation": -4300.840924893111,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 5,
+   "v": 48,
+   "plateId": 2,
+   "elevation": -3527.651999065724,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 43,
+   "v": 47,
+   "plateId": 5,
+   "elevation": -4403.933179908576,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 27,
+   "v": 6,
+   "plateId": 8,
+   "elevation": -3659.0588686211217,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 27,
+   "v": 22,
+   "plateId": 10,
+   "elevation": 940.0740158486269,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 14,
+   "v": 39,
+   "plateId": 0,
+   "elevation": -3894.855821845129,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 47,
+   "v": 33,
+   "plateId": 5,
+   "elevation": -4063.125237225456,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 21,
+   "v": 6,
+   "plateId": 6,
+   "elevation": -4279.7349790709595,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 18,
+   "v": 63,
+   "plateId": 2,
+   "elevation": -3762.0868337793286,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 37,
+   "v": 44,
+   "plateId": 9,
+   "elevation": -4077.9747228786714,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 43,
+   "v": 44,
+   "plateId": 0,
+   "elevation": -3826.146036033789,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 60,
+   "v": 13,
+   "plateId": 11,
+   "elevation": 407.5696110928516,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 14,
+   "v": 18,
+   "plateId": 9,
+   "elevation": -4433.532778002863,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 38,
+   "v": 46,
+   "plateId": 5,
+   "elevation": -4406.836145080458,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 46,
+   "v": 1,
+   "plateId": 10,
+   "elevation": 775.8260337326822,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 29,
+   "v": 7,
+   "plateId": 2,
+   "elevation": -3765.3051455367518,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 50,
+   "v": 44,
+   "plateId": 4,
+   "elevation": 956.9520936149122,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 2,
+   "v": 17,
+   "plateId": 11,
+   "elevation": 928.7663089197736,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 5,
+   "v": 60,
+   "plateId": 0,
+   "elevation": -3638.716184773293,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 10,
+   "v": 62,
+   "plateId": 0,
+   "elevation": -3510.2132243998385,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 19,
+   "v": 35,
+   "plateId": 0,
+   "elevation": -3582.3132205071192,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 6,
+   "v": 57,
+   "plateId": 6,
+   "elevation": -3717.901565428646,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 0,
+   "v": 9,
+   "plateId": 6,
+   "elevation": -4333.44850090731,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 38,
+   "v": 24,
+   "plateId": 10,
+   "elevation": 859.6002640688434,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 41,
+   "v": 41,
+   "plateId": 10,
+   "elevation": 587.6969242756696,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 57,
+   "v": 57,
+   "plateId": 5,
+   "elevation": -3707.191442408145,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 61,
+   "v": 38,
+   "plateId": 5,
+   "elevation": -3893.3671249466965,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 37,
+   "v": 32,
+   "plateId": 3,
+   "elevation": 1030.0043059916607,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 51,
+   "v": 23,
+   "plateId": 5,
+   "elevation": -3629.5321197574194,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 2,
+   "v": 38,
+   "plateId": 11,
+   "elevation": 931.6182020389388,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 24,
+   "v": 22,
+   "plateId": 2,
+   "elevation": -4231.295416260081,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 12,
+   "v": 35,
+   "plateId": 9,
+   "elevation": -4471.725726168965,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 10,
+   "v": 17,
+   "plateId": 4,
+   "elevation": 1164.2713268570942,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 63,
+   "v": 57,
+   "plateId": 11,
+   "elevation": 366.59106599924723,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 4,
+   "v": 35,
+   "plateId": 2,
+   "elevation": -4329.304759704034,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 39,
+   "v": 11,
+   "plateId": 3,
+   "elevation": 966.4119619802217,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 39,
+   "v": 61,
+   "plateId": 2,
+   "elevation": -4357.78946669655,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 56,
+   "v": 18,
+   "plateId": 11,
+   "elevation": 313.11308600285145,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 54,
+   "v": 56,
+   "plateId": 6,
+   "elevation": -3892.9948143654556,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 4,
+   "v": 2,
+   "plateId": 10,
+   "elevation": 324.98700454351376,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 13,
+   "v": 32,
+   "plateId": 6,
+   "elevation": -3608.9789179304166,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 30,
+   "v": 30,
+   "plateId": 2,
+   "elevation": -3509.7950765174555,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 24,
+   "v": 23,
+   "plateId": 11,
+   "elevation": 619.2703919804037,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 62,
+   "v": 53,
+   "plateId": 5,
+   "elevation": -4084.929564386175,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 20,
+   "v": 20,
+   "plateId": 6,
+   "elevation": -3635.9431214655115,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 15,
+   "v": 28,
+   "plateId": 9,
+   "elevation": -4164.524334691335,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 54,
+   "v": 14,
+   "plateId": 10,
+   "elevation": 312.5158576611885,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 62,
+   "v": 58,
+   "plateId": 3,
+   "elevation": 773.4418788322927,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 30,
+   "v": 12,
+   "plateId": 8,
+   "elevation": -3782.061014640729,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 27,
+   "v": 39,
+   "plateId": 9,
+   "elevation": -4122.8908245308685,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 2,
+   "v": 62,
+   "plateId": 3,
+   "elevation": 301.20377128923275,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 34,
+   "v": 23,
+   "plateId": 3,
+   "elevation": 1051.1275978198066,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 18,
+   "v": 50,
+   "plateId": 2,
+   "elevation": -4183.961481312561,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 51,
+   "v": 10,
+   "plateId": 2,
+   "elevation": -3614.48680075896,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 5,
+   "v": 16,
+   "plateId": 6,
+   "elevation": -3977.654779876832,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 20,
+   "v": 25,
+   "plateId": 4,
+   "elevation": 416.41475664916055,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 49,
+   "v": 25,
+   "plateId": 5,
+   "elevation": -3654.7972639024774,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 30,
+   "v": 7,
+   "plateId": 5,
+   "elevation": -3603.151209833137,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 35,
+   "v": 8,
+   "plateId": 6,
+   "elevation": -4151.9714064559375,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 13,
+   "v": 35,
+   "plateId": 6,
+   "elevation": -3953.613484558929,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 48,
+   "v": 3,
+   "plateId": 10,
+   "elevation": 834.3325790818343,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 32,
+   "v": 47,
+   "plateId": 1,
+   "elevation": -3842.955404102506,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 9,
+   "v": 9,
+   "plateId": 6,
+   "elevation": -4052.7787142391153,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 42,
+   "v": 53,
+   "plateId": 5,
+   "elevation": -4405.541974176965,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 31,
+   "v": 7,
+   "plateId": 6,
+   "elevation": -4239.32788304519,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 49,
+   "v": 34,
+   "plateId": 5,
+   "elevation": -4315.886406688455,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 23,
+   "v": 10,
+   "plateId": 5,
+   "elevation": -3867.0189538232553,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 18,
+   "v": 4,
+   "plateId": 1,
+   "elevation": -3658.8498124061384,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 53,
+   "v": 32,
+   "plateId": 5,
+   "elevation": -4388.65268711765,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 44,
+   "v": 4,
+   "plateId": 5,
+   "elevation": -4134.037155094308,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 42,
+   "v": 1,
+   "plateId": 2,
+   "elevation": -3862.3130037034366,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 16,
+   "v": 39,
+   "plateId": 9,
+   "elevation": -4249.898061288582,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 25,
+   "v": 17,
+   "plateId": 4,
+   "elevation": 480.5279989128554,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 55,
+   "v": 56,
+   "plateId": 0,
+   "elevation": -3743.2528514047567,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 44,
+   "v": 15,
+   "plateId": 3,
+   "elevation": 1208.8663774629235,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 43,
+   "v": 2,
+   "plateId": 5,
+   "elevation": -3600.5767179555714,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 40,
+   "v": 25,
+   "plateId": 10,
+   "elevation": 882.7229384627226,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 60,
+   "v": 26,
+   "plateId": 5,
+   "elevation": -3724.168355804375,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 50,
+   "v": 11,
+   "plateId": 2,
+   "elevation": -3977.6031117901193,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 63,
+   "v": 26,
+   "plateId": 4,
+   "elevation": 805.6969152518035,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 38,
+   "v": 2,
+   "plateId": 10,
+   "elevation": 1055.4001403481345,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 18,
+   "v": 37,
+   "plateId": 11,
+   "elevation": 535.1756763501812,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 57,
+   "v": 25,
+   "plateId": 5,
+   "elevation": -3949.191867616436,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 16,
+   "v": 39,
+   "plateId": 2,
+   "elevation": -3940.122792786351,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 43,
+   "v": 1,
+   "plateId": 7,
+   "elevation": 422.5330265343981,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 61,
+   "v": 6,
+   "plateId": 10,
+   "elevation": 1143.8410334080354,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 12,
+   "v": 37,
+   "plateId": 2,
+   "elevation": -3905.998190303854,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 6,
+   "v": 34,
+   "plateId": 6,
+   "elevation": -4205.385057473148,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 3,
+   "v": 1,
+   "plateId": 9,
+   "elevation": -3840.270596964958,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 43,
+   "v": 4,
+   "plateId": 6,
+   "elevation": -3652.0369967438437,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 37,
+   "v": 47,
+   "plateId": 0,
+   "elevation": -4491.813080937442,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 24,
+   "v": 43,
+   "plateId": 4,
+   "elevation": 954.9438426231982,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 39,
+   "v": 53,
+   "plateId": 0,
+   "elevation": -4072.440210169255,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 63,
+   "v": 59,
+   "plateId": 5,
+   "elevation": -4239.819700786705,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 31,
+   "v": 41,
+   "plateId": 9,
+   "elevation": -4457.312026244449,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 54,
+   "v": 16,
+   "plateId": 10,
+   "elevation": 1086.7497835984918,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 46,
+   "v": 42,
+   "plateId": 4,
+   "elevation": 1129.0524516317873,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 34,
+   "v": 6,
+   "plateId": 7,
+   "elevation": 1051.39416651127,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 29,
+   "v": 35,
+   "plateId": 9,
+   "elevation": -4329.960902688665,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 41,
+   "v": 38,
+   "plateId": 5,
+   "elevation": -4346.003610895226,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 50,
+   "v": 33,
+   "plateId": 3,
+   "elevation": 1027.3731032066032,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 21,
+   "v": 56,
+   "plateId": 1,
+   "elevation": -4018.521005092036,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 44,
+   "v": 33,
+   "plateId": 8,
+   "elevation": -3676.4262350301733,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 38,
+   "v": 56,
+   "plateId": 0,
+   "elevation": -3768.964753776963,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 59,
+   "v": 17,
+   "plateId": 5,
+   "elevation": -4424.323790269144,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 25,
+   "v": 32,
+   "plateId": 9,
+   "elevation": -3620.611749793634,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 53,
+   "v": 54,
+   "plateId": 0,
+   "elevation": -4011.61623735735,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 23,
+   "v": 11,
+   "plateId": 11,
+   "elevation": 417.2078966503044,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 33,
+   "v": 48,
+   "plateId": 0,
+   "elevation": -3800.720040524946,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 36,
+   "v": 34,
+   "plateId": 2,
+   "elevation": -3809.8881928630244,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 29,
+   "v": 12,
+   "plateId": 1,
+   "elevation": -3555.1753200459225,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 20,
+   "v": 28,
+   "plateId": 9,
+   "elevation": -4384.164330864214,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 18,
+   "v": 19,
+   "plateId": 9,
+   "elevation": -4342.100230670295,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 16,
+   "v": 6,
+   "plateId": 11,
+   "elevation": 1047.057542439396,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 30,
+   "v": 12,
+   "plateId": 2,
+   "elevation": -3722.0435488948046,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 23,
+   "v": 48,
+   "plateId": 1,
+   "elevation": -3603.4150843864536,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 18,
+   "v": 42,
+   "plateId": 11,
+   "elevation": 554.5169628628394,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 46,
+   "v": 5,
+   "plateId": 10,
+   "elevation": 1255.3601743984252,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 52,
+   "v": 2,
+   "plateId": 7,
+   "elevation": 379.40215006213293,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 25,
+   "v": 27,
+   "plateId": 11,
+   "elevation": 607.9610101626755,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 53,
+   "v": 23,
+   "plateId": 5,
+   "elevation": -4332.920139094835,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 39,
+   "v": 48,
+   "plateId": 0,
+   "elevation": -4329.825865131492,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 20,
+   "v": 63,
+   "plateId": 6,
+   "elevation": -4480.103340424164,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 63,
+   "v": 28,
+   "plateId": 4,
+   "elevation": 955.3501436203742,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 31,
+   "v": 58,
+   "plateId": 6,
+   "elevation": -4154.558760367243,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 27,
+   "v": 22,
+   "plateId": 6,
+   "elevation": -3689.606777763852,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 23,
+   "v": 56,
+   "plateId": 6,
+   "elevation": -4170.372966649479,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 37,
+   "v": 30,
+   "plateId": 10,
+   "elevation": 767.4586744253603,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 18,
+   "v": 3,
+   "plateId": 5,
+   "elevation": -3958.0118236238677,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 57,
+   "v": 48,
+   "plateId": 3,
+   "elevation": 1116.750790530419,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 53,
+   "v": 31,
+   "plateId": 3,
+   "elevation": 1026.8736471501131,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 17,
+   "v": 8,
+   "plateId": 6,
+   "elevation": -3576.9533956205705,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 40,
+   "v": 17,
+   "plateId": 2,
+   "elevation": -4204.077426374608,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 34,
+   "v": 4,
+   "plateId": 2,
+   "elevation": -4394.489257462041,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 25,
+   "v": 1,
+   "plateId": 2,
+   "elevation": -4257.992618820759,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 10,
+   "v": 43,
+   "plateId": 11,
+   "elevation": 554.813121486018,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 21,
+   "v": 57,
+   "plateId": 0,
+   "elevation": -4395.270974825914,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 41,
+   "v": 24,
+   "plateId": 8,
+   "elevation": -4290.146303432564,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 32,
+   "v": 61,
+   "plateId": 2,
+   "elevation": -4390.457755578834,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 30,
+   "v": 16,
+   "plateId": 8,
+   "elevation": -3863.055833866735,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 53,
+   "v": 56,
+   "plateId": 5,
+   "elevation": -4146.320123507499,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 0,
+   "v": 18,
+   "plateId": 10,
+   "elevation": 1270.9110484681348,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 32,
+   "v": 54,
+   "plateId": 0,
+   "elevation": -4194.7912124226505,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 35,
+   "v": 55,
+   "plateId": 9,
+   "elevation": -3758.6154485213774,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 56,
+   "v": 54,
+   "plateId": 3,
+   "elevation": 701.4211143876731,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 55,
+   "v": 50,
+   "plateId": 3,
+   "elevation": 692.6987016500455,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 15,
+   "v": 35,
+   "plateId": 9,
+   "elevation": -4242.891447100034,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 41,
+   "v": 30,
+   "plateId": 10,
+   "elevation": 781.9973459576249,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 11,
+   "v": 63,
+   "plateId": 3,
+   "elevation": 1182.7544236679037,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 22,
+   "v": 38,
+   "plateId": 11,
+   "elevation": 451.1985561851776,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 35,
+   "v": 2,
+   "plateId": 10,
+   "elevation": 728.1011080832752,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 26,
+   "v": 12,
+   "plateId": 5,
+   "elevation": -3670.2955534621633,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 49,
+   "v": 23,
+   "plateId": 10,
+   "elevation": 483.1371077674539,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 24,
+   "v": 57,
+   "plateId": 6,
+   "elevation": -4173.784854838555,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 17,
+   "v": 40,
+   "plateId": 0,
+   "elevation": -4348.4840748067645,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 3,
+   "v": 8,
+   "plateId": 7,
+   "elevation": 1088.2902649890816,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 54,
+   "v": 62,
+   "plateId": 5,
+   "elevation": -3881.2810809888842,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 62,
+   "v": 30,
+   "plateId": 9,
+   "elevation": -3676.2772789548226,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 6,
+   "v": 40,
+   "plateId": 9,
+   "elevation": -3775.1376892404687,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 17,
+   "v": 62,
+   "plateId": 0,
+   "elevation": -3658.4122704649867,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 31,
+   "v": 51,
+   "plateId": 0,
+   "elevation": -4110.538311956121,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 2,
+   "v": 34,
+   "plateId": 11,
+   "elevation": 727.490668573562,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 14,
+   "v": 34,
+   "plateId": 6,
+   "elevation": -3705.976981360093,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 11,
+   "v": 56,
+   "plateId": 2,
+   "elevation": -3995.0824680990186,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 47,
+   "v": 32,
+   "plateId": 2,
+   "elevation": -3669.967980825858,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 36,
+   "v": 25,
+   "plateId": 1,
+   "elevation": -4226.878193419103,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 14,
+   "v": 3,
+   "plateId": 6,
+   "elevation": -3778.1022390250614,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 48,
+   "v": 8,
+   "plateId": 7,
+   "elevation": 990.2028981681888,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 21,
+   "v": 48,
+   "plateId": 2,
+   "elevation": -3714.705219798556,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 21,
+   "v": 37,
+   "plateId": 11,
+   "elevation": 1080.3328585287222,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 21,
+   "v": 9,
+   "plateId": 11,
+   "elevation": 651.2125047452213,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 38,
+   "v": 28,
+   "plateId": 3,
+   "elevation": 814.8233918607539,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 2,
+   "v": 50,
+   "plateId": 0,
+   "elevation": -4163.818299391483,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 49,
+   "v": 2,
+   "plateId": 2,
+   "elevation": -3515.266437644385,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 5,
+   "v": 31,
+   "plateId": 1,
+   "elevation": -4052.108170326458,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 22,
+   "v": 8,
+   "plateId": 5,
+   "elevation": -4343.750027166127,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 33,
+   "v": 30,
+   "plateId": 10,
+   "elevation": 562.561643309765,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 56,
+   "v": 15,
+   "plateId": 3,
+   "elevation": 759.047518906732,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 22,
+   "v": 2,
+   "plateId": 1,
+   "elevation": -4472.340479666358,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 44,
+   "v": 63,
+   "plateId": 6,
+   "elevation": -4077.998748882469,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 30,
+   "v": 49,
+   "plateId": 0,
+   "elevation": -3696.029432281136,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 32,
+   "v": 62,
+   "plateId": 3,
+   "elevation": 455.61821186632284,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 14,
+   "v": 11,
+   "plateId": 9,
+   "elevation": -4177.477892841131,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 42,
+   "v": 1,
+   "plateId": 10,
+   "elevation": 932.1160330135656,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 61,
+   "v": 23,
+   "plateId": 5,
+   "elevation": -3723.008036996751,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 46,
+   "v": 58,
+   "plateId": 0,
+   "elevation": -4059.306339802375,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 20,
+   "v": 63,
+   "plateId": 0,
+   "elevation": -4378.6271348802375,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 8,
+   "v": 8,
+   "plateId": 11,
+   "elevation": 771.1748910411696,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 27,
+   "v": 63,
+   "plateId": 3,
+   "elevation": 675.2737864370802,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 24,
+   "v": 46,
+   "plateId": 1,
+   "elevation": -4316.17686289248,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 43,
+   "v": 42,
+   "plateId": 10,
+   "elevation": 559.2974959513872,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 43,
+   "v": 11,
+   "plateId": 8,
+   "elevation": -3787.256666096396,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 39,
+   "v": 37,
+   "plateId": 3,
+   "elevation": 430.3342027013703,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 14,
+   "v": 10,
+   "plateId": 6,
+   "elevation": -3536.46251543168,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 2,
+   "v": 35,
+   "plateId": 11,
+   "elevation": 420.80168021328564,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 56,
+   "v": 57,
+   "plateId": 6,
+   "elevation": -3552.430352089821,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 3,
+   "v": 29,
+   "plateId": 4,
+   "elevation": 734.6664966365295,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 26,
+   "v": 59,
+   "plateId": 0,
+   "elevation": -4145.053020424053,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 10,
+   "v": 6,
+   "plateId": 6,
+   "elevation": -4385.567246426534,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 60,
+   "v": 29,
+   "plateId": 3,
+   "elevation": 1110.6915877749589,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 45,
+   "v": 63,
+   "plateId": 0,
+   "elevation": -4036.910348191008,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 49,
+   "v": 40,
+   "plateId": 8,
+   "elevation": -4108.876385899675,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 38,
+   "v": 37,
+   "plateId": 0,
+   "elevation": -4224.755436842654,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 7,
+   "v": 18,
+   "plateId": 4,
+   "elevation": 575.991401074494,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 8,
+   "v": 45,
+   "plateId": 11,
+   "elevation": 910.1734097900426,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 40,
+   "v": 17,
+   "plateId": 8,
+   "elevation": -3726.195696748817,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 16,
+   "v": 21,
+   "plateId": 4,
+   "elevation": 408.41819495640294,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 55,
+   "v": 35,
+   "plateId": 2,
+   "elevation": -4403.683075250072,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 58,
+   "v": 62,
+   "plateId": 0,
+   "elevation": -3773.588037097551,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 46,
+   "v": 21,
+   "plateId": 10,
+   "elevation": 861.4018006476398,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 37,
+   "v": 33,
+   "plateId": 10,
+   "elevation": 530.8308200207866,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 32,
+   "v": 47,
+   "plateId": 2,
+   "elevation": -4157.618189180998,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 2,
+   "v": 8,
+   "plateId": 5,
+   "elevation": -4275.246505277938,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 51,
+   "v": 26,
+   "plateId": 3,
+   "elevation": 522.846587812506,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 46,
+   "v": 18,
+   "plateId": 10,
+   "elevation": 859.6369577945552,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 16,
+   "v": 23,
+   "plateId": 6,
+   "elevation": -4227.530846209538,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 15,
+   "v": 61,
+   "plateId": 0,
+   "elevation": -3950.9483685698065,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 41,
+   "v": 31,
+   "plateId": 5,
+   "elevation": -3859.3597922145527,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 10,
+   "v": 53,
+   "plateId": 0,
+   "elevation": -3864.3831765003297,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 61,
+   "v": 46,
+   "plateId": 6,
+   "elevation": -4109.320217600799,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 59,
+   "v": 28,
+   "plateId": 10,
+   "elevation": 1015.6293343684065,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 35,
+   "v": 44,
+   "plateId": 9,
+   "elevation": -3761.5258021745553,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 54,
+   "v": 4,
+   "plateId": 10,
+   "elevation": 380.13149722112365,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 58,
+   "v": 44,
+   "plateId": 11,
+   "elevation": 712.8501835004611,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 51,
+   "v": 12,
+   "plateId": 10,
+   "elevation": 1250.2603799193062,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 62,
+   "v": 1,
+   "plateId": 10,
+   "elevation": 706.7262432350115,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 47,
+   "v": 52,
+   "plateId": 0,
+   "elevation": -4334.711259494712,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 61,
+   "v": 37,
+   "plateId": 5,
+   "elevation": -3575.820735227212,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 1,
+   "v": 58,
+   "plateId": 0,
+   "elevation": -3540.0778176098884,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 21,
+   "v": 56,
+   "plateId": 2,
+   "elevation": -3760.757854944515,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 31,
+   "v": 25,
+   "plateId": 2,
+   "elevation": -3502.439385112414,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 43,
+   "v": 32,
+   "plateId": 10,
+   "elevation": 951.8309066686913,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 30,
+   "v": 31,
+   "plateId": 0,
+   "elevation": -3648.81831396346,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 55,
+   "v": 53,
+   "plateId": 3,
+   "elevation": 1265.7172864560603,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 56,
+   "v": 57,
+   "plateId": 0,
+   "elevation": -4482.095227122748,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 32,
+   "v": 32,
+   "plateId": 0,
+   "elevation": -4304.472773125278,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 34,
+   "v": 42,
+   "plateId": 9,
+   "elevation": -4100.481363218831,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 12,
+   "v": 60,
+   "plateId": 1,
+   "elevation": -3718.207276424416,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 43,
+   "v": 20,
+   "plateId": 8,
+   "elevation": -4108.445660837925,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 37,
+   "v": 4,
+   "plateId": 2,
+   "elevation": -3789.84222727723,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 23,
+   "v": 13,
+   "plateId": 6,
+   "elevation": -4430.4713499402205,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 10,
+   "v": 19,
+   "plateId": 6,
+   "elevation": -4416.192652007378,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 55,
+   "v": 48,
+   "plateId": 3,
+   "elevation": 859.4426767174531,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 40,
+   "v": 28,
+   "plateId": 2,
+   "elevation": -4262.771823029952,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 61,
+   "v": 3,
+   "plateId": 5,
+   "elevation": -3965.5083101098417,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 8,
+   "v": 37,
+   "plateId": 2,
+   "elevation": -4236.301701582557,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 7,
+   "v": 32,
+   "plateId": 4,
+   "elevation": 1275.1793719288057,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 25,
+   "v": 57,
+   "plateId": 0,
+   "elevation": -3847.139625312188,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 61,
+   "v": 51,
+   "plateId": 3,
+   "elevation": 1041.8580768591155,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 47,
+   "v": 9,
+   "plateId": 10,
+   "elevation": 388.8133834203646,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 16,
+   "v": 2,
+   "plateId": 5,
+   "elevation": -4381.941168671699,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 14,
+   "v": 31,
+   "plateId": 2,
+   "elevation": -3780.4746311651697,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 16,
+   "v": 9,
+   "plateId": 11,
+   "elevation": 1249.5077230680504,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 3,
+   "v": 12,
+   "plateId": 11,
+   "elevation": 1248.9894757946154,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 5,
+   "v": 43,
+   "plateId": 11,
+   "elevation": 997.2496574170398,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 3,
+   "v": 31,
+   "plateId": 1,
+   "elevation": -3727.804320397185,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 39,
+   "v": 25,
+   "plateId": 1,
+   "elevation": -3624.3556318733595,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 47,
+   "v": 20,
+   "plateId": 10,
+   "elevation": 1022.74219716989,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 5,
+   "v": 42,
+   "plateId": 9,
+   "elevation": -3623.3077190791914,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 11,
+   "v": 63,
+   "plateId": 3,
+   "elevation": 1182.7544236679037,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 38,
+   "v": 63,
+   "plateId": 6,
+   "elevation": -4427.427670129513,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 61,
+   "v": 10,
+   "plateId": 3,
+   "elevation": 752.3534161350501,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 32,
+   "v": 22,
+   "plateId": 5,
+   "elevation": -4235.600422830728,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 10,
+   "v": 3,
+   "plateId": 5,
+   "elevation": -4226.78868597327,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 43,
+   "v": 43,
+   "plateId": 2,
+   "elevation": -3534.4355954447574,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 41,
+   "v": 56,
+   "plateId": 0,
+   "elevation": -4452.194575112349,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 61,
+   "v": 9,
+   "plateId": 10,
+   "elevation": 1242.7578560312465,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 61,
+   "v": 62,
+   "plateId": 0,
+   "elevation": -4169.381436775049,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 26,
+   "v": 9,
+   "plateId": 5,
+   "elevation": -4046.1350623329804,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 33,
+   "v": 38,
+   "plateId": 10,
+   "elevation": 1146.7187658648284,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 33,
+   "v": 13,
+   "plateId": 2,
+   "elevation": -4160.039233160441,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 17,
+   "v": 32,
+   "plateId": 11,
+   "elevation": 703.6256250987162,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 57,
+   "v": 14,
+   "plateId": 5,
+   "elevation": -4476.196660820788,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 36,
+   "v": 38,
+   "plateId": 2,
+   "elevation": -4459.445679546425,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 14,
+   "v": 45,
+   "plateId": 2,
+   "elevation": -4416.246644950785,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 51,
+   "v": 0,
+   "plateId": 2,
+   "elevation": -3743.329768334061,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 48,
+   "v": 42,
+   "plateId": 2,
+   "elevation": -4082.131966794918,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 55,
+   "v": 51,
+   "plateId": 3,
+   "elevation": 1131.9276382504947,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 45,
+   "v": 60,
+   "plateId": 3,
+   "elevation": 1171.313146609746,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 62,
+   "v": 53,
+   "plateId": 11,
+   "elevation": 442.9575207946743,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 5,
+   "v": 54,
+   "plateId": 0,
+   "elevation": -3904.465085247852,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 35,
+   "v": 5,
+   "plateId": 10,
+   "elevation": 667.4694492221824,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 4,
+   "v": 22,
+   "plateId": 9,
+   "elevation": -4029.828453704509,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 63,
+   "v": 47,
+   "plateId": 4,
+   "elevation": 631.1993950527806,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 5,
+   "v": 36,
+   "plateId": 9,
+   "elevation": -4131.8791422221075,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 27,
+   "v": 32,
+   "plateId": 0,
+   "elevation": -4058.6492691315943,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 59,
+   "v": 9,
+   "plateId": 2,
+   "elevation": -4262.925998329697,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 50,
+   "v": 63,
+   "plateId": 6,
+   "elevation": -4491.479403985412,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 27,
+   "v": 59,
+   "plateId": 3,
+   "elevation": 386.0933742320141,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 42,
+   "v": 62,
+   "plateId": 2,
+   "elevation": -4010.142386402616,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 3,
+   "v": 60,
+   "plateId": 3,
+   "elevation": 669.9986696049459,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 63,
+   "v": 45,
+   "plateId": 5,
+   "elevation": -3994.3381377100004,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 60,
+   "v": 23,
+   "plateId": 11,
+   "elevation": 993.4611925359055,
+   "isOceanic": false
+  }
+ ]
+}

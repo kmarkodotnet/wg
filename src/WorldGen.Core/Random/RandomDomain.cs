@@ -42,6 +42,7 @@ namespace WorldGen.Core.Random
         public const uint PlateSeedPoint = 10;
         public const uint EulerPole = 11;
         public const uint PlateVelocity = 12;
+        public const uint CrustType = 13;
 
         // Events
         public const uint ImpactTrigger = 20;
