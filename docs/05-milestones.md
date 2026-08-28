@@ -311,3 +311,59 @@ alapján: jégsapka (nagyon hideg), tundra, sivatag, erdő, óceán — ND-10
 4. Unity render-kiegészítés — vizuális ellenőrzésed szükséges
 
 Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → mérés**.
+
+---
+
+## M7 — Következő, részletes terv
+
+### Cél
+
+Folyók hegyből tengerbe futnak (nem akadnak el, nem hurkolnak vissza) —
+mikro-vízrajz a kontinensnézeten.
+
+### Hatókör (tudatosan szűkítve, a §33-36 teljes spec-tartalmához képest)
+
+**Benne van:** depresszió-feltöltés (§33.1), flow direction (D4, a már
+verifikált `TileNeighbors`-ra építve), flow accumulation, folyó-küszöb
+osztályozás.
+
+**Halasztva** (dokumentált, nem hiányosság): folyók időbeli változása
+(§34 — medervándorlás, deltaépülés, folyóelfogás — ezek deep-time
+tartalom, M10-re illenek), tavak (§35 — külön kialakulás-logika kell),
+jég/hó (§36 — a hőmérséklet-modellre épül, de külön al-rendszer), és a
+tényleges eróziós visszahatás a domborzatra (a folyó bevágja a terepet —
+ez a "A1 eróziós pass" a milestone-táblázatban, de a *statikus* folyó-
+hálózat felismerése nem igényli az iteratív eróziót, csak az elevation-t
+olvassa).
+
+### 7.1 Depresszió-feltöltés
+
+A nyers elevation-mezőn helyi mélyedések (lokális minimumok, amikbe a
+víz "beragadna") lehetnek — priority-flood algoritmus (óceán-tile-októl
+indulva, mindig a legalacsonyabb, még feltöltetlen szomszédot választva)
+biztosítja, hogy minden szárazföld-tile-nak legyen monoton lejtő útvonala
+a tenger felé.
+
+### 7.2 Flow direction + flow accumulation
+
+A feltöltött mezőn minden tile a legmeredekebb lejtésű szomszédja felé
+folyik (D4, a 4 szomszédos tile közül). Az accumulation csökkenő
+magasság sorrendben számolható (topologikus rendezés, mert a feltöltött
+mezőn a folyásirány-gráf ciklusmentes).
+
+### 7.3 Folyó-küszöb osztályozás
+
+Egy tile "folyó", ha a flow accumulation egy küszöböt meghalad.
+
+**Kötelező teszt:** minden szárazföld-tile-ból a folyásirányt követve
+véges lépésben óceánba (vagy a térkép szélébe) kell jutni — nincs
+végtelen ciklus, nincs helyben ragadás.
+
+### 7.4 Javasolt sorrend
+
+1. `tools/reference/` — Python priority-flood + flow direction/accumulation
+2. C# port + tesztek
+3. Unity render-kiegészítés (kék folyóvonalak) — vizuális ellenőrzésed
+   szükséges
+
+Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → mérés**.
