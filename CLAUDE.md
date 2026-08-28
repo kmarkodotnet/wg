@@ -98,6 +98,13 @@ KAT-vektorokhoz van mérve.
 Python orákulum → verifikálás ismert vektorokhoz → tesztvektorok generálása →
 C# implementáció → C# a vektorokhoz mérve.
 
+**Haladás-jelentés minden lépésnél.** A záró-összefoglalóhoz tartozik egy
+mérföldkő-alapú % becslés (`docs/05-milestones.md` M0-M13 táblázatából,
+tartalmi súlyozással, NE puszta darabszám-arány) és egy munkaóra-becslés
+(eddig ráment / hátralévő). A munkaóra-szám **mindig jelezve legyen durva
+becslésként**, nem mért tényként — nincs valós idő-naplózás a projektben,
+ne állíts hamis pontosságot.
+
 ## Tesztelési elvárások
 
 Minden új modulhoz kötelező:
