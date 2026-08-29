@@ -298,6 +298,7 @@ namespace WorldGen.Viewer
             BuildMultiMaterialMesh(verticesByCategory, normalsByCategory, trianglesByCategory);
             BuildBorders(borderVerts, borderIndices);
             BuildCraterMarkers(craters, seed, seeds);
+            BuildOceanShell(seaLevel);
 
             _lastSeed = seed;
             _lastField = field;
@@ -499,6 +500,44 @@ namespace WorldGen.Viewer
                 borderGo.SetActive(true);
             }
             borderGo.GetComponent<MeshFilter>().sharedMesh = borderMesh;
+        }
+
+        /// <summary>
+        /// Vízfelszín-réteg: egyszerű, átlátszatlan gömbhéj a KALIBRÁLT
+        /// tengerszint sugarán (nem kitalált érték - a SeaLevelCalibration
+        /// eredménye, ugyanaz, amit az óceán/szárazföld eldöntéséhez is
+        /// használunk, I3/I4). Enélkül az "Ocean" kategóriájú tile-ok a
+        /// saját (a fraktál-zaj miatt most már durva) tengerfenék-
+        /// magasságukon látszanak, víz nélkül - kiszáradt medencének tűnik.
+        ///
+        /// SZÁNDÉKOSAN EGYSZERŰ: nincs Fresnel-csillanás, mélységfüggő
+        /// szín/átlátszóság - az a teljes vízshader-munka (spec §3.2
+        /// WaterDepth réteg), M6/M13-ra tervezve. Ez csak egy helykitöltő,
+        /// hogy a víz ne HIÁNYOZZON, amíg a végleges shader el nem készül.
+        /// </summary>
+        private void BuildOceanShell(double seaLevel)
+        {
+            Transform oceanChild = transform.Find("OceanShell");
+            GameObject oceanGo;
+            if (oceanChild == null)
+            {
+                oceanGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                oceanGo.name = "OceanShell";
+                oceanGo.transform.SetParent(transform, false);
+                MeshRenderer mr = oceanGo.GetComponent<MeshRenderer>();
+                mr.sharedMaterial = CreateFlatColorMaterial(new Color(0.06f, 0.22f, 0.42f));
+                Collider col = oceanGo.GetComponent<Collider>();
+                if (col != null) SafeDestroy(col);
+            }
+            else
+            {
+                oceanGo = oceanChild.gameObject;
+            }
+
+            float oceanRadius = radius + (float)(seaLevel * elevationScale);
+            // Unity beepitett Sphere primitiv atmeroje 1 egyseg -> a
+            // localScale-nek a SUGAR ketszerese kell legyen.
+            oceanGo.transform.localScale = Vector3.one * (oceanRadius * 2f);
         }
 
         /// <summary>
