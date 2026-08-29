@@ -749,6 +749,98 @@ kontinens ≥2).
 249/249 teszt zöld (Debug és Release is) — nincs új tesztfájl, a meglévő
 KAT/struktúra-tesztek a frissített vektorokkal és elvárásokkal futnak.
 
+### ND-38 — Térfogat-megmaradás alapú tengerszint a deep-time (M10) láncban — MEGOLDVA
+
+**Kérdés:** a `SeaLevelCalibration.CalibrateSeaLevel` percentilis-módszere
+minden lekérdezéskor PONTOSAN a `targetWaterFraction` (0.65) arányú tile-t
+teszi víz alá, FÜGGETLENÜL attól, hogy a domborzat hogyan alakul. Az M10
+deep-time láncban (`PlanetGridMesh.Build()`) minden `deepTimeMyr` értékre
+újra lefut ez a kalibráció a lemezmozgás miatt megváltozott elevációs
+mezőn — ez azt jelenti, hogy a víz-arány MINDIG pontosan 65% marad, akárhogy
+is nőnek a hegyek vagy ütköznek a kontinensek. Fizikailag ez hibás: a
+víz TÉRFOGATÁNAK kéne megmaradnia, nem az aránynak.
+
+**Döntés:** a `t=0` világállapotból (a meglévő, változatlan percentilis-
+kalibrációval) egy dimenziómentes víztérfogat-proxyt számolunk (`V0`,
+`ComputeFloodedVolumeProxy` — a már bevett tile-egyenletes-terület
+közelítés, ld. `FeatureMetrics.AreaTiles` és ND-24 precedense, NINCS
+valódi gömbfelszín-területsúlyozás). Minden későbbi `t`-nél ehhez a
+RÖGZÍTETT `V0`-hoz tartozó egyensúlyi tengerszintet keressük meg
+(`CalibrateSeaLevelByVolume`) — a `Σ max(0, H - elevation)` monoton növekvő
+függvénye `H`-nak, ezért egyértelműen konvergál egyetlen FIX (60)
+iterációjú bináris kereséssel.
+
+**Determinizmus-érvelés (I1):** a bináris kereső FIX iterációszámú `for`
+ciklus, NEM tolerancia-alapú `while` — egy tolerancia-alapú leállás
+platformfüggő lebegőpontos kerekítési különbségek miatt eltérő
+lépésszámban állhatna meg (pl. egy `Math.Abs(vol - target) < eps`
+feltétel az utolsó bitben ingadozhat két platform között), míg a fix
+iterációszám mindig ugyanazt az útvonalat futja be, bitre reprodukálhatóan
+minden platformon és szálszámon.
+
+**`t=0` visszamenőleges kompatibilitás — bitre garantált, NEM csak mérve
+közelítő:** a `PlanetGridMesh.Build()`-ben a `deepTimeMyr == 0.0` ág
+VÁLTOZATLANUL a régi `CalibrateSeaLevel` percentilis-hívást futtatja —
+nincs új számítási lánc `t=0`-nál, tehát a már vizuálisan jóváhagyott
+render bitre ugyanaz marad. A térfogat-alapú visszaoldás csak `t>0`-nál
+fut. Ettől függetlenül Python referenciával (`tools/reference/
+sea_level_ref.py`, "ND-38" szakasz) LEMÉRTÜK, hogy a két módszer `t=0`-nál
+mennyire közelít egymáshoz — a numerikus pontosság dokumentálásához: 60
+lépéses bináris kereséssel a visszaoldott szint és a percentilis-szint
+közötti eltérés `6.82e-13 m` volt (world_seed=0xA7C944210000,
+plateCount=20, level=6, sea_level≈1235.106 m) — gyakorlatilag a dupla
+lebegőpontos kerekítési zaj szintjén, messze a méteres nagyságrendű
+elevációs skálához képest elhanyagolható. A C# oldali teszt
+(`SeaLevelCalibrationVolumeBasedTests.
+AtTimeZeroVolumeBasedLevelMatchesPercentileLevel`) `1e-6 m` toleranciát
+követel meg, jóval a mért pontosság felett hagyva biztonsági margót.
+
+**Mért hatás — a víz-arány TÉNYLEGESEN elmozdul 65%-tól (a funkció
+bizonyítéka, nem csak elméleti lehetőség):** Python referenciával mérve
+(world_seed=0xA7C944210000, plateCount=20, level=5, `V0`=11 359 571.377
+proxy-egység, a `t=0` percentilis-kalibrált 64.9902%-os víz-arányból
+számolva):
+
+| `timeMyr` | tengerszint (rögzített `V0` mellett) | mért víz-arány | eltolódás a 65%-os t=0 céltól |
+|---|---|---|---|
+| 0 | 1244.78 m | 64.99% | (bázis) |
+| 50 | 849.38 m | 41.81% | **−23.19 százalékpont** |
+| 100 | 1652.15 m | 85.66% | **+20.66 százalékpont** |
+| 250 | 1969.43 m | 93.70% | **+28.70 százalékpont** |
+| 500 | 1206.86 m | 64.18% | −0.82 százalékpont |
+
+Minden mért `t`-nél a bináris kereső a `V0`-hoz `≤3.73e-9` abszolút
+eltéréssel konvergált (ellenőrizve: `flooded_volume_proxy` a visszaoldott
+szintnél). A víz-arány egyetlen mért pontnál sem omlott össze 0%-ra vagy
+100%-ra (fizikailag plauzibilis tartományban maradt), miközben jól látszik,
+hogy a korábbi, örökké-pontosan-65%-os viselkedés megszűnt.
+
+**Kódváltozás:**
+- `tools/reference/sea_level_ref.py`: `flooded_volume_proxy`,
+  `calibrate_sea_level_by_volume` (60 lépés alapértelmezett), valamint
+  `compute_elevation_field_at_time` (a `plate_motion_ref.plate_seed_at_time`
+  felhasználásával) + `__main__` verifikációs szakasz.
+- `src/WorldGen.Core/Tectonics/SeaLevelCalibration.cs`:
+  `ComputeFloodedVolumeProxy`, `CalibrateSeaLevelByVolume` (tiszta, statikus
+  függvények, ugyanaz a stílus, mint a meglévő `CalibrateSeaLevel`).
+- `unity/WorldGenViewer/Assets/Scripts/Viewer/PlanetGridMesh.cs`: `V0`
+  gyorsítótárazása (`EnsureInitialWaterVolumeCache`) — csak seed/
+  plateCount/level/targetWaterFraction változásakor számol újra, a
+  `deepTimeMyr` csúszka mozgatásakor NEM; `Build()`-ben `deepTimeMyr==0`
+  esetén a régi percentilis-hívás, egyébként a térfogat-alapú visszaoldás.
+- Nincs downstream Python tesztvektor-változás (a `CrustElevation`/
+  `PlateBoundaryEffect`/stb. numerikus viselkedése nem módosult, csak a
+  tengerszint-kalibráció egy ÚJ, opcionális módja került hozzá).
+
+**`TEST-EARTH-001` állapota:** VÁLTOZATLANul teljesül `t=0`-nál mindkét
+módszerrel (65.00% víz, 44 kontinens ≥2 — a percentilis-módszer bitre
+változatlan; a térfogat-alapú visszaoldással is teljesül, ld.
+`SeaLevelCalibrationVolumeBasedTests.
+TestEarth001HoldsWithVolumeBasedCalibrationAtTimeZero`).
+
+261/261 teszt zöld (12 új: `SeaLevelCalibrationVolumeBasedTests`), Debug és
+Release konfigurációban egyaránt.
+
 ## Nyitott döntések
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai

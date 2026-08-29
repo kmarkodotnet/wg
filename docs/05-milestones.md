@@ -15,7 +15,7 @@ enélkül nem derül ki időben, ha valami rossz irányba megy.
 | **M7** | **Hidrológia + erózió** | Folyók, tavak, gleccser, A1 eróziós pass | Folyók a kontinensnézeten, mikro-vízrajz | ✅ **Vizuálisan megerősítve** ("folyók hegyből tengerbe futnak" strukturálisan bizonyítva, 146/146 teszt); tavak/jég/erózió halasztva |
 | **M8** | **Features + panelek** | Szegmentálás, névadás, aggregált metrikák | World/Continent/Region panelek élesben | Kontinens/régió-szegmentálás + névgenerálás + aggregált metrikák (Area, BiomeDiversity, RiverMouthCount) ✅ **numerikusan kész** (190/190 teszt); a legtöbb panel-mező (Habitability, Coastal complexity stb.) halasztva; vizuális render hátra |
 | M9 | Continent + Region nézet | Magas LOD, displacement, kamera-átmenetek | Referenciakép 1, 3, 4 szintje | Zoom-átmenet folyamatos |
-| **M10** | **Deep time** | Lemezmozgás, erózió, eljegesedés, tengerszint | Az időcsúszka él | Lemezmozgás ✅ **vizuálisan megerősítve** (163/163 teszt, TimestepInvariance egzakt; `deepTimeMyr` Unity idő-csúszka - domborzat ÉS biome egyaránt elmozdul, felhasználó által tesztelve); erózió/eljegesedés/dinamikus tengerszint halasztva |
+| **M10** | **Deep time** | Lemezmozgás, erózió, eljegesedés, tengerszint | Az időcsúszka él | Lemezmozgás ✅ **vizuálisan megerősítve** (163/163 teszt, TimestepInvariance egzakt; `deepTimeMyr` Unity idő-csúszka - domborzat ÉS biome egyaránt elmozdul, felhasználó által tesztelve). Dinamikus (térfogat-megmaradás alapú) tengerszint ✅ **numerikusan kész** (ND-38, 261/261 teszt; a víz-arány mérve `t=0`-nál 65%-ról 50 Myr alatt 41.8%-ra, 250 Myr alatt 93.7%-ra tolódik el, ahelyett hogy örökké pontosan 65% maradna); erózió/eljegesedés halasztva |
 | **M11** | **Események** | Becsapódás, vulkán, rift, split/merge | Kráterek, kitörések láthatók | Becsapódás ✅ **vizuálisan megerősítve**; szuper-vulkán (VEI8) ✅ **numerikusan kész** (220/220 teszt, ND-29); rift/split-merge halasztva — strukturálisan más (folytonos, nem diszkrét esemény-alapú) modellt igényelnek, önálló tervezést érdemelnek |
 | **M12** | **Perzisztencia + CLI** | Checkpoint, .worldpkg, state hash | — | State hash (`WorldStateHash`) ✅ **numerikusan kész** (227/227 teszt, ND-30); checkpoint/.worldpkg/CLI halasztva |
 | M13 | Polish | Volumetrikus felhő, AO, víz-shader, színkalibráció | Végleges látvány | Vizuális acceptance (spec §73) |
@@ -468,11 +468,20 @@ forgatás), a `TileId -> plate -> elevation` lánc időfüggővé tétele.
 
 **Halasztva** (dokumentált, nem hiányosság — mindegyik önálló,
 referencia-előbb ciklust igényelne): erózió idővel felhalmozódó hatása,
-eljegesedés (jégkorszak-ciklusok), dinamikus tengerszint (térfogat-
-megmaradás alapú, nem csak percentilis-újrakalibráció), lemez-születés/
--halál (§16). A tengerszint egyelőre továbbra is a MINDENKORI
-elevation-mező percentilise (mint M4-ben), csak az elevation-mező maga
-változik idővel a lemezmozgás miatt.
+eljegesedés (jégkorszak-ciklusok), lemez-születés/-halál (§16).
+
+**Dinamikus, térfogat-megmaradás alapú tengerszint — MEGVALÓSULT (ND-38,
+utólagos kiegészítés).** Eredetileg ez a lépés is halasztva volt (a
+tengerszint a MINDENKORI elevation-mező percentilise maradt volna, mint
+M4-ben, ami azt jelentette volna, hogy a víz-arány örökké pontosan
+`targetWaterFraction` marad, függetlenül a domborzat változásától — ez
+fizikailag hibás). A `t=0` állapotból számolt, rögzített víztérfogathoz
+(`SeaLevelCalibration.ComputeFloodedVolumeProxy`) tartozó egyensúlyi
+tengerszintet minden későbbi `t`-re fix (60) iterációjú bináris kereséssel
+oldjuk vissza (`CalibrateSeaLevelByVolume`) — a `t=0` render bitre
+változatlan marad (a régi percentilis-hívás fut tovább), `t>0`-nál viszont
+a víz-arány ténylegesen elmozdul (mérve: 65%→41.8% 50 Myr alatt, →93.7%
+250 Myr alatt). Részletek: `docs/04-decisions.md` ND-38.
 
 **Új időtengely:** a lemezmozgás időegysége **millió év (Myr)**, külön
 a csillagászat/klíma "nap" (day_t) tengelyétől — geológiai időskála,

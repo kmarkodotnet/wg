@@ -144,6 +144,20 @@ namespace WorldGen.Viewer
         private Dictionary<TileId, Biome> _lastBiomeOf;
         private double _lastSeaLevel;
 
+        // ND-38: a t=0 (percentilis-kalibrált) víztérfogat gyorsítótára - CSAK
+        // a világot meghatározó paraméterek (seed/plateCount/level/
+        // targetWaterFraction) változásakor számoljuk újra, a `deepTimeMyr`
+        // csúszka mozgatásakor NEM (ld. Build() lent). Enélkül minden egyes
+        // deepTimeMyr-lekérdezés újra kiszámolná a t=0 statikus mezőt is,
+        // feleslegesen - és ami fontosabb, a "megőrzött térfogat" fogalmának
+        // ÉRTELME az, hogy egyetlen rögzített t=0 alapállapotra vonatkozik.
+        private bool _hasInitialWaterVolumeCache;
+        private ulong _volumeCacheSeed;
+        private int _volumeCachePlateCount;
+        private int _volumeCacheLevel;
+        private double _volumeCacheTargetWaterFraction;
+        private double _cachedInitialWaterVolume;
+
         [Tooltip("Minden sikeres Build() (Rebuild) végén meghívva - a WorldGenPanelUI " +
                  "ezt hallgatja, hogy egyetlen Rebuild a panelt is frissítse, ne kelljen " +
                  "külön Refresh Panels-t is hívni.")]
@@ -185,7 +199,26 @@ namespace WorldGen.Viewer
                 }
                 field = craterField;
             }
-            double seaLevel = SeaLevelCalibration.CalibrateSeaLevel(field.Values, targetWaterFraction);
+
+            // ND-38: terfogat-megmaradas alapu tengerszint. t=0-nal a REGI,
+            // percentilis-modszert hasznaljuk VALTOZATLANUL (bitre ugyanaz a
+            // szamitasi lanc, mint korabban) - ez garantalja, hogy a mar
+            // vizualisan jovahagyott t=0 render bitre ugyanaz marad. t>0-nal a
+            // t=0 statikus mezobol szarmazo, ROGZITETT viztertfogathoz (V0)
+            // tartozo egyensulyi szintet keressuk meg - igy a viz-arany
+            // TENYLEGESEN elmozdulhat 65%-tol, ahogy a domborzat a
+            // lemezmozgas miatt valtozik (nem marad mindig mesterségesen
+            // pontosan targetWaterFraction).
+            double seaLevel;
+            if (deepTimeMyr == 0.0)
+            {
+                seaLevel = SeaLevelCalibration.CalibrateSeaLevel(field.Values, targetWaterFraction);
+            }
+            else
+            {
+                EnsureInitialWaterVolumeCache(seed);
+                seaLevel = SeaLevelCalibration.CalibrateSeaLevelByVolume(field.Values, _cachedInitialWaterVolume);
+            }
             Dictionary<TileId, bool> isOceanField = FlowNetwork.ComputeOceanField(field, seaLevel);
 
             // A folyo-tile kivalasztas logikaja a Core-ban van (FlowNetwork.
@@ -308,6 +341,35 @@ namespace WorldGen.Viewer
             _lastSeaLevel = seaLevel;
 
             Built.Invoke();
+        }
+
+        /// <summary>
+        /// ND-38: a t=0 (statikus, percentilis-kalibrált) víztérfogat
+        /// gyorsítótárazott kiszámítása - CSAK akkor fut újra a mögöttes
+        /// elevation-mező kiszámítása, ha a világot meghatározó paraméterek
+        /// (seed/plateCount/level/targetWaterFraction) az utolsó híváshoz
+        /// képest változtak.
+        /// </summary>
+        private void EnsureInitialWaterVolumeCache(ulong seed)
+        {
+            if (_hasInitialWaterVolumeCache
+                && _volumeCacheSeed == seed
+                && _volumeCachePlateCount == plateCount
+                && _volumeCacheLevel == level
+                && _volumeCacheTargetWaterFraction == targetWaterFraction)
+            {
+                return;
+            }
+
+            Dictionary<TileId, double> field0 = SeaLevelCalibration.ComputeElevationField(seed, plateCount, level);
+            double seaLevel0 = SeaLevelCalibration.CalibrateSeaLevel(field0.Values, targetWaterFraction);
+            _cachedInitialWaterVolume = SeaLevelCalibration.ComputeFloodedVolumeProxy(field0.Values, seaLevel0);
+
+            _volumeCacheSeed = seed;
+            _volumeCachePlateCount = plateCount;
+            _volumeCacheLevel = level;
+            _volumeCacheTargetWaterFraction = targetWaterFraction;
+            _hasInitialWaterVolumeCache = true;
         }
 
         /// <summary>

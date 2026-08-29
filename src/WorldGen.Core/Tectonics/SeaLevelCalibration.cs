@@ -85,6 +85,64 @@ namespace WorldGen.Core.Tectonics
             return sorted[idx];
         }
 
+        /// <summary>
+        /// ND-38: dimenziómentes víz-térfogat PROXY egy adott tengerszinthez -
+        /// minden tile terület-súly nélkül (egyenletes tile-terület-közelítés,
+        /// ld. a már bevett <see cref="Features.FeatureMetrics.AreaTiles"/>
+        /// precedenst, ND-24) <c>max(0, seaLevel - elevation)</c>-vel járul
+        /// hozzá. Monoton NÖVEKVŐ függvénye <paramref name="seaLevel"/>-nek,
+        /// ez teszi lehetővé a <see cref="CalibrateSeaLevelByVolume"/> bináris
+        /// keresését.
+        /// </summary>
+        public static double ComputeFloodedVolumeProxy(IEnumerable<double> elevations, double seaLevel)
+        {
+            double total = 0.0;
+            foreach (double e in elevations)
+            {
+                double depth = seaLevel - e;
+                if (depth > 0.0)
+                    total += depth;
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// ND-38: a tengerszint, amire <see cref="ComputeFloodedVolumeProxy"/>
+        /// gyakorlatilag egyenlő <paramref name="targetVolume"/>-mal, FIX
+        /// iterációszámú bináris kereséssel (nem tolerancia-alapú leállás -
+        /// CLAUDE.md I1, determinizmus platformok között: egy fix
+        /// iterációszámú ciklus mindig ugyanannyi lépést fut, bitre
+        /// reprodukálhatóan). A <c>[min(elevations), max(elevations)]</c>
+        /// tartomány dupla lebegőpontos pontosság alatt 60 lépésben bőven
+        /// belefér.
+        /// </summary>
+        public static double CalibrateSeaLevelByVolume(IEnumerable<double> elevations, double targetVolume, int iterations = 60)
+        {
+            var values = new List<double>(elevations);
+            if (values.Count == 0)
+                throw new ArgumentException("Üres eleváció-mező.", nameof(elevations));
+
+            double lo = values[0];
+            double hi = values[0];
+            for (int i = 1; i < values.Count; i++)
+            {
+                double e = values[i];
+                if (e < lo) lo = e;
+                if (e > hi) hi = e;
+            }
+
+            for (int i = 0; i < iterations; i++)
+            {
+                double mid = (lo + hi) / 2.0;
+                double vol = ComputeFloodedVolumeProxy(values, mid);
+                if (vol < targetVolume)
+                    lo = mid;
+                else
+                    hi = mid;
+            }
+            return (lo + hi) / 2.0;
+        }
+
         /// <summary>Összefüggő szárazföld-komponensek (szélességi bejárás), min. méret szerint szűrve.</summary>
         public static List<List<TileId>> CountContinents(Dictionary<TileId, double> field, double seaLevel, int minSize)
         {
