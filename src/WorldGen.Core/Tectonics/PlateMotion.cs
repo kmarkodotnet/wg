@@ -1,4 +1,5 @@
 using System;
+using WorldGen.Core.Numerics;
 using WorldGen.Core.Random;
 
 namespace WorldGen.Core.Tectonics
@@ -14,9 +15,9 @@ namespace WorldGen.Core.Tectonics
     /// IDŐEGYSÉG: millió év (Myr) — külön a csillagászat/klíma "nap"
     /// (dayT) tengelyétől.
     ///
-    /// ND-27 KITERJESZTVE (nem új döntés): a Rodrigues-forgatás
-    /// Math.Sin/Cos-t használ — ugyanaz a trigonometria-kockázati
-    /// kategória és határidő (M12), mint a hőmérséklet-modellnél.
+    /// ND-27 LEZÁRVA: a Rodrigues-forgatás <see cref="Numerics.DeterministicMath"/>
+    /// SinCos-t használ (Math.Sin/Cos helyett) — platformfüggetlenül
+    /// bitpontos, ld. docs/04-decisions.md ND-27.
     /// </summary>
     public static class PlateMotion
     {
@@ -47,8 +48,7 @@ namespace WorldGen.Core.Tectonics
             double angle,
             out double rx, out double ry, out double rz)
         {
-            double cosA = Math.Cos(angle);
-            double sinA = Math.Sin(angle);
+            DeterministicMath.SinCos(angle, out double sinA, out double cosA);
 
             double crossX = ky * vz - kz * vy;
             double crossY = kz * vx - kx * vz;

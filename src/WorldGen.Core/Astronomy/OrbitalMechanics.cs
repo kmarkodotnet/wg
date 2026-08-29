@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using WorldGen.Core.Numerics;
 
 namespace WorldGen.Core.Astronomy
 {
@@ -17,10 +18,18 @@ namespace WorldGen.Core.Astronomy
     ///   - TEST-KERET (a bolygóval együtt forgó, dőlt): ide kell a nap-irányt
     ///     számolni — ez határozza meg, mit lát a Unity Directional Light-ja.
     ///
-    /// FIGYELEM (ND-26): Math.Sin/Cos/Atan2/Asin használata — NEM garantáltan
-    /// bitpontos platformok között. M3-ra elfogadott kockázat (a kimenet csak
-    /// a Unity Directional Light rotációját vezérli, nem hash-elt állapot) —
-    /// M5 (klíma) előtt végleges döntés kell.
+    /// ND-27 LEZÁRVA: a forgatási mátrixok és a pálya-irány
+    /// <see cref="DeterministicMath"/> SinCos-t használnak (Math.Sin/Cos
+    /// helyett) — platformfüggetlenül bitpontos.
+    ///
+    /// KIVÉTEL — <see cref="SubsolarPoint"/>: Math.Asin/Atan2-t használ,
+    /// SZÁNDÉKOSAN NEM cserélve. Ez a függvény jelenleg sehol nincs
+    /// bekötve szimulációs kritikus útra (csak tesztekben hívott — a
+    /// tényleges inszoláció-számítás, <see cref="Insolation"/>, közvetlen
+    /// pontszorzatot használ, nem megy át szélesség/hosszúság
+    /// koordinátán). Ha ez változik (pl. egy jövőbeli panel-mező innen
+    /// olvas és checkpointolódik), az ND-27 kockázati osztálya és M12
+    /// előtti lezárási kötelezettsége ide is kiterjed.
     /// </summary>
     public static class OrbitalMechanics
     {
@@ -42,7 +51,7 @@ namespace WorldGen.Core.Astronomy
 
             public static Matrix3 RotX(double angle)
             {
-                double c = Math.Cos(angle), s = Math.Sin(angle);
+                DeterministicMath.SinCos(angle, out double s, out double c);
                 return new Matrix3(
                     1, 0, 0,
                     0, c, -s,
@@ -51,7 +60,7 @@ namespace WorldGen.Core.Astronomy
 
             public static Matrix3 RotZ(double angle)
             {
-                double c = Math.Cos(angle), s = Math.Sin(angle);
+                DeterministicMath.SinCos(angle, out double s, out double c);
                 return new Matrix3(
                     c, -s, 0,
                     s, c, 0,
@@ -103,8 +112,9 @@ namespace WorldGen.Core.Astronomy
             out double x, out double y, out double z)
         {
             double theta = OrbitalAngle(t, orbitalPeriod, phase0);
-            x = -Math.Cos(theta);
-            y = -Math.Sin(theta);
+            DeterministicMath.SinCos(theta, out double sinTheta, out double cosTheta);
+            x = -cosTheta;
+            y = -sinTheta;
             z = 0.0;
         }
 

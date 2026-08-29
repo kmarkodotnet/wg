@@ -1272,11 +1272,11 @@
    "x": 0.6016279178771371,
    "y": 0.39725964999067237,
    "z": 0.6929852948801364,
-   "impactorDiameterMeters": 1196.667753965888,
+   "impactorDiameterMeters": 1196.6677539658879,
    "velocityMetersPerSecond": 18480.170396406356,
-   "angleRadians": 0.740255298143029,
-   "craterDiameterMeters": 12108.113544151096,
-   "craterDepthMeters": 2421.6227088302194
+   "sinAngle": 0.9203294298680946,
+   "craterDiameterMeters": 13429.77277335021,
+   "craterDepthMeters": 2685.9545546700424
   },
   {
    "epochIndex": 317,
@@ -1586,9 +1586,9 @@
    "z": 0.8063232786734453,
    "impactorDiameterMeters": 1188.8981697580584,
    "velocityMetersPerSecond": 20839.060404377822,
-   "angleRadians": 0.11416160322369599,
-   "craterDiameterMeters": 7020.4052139197565,
-   "craterDepthMeters": 1404.0810427839515
+   "sinAngle": 0.725402971559354,
+   "craterDiameterMeters": 13012.573355534894,
+   "craterDepthMeters": 2602.514671106979
   },
   {
    "epochIndex": 393,
@@ -1602,9 +1602,9 @@
    "z": 0.6387821065381095,
    "impactorDiameterMeters": 1185.8032040202138,
    "velocityMetersPerSecond": 19912.962778477962,
-   "angleRadians": 0.8201620007789598,
-   "craterDiameterMeters": 12763.125738396859,
-   "craterDepthMeters": 2552.625147679372
+   "sinAngle": 0.9029097068576104,
+   "craterDiameterMeters": 13692.4744811106,
+   "craterDepthMeters": 2738.49489622212
   },
   {
    "epochIndex": 395,
@@ -1976,11 +1976,11 @@
    "x": 0.9013543130344936,
    "y": -0.19320871387932056,
    "z": -0.3875961754909549,
-   "impactorDiameterMeters": 1063.9493493767284,
+   "impactorDiameterMeters": 1063.949349385831,
    "velocityMetersPerSecond": 21349.949780271992,
-   "angleRadians": 0.7190435557022191,
-   "craterDiameterMeters": 11678.993759347584,
-   "craterDepthMeters": 2335.7987518695168
+   "sinAngle": 0.738840861223959,
+   "craterDiameterMeters": 12134.842146872292,
+   "craterDepthMeters": 2426.9684293744585
   },
   {
    "epochIndex": 487,
@@ -2520,11 +2520,11 @@
    "x": 0.9354517497002042,
    "y": 0.13762284152879786,
    "z": -0.3255610195836812,
-   "impactorDiameterMeters": 1302.986658127187,
+   "impactorDiameterMeters": 1302.9866581271685,
    "velocityMetersPerSecond": 24455.683873887814,
-   "angleRadians": 1.1888284163088394,
-   "craterDiameterMeters": 16279.086047928475,
-   "craterDepthMeters": 3255.8172095856953
+   "sinAngle": 0.5434304072682324,
+   "craterDiameterMeters": 13619.854654215269,
+   "craterDepthMeters": 2723.970930843054
   },
   {
    "epochIndex": 621,
@@ -2688,11 +2688,11 @@
    "x": -0.9982070834634574,
    "y": 0.005562855243624376,
    "z": -0.05959591567310954,
-   "impactorDiameterMeters": 2436.9869461188205,
+   "impactorDiameterMeters": 2436.9869463701057,
    "velocityMetersPerSecond": 16689.976297585148,
-   "angleRadians": 0.5110717334098644,
-   "craterDiameterMeters": 18113.9465862773,
-   "craterDepthMeters": 3622.78931725546
+   "sinAngle": 0.8192455416806103,
+   "craterDiameterMeters": 21512.03911455083,
+   "craterDepthMeters": 4302.407822910166
   },
   {
    "epochIndex": 661,
@@ -3304,11 +3304,11 @@
    "x": -0.8637181533586186,
    "y": 0.5024011392387053,
    "z": -0.03980008606057014,
-   "impactorDiameterMeters": 1432.6312685812045,
+   "impactorDiameterMeters": 1432.6312685878172,
    "velocityMetersPerSecond": 23422.827855613265,
-   "angleRadians": 0.35972570776097806,
-   "craterDiameterMeters": 12450.834106956358,
-   "craterDepthMeters": 2490.1668213912717
+   "sinAngle": 0.6097860679720064,
+   "craterDiameterMeters": 14953.270513775371,
+   "craterDepthMeters": 2990.6541027550743
   },
   {
    "epochIndex": 813,
@@ -3864,11 +3864,11 @@
    "x": 0.7589309391231718,
    "y": -0.41112144783396204,
    "z": 0.5049782022746402,
-   "impactorDiameterMeters": 1523.1963933604434,
+   "impactorDiameterMeters": 1523.1963933604907,
    "velocityMetersPerSecond": 21427.13409001641,
-   "angleRadians": 1.4287606717203623,
-   "craterDiameterMeters": 17726.62873869729,
-   "craterDepthMeters": 3545.325747739458
+   "sinAngle": 0.2607541345567032,
+   "craterDiameterMeters": 11363.228468776411,
+   "craterDepthMeters": 2272.6456937552825
   },
   {
    "epochIndex": 951,
@@ -4028,11 +4028,11 @@
    "x": 0.141232381732727,
    "y": -0.9044886758797996,
    "z": 0.4024346525279701,
-   "impactorDiameterMeters": 1384.0037273718467,
+   "impactorDiameterMeters": 1384.0037274398437,
    "velocityMetersPerSecond": 24722.556459457388,
-   "angleRadians": 0.364473757899896,
-   "craterDiameterMeters": 12463.35613224432,
-   "craterDepthMeters": 2492.671226448864
+   "sinAngle": 0.646050923942975,
+   "craterDiameterMeters": 15195.719477624772,
+   "craterDepthMeters": 3039.1438955249546
   },
   {
    "epochIndex": 990,
@@ -4628,11 +4628,11 @@
    "x": 0.024686248636449953,
    "y": -0.9767993656850148,
    "z": 0.21272890806284867,
-   "impactorDiameterMeters": 1054.10783505044,
+   "impactorDiameterMeters": 1054.1078350677865,
    "velocityMetersPerSecond": 16468.44854250166,
-   "angleRadians": 0.645025321980968,
-   "craterDiameterMeters": 10033.193848145773,
-   "craterDepthMeters": 2006.6387696291547
+   "sinAngle": 0.832990738030284,
+   "craterDiameterMeters": 11185.14899938629,
+   "craterDepthMeters": 2237.029799877258
   },
   {
    "epochIndex": 1138,
@@ -4644,11 +4644,11 @@
    "x": 0.9686201295896387,
    "y": 0.197618166451204,
    "z": -0.1507385313787279,
-   "impactorDiameterMeters": 1067.2803141295285,
+   "impactorDiameterMeters": 1067.2803141368088,
    "velocityMetersPerSecond": 24277.07472041474,
-   "angleRadians": 1.132460445559169,
-   "craterDiameterMeters": 13774.76270665188,
-   "craterDepthMeters": 2754.9525413303763
+   "sinAngle": 0.6842044630697162,
+   "craterDiameterMeters": 12546.515514353883,
+   "craterDepthMeters": 2509.303102870777
   },
   {
    "epochIndex": 1140,
@@ -4888,11 +4888,11 @@
    "x": -0.7492607576177469,
    "y": 0.6602054337551578,
    "z": -0.05231732346215554,
-   "impactorDiameterMeters": 2470.3862272422843,
+   "impactorDiameterMeters": 2470.386227350922,
    "velocityMetersPerSecond": 23016.836362782116,
-   "angleRadians": 0.9025091859382338,
-   "craterDiameterMeters": 24689.33499056527,
-   "craterDepthMeters": 4937.866998113054
+   "sinAngle": 0.8936989634870681,
+   "craterDiameterMeters": 25781.28851861231,
+   "craterDepthMeters": 5156.257703722462
   },
   {
    "epochIndex": 1199,
@@ -5172,11 +5172,11 @@
    "x": -0.5446520557587416,
    "y": 0.7783897056588207,
    "z": -0.3121916146890413,
-   "impactorDiameterMeters": 1049.9752319662855,
+   "impactorDiameterMeters": 1049.9752319888776,
    "velocityMetersPerSecond": 24132.377415808183,
-   "angleRadians": 0.8380542514255882,
-   "craterDiameterMeters": 12701.187579987522,
-   "craterDepthMeters": 2540.2375159975045
+   "sinAngle": 0.6997076044813408,
+   "craterDiameterMeters": 12447.633039732691,
+   "craterDepthMeters": 2489.526607946538
   },
   {
    "epochIndex": 1268,
@@ -5188,11 +5188,11 @@
    "x": 0.468842001199583,
    "y": -0.8481520636297425,
    "z": -0.24662776581678625,
-   "impactorDiameterMeters": 1104.2161728503381,
+   "impactorDiameterMeters": 1104.2161728508388,
    "velocityMetersPerSecond": 21860.69759195385,
-   "angleRadians": 0.2937110724274519,
-   "craterDiameterMeters": 9236.439848274662,
-   "craterDepthMeters": 1847.2879696549326
+   "sinAngle": 0.4864893583115746,
+   "craterDiameterMeters": 10981.028481601015,
+   "craterDepthMeters": 2196.205696320203
   },
   {
    "epochIndex": 1270,
@@ -5496,11 +5496,11 @@
    "x": -0.8971041889140142,
    "y": -0.4304793192691695,
    "z": -0.09945667355427222,
-   "impactorDiameterMeters": 1411.7256916331737,
+   "impactorDiameterMeters": 1411.7256916512438,
    "velocityMetersPerSecond": 19836.500483177442,
-   "angleRadians": 0.6427476245234589,
-   "craterDiameterMeters": 13661.936854377118,
-   "craterDepthMeters": 2732.3873708754236
+   "sinAngle": 0.850847776076751,
+   "craterDiameterMeters": 15354.11177397296,
+   "craterDepthMeters": 3070.8223547945922
   },
   {
    "epochIndex": 1345,
@@ -5540,11 +5540,11 @@
    "x": 0.11119109799129435,
    "y": 0.9879060294387977,
    "z": 0.10806579813224676,
-   "impactorDiameterMeters": 1310.8956841605686,
+   "impactorDiameterMeters": 1310.8956841605445,
    "velocityMetersPerSecond": 24213.911859152442,
-   "angleRadians": 0.6720233907165829,
-   "craterDiameterMeters": 14256.255969296983,
-   "craterDepthMeters": 2851.2511938593966
+   "sinAngle": 0.9137558762737711,
+   "craterDiameterMeters": 16201.40410797378,
+   "craterDepthMeters": 3240.280821594756
   },
   {
    "epochIndex": 1354,
@@ -6224,11 +6224,11 @@
    "x": -0.6051250887572034,
    "y": 0.7136922130800637,
    "z": -0.35279888314090185,
-   "impactorDiameterMeters": 1380.3934162915955,
+   "impactorDiameterMeters": 1380.393416371725,
    "velocityMetersPerSecond": 17341.020393632367,
-   "angleRadians": 0.19024559494970808,
-   "craterDiameterMeters": 8614.098868208606,
-   "craterDepthMeters": 1722.8197736417214
+   "sinAngle": 0.3629440143443179,
+   "craterDiameterMeters": 10705.143809843057,
+   "craterDepthMeters": 2141.0287619686114
   },
   {
    "epochIndex": 1523,
@@ -6488,11 +6488,11 @@
    "x": -0.7047343784518009,
    "y": -0.4983989160529163,
    "z": 0.5049237331572282,
-   "impactorDiameterMeters": 1419.8721356549852,
+   "impactorDiameterMeters": 1419.8721356675362,
    "velocityMetersPerSecond": 17336.13557790708,
-   "angleRadians": 0.44516823075512396,
-   "craterDiameterMeters": 11583.475711520325,
-   "craterDepthMeters": 2316.695142304065
+   "sinAngle": 0.5267863163168875,
+   "craterDiameterMeters": 12388.606087414159,
+   "craterDepthMeters": 2477.721217482832
   },
   {
    "epochIndex": 1587,
@@ -6888,11 +6888,11 @@
    "x": -0.006993389928248934,
    "y": 0.00543383207189087,
    "z": -0.9999607822141455,
-   "impactorDiameterMeters": 3290.6588607251,
+   "impactorDiameterMeters": 3290.658860890669,
    "velocityMetersPerSecond": 20930.060972699244,
-   "angleRadians": 0.3346319159880548,
-   "craterDiameterMeters": 22148.67355452353,
-   "craterDepthMeters": 4429.734710904707
+   "sinAngle": 0.4730025219294617,
+   "craterDiameterMeters": 25012.571111607253,
+   "craterDepthMeters": 5002.514222321451
   },
   {
    "epochIndex": 1685,
@@ -7106,9 +7106,9 @@
    "z": 0.8323982287201691,
    "impactorDiameterMeters": 2265.4967306154676,
    "velocityMetersPerSecond": 17590.45854020034,
-   "angleRadians": 1.112640696235007,
-   "craterDiameterMeters": 21434.339165199533,
-   "craterDepthMeters": 4286.867833039907
+   "sinAngle": 0.7932432185247902,
+   "craterDiameterMeters": 20574.806428639342,
+   "craterDepthMeters": 4114.961285727869
   },
   {
    "epochIndex": 1737,
@@ -7304,11 +7304,11 @@
    "x": -0.8866532937601515,
    "y": 0.1015432419017,
    "z": -0.45114843088319306,
-   "impactorDiameterMeters": 1138.7154071342356,
+   "impactorDiameterMeters": 1138.715407134263,
    "velocityMetersPerSecond": 16942.496839725736,
-   "angleRadians": 0.8800829377988584,
-   "craterDiameterMeters": 11721.516339257552,
-   "craterDepthMeters": 2344.3032678515106
+   "sinAngle": 0.8579620635974696,
+   "craterDiameterMeters": 12147.702443254537,
+   "craterDepthMeters": 2429.5404886509073
   },
   {
    "epochIndex": 1785,
@@ -7968,11 +7968,11 @@
    "x": 0.6491341772791304,
    "y": 0.35949861917001663,
    "z": 0.6703622622903216,
-   "impactorDiameterMeters": 1307.2894395225119,
+   "impactorDiameterMeters": 1307.2894395224905,
    "velocityMetersPerSecond": 20399.560701795595,
-   "angleRadians": 1.3470622975850095,
-   "craterDiameterMeters": 15320.28282232228,
-   "craterDepthMeters": 3064.056564464456
+   "sinAngle": 0.8579995933951873,
+   "craterDiameterMeters": 14680.79885136205,
+   "craterDepthMeters": 2936.1597702724102
   },
   {
    "epochIndex": 1949,
@@ -8304,11 +8304,11 @@
    "x": -0.007991706968098393,
    "y": 0.9678192723539548,
    "z": 0.2515193604476553,
-   "impactorDiameterMeters": 1215.7665923337695,
+   "impactorDiameterMeters": 1215.7665923337688,
    "velocityMetersPerSecond": 21924.692076655203,
-   "angleRadians": 1.1001009319602648,
-   "craterDiameterMeters": 14502.575228230022,
-   "craterDepthMeters": 2900.5150456460046
+   "sinAngle": 0.8058898823490279,
+   "craterDiameterMeters": 14023.938679066807,
+   "craterDepthMeters": 2804.7877358133615
   },
   {
    "epochIndex": 2031,
@@ -8332,11 +8332,11 @@
    "x": 0.04563174512453429,
    "y": 0.8351014387398484,
    "z": 0.5482000828634784,
-   "impactorDiameterMeters": 1238.004271307063,
+   "impactorDiameterMeters": 1238.0042713070613,
    "velocityMetersPerSecond": 16122.66386039391,
-   "angleRadians": 1.0429840439442868,
-   "craterDiameterMeters": 12715.574724685313,
-   "craterDepthMeters": 2543.114944937063
+   "sinAngle": 0.880354692787766,
+   "craterDiameterMeters": 12795.744491960118,
+   "craterDepthMeters": 2559.148898392024
   },
   {
    "epochIndex": 2036,
@@ -8348,11 +8348,11 @@
    "x": -0.18936904592484627,
    "y": 0.20087953553986448,
    "z": -0.961138271346429,
-   "impactorDiameterMeters": 1277.113646106062,
+   "impactorDiameterMeters": 1277.1136461060546,
    "velocityMetersPerSecond": 22065.585314478358,
-   "angleRadians": 0.1668209818512973,
-   "craterDiameterMeters": 8631.56470462081,
-   "craterDepthMeters": 1726.3129409241621
+   "sinAngle": 0.2801295210210864,
+   "craterDiameterMeters": 10275.374805525647,
+   "craterDepthMeters": 2055.0749611051297
   },
   {
    "epochIndex": 2038,
@@ -8428,11 +8428,11 @@
    "x": 0.1867721839321381,
    "y": -0.1547517188642185,
    "z": -0.9701381637776082,
-   "impactorDiameterMeters": 2385.8536564869505,
+   "impactorDiameterMeters": 2385.8536573327797,
    "velocityMetersPerSecond": 16735.71119703698,
-   "angleRadians": 0.8042145860093457,
-   "craterDiameterMeters": 20294.801236318213,
-   "craterDepthMeters": 4058.960247263643
+   "sinAngle": 0.960264128155519,
+   "craterDiameterMeters": 22336.409924773267,
+   "craterDepthMeters": 4467.281984954653
   },
   {
    "epochIndex": 2056,
@@ -8692,11 +8692,11 @@
    "x": 0.446315478174383,
    "y": 0.5626341539209287,
    "z": 0.6958773618847307,
-   "impactorDiameterMeters": 2902.8297009968287,
+   "impactorDiameterMeters": 2902.8297009970283,
    "velocityMetersPerSecond": 16899.88950601966,
-   "angleRadians": 0.9199353244903051,
-   "craterDiameterMeters": 24551.53635092049,
-   "craterDepthMeters": 4910.307270184098
+   "sinAngle": 0.7736655839699536,
+   "craterDiameterMeters": 24324.18756069164,
+   "craterDepthMeters": 4864.837512138328
   },
   {
    "epochIndex": 2120,
@@ -9108,11 +9108,11 @@
    "x": -0.27535670885164304,
    "y": -0.6672204529873119,
    "z": 0.6920950440552207,
-   "impactorDiameterMeters": 1099.7017327062363,
+   "impactorDiameterMeters": 1099.701732706946,
    "velocityMetersPerSecond": 17433.593291889923,
-   "angleRadians": 1.4798202700229215,
-   "craterDiameterMeters": 12581.206570599277,
-   "craterDepthMeters": 2516.241314119856
+   "sinAngle": 0.9248674484765622,
+   "craterDiameterMeters": 12274.826703743132,
+   "craterDepthMeters": 2454.9653407486267
   },
   {
    "epochIndex": 2222,
@@ -9428,11 +9428,11 @@
    "x": -0.8393426056338791,
    "y": -0.5213631341978864,
    "z": 0.15389760448781228,
-   "impactorDiameterMeters": 3188.175922976584,
+   "impactorDiameterMeters": 3188.1759240405936,
    "velocityMetersPerSecond": 22424.83261012931,
-   "angleRadians": 0.6755444538325931,
-   "craterDiameterMeters": 27608.066911927308,
-   "craterDepthMeters": 5521.613382385462
+   "sinAngle": 0.7505171279993818,
+   "craterDiameterMeters": 29339.64806169001,
+   "craterDepthMeters": 5867.929612338003
   },
   {
    "epochIndex": 2300,
@@ -9488,11 +9488,11 @@
    "x": 0.19618015693552182,
    "y": 0.5426283752831216,
    "z": 0.8167421823086852,
-   "impactorDiameterMeters": 4293.347977711019,
+   "impactorDiameterMeters": 4293.347978578198,
    "velocityMetersPerSecond": 15978.164121653326,
-   "angleRadians": 1.254329852530734,
-   "craterDiameterMeters": 34488.69826216056,
-   "craterDepthMeters": 6897.739652432112
+   "sinAngle": 0.9419593116206938,
+   "craterDiameterMeters": 34387.00556517704,
+   "craterDepthMeters": 6877.401113035408
   },
   {
    "epochIndex": 2313,
@@ -9500,11 +9500,11 @@
    "x": 0.6609459162984449,
    "y": 0.04059342321189579,
    "z": 0.7493348181689874,
-   "impactorDiameterMeters": 1086.9847097617223,
+   "impactorDiameterMeters": 1086.984709763554,
    "velocityMetersPerSecond": 20906.394494576714,
-   "angleRadians": 0.5521077749676174,
-   "craterDiameterMeters": 10906.157722420268,
-   "craterDepthMeters": 2181.2315444840538
+   "sinAngle": 0.8514978573207139,
+   "craterDiameterMeters": 12818.065590162105,
+   "craterDepthMeters": 2563.613118032421
   },
   {
    "epochIndex": 2314,
@@ -9852,11 +9852,11 @@
    "x": -0.23723392440219837,
    "y": 0.9102805233647632,
    "z": 0.33927781226526577,
-   "impactorDiameterMeters": 1257.0645626505157,
+   "impactorDiameterMeters": 1257.064562650512,
    "velocityMetersPerSecond": 15374.211144776673,
-   "angleRadians": 0.49631124408700605,
-   "craterDiameterMeters": 10332.305369632304,
-   "craterDepthMeters": 2066.461073926461
+   "sinAngle": 0.5035806856452166,
+   "craterDiameterMeters": 10526.766470970366,
+   "craterDepthMeters": 2105.3532941940734
   },
   {
    "epochIndex": 2400,
@@ -9964,11 +9964,11 @@
    "x": 0.006934359703718281,
    "y": 0.9739202985568595,
    "z": -0.22678440580079018,
-   "impactorDiameterMeters": 1650.3820725722792,
+   "impactorDiameterMeters": 1650.3820725722799,
    "velocityMetersPerSecond": 23042.722469474957,
-   "angleRadians": 1.0021899081496934,
-   "craterDiameterMeters": 18465.642624120217,
-   "craterDepthMeters": 3693.128524824044
+   "sinAngle": 0.739130528107004,
+   "craterDiameterMeters": 17676.19118587264,
+   "craterDepthMeters": 3535.2382371745284
   },
   {
    "epochIndex": 2426,
@@ -10120,11 +10120,11 @@
    "x": 0.5046382550517206,
    "y": 0.5766921626966185,
    "z": 0.6424689728093114,
-   "impactorDiameterMeters": 1373.8724837482364,
+   "impactorDiameterMeters": 1373.8724838555966,
    "velocityMetersPerSecond": 24010.725572884236,
-   "angleRadians": 1.298834942316387,
-   "craterDiameterMeters": 17040.13869061622,
-   "craterDepthMeters": 3408.027738123244
+   "sinAngle": 0.20448679999513455,
+   "craterDiameterMeters": 10165.197744440835,
+   "craterDepthMeters": 2033.039548888167
   },
   {
    "epochIndex": 2463,
@@ -10152,11 +10152,11 @@
    "x": -0.8150882025239673,
    "y": -0.25398080867090334,
    "z": 0.520696620819765,
-   "impactorDiameterMeters": 1089.4563149476714,
+   "impactorDiameterMeters": 1089.4563149492005,
    "velocityMetersPerSecond": 19951.466591168894,
-   "angleRadians": 0.7414555394732553,
-   "craterDiameterMeters": 11644.182570457555,
-   "craterDepthMeters": 2328.836514091511
+   "sinAngle": 0.27806937961213196,
+   "craterDiameterMeters": 8662.591616613541,
+   "craterDepthMeters": 1732.5183233227083
   },
   {
    "epochIndex": 2469,
@@ -10228,11 +10228,11 @@
    "x": -0.9011062170234123,
    "y": -0.24073509893406442,
    "z": -0.3606302785166013,
-   "impactorDiameterMeters": 1301.0490669593205,
+   "impactorDiameterMeters": 1301.049066959303,
    "velocityMetersPerSecond": 21590.143955378247,
-   "angleRadians": 0.7401652243001913,
-   "craterDiameterMeters": 13839.286099934925,
-   "craterDepthMeters": 2767.857219986985
+   "sinAngle": 0.8985775325275185,
+   "craterDiameterMeters": 15228.515061819804,
+   "craterDepthMeters": 3045.703012363961
   },
   {
    "epochIndex": 2486,
@@ -10504,11 +10504,11 @@
    "x": -0.012325485407715154,
    "y": -0.6240805315202139,
    "z": -0.7812628063506616,
-   "impactorDiameterMeters": 2818.8777208047713,
+   "impactorDiameterMeters": 2818.8777208040187,
    "velocityMetersPerSecond": 22872.57212644781,
-   "angleRadians": 1.3488272871274465,
-   "craterDiameterMeters": 29341.318556077425,
-   "craterDepthMeters": 5868.263711215485
+   "sinAngle": 0.3868111652796748,
+   "craterDiameterMeters": 21556.352146289963,
+   "craterDepthMeters": 4311.270429257993
   },
   {
    "epochIndex": 2553,
@@ -10532,11 +10532,11 @@
    "x": -0.982618688115309,
    "y": -0.006903131977916702,
    "z": 0.1855070363502267,
-   "impactorDiameterMeters": 3454.219726495785,
+   "impactorDiameterMeters": 3454.219726501182,
    "velocityMetersPerSecond": 23537.027419611073,
-   "angleRadians": 0.6067050869833809,
-   "craterDiameterMeters": 29111.71102083643,
-   "craterDepthMeters": 5822.342204167286
+   "sinAngle": 0.820865334796547,
+   "craterDiameterMeters": 32871.928646472516,
+   "craterDepthMeters": 6574.385729294503
   },
   {
    "epochIndex": 2558,
@@ -10600,11 +10600,11 @@
    "x": -0.5271691199134594,
    "y": -0.8296270841117308,
    "z": 0.18387936349121894,
-   "impactorDiameterMeters": 3736.153580241186,
+   "impactorDiameterMeters": 3736.1535802411877,
    "velocityMetersPerSecond": 16306.608903895622,
-   "angleRadians": 0.3102995240103923,
-   "craterDiameterMeters": 21385.12993734445,
-   "craterDepthMeters": 4277.02598746889
+   "sinAngle": 0.3973211401532102,
+   "craterDiameterMeters": 23346.908570116175,
+   "craterDepthMeters": 4669.381714023235
   },
   {
    "epochIndex": 2573,
@@ -10616,11 +10616,11 @@
    "x": -0.6843436390419411,
    "y": 0.5112781149902894,
    "z": 0.519873516189092,
-   "impactorDiameterMeters": 3627.049369758494,
+   "impactorDiameterMeters": 3627.0493697585553,
    "velocityMetersPerSecond": 23266.330069930005,
-   "angleRadians": 0.8818002999155123,
-   "craterDiameterMeters": 33284.879172197805,
-   "craterDepthMeters": 6656.975834439561
+   "sinAngle": 0.9246254043430833,
+   "craterDiameterMeters": 35349.622676824714,
+   "craterDepthMeters": 7069.924535364943
   },
   {
    "epochIndex": 2575,
@@ -11084,11 +11084,11 @@
    "x": -0.8335748614131703,
    "y": 0.540608203908982,
    "z": 0.11355932496417345,
-   "impactorDiameterMeters": 1487.9645679117891,
+   "impactorDiameterMeters": 1487.9645679121218,
    "velocityMetersPerSecond": 19015.87203990126,
-   "angleRadians": 0.2878670821013824,
-   "craterDiameterMeters": 10891.222680853163,
-   "craterDepthMeters": 2178.2445361706327
+   "sinAngle": 0.5158526665895459,
+   "craterDiameterMeters": 13290.035161173411,
+   "craterDepthMeters": 2658.0070322346824
   },
   {
    "epochIndex": 2690,
@@ -11192,11 +11192,11 @@
    "x": 0.48485444838246267,
    "y": 0.7678954987025336,
    "z": -0.418631899114395,
-   "impactorDiameterMeters": 1438.5910014135409,
+   "impactorDiameterMeters": 1438.59100141841,
    "velocityMetersPerSecond": 22334.748252133802,
-   "angleRadians": 0.5112050901836621,
-   "craterDiameterMeters": 13650.9941645724,
-   "craterDepthMeters": 2730.19883291448
+   "sinAngle": 0.3828147416631502,
+   "craterDiameterMeters": 12579.302029169487,
+   "craterDepthMeters": 2515.8604058338974
   },
   {
    "epochIndex": 2715,
@@ -11664,11 +11664,11 @@
    "x": 0.4874390233616396,
    "y": 0.6702316748942692,
    "z": -0.5596362215517092,
-   "impactorDiameterMeters": 2651.2319517257965,
+   "impactorDiameterMeters": 2651.231951726236,
    "velocityMetersPerSecond": 15077.079783887522,
-   "angleRadians": 0.3435468692117307,
-   "craterDiameterMeters": 16335.637548774763,
-   "craterDepthMeters": 3267.127509754953
+   "sinAngle": 0.484395780386835,
+   "craterDiameterMeters": 18438.82008387923,
+   "craterDepthMeters": 3687.764016775846
   },
   {
    "epochIndex": 2831,
@@ -12192,11 +12192,11 @@
    "x": 0.9296388213734103,
    "y": -0.07775785086515356,
    "z": 0.3601740946046636,
-   "impactorDiameterMeters": 1035.1939215973837,
+   "impactorDiameterMeters": 1035.1939216537992,
    "velocityMetersPerSecond": 24724.565022202212,
-   "angleRadians": 0.5049954864207424,
-   "craterDiameterMeters": 11002.737385853625,
-   "craterDepthMeters": 2200.547477170725
+   "sinAngle": 0.9977729131878911,
+   "craterDiameterMeters": 14005.167849374946,
+   "craterDepthMeters": 2801.0335698749896
   },
   {
    "epochIndex": 2961,
@@ -12324,11 +12324,11 @@
    "x": -0.857896635679823,
    "y": 0.2179903766422892,
    "z": -0.46528868262681206,
-   "impactorDiameterMeters": 2793.4813807410915,
+   "impactorDiameterMeters": 2793.481380740541,
    "velocityMetersPerSecond": 15212.575470824933,
-   "angleRadians": 0.6188906021338474,
-   "craterDiameterMeters": 20476.51442518575,
-   "craterDepthMeters": 4095.30288503715
+   "sinAngle": 0.8654131935976166,
+   "craterDiameterMeters": 23396.7188463547,
+   "craterDepthMeters": 4679.34376927094
   },
   {
    "epochIndex": 2992,
@@ -12444,11 +12444,11 @@
    "x": 0.12156696338217436,
    "y": 0.9620325397215179,
    "z": 0.2443662536665057,
-   "impactorDiameterMeters": 1946.3066743031757,
+   "impactorDiameterMeters": 1946.3066743053798,
    "velocityMetersPerSecond": 16704.274566954722,
-   "angleRadians": 1.2461484790653266,
-   "craterDiameterMeters": 18957.442487649012,
-   "craterDepthMeters": 3791.4884975298028
+   "sinAngle": 0.7750036840145911,
+   "craterDiameterMeters": 17727.50985023946,
+   "craterDepthMeters": 3545.5019700478924
   },
   {
    "epochIndex": 3020,
@@ -12488,11 +12488,11 @@
    "x": -0.30976811093995554,
    "y": -0.8918690042430788,
    "z": 0.3295654665087814,
-   "impactorDiameterMeters": 1001.8294637505751,
+   "impactorDiameterMeters": 1001.8294641322856,
    "velocityMetersPerSecond": 16477.820865931306,
-   "angleRadians": 1.084979588259751,
-   "craterDiameterMeters": 10969.112098949432,
-   "craterDepthMeters": 2193.8224197898867
+   "sinAngle": 0.6671425116395024,
+   "craterDiameterMeters": 9985.706708367752,
+   "craterDepthMeters": 1997.1413416735504
   },
   {
    "epochIndex": 3029,
@@ -12904,11 +12904,11 @@
    "x": 0.8310518573340202,
    "y": 0.5465808440806218,
    "z": -0.1029669427816058,
-   "impactorDiameterMeters": 2123.8849560944636,
+   "impactorDiameterMeters": 2123.884956094464,
    "velocityMetersPerSecond": 22508.886816867336,
-   "angleRadians": 0.6690973177653466,
-   "craterDiameterMeters": 20089.89397069294,
-   "craterDepthMeters": 4017.9787941385885
+   "sinAngle": 0.5594987384144992,
+   "craterDiameterMeters": 19411.026881441725,
+   "craterDepthMeters": 3882.205376288345
   },
   {
    "epochIndex": 3131,
@@ -13044,11 +13044,11 @@
    "x": 0.17806412576499164,
    "y": 0.6748778092972917,
    "z": 0.7161236692315355,
-   "impactorDiameterMeters": 1784.0815818385463,
+   "impactorDiameterMeters": 1784.0815825392244,
    "velocityMetersPerSecond": 21737.835364863728,
-   "angleRadians": 0.8675620960070783,
-   "craterDiameterMeters": 18500.826552661845,
-   "craterDepthMeters": 3700.1653105323694
+   "sinAngle": 0.5495874654512193,
+   "craterDiameterMeters": 16586.004732996098,
+   "craterDepthMeters": 3317.2009465992196
   },
   {
    "epochIndex": 3164,
@@ -13088,11 +13088,11 @@
    "x": -0.625237009617402,
    "y": 0.7098356782888394,
    "z": -0.32436398017183093,
-   "impactorDiameterMeters": 1212.7942547438543,
+   "impactorDiameterMeters": 1212.7942547438538,
    "velocityMetersPerSecond": 17830.291658028724,
-   "angleRadians": 1.183417364787704,
-   "craterDiameterMeters": 13385.551802068134,
-   "craterDepthMeters": 2677.110360413627
+   "sinAngle": 0.6697611863229754,
+   "craterDiameterMeters": 12015.851134342,
+   "craterDepthMeters": 2403.1702268684
   },
   {
    "epochIndex": 3173,
@@ -13132,11 +13132,11 @@
    "x": 0.7426175444400942,
    "y": -0.636193680099868,
    "z": 0.2092290230602624,
-   "impactorDiameterMeters": 1064.5215370351236,
+   "impactorDiameterMeters": 1064.5215370438855,
    "velocityMetersPerSecond": 21808.25775300836,
-   "angleRadians": 1.188568045767628,
-   "craterDiameterMeters": 13220.512147333171,
-   "craterDepthMeters": 2644.1024294666345
+   "sinAngle": 0.4073379559690432,
+   "craterDiameterMeters": 10047.920614499111,
+   "craterDepthMeters": 2009.5841228998224
   },
   {
    "epochIndex": 3182,
@@ -13400,11 +13400,11 @@
    "x": -0.7492562267087114,
    "y": -0.150476069239678,
    "z": 0.6449589594109071,
-   "impactorDiameterMeters": 1214.0526888256582,
+   "impactorDiameterMeters": 1214.0526888256575,
    "velocityMetersPerSecond": 23675.92278491381,
-   "angleRadians": 0.3784448576744015,
-   "craterDiameterMeters": 11173.258859579555,
-   "craterDepthMeters": 2234.651771915911
+   "sinAngle": 0.7303692974332647,
+   "craterDiameterMeters": 14022.71231954559,
+   "craterDepthMeters": 2804.542463909118
   },
   {
    "epochIndex": 3247,
@@ -13804,11 +13804,11 @@
    "x": 0.42051978975552956,
    "y": 0.1450730105992619,
    "z": 0.8956098079072335,
-   "impactorDiameterMeters": 1066.3599006203008,
+   "impactorDiameterMeters": 1066.3599006280467,
    "velocityMetersPerSecond": 20103.008560975642,
-   "angleRadians": 1.002989672664211,
-   "craterDiameterMeters": 12371.073919272148,
-   "craterDepthMeters": 2474.2147838544297
+   "sinAngle": 0.824771667301815,
+   "craterDiameterMeters": 12280.855267368439,
+   "craterDepthMeters": 2456.171053473688
   },
   {
    "epochIndex": 3346,
@@ -13982,9 +13982,9 @@
    "z": 0.08695220221512745,
    "impactorDiameterMeters": 2159.575606580517,
    "velocityMetersPerSecond": 17705.756891476503,
-   "angleRadians": 0.883427902105246,
-   "craterDiameterMeters": 19706.363909055442,
-   "craterDepthMeters": 3941.272781811089
+   "sinAngle": 0.7827957492616792,
+   "craterDiameterMeters": 19789.95297163835,
+   "craterDepthMeters": 3957.9905943276704
   },
   {
    "epochIndex": 3388,
@@ -14044,11 +14044,11 @@
    "x": -0.5796193677240519,
    "y": -0.6736001874724601,
    "z": 0.45858933262368534,
-   "impactorDiameterMeters": 2064.144739009859,
+   "impactorDiameterMeters": 2064.1447390098665,
    "velocityMetersPerSecond": 22909.590012888286,
-   "angleRadians": 1.2488192783736833,
-   "craterDiameterMeters": 22813.15163559516,
-   "craterDepthMeters": 4562.630327119033
+   "sinAngle": 0.4735928173346826,
+   "craterDiameterMeters": 18097.732784984935,
+   "craterDepthMeters": 3619.5465569969874
   },
   {
    "epochIndex": 3402,
@@ -14224,11 +14224,11 @@
    "x": 0.8927496662862745,
    "y": -0.4460185890059378,
    "z": -0.06376089402524157,
-   "impactorDiameterMeters": 1048.6581960926767,
+   "impactorDiameterMeters": 1048.6581961172337,
    "velocityMetersPerSecond": 18293.07250490333,
-   "angleRadians": 0.44994747851754124,
-   "craterDiameterMeters": 9394.796046233818,
-   "craterDepthMeters": 1878.9592092467637
+   "sinAngle": 0.7725280429109485,
+   "craterDiameterMeters": 11377.745974982168,
+   "craterDepthMeters": 2275.549194996434
   },
   {
    "epochIndex": 3445,
@@ -14600,11 +14600,11 @@
    "x": -0.34213286977964563,
    "y": 0.7160196223781173,
    "z": 0.608490755711081,
-   "impactorDiameterMeters": 1512.838937701458,
+   "impactorDiameterMeters": 1512.8389377015405,
    "velocityMetersPerSecond": 20868.597637445673,
-   "angleRadians": 0.6965561486142777,
-   "craterDiameterMeters": 15082.839721633436,
-   "craterDepthMeters": 3016.567944326687
+   "sinAngle": 0.15900737610131027,
+   "craterDiameterMeters": 9474.114521555455,
+   "craterDepthMeters": 1894.8229043110912
   },
   {
    "epochIndex": 3537,
@@ -14896,11 +14896,11 @@
    "x": 0.02612074984827415,
    "y": -0.13184799756971394,
    "z": -0.9909257348379951,
-   "impactorDiameterMeters": 1003.5642788790487,
+   "impactorDiameterMeters": 1003.5642792262951,
    "velocityMetersPerSecond": 19029.98881135804,
-   "angleRadians": 1.314310999373791,
-   "craterDiameterMeters": 12057.601937571602,
-   "craterDepthMeters": 2411.5203875143206
+   "sinAngle": 0.6027741996567173,
+   "craterDiameterMeters": 10298.973945454383,
+   "craterDepthMeters": 2059.7947890908767
   },
   {
    "epochIndex": 3609,
@@ -14988,11 +14988,11 @@
    "x": -0.8754543793215508,
    "y": -0.4567121380139321,
    "z": 0.15809380986446417,
-   "impactorDiameterMeters": 1212.4344490340936,
+   "impactorDiameterMeters": 1212.4344490340932,
    "velocityMetersPerSecond": 21798.899737944033,
-   "angleRadians": 0.4207201654142584,
-   "craterDiameterMeters": 11128.85438774062,
-   "craterDepthMeters": 2225.7708775481237
+   "sinAngle": 0.7455819246256635,
+   "craterDiameterMeters": 13601.307304481497,
+   "craterDepthMeters": 2720.2614608962995
   },
   {
    "epochIndex": 3630,
@@ -15112,11 +15112,11 @@
    "x": -0.5815521984232166,
    "y": -0.7384265899460594,
    "z": 0.3413549644721136,
-   "impactorDiameterMeters": 1092.8920978730055,
+   "impactorDiameterMeters": 1092.892097874192,
    "velocityMetersPerSecond": 15737.08168907712,
-   "angleRadians": 0.5180136956580189,
-   "craterDiameterMeters": 9482.036886758837,
-   "craterDepthMeters": 1896.4073773517675
+   "sinAngle": 0.6077144325597322,
+   "craterDiameterMeters": 10152.063268185759,
+   "craterDepthMeters": 2030.4126536371518
   },
   {
    "epochIndex": 3659,
@@ -15172,11 +15172,11 @@
    "x": -0.36365841170636326,
    "y": 0.32137744707516847,
    "z": -0.8743392339971097,
-   "impactorDiameterMeters": 3634.4404383567303,
+   "impactorDiameterMeters": 3634.4404383567808,
    "velocityMetersPerSecond": 18814.948765648336,
-   "angleRadians": 0.6009888991349858,
-   "craterDiameterMeters": 27372.03240370267,
-   "craterDepthMeters": 5474.406480740534
+   "sinAngle": 0.756498532959881,
+   "craterDiameterMeters": 30160.800428029193,
+   "craterDepthMeters": 6032.160085605839
   },
   {
    "epochIndex": 3672,
@@ -15502,9 +15502,9 @@
    "z": -0.14845206784039605,
    "impactorDiameterMeters": 1190.098490695766,
    "velocityMetersPerSecond": 15889.22334705503,
-   "angleRadians": 0.8711071077509923,
-   "craterDiameterMeters": 11764.835780069374,
-   "craterDepthMeters": 2352.967156013875
+   "sinAngle": 0.8104256348896243,
+   "craterDiameterMeters": 11993.016512660597,
+   "craterDepthMeters": 2398.6033025321194
   },
   {
    "epochIndex": 3752,
@@ -16020,11 +16020,11 @@
    "x": 0.848156582664,
    "y": 0.42188711480873975,
    "z": -0.3203773925265057,
-   "impactorDiameterMeters": 1866.1810910585352,
+   "impactorDiameterMeters": 1866.181091106027,
    "velocityMetersPerSecond": 18932.032020823335,
-   "angleRadians": 0.5999301454995438,
-   "craterDiameterMeters": 16310.65244580676,
-   "craterDepthMeters": 3262.130489161352
+   "sinAngle": 0.31352522483161605,
+   "craterDiameterMeters": 13406.613758848604,
+   "craterDepthMeters": 2681.322751769721
   },
   {
    "epochIndex": 3880,
@@ -16052,11 +16052,11 @@
    "x": -0.4317491243166853,
    "y": -0.7732234556305159,
    "z": 0.46445471395452453,
-   "impactorDiameterMeters": 1170.567551647126,
+   "impactorDiameterMeters": 1170.5675516471272,
    "velocityMetersPerSecond": 20557.69775705085,
-   "angleRadians": 0.7104614871537257,
-   "craterDiameterMeters": 12333.8558434885,
-   "craterDepthMeters": 2466.7711686977
+   "sinAngle": 0.6967141943304279,
+   "craterDiameterMeters": 12608.413585942595,
+   "craterDepthMeters": 2521.6827171885193
   },
   {
    "epochIndex": 3886,
@@ -16268,11 +16268,11 @@
    "x": 0.05095770835673188,
    "y": 0.7465591157091228,
    "z": 0.6633647554028196,
-   "impactorDiameterMeters": 1049.1597885888414,
+   "impactorDiameterMeters": 1049.1597886126317,
    "velocityMetersPerSecond": 19249.28920885748,
-   "angleRadians": 0.5932855281912786,
-   "craterDiameterMeters": 10450.648160604438,
-   "craterDepthMeters": 2090.129632120888
+   "sinAngle": 0.8000579976250162,
+   "craterDiameterMeters": 11776.700642961858,
+   "craterDepthMeters": 2355.3401285923715
   },
   {
    "epochIndex": 3938,
@@ -16294,9 +16294,9 @@
    "z": -0.6862726332322392,
    "impactorDiameterMeters": 4164.1473329244,
    "velocityMetersPerSecond": 24769.335137891652,
-   "angleRadians": 0.17200656689843066,
-   "craterDiameterMeters": 23064.143185293753,
-   "craterDepthMeters": 4612.828637058751
+   "sinAngle": 0.7432203207926938,
+   "craterDiameterMeters": 37627.84863791879,
+   "craterDepthMeters": 7525.569727583758
   },
   {
    "epochIndex": 3942,
@@ -16540,11 +16540,11 @@
    "x": 0.513154026784421,
    "y": -0.4082142369469071,
    "z": 0.755006014246766,
-   "impactorDiameterMeters": 1960.7270871410049,
+   "impactorDiameterMeters": 1960.7270871422013,
    "velocityMetersPerSecond": 23901.866797807932,
-   "angleRadians": 1.3180720786447204,
-   "craterDiameterMeters": 22482.252132469373,
-   "craterDepthMeters": 4496.450426493875
+   "sinAngle": 0.2630986709957496,
+   "craterDiameterMeters": 14561.936417709192,
+   "craterDepthMeters": 2912.3872835418388
   },
   {
    "epochIndex": 4002,
@@ -16726,9 +16726,9 @@
    "z": 0.6009116063640721,
    "impactorDiameterMeters": 1696.5903630363134,
    "velocityMetersPerSecond": 22317.00464168926,
-   "angleRadians": 0.9129921572575872,
-   "craterDiameterMeters": 18218.29842484208,
-   "craterDepthMeters": 3643.659684968416
+   "sinAngle": 0.9335889656221578,
+   "craterDiameterMeters": 19250.37937066186,
+   "craterDepthMeters": 3850.075874132372
   },
   {
    "epochIndex": 4046,
@@ -17208,11 +17208,11 @@
    "x": 0.16316692721332407,
    "y": 0.7331268863785101,
    "z": -0.6602283864941837,
-   "impactorDiameterMeters": 5451.299125204854,
+   "impactorDiameterMeters": 5451.299125204399,
    "velocityMetersPerSecond": 21610.823524770134,
-   "angleRadians": 0.5797700127214127,
-   "craterDiameterMeters": 39493.467901648844,
-   "craterDepthMeters": 7898.693580329769
+   "sinAngle": 0.916519171659782,
+   "craterDiameterMeters": 46883.86889394032,
+   "craterDepthMeters": 9376.773778788065
   },
   {
    "epochIndex": 4165,
@@ -17476,11 +17476,11 @@
    "x": 0.021861824243929625,
    "y": 0.8149829725318735,
    "z": -0.5790723746854438,
-   "impactorDiameterMeters": 1127.6997227714555,
+   "impactorDiameterMeters": 1127.6997227715283,
    "velocityMetersPerSecond": 23756.653207789786,
-   "angleRadians": 0.8280409986387176,
-   "craterDiameterMeters": 13295.951130162342,
-   "craterDepthMeters": 2659.1902260324687
+   "sinAngle": 0.3494043161228812,
+   "craterDiameterMeters": 10369.31449212,
+   "craterDepthMeters": 2073.862898424
   },
   {
    "epochIndex": 4230,
@@ -17504,11 +17504,11 @@
    "x": 0.789682949516213,
    "y": -0.40109407621602367,
    "z": 0.46424603527417324,
-   "impactorDiameterMeters": 2389.423964715002,
+   "impactorDiameterMeters": 2389.4239654941057,
    "velocityMetersPerSecond": 19600.519324344008,
-   "angleRadians": 1.058293141344933,
-   "craterDiameterMeters": 23210.066926441647,
-   "craterDepthMeters": 4642.013385288329
+   "sinAngle": 0.179759217137124,
+   "craterDiameterMeters": 13713.480712108945,
+   "craterDepthMeters": 2742.6961424217893
   },
   {
    "epochIndex": 4235,
@@ -17920,11 +17920,11 @@
    "x": 0.820982014410681,
    "y": -0.48721123364205393,
    "z": 0.29768061043200045,
-   "impactorDiameterMeters": 1088.2137113563301,
+   "impactorDiameterMeters": 1088.2137113580052,
    "velocityMetersPerSecond": 21231.016802625018,
-   "angleRadians": 0.4006279151754331,
-   "craterDiameterMeters": 9956.545912914673,
-   "craterDepthMeters": 1991.3091825829347
+   "sinAngle": 0.6505368020479164,
+   "craterDiameterMeters": 11808.073439146887,
+   "craterDepthMeters": 2361.6146878293775
   },
   {
    "epochIndex": 4337,
@@ -18456,11 +18456,11 @@
    "x": 0.7743192128563462,
    "y": 0.5501245548964897,
    "z": -0.31271829287949854,
-   "impactorDiameterMeters": 1379.0120983859,
+   "impactorDiameterMeters": 1379.012098471188,
    "velocityMetersPerSecond": 21137.465408290078,
-   "angleRadians": 1.1673873521084777,
-   "craterDiameterMeters": 15910.740931598613,
-   "craterDepthMeters": 3182.1481863197228
+   "sinAngle": 0.6854364574554846,
+   "craterDiameterMeters": 14425.348532030872,
+   "craterDepthMeters": 2885.0697064061746
   },
   {
    "epochIndex": 4469,
@@ -18636,11 +18636,11 @@
    "x": 0.29420297483097946,
    "y": 0.654120624006389,
    "z": -0.6968291173954303,
-   "impactorDiameterMeters": 2084.839891939935,
+   "impactorDiameterMeters": 2084.8398919399374,
    "velocityMetersPerSecond": 23019.448389037527,
-   "angleRadians": 0.7899222274901359,
-   "craterDiameterMeters": 20921.668397873236,
-   "craterDepthMeters": 4184.333679574647
+   "sinAngle": 0.9949470760522612,
+   "craterDiameterMeters": 23408.989610269084,
+   "craterDepthMeters": 4681.797922053817
   },
   {
    "epochIndex": 4512,
@@ -18756,11 +18756,11 @@
    "x": -0.6032384526579417,
    "y": 0.5642595188409218,
    "z": -0.5636617466462164,
-   "impactorDiameterMeters": 1149.4103518560175,
+   "impactorDiameterMeters": 1149.4103518560275,
    "velocityMetersPerSecond": 23813.66887524653,
-   "angleRadians": 0.39183811738957447,
-   "craterDiameterMeters": 10852.679516525299,
-   "craterDepthMeters": 2170.53590330506
+   "sinAngle": 0.7001435733308266,
+   "craterDiameterMeters": 13282.731539760147,
+   "craterDepthMeters": 2656.5463079520296
   },
   {
    "epochIndex": 4540,
@@ -19092,11 +19092,11 @@
    "x": -0.8914161555818925,
    "y": -0.009489743379798733,
    "z": -0.4530862857538118,
-   "impactorDiameterMeters": 1010.9724249422653,
+   "impactorDiameterMeters": 1010.9724251727798,
    "velocityMetersPerSecond": 24495.31312068941,
-   "angleRadians": 0.4148241983951674,
-   "craterDiameterMeters": 10121.762981266007,
-   "craterDepthMeters": 2024.3525962532015
+   "sinAngle": 0.15114574112891174,
+   "craterDiameterMeters": 7299.212702783377,
+   "craterDepthMeters": 1459.8425405566754
   },
   {
    "epochIndex": 4622,
@@ -19200,11 +19200,11 @@
    "x": -0.5785552505376219,
    "y": -0.3620645743520066,
    "z": -0.7308782840354813,
-   "impactorDiameterMeters": 1323.0993010885063,
+   "impactorDiameterMeters": 1323.0993010884708,
    "velocityMetersPerSecond": 18182.139191623355,
-   "angleRadians": 0.1581597414205839,
-   "craterDiameterMeters": 8006.290977805444,
-   "craterDepthMeters": 1601.2581955610888
+   "sinAngle": 0.7944004531151164,
+   "craterDiameterMeters": 13730.40211282936,
+   "craterDepthMeters": 2746.080422565872
   },
   {
    "epochIndex": 4647,
@@ -19524,11 +19524,11 @@
    "x": 0.41343600148648435,
    "y": -0.7613038615060364,
    "z": -0.499486839797472,
-   "impactorDiameterMeters": 1171.6364398639873,
+   "impactorDiameterMeters": 1171.6364398639882,
    "velocityMetersPerSecond": 21549.55850390578,
-   "angleRadians": 0.9964154280765226,
-   "craterDiameterMeters": 13707.788599177598,
-   "craterDepthMeters": 2741.55771983552
+   "sinAngle": 0.756235369776352,
+   "craterDiameterMeters": 13238.57342345232,
+   "craterDepthMeters": 2647.7146846904643
   },
   {
    "epochIndex": 4726,
@@ -20592,11 +20592,11 @@
    "x": 0.7551975141444389,
    "y": -0.6439209236556978,
    "z": 0.12264810927386244,
-   "impactorDiameterMeters": 5347.183109368129,
+   "impactorDiameterMeters": 5347.183109367913,
    "velocityMetersPerSecond": 18329.042745476403,
-   "angleRadians": 0.8967421122969224,
-   "craterDiameterMeters": 40729.46928550378,
-   "craterDepthMeters": 8145.893857100757
+   "sinAngle": 0.397501476350038,
+   "craterDiameterMeters": 32514.930689667042,
+   "craterDepthMeters": 6502.986137933409
   },
   {
    "epochIndex": 4991,
@@ -20852,11 +20852,11 @@
    "x": -0.9138700855614386,
    "y": 0.09397168559226594,
    "z": 0.3949820110117388,
-   "impactorDiameterMeters": 1485.4296943943643,
+   "impactorDiameterMeters": 1485.429694394748,
    "velocityMetersPerSecond": 24706.928942778934,
-   "angleRadians": 0.8960469469659919,
-   "craterDiameterMeters": 17099.922653822297,
-   "craterDepthMeters": 3419.9845307644596
+   "sinAngle": 0.9476368662106885,
+   "craterDiameterMeters": 18239.64636146747,
+   "craterDepthMeters": 3647.929272293494
   },
   {
    "epochIndex": 5054,
@@ -21164,11 +21164,11 @@
    "x": -0.20931591132843166,
    "y": -0.7338495759234296,
    "z": -0.6462597381716971,
-   "impactorDiameterMeters": 1300.0179456580247,
+   "impactorDiameterMeters": 1300.0179456580076,
    "velocityMetersPerSecond": 21725.75592961025,
-   "angleRadians": 1.087527118626751,
-   "craterDiameterMeters": 15186.580141181255,
-   "craterDepthMeters": 3037.3160282362514
+   "sinAngle": 0.7272060662476117,
+   "craterDiameterMeters": 14221.742511105209,
+   "craterDepthMeters": 2844.348502221042
   },
   {
    "epochIndex": 5130,
@@ -21960,11 +21960,11 @@
    "x": -0.431476923169408,
    "y": -0.800555594373393,
    "z": 0.41585863594462547,
-   "impactorDiameterMeters": 1004.3963721110485,
+   "impactorDiameterMeters": 1004.396372442828,
    "velocityMetersPerSecond": 15163.819437729551,
-   "angleRadians": 0.29674400936390305,
-   "craterDiameterMeters": 7327.499245806185,
-   "craterDepthMeters": 1465.499849161237
+   "sinAngle": 0.4413028531579976,
+   "craterDiameterMeters": 8405.010070734625,
+   "craterDepthMeters": 1681.002014146925
   },
   {
    "epochIndex": 5327,
@@ -22984,11 +22984,11 @@
    "x": 0.24612667925078655,
    "y": -0.8255468826292286,
    "z": 0.5078326519062585,
-   "impactorDiameterMeters": 1573.9757324373784,
+   "impactorDiameterMeters": 1573.9757324373836,
    "velocityMetersPerSecond": 16305.011839741694,
-   "angleRadians": 0.26322771515533727,
-   "craterDiameterMeters": 10329.965102915898,
-   "craterDepthMeters": 2065.9930205831797
+   "sinAngle": 0.6091433261331957,
+   "craterDiameterMeters": 13716.304635496766,
+   "craterDepthMeters": 2743.2609270993535
   },
   {
    "epochIndex": 5581,
@@ -23000,11 +23000,11 @@
    "x": -0.2047482291270413,
    "y": -0.6482585974562377,
    "z": 0.73337504286239,
-   "impactorDiameterMeters": 1638.5052754868138,
+   "impactorDiameterMeters": 1638.5052754868148,
    "velocityMetersPerSecond": 18625.05690605171,
-   "angleRadians": 0.9787254938871579,
-   "craterDiameterMeters": 16634.840303615158,
-   "craterDepthMeters": 3326.9680607230316
+   "sinAngle": 0.8313661188230306,
+   "craterDiameterMeters": 16645.387433260516,
+   "craterDepthMeters": 3329.0774866521033
   },
   {
    "epochIndex": 5583,
@@ -23456,11 +23456,11 @@
    "x": 0.5518924053034385,
    "y": -0.8236514316179049,
    "z": -0.1304342445915211,
-   "impactorDiameterMeters": 4057.9237341145176,
+   "impactorDiameterMeters": 4057.923734114518,
    "velocityMetersPerSecond": 15971.434575986985,
-   "angleRadians": 0.9955927606472861,
-   "craterDiameterMeters": 31656.819873368557,
-   "craterDepthMeters": 6331.363974673712
+   "sinAngle": 0.8964581909498056,
+   "craterDiameterMeters": 32362.537678767254,
+   "craterDepthMeters": 6472.5075357534515
   },
   {
    "epochIndex": 5695,
@@ -24040,11 +24040,11 @@
    "x": -0.9409288612962023,
    "y": 0.00989938466125928,
    "z": 0.3384595694660745,
-   "impactorDiameterMeters": 1385.2194645849647,
+   "impactorDiameterMeters": 1385.2194646492806,
    "velocityMetersPerSecond": 16614.073573672176,
-   "angleRadians": 0.2818493734622154,
-   "craterDiameterMeters": 9639.668998171079,
-   "craterDepthMeters": 1927.9337996342158
+   "sinAngle": 0.37611423838649855,
+   "craterDiameterMeters": 10659.85883326432,
+   "craterDepthMeters": 2131.971766652864
   },
   {
    "epochIndex": 5839,
@@ -24132,11 +24132,11 @@
    "x": 0.008356331216678666,
    "y": -0.5052916753810954,
    "z": 0.8629081611151693,
-   "impactorDiameterMeters": 1375.9940347131137,
+   "impactorDiameterMeters": 1375.9940348107802,
    "velocityMetersPerSecond": 20244.50436341959,
-   "angleRadians": 0.9874229393246232,
-   "craterDiameterMeters": 15088.334802405541,
-   "craterDepthMeters": 3017.6669604811086
+   "sinAngle": 0.8065661645437794,
+   "craterDiameterMeters": 14917.415623794448,
+   "craterDepthMeters": 2983.48312475889
   },
   {
    "epochIndex": 5860,
@@ -24144,11 +24144,11 @@
    "x": 0.05759054587077951,
    "y": 0.2807719518622357,
    "z": -0.9580451137988107,
-   "impactorDiameterMeters": 1807.9096053164521,
+   "impactorDiameterMeters": 1807.9096056503345,
    "velocityMetersPerSecond": 17925.194839881646,
-   "angleRadians": 0.23488689314626007,
-   "craterDiameterMeters": 11560.912841691608,
-   "craterDepthMeters": 2312.1825683383217
+   "sinAngle": 0.8660040755471028,
+   "craterDiameterMeters": 17914.834145171026,
+   "craterDepthMeters": 3582.966829034205
   },
   {
    "epochIndex": 5861,
@@ -24184,11 +24184,11 @@
    "x": -0.36701829564186916,
    "y": 0.9130842170442098,
    "z": -0.1776929465367151,
-   "impactorDiameterMeters": 1610.5561981326289,
+   "impactorDiameterMeters": 1610.5561981326305,
    "velocityMetersPerSecond": 15348.25733256211,
-   "angleRadians": 0.4897592601628318,
-   "craterDiameterMeters": 12475.308566010395,
-   "craterDepthMeters": 2495.0617132020793
+   "sinAngle": 0.6784063670000282,
+   "craterDiameterMeters": 14094.662710378834,
+   "craterDepthMeters": 2818.932542075767
   },
   {
    "epochIndex": 5869,
@@ -24344,11 +24344,11 @@
    "x": 0.6613008667781044,
    "y": -0.6937340998232095,
    "z": -0.2853316707640585,
-   "impactorDiameterMeters": 1432.164447861032,
+   "impactorDiameterMeters": 1432.164447867804,
    "velocityMetersPerSecond": 23338.03104789414,
-   "angleRadians": 1.4721772244411393,
-   "craterDiameterMeters": 17572.56369612485,
-   "craterDepthMeters": 3514.51273922497
+   "sinAngle": 0.6695351144875157,
+   "craterDiameterMeters": 15398.013458728305,
+   "craterDepthMeters": 3079.602691745661
   },
   {
    "epochIndex": 5907,
@@ -24444,11 +24444,11 @@
    "x": -0.5981719624431239,
    "y": -0.28609084455900535,
    "z": -0.748560172602348,
-   "impactorDiameterMeters": 1656.275122223944,
+   "impactorDiameterMeters": 1656.2751222239442,
    "velocityMetersPerSecond": 20749.012191414033,
-   "angleRadians": 0.4966736062716698,
-   "craterDiameterMeters": 14622.057814993399,
-   "craterDepthMeters": 2924.41156299868
+   "sinAngle": 0.6925679719058522,
+   "craterDiameterMeters": 16563.058542760256,
+   "craterDepthMeters": 3312.6117085520514
   },
   {
    "epochIndex": 5930,
@@ -24632,11 +24632,11 @@
    "x": 0.49947327905038,
    "y": -0.40125005307402806,
    "z": 0.7678052086452338,
-   "impactorDiameterMeters": 1364.444676391997,
+   "impactorDiameterMeters": 1364.4446765544833,
    "velocityMetersPerSecond": 17741.058105619024,
-   "angleRadians": 1.3306839107373845,
-   "craterDiameterMeters": 14877.168728071805,
-   "craterDepthMeters": 2975.433745614361
+   "sinAngle": 0.9318322612597821,
+   "craterDiameterMeters": 14672.813477398273,
+   "craterDepthMeters": 2934.562695479655
   },
   {
    "epochIndex": 5975,
@@ -25404,11 +25404,11 @@
    "x": 0.3831886429957585,
    "y": 0.892760108816561,
    "z": -0.2369511594926503,
-   "impactorDiameterMeters": 1208.8628144420265,
+   "impactorDiameterMeters": 1208.8628144420263,
    "velocityMetersPerSecond": 23205.211708474744,
-   "angleRadians": 0.2063763977688757,
-   "craterDiameterMeters": 9068.876885024794,
-   "craterDepthMeters": 1813.775377004959
+   "sinAngle": 0.39740337958567645,
+   "craterDiameterMeters": 11309.405174618321,
+   "craterDepthMeters": 2261.881034923664
   },
   {
    "epochIndex": 6166,
@@ -25504,11 +25504,11 @@
    "x": -0.8427483948225717,
    "y": 0.5206298775279519,
    "z": -0.13681985838762076,
-   "impactorDiameterMeters": 1056.3543327383538,
+   "impactorDiameterMeters": 1056.3543327533557,
    "velocityMetersPerSecond": 21763.398774129975,
-   "angleRadians": 1.2435803920893225,
-   "craterDiameterMeters": 13218.93321317824,
-   "craterDepthMeters": 2643.786642635648
+   "sinAngle": 0.9940036855447604,
+   "craterDiameterMeters": 13434.39536401306,
+   "craterDepthMeters": 2686.8790728026124
   },
   {
    "epochIndex": 6189,
@@ -26108,11 +26108,11 @@
    "x": 0.639188525785745,
    "y": 0.2057919727176639,
    "z": 0.7410045158221494,
-   "impactorDiameterMeters": 1934.0071776507086,
+   "impactorDiameterMeters": 1934.0071776543634,
    "velocityMetersPerSecond": 16976.323954462263,
-   "angleRadians": 0.9863377977954046,
-   "craterDiameterMeters": 18205.808335532936,
-   "craterDepthMeters": 3641.1616671065876
+   "sinAngle": 0.6399035174375698,
+   "craterDiameterMeters": 16667.004222765525,
+   "craterDepthMeters": 3333.4008445531053
   },
   {
    "epochIndex": 6338,
@@ -26132,11 +26132,11 @@
    "x": 0.7443576825165639,
    "y": -0.6662609891346094,
    "z": -0.045032597481629646,
-   "impactorDiameterMeters": 3385.144643491987,
+   "impactorDiameterMeters": 3385.1446435167554,
    "velocityMetersPerSecond": 17029.917272135714,
-   "angleRadians": 0.6033883771330917,
-   "craterDiameterMeters": 24813.814382347195,
-   "craterDepthMeters": 4962.762876469439
+   "sinAngle": 0.9308407280810813,
+   "craterDiameterMeters": 29264.857731426328,
+   "craterDepthMeters": 5852.9715462852655
   },
   {
    "epochIndex": 6342,
@@ -26672,11 +26672,11 @@
    "x": 0.8167812943339264,
    "y": -0.572799380708978,
    "z": -0.06905929832837283,
-   "impactorDiameterMeters": 4098.352661988109,
+   "impactorDiameterMeters": 4098.3526619881095,
    "velocityMetersPerSecond": 22212.895368160174,
-   "angleRadians": 0.7579659489404345,
-   "craterDiameterMeters": 34514.78809142451,
-   "craterDepthMeters": 6902.957618284902
+   "sinAngle": 0.9891014038384525,
+   "craterDiameterMeters": 38964.82148384815,
+   "craterDepthMeters": 7792.964296769631
   },
   {
    "epochIndex": 6475,
@@ -26820,11 +26820,11 @@
    "x": 0.793889426299342,
    "y": -0.3782809668753349,
    "z": 0.4760704663282144,
-   "impactorDiameterMeters": 1012.0910786098059,
+   "impactorDiameterMeters": 1012.0910788263157,
    "velocityMetersPerSecond": 15418.046967604392,
-   "angleRadians": 1.0980874385821804,
-   "craterDiameterMeters": 10762.340869387077,
-   "craterDepthMeters": 2152.4681738774157
+   "sinAngle": 0.6330994186981037,
+   "craterDiameterMeters": 9606.069225082012,
+   "craterDepthMeters": 1921.2138450164025
   },
   {
    "epochIndex": 6510,
@@ -26984,11 +26984,11 @@
    "x": -0.3367478681304996,
    "y": -0.9076350455254053,
    "z": -0.2505982790117663,
-   "impactorDiameterMeters": 2862.449906375539,
+   "impactorDiameterMeters": 2862.449906375849,
    "velocityMetersPerSecond": 18769.428805031388,
-   "angleRadians": 1.1488077307422837,
-   "craterDiameterMeters": 26619.527953821696,
-   "craterDepthMeters": 5323.90559076434
+   "sinAngle": 0.3864492469691307,
+   "craterDiameterMeters": 19991.97560032673,
+   "craterDepthMeters": 3998.395120065346
   },
   {
    "epochIndex": 6549,
@@ -27120,11 +27120,11 @@
    "x": -0.21646500819088996,
    "y": 0.9065609847165395,
    "z": 0.36233973176936635,
-   "impactorDiameterMeters": 1085.3527027916562,
+   "impactorDiameterMeters": 1085.3527027937182,
    "velocityMetersPerSecond": 16105.250192545378,
-   "angleRadians": 0.8424786466301674,
-   "craterDiameterMeters": 10923.590468520955,
-   "craterDepthMeters": 2184.7180937041912
+   "sinAngle": 0.37610990970190156,
+   "craterDiameterMeters": 8692.941936958638,
+   "craterDepthMeters": 1738.5883873917276
   },
   {
    "epochIndex": 6581,
@@ -27208,11 +27208,11 @@
    "x": 0.9368926263477225,
    "y": 0.3192906499737694,
    "z": 0.14242783272448706,
-   "impactorDiameterMeters": 1240.4951083362396,
+   "impactorDiameterMeters": 1240.4951083362378,
    "velocityMetersPerSecond": 24680.2843390899,
-   "angleRadians": 1.0751660909481204,
-   "craterDiameterMeters": 15452.385573263362,
-   "craterDepthMeters": 3090.4771146526728
+   "sinAngle": 0.3949082679490635,
+   "craterDiameterMeters": 11831.900006726019,
+   "craterDepthMeters": 2366.3800013452037
   },
   {
    "epochIndex": 6601,
@@ -27396,11 +27396,11 @@
    "x": 0.11048237990951477,
    "y": -0.0630641424046948,
    "z": -0.9918752732437128,
-   "impactorDiameterMeters": 1025.742389653732,
+   "impactorDiameterMeters": 1025.742389752713,
    "velocityMetersPerSecond": 18876.21218619735,
-   "angleRadians": 0.8406177414708185,
-   "craterDiameterMeters": 11202.787932045241,
-   "craterDepthMeters": 2240.5575864090483
+   "sinAngle": 0.9093387252898518,
+   "craterDiameterMeters": 11972.141506933098,
+   "craterDepthMeters": 2394.4283013866198
   },
   {
    "epochIndex": 6646,
@@ -27856,11 +27856,11 @@
    "x": 0.11531112792522508,
    "y": 0.24729346966565086,
    "z": 0.9620547196689679,
-   "impactorDiameterMeters": 1051.3255712854545,
+   "impactorDiameterMeters": 1051.3255713061865,
    "velocityMetersPerSecond": 16070.371388400828,
-   "angleRadians": 0.7190976054621442,
-   "craterDiameterMeters": 10211.46005789638,
-   "craterDepthMeters": 2042.292011579276
+   "sinAngle": 0.9398120142678313,
+   "craterDiameterMeters": 11495.75868527284,
+   "craterDepthMeters": 2299.151737054568
   },
   {
    "epochIndex": 6759,
@@ -27980,11 +27980,11 @@
    "x": 0.498585269063022,
    "y": 0.49479759274274826,
    "z": 0.7117500064554515,
-   "impactorDiameterMeters": 1092.092757734842,
+   "impactorDiameterMeters": 1092.092757736101,
    "velocityMetersPerSecond": 16572.842400352594,
-   "angleRadians": 0.27786256995417313,
-   "craterDiameterMeters": 7962.272197099758,
-   "craterDepthMeters": 1592.4544394199518
+   "sinAngle": 0.3216000548931995,
+   "craterDiameterMeters": 8395.888924645726,
+   "craterDepthMeters": 1679.1777849291452
   },
   {
    "epochIndex": 6788,
@@ -28620,11 +28620,11 @@
    "x": 0.7800099660486128,
    "y": 0.6041118286081583,
    "z": 0.16319727755250457,
-   "impactorDiameterMeters": 1109.4666339198723,
+   "impactorDiameterMeters": 1109.4666339202035,
    "velocityMetersPerSecond": 17586.8707450855,
-   "angleRadians": 1.0732154307129282,
-   "craterDiameterMeters": 12197.655953076142,
-   "craterDepthMeters": 2439.5311906152288
+   "sinAngle": 0.6453349361403251,
+   "craterDiameterMeters": 11004.86393391331,
+   "craterDepthMeters": 2200.972786782662
   },
   {
    "epochIndex": 6946,
@@ -28668,11 +28668,11 @@
    "x": 0.8412080745809781,
    "y": 0.41352439566614735,
    "z": 0.34837702198725895,
-   "impactorDiameterMeters": 1068.1912993326173,
+   "impactorDiameterMeters": 1068.1912993394628,
    "velocityMetersPerSecond": 16132.399116908386,
-   "angleRadians": 1.0921979575669902,
-   "craterDiameterMeters": 11439.23962502557,
-   "craterDepthMeters": 2287.847925005114
+   "sinAngle": 0.5076313934973729,
+   "craterDiameterMeters": 9495.127818790552,
+   "craterDepthMeters": 1899.0255637581104
   },
   {
    "epochIndex": 6956,
@@ -28684,11 +28684,11 @@
    "x": -0.8932616430294464,
    "y": -0.17037533185695639,
    "z": 0.41599985984007976,
-   "impactorDiameterMeters": 1050.080041941916,
+   "impactorDiameterMeters": 1050.080041964358,
    "velocityMetersPerSecond": 18873.105418500916,
-   "angleRadians": 1.0105279934075388,
-   "craterDiameterMeters": 11907.551332703642,
-   "craterDepthMeters": 2381.5102665407285
+   "sinAngle": 0.8785820046324946,
+   "craterDiameterMeters": 12053.21377103578,
+   "craterDepthMeters": 2410.642754207156
   },
   {
    "epochIndex": 6958,
@@ -28780,11 +28780,11 @@
    "x": -0.821001513066235,
    "y": 0.570450177872248,
    "z": -0.023304722879132572,
-   "impactorDiameterMeters": 1504.278270377793,
+   "impactorDiameterMeters": 1504.278270377926,
    "velocityMetersPerSecond": 15084.839653457086,
-   "angleRadians": 1.2246574508964152,
-   "craterDiameterMeters": 14789.047951789786,
-   "craterDepthMeters": 2957.8095903579574
+   "sinAngle": 0.6380036399488961,
+   "craterDiameterMeters": 12993.689252874457,
+   "craterDepthMeters": 2598.7378505748916
   },
   {
    "epochIndex": 6980,
@@ -28824,11 +28824,11 @@
    "x": -0.4922879895475346,
    "y": 0.8139135494347373,
    "z": 0.30854054740632325,
-   "impactorDiameterMeters": 1317.8263348478201,
+   "impactorDiameterMeters": 1317.82633484779,
    "velocityMetersPerSecond": 24984.687532569267,
-   "angleRadians": 0.4118384216194386,
-   "craterDiameterMeters": 12526.893708463069,
-   "craterDepthMeters": 2505.378741692614
+   "sinAngle": 0.48403233727456585,
+   "craterDiameterMeters": 13345.70646396519,
+   "craterDepthMeters": 2669.1412927930382
   },
   {
    "epochIndex": 6989,
@@ -28884,11 +28884,11 @@
    "x": -0.9518619296067135,
    "y": -0.3044898414243715,
    "z": 0.03528177198986986,
-   "impactorDiameterMeters": 1397.1495123562552,
+   "impactorDiameterMeters": 1397.1495123931068,
    "velocityMetersPerSecond": 17223.546208590946,
-   "angleRadians": 0.8778335781124017,
-   "craterDiameterMeters": 13840.236240592641,
-   "craterDepthMeters": 2768.0472481185284
+   "sinAngle": 0.8259681941722733,
+   "craterDiameterMeters": 14171.702439236367,
+   "craterDepthMeters": 2834.340487847274
   },
   {
    "epochIndex": 7002,
@@ -28948,11 +28948,11 @@
    "x": -0.7519775530938663,
    "y": -0.4848249964433161,
    "z": -0.44662566257068165,
-   "impactorDiameterMeters": 1159.4462962987457,
+   "impactorDiameterMeters": 1159.4462962987493,
    "velocityMetersPerSecond": 19619.319072794657,
-   "angleRadians": 0.437641550843387,
-   "craterDiameterMeters": 10388.092462038336,
-   "craterDepthMeters": 2077.6184924076674
+   "sinAngle": 0.6064078681614818,
+   "craterDiameterMeters": 11705.830668366072,
+   "craterDepthMeters": 2341.1661336732145
   },
   {
    "epochIndex": 7016,
@@ -29210,9 +29210,9 @@
    "z": -0.48169571068636724,
    "impactorDiameterMeters": 2127.1604845387415,
    "velocityMetersPerSecond": 18498.488187419513,
-   "angleRadians": 0.7517152165377514,
-   "craterDiameterMeters": 19051.35409569365,
-   "craterDepthMeters": 3810.27081913873
+   "sinAngle": 0.36041448802985615,
+   "craterDiameterMeters": 15396.042198976276,
+   "craterDepthMeters": 3079.2084397952553
   },
   {
    "epochIndex": 7079,
@@ -29292,11 +29292,11 @@
    "x": -0.40063229265938316,
    "y": 0.8988292055866539,
    "z": 0.17776339685928244,
-   "impactorDiameterMeters": 1061.4710154008746,
+   "impactorDiameterMeters": 1061.471015411605,
    "velocityMetersPerSecond": 17632.05054584132,
-   "angleRadians": 0.3526328193391237,
-   "craterDiameterMeters": 8641.595192463708,
-   "craterDepthMeters": 1728.3190384927418
+   "sinAngle": 0.8127541408424128,
+   "craterDiameterMeters": 11494.37926030461,
+   "craterDepthMeters": 2298.875852060922
   },
   {
    "epochIndex": 7098,
@@ -29756,11 +29756,11 @@
    "x": 0.11484338417755897,
    "y": -0.005676602088323029,
    "z": 0.9933673908979379,
-   "impactorDiameterMeters": 1654.7347199456583,
+   "impactorDiameterMeters": 1654.7347199456585,
    "velocityMetersPerSecond": 15960.868446164117,
-   "angleRadians": 0.7710334766455444,
-   "craterDiameterMeters": 14777.099918676873,
-   "craterDepthMeters": 2955.419983735375
+   "sinAngle": 0.8722570578012194,
+   "craterDiameterMeters": 15925.217391098831,
+   "craterDepthMeters": 3185.0434782197663
   },
   {
    "epochIndex": 7212,
@@ -29778,9 +29778,9 @@
    "z": 0.5760293017776821,
    "impactorDiameterMeters": 1756.509270116009,
    "velocityMetersPerSecond": 18846.756777496073,
-   "angleRadians": 0.7513059069516512,
-   "craterDiameterMeters": 16541.304487597077,
-   "craterDepthMeters": 3308.2608975194157
+   "sinAngle": 0.8273446656562043,
+   "craterDiameterMeters": 17636.44934752049,
+   "craterDepthMeters": 3527.2898695040985
   },
   {
    "epochIndex": 7215,
@@ -30056,11 +30056,11 @@
    "x": -0.5005304841205107,
    "y": 0.7130359564535633,
    "z": 0.4909673708816498,
-   "impactorDiameterMeters": 1219.1603071065313,
+   "impactorDiameterMeters": 1219.1603071065306,
    "velocityMetersPerSecond": 16650.950338067796,
-   "angleRadians": 0.6562610009637305,
-   "craterDiameterMeters": 11349.039294607966,
-   "craterDepthMeters": 2269.8078589215934
+   "sinAngle": 0.965344372184158,
+   "craterDiameterMeters": 13224.285943646797,
+   "craterDepthMeters": 2644.8571887293597
   },
   {
    "epochIndex": 7283,
@@ -30076,11 +30076,11 @@
    "x": 0.08315198263457323,
    "y": 0.9918393824819091,
    "z": -0.0966456783402389,
-   "impactorDiameterMeters": 1134.7985650548624,
+   "impactorDiameterMeters": 1134.7985650549015,
    "velocityMetersPerSecond": 21736.658517824726,
-   "angleRadians": 1.3836347636169934,
-   "craterDiameterMeters": 14143.879485881833,
-   "craterDepthMeters": 2828.775897176367
+   "sinAngle": 0.19124240954216545,
+   "craterDiameterMeters": 8196.851650187822,
+   "craterDepthMeters": 1639.3703300375646
   },
   {
    "epochIndex": 7286,
@@ -30236,11 +30236,11 @@
    "x": -0.3738132378729196,
    "y": -0.7227811643602903,
    "z": -0.5812495605477453,
-   "impactorDiameterMeters": 1175.060060456892,
+   "impactorDiameterMeters": 1175.0600604568926,
    "velocityMetersPerSecond": 17214.83026251449,
-   "angleRadians": 1.1101749490928607,
-   "craterDiameterMeters": 12718.27299714668,
-   "craterDepthMeters": 2543.654599429336
+   "sinAngle": 0.744060959788895,
+   "craterDiameterMeters": 11955.408856432163,
+   "craterDepthMeters": 2391.0817712864327
   },
   {
    "epochIndex": 7324,
@@ -30318,9 +30318,9 @@
    "z": 0.754437157986929,
    "impactorDiameterMeters": 2227.203951523995,
    "velocityMetersPerSecond": 18421.608904228662,
-   "angleRadians": 0.6348796178806513,
-   "craterDiameterMeters": 18805.534832512716,
-   "craterDepthMeters": 3761.1069665025434
+   "sinAngle": 0.8800348280261875,
+   "craterDiameterMeters": 21449.363279842688,
+   "craterDepthMeters": 4289.872655968537
   },
   {
    "epochIndex": 7342,
@@ -30744,11 +30744,11 @@
    "x": -0.6671559643368226,
    "y": -0.7172324687909025,
    "z": 0.20119767633328062,
-   "impactorDiameterMeters": 1219.5671964883265,
+   "impactorDiameterMeters": 1219.5671964883259,
    "velocityMetersPerSecond": 22117.317321476272,
-   "angleRadians": 0.9086491679104711,
-   "craterDiameterMeters": 14011.117798525607,
-   "craterDepthMeters": 2802.2235597051217
+   "sinAngle": 0.9650452945977555,
+   "craterDiameterMeters": 14986.13076139366,
+   "craterDepthMeters": 2997.226152278732
   },
   {
    "epochIndex": 7447,
@@ -31340,11 +31340,11 @@
    "x": -0.7225395778692785,
    "y": 0.6144673004968136,
    "z": -0.3168067155737761,
-   "impactorDiameterMeters": 1131.3037071184244,
+   "impactorDiameterMeters": 1131.3037071184776,
    "velocityMetersPerSecond": 17702.302789597798,
-   "angleRadians": 0.2541098163706468,
-   "craterDiameterMeters": 8183.798133485048,
-   "craterDepthMeters": 1636.7596266970097
+   "sinAngle": 0.8040996452452105,
+   "craterDiameterMeters": 12058.104380897925,
+   "craterDepthMeters": 2411.620876179585
   },
   {
    "epochIndex": 7594,
@@ -32124,11 +32124,11 @@
    "x": -0.9977916044628985,
    "y": -0.06544629296750998,
    "z": 0.011344461210896776,
-   "impactorDiameterMeters": 1848.6480983307838,
+   "impactorDiameterMeters": 1848.6480984180887,
    "velocityMetersPerSecond": 21549.940045667237,
-   "angleRadians": 0.9144223354579593,
-   "craterDiameterMeters": 19189.349868048954,
-   "craterDepthMeters": 3837.869973609791
+   "sinAngle": 0.9668311057851916,
+   "craterDiameterMeters": 20506.75719332598,
+   "craterDepthMeters": 4101.351438665196
   },
   {
    "epochIndex": 7788,
@@ -32916,11 +32916,11 @@
    "x": -0.23840236603696657,
    "y": 0.8748460907804012,
    "z": 0.4216736051903489,
-   "impactorDiameterMeters": 1902.3379006440891,
+   "impactorDiameterMeters": 1902.3379006567402,
    "velocityMetersPerSecond": 20012.163761140364,
-   "angleRadians": 0.6435372763661313,
-   "craterDiameterMeters": 17313.652194017915,
-   "craterDepthMeters": 3462.730438803583
+   "sinAngle": 0.6676960318414569,
+   "craterDiameterMeters": 17941.450711520087,
+   "craterDepthMeters": 3588.2901423040175
   },
   {
    "epochIndex": 7984,
@@ -33096,11 +33096,11 @@
    "x": -0.1050821868502496,
    "y": 0.007715180556869118,
    "z": 0.9944336126638842,
-   "impactorDiameterMeters": 1046.5619396504526,
+   "impactorDiameterMeters": 1046.5619396784746,
    "velocityMetersPerSecond": 23313.992949004296,
-   "angleRadians": 1.0979863477502187,
-   "craterDiameterMeters": 13251.438767591599,
-   "craterDepthMeters": 2650.2877535183197
+   "sinAngle": 0.5115357395002755,
+   "craterDiameterMeters": 11016.513652676402,
+   "craterDepthMeters": 2203.3027305352803
   },
   {
    "epochIndex": 8027,
@@ -33316,11 +33316,11 @@
    "x": -0.6405152375780968,
    "y": 0.5287441784199751,
    "z": -0.5569289220513332,
-   "impactorDiameterMeters": 1471.056736962386,
+   "impactorDiameterMeters": 1471.0567369632406,
    "velocityMetersPerSecond": 19544.99110806073,
-   "angleRadians": 0.6672314699249589,
-   "craterDiameterMeters": 14165.895686490047,
-   "craterDepthMeters": 2833.1791372980097
+   "sinAngle": 0.780884577334572,
+   "craterDiameterMeters": 15308.044296411606,
+   "craterDepthMeters": 3061.6088592823216
   },
   {
    "epochIndex": 8080,
@@ -33748,11 +33748,11 @@
    "x": 0.9792583726325931,
    "y": 0.20228516922575127,
    "z": 0.011565030924076458,
-   "impactorDiameterMeters": 1033.326154237356,
+   "impactorDiameterMeters": 1033.326154300487,
    "velocityMetersPerSecond": 20981.383761847253,
-   "angleRadians": 1.1894739015813163,
-   "craterDiameterMeters": 12701.044331352081,
-   "craterDepthMeters": 2540.2088662704164
+   "sinAngle": 0.6211937194744074,
+   "craterDiameterMeters": 11109.77914258136,
+   "craterDepthMeters": 2221.955828516272
   },
   {
    "epochIndex": 8186,
@@ -34568,11 +34568,11 @@
    "x": 0.4042588598956753,
    "y": 0.7657325816672496,
    "z": 0.5002283354319882,
-   "impactorDiameterMeters": 1295.3119752329524,
+   "impactorDiameterMeters": 1295.311975232938,
    "velocityMetersPerSecond": 23348.28810011885,
-   "angleRadians": 0.5240889201200157,
-   "craterDiameterMeters": 12923.533367009933,
-   "craterDepthMeters": 2584.706673401987
+   "sinAngle": 0.308552341731867,
+   "craterDiameterMeters": 10999.629403568299,
+   "craterDepthMeters": 2199.92588071366
   },
   {
    "epochIndex": 8389,
@@ -34724,11 +34724,11 @@
    "x": 0.9354064284152658,
    "y": 0.2936544850141613,
    "z": -0.19693109736774458,
-   "impactorDiameterMeters": 1270.2422890870328,
+   "impactorDiameterMeters": 1270.2422890870268,
    "velocityMetersPerSecond": 20959.87136629046,
-   "angleRadians": 0.6869116699533456,
-   "craterDiameterMeters": 13134.833393114213,
-   "craterDepthMeters": 2626.9666786228427
+   "sinAngle": 0.7099658295813276,
+   "craterDiameterMeters": 13638.685954241246,
+   "craterDepthMeters": 2727.737190848249
   },
   {
    "epochIndex": 8426,
@@ -35636,11 +35636,11 @@
    "x": 0.9607324853022895,
    "y": 0.14510907128713602,
    "z": -0.23650887745509944,
-   "impactorDiameterMeters": 1412.275450104596,
+   "impactorDiameterMeters": 1412.2754501221712,
    "velocityMetersPerSecond": 15785.368922153977,
-   "angleRadians": 0.5156086158722889,
-   "craterDiameterMeters": 11580.340168879613,
-   "craterDepthMeters": 2316.0680337759227
+   "sinAngle": 0.32611425973422625,
+   "craterDiameterMeters": 10089.663636662543,
+   "craterDepthMeters": 2017.9327273325086
   },
   {
    "epochIndex": 8652,
@@ -35820,11 +35820,11 @@
    "x": 0.8487368911190141,
    "y": 0.32959854613234063,
    "z": -0.413534143742785,
-   "impactorDiameterMeters": 1284.7711012207815,
+   "impactorDiameterMeters": 1284.7711012207717,
    "velocityMetersPerSecond": 20812.186279076242,
-   "angleRadians": 1.270091599646048,
-   "craterDiameterMeters": 15143.116890353484,
-   "craterDepthMeters": 3028.623378070697
+   "sinAngle": 0.742480248990036,
+   "craterDiameterMeters": 13923.755406877539,
+   "craterDepthMeters": 2784.751081375508
   },
   {
    "epochIndex": 8696,
@@ -35932,11 +35932,11 @@
    "x": -0.11500868470339268,
    "y": 0.9402174072113455,
    "z": -0.3205686036086046,
-   "impactorDiameterMeters": 1572.4494614828354,
+   "impactorDiameterMeters": 1572.4494614828413,
    "velocityMetersPerSecond": 15905.124564835387,
-   "angleRadians": 0.5106779157214192,
-   "craterDiameterMeters": 12597.706633929878,
-   "craterDepthMeters": 2519.541326785976
+   "sinAngle": 0.6966230133937128,
+   "craterDiameterMeters": 14177.172051786389,
+   "craterDepthMeters": 2835.434410357278
   },
   {
    "epochIndex": 8722,
@@ -36556,11 +36556,11 @@
    "x": 0.11339755237429919,
    "y": -0.4773027647102597,
    "z": 0.8713914538916826,
-   "impactorDiameterMeters": 2682.8293313930067,
+   "impactorDiameterMeters": 2682.829331393052,
    "velocityMetersPerSecond": 22756.91680622133,
-   "angleRadians": 0.458109327200014,
-   "craterDiameterMeters": 21639.156871308725,
-   "craterDepthMeters": 4327.831374261746
+   "sinAngle": 0.6640923625796801,
+   "craterDiameterMeters": 24779.517455611545,
+   "craterDepthMeters": 4955.90349112231
   },
   {
    "epochIndex": 8876,
@@ -36748,11 +36748,11 @@
    "x": -0.3374086797680287,
    "y": -0.6580971120173265,
    "z": 0.6730999732370003,
-   "impactorDiameterMeters": 1061.576010440027,
+   "impactorDiameterMeters": 1061.5760104506833,
    "velocityMetersPerSecond": 23778.9833633432,
-   "angleRadians": 0.44460528028101254,
-   "craterDiameterMeters": 10605.751400016488,
-   "craterDepthMeters": 2121.1502800032977
+   "sinAngle": 0.7107787177844611,
+   "craterDiameterMeters": 12538.990482615158,
+   "craterDepthMeters": 2507.7980965230317
   },
   {
    "epochIndex": 8922,
@@ -37048,11 +37048,11 @@
    "x": -0.9323831728257052,
    "y": 0.31731299088081705,
    "z": 0.17313025399895232,
-   "impactorDiameterMeters": 1329.7920078909533,
+   "impactorDiameterMeters": 1329.7920078909096,
    "velocityMetersPerSecond": 23307.689033221497,
-   "angleRadians": 0.3976114654269176,
-   "craterDiameterMeters": 12100.966386689286,
-   "craterDepthMeters": 2420.193277337857
+   "sinAngle": 0.7066714737604407,
+   "craterDiameterMeters": 14787.939900786927,
+   "craterDepthMeters": 2957.5879801573856
   },
   {
    "epochIndex": 8995,
@@ -37420,11 +37420,11 @@
    "x": -0.2934130702128271,
    "y": -0.8950045600795222,
    "z": 0.3359696528931497,
-   "impactorDiameterMeters": 2185.165955697381,
+   "impactorDiameterMeters": 2185.1659556973805,
    "velocityMetersPerSecond": 17838.457803025343,
-   "angleRadians": 1.2234333739698369,
-   "craterDiameterMeters": 21300.870975373065,
-   "craterDepthMeters": 4260.174195074614
+   "sinAngle": 0.6105129939985194,
+   "craterDiameterMeters": 18444.953809309172,
+   "craterDepthMeters": 3688.9907618618345
   },
   {
    "epochIndex": 9086,
@@ -37552,11 +37552,11 @@
    "x": 0.9223231813161414,
    "y": 0.11569233444809493,
    "z": 0.36869395568251745,
-   "impactorDiameterMeters": 1925.4802186081795,
+   "impactorDiameterMeters": 1925.480218613327,
    "velocityMetersPerSecond": 18005.597964442077,
-   "angleRadians": 0.6520619270301634,
-   "craterDiameterMeters": 16746.556685193762,
-   "craterDepthMeters": 3349.3113370387528
+   "sinAngle": 0.2535657925534699,
+   "craterDiameterMeters": 12519.900545134029,
+   "craterDepthMeters": 2503.980109026806
   },
   {
    "epochIndex": 9117,
@@ -37972,11 +37972,11 @@
    "x": -0.23300349426360187,
    "y": -0.5098288420748573,
    "z": 0.82812071792074,
-   "impactorDiameterMeters": 1640.408577293025,
+   "impactorDiameterMeters": 1640.4085772930257,
    "velocityMetersPerSecond": 21305.382394265423,
-   "angleRadians": 0.8340098330537598,
-   "craterDiameterMeters": 17007.85324099103,
-   "craterDepthMeters": 3401.570648198206
+   "sinAngle": 0.7441490654805104,
+   "craterDiameterMeters": 17034.735963209096,
+   "craterDepthMeters": 3406.947192641819
   },
   {
    "epochIndex": 9220,
@@ -38230,9 +38230,9 @@
    "z": 0.04034505129087626,
    "impactorDiameterMeters": 2361.5501650596543,
    "velocityMetersPerSecond": 18865.18534733711,
-   "angleRadians": 0.5299720013858221,
-   "craterDiameterMeters": 18860.15345709779,
-   "craterDepthMeters": 3772.030691419558
+   "sinAngle": 0.34703789334233426,
+   "craterDiameterMeters": 16637.74657689934,
+   "craterDepthMeters": 3327.549315379868
   },
   {
    "epochIndex": 9282,
@@ -38760,11 +38760,11 @@
    "x": -0.9143310705006703,
    "y": 0.1310013025470245,
    "z": 0.38319362240006166,
-   "impactorDiameterMeters": 1315.192335421577,
+   "impactorDiameterMeters": 1315.192335421549,
    "velocityMetersPerSecond": 20616.880181292712,
-   "angleRadians": 0.12887309792549706,
-   "craterDiameterMeters": 7869.982138697599,
-   "craterDepthMeters": 1573.99642773952
+   "sinAngle": 0.18025659011365117,
+   "craterDiameterMeters": 8809.494297116695,
+   "craterDepthMeters": 1761.898859423339
   },
   {
    "epochIndex": 9413,
@@ -39408,11 +39408,11 @@
    "x": 0.5342253881946317,
    "y": 0.33527683063995845,
    "z": 0.7760107482788622,
-   "impactorDiameterMeters": 1628.1560406685405,
+   "impactorDiameterMeters": 1628.1560406685414,
    "velocityMetersPerSecond": 17509.119646227726,
-   "angleRadians": 1.1747415078880055,
-   "craterDiameterMeters": 16688.334717892914,
-   "craterDepthMeters": 3337.666943578583
+   "sinAngle": 0.5410514460872675,
+   "craterDiameterMeters": 13968.708406392336,
+   "craterDepthMeters": 2793.7416812784672
   },
   {
    "epochIndex": 9573,
@@ -39736,11 +39736,11 @@
    "x": -0.5565159513256395,
    "y": -0.4410244760487678,
    "z": 0.7041217277190275,
-   "impactorDiameterMeters": 1010.0848495867847,
+   "impactorDiameterMeters": 1010.0848498290154,
    "velocityMetersPerSecond": 17452.25140272686,
-   "angleRadians": 0.6346843005226611,
-   "craterDiameterMeters": 9909.783146320164,
-   "craterDepthMeters": 1981.956629264033
+   "sinAngle": 0.9476900131193777,
+   "craterDiameterMeters": 11586.530447766623,
+   "craterDepthMeters": 2317.306089553325
   },
   {
    "epochIndex": 9653,
@@ -39816,11 +39816,11 @@
    "x": 0.3443732828856955,
    "y": -0.9134882380616345,
    "z": -0.21667090473245196,
-   "impactorDiameterMeters": 1307.0714941779077,
+   "impactorDiameterMeters": 1307.0714941778863,
    "velocityMetersPerSecond": 15560.461764533893,
-   "angleRadians": 0.8722483047934394,
-   "craterDiameterMeters": 12545.509692350495,
-   "craterDepthMeters": 2509.1019384700994
+   "sinAngle": 0.9782378899625068,
+   "craterDiameterMeters": 13612.432551103731,
+   "craterDepthMeters": 2722.4865102207464
   },
   {
    "epochIndex": 9671,
@@ -40052,11 +40052,11 @@
    "x": 0.8505314360120659,
    "y": -0.2512034121602962,
    "z": 0.46205315935969643,
-   "impactorDiameterMeters": 1148.4819373816192,
+   "impactorDiameterMeters": 1148.4819373816301,
    "velocityMetersPerSecond": 24418.12321222772,
-   "angleRadians": 1.3052576278225714,
-   "craterDiameterMeters": 14936.296218146648,
-   "craterDepthMeters": 2987.25924362933
+   "sinAngle": 0.487534908167834,
+   "craterDiameterMeters": 11896.239423980745,
+   "craterDepthMeters": 2379.2478847961493
   },
   {
    "epochIndex": 9728,
@@ -40108,11 +40108,11 @@
    "x": 0.5098666805245206,
    "y": 0.18146736419685502,
    "z": 0.840895691404322,
-   "impactorDiameterMeters": 2531.983474880676,
+   "impactorDiameterMeters": 2531.9834749014412,
    "velocityMetersPerSecond": 18793.478566792255,
-   "angleRadians": 1.348666020257867,
-   "craterDiameterMeters": 24750.21183954629,
-   "craterDepthMeters": 4950.042367909258
+   "sinAngle": 0.42162105801434896,
+   "craterDiameterMeters": 18713.46741021991,
+   "craterDepthMeters": 3742.693482043982
   },
   {
    "epochIndex": 9740,
@@ -40332,11 +40332,11 @@
    "x": 0.8099769311221652,
    "y": -0.4450684197168843,
    "z": -0.3819050573383843,
-   "impactorDiameterMeters": 1016.187112254011,
+   "impactorDiameterMeters": 1016.1871124258029,
    "velocityMetersPerSecond": 15537.698386884864,
-   "angleRadians": 0.8198027259634998,
-   "craterDiameterMeters": 10143.982689841718,
-   "craterDepthMeters": 2028.7965379683437
+   "sinAngle": 0.6194602051136554,
+   "craterDiameterMeters": 9599.271754965019,
+   "craterDepthMeters": 1919.854350993004
   },
   {
    "epochIndex": 9794,
@@ -40370,9 +40370,9 @@
    "z": 0.7140375526734457,
    "impactorDiameterMeters": 1189.0883761266787,
    "velocityMetersPerSecond": 16143.150128194933,
-   "angleRadians": 0.9477244917293179,
-   "craterDiameterMeters": 12077.23227999623,
-   "craterDepthMeters": 2415.446455999246
+   "sinAngle": 0.6848059281306624,
+   "craterDiameterMeters": 11410.076999577392,
+   "craterDepthMeters": 2282.0153999154786
   },
   {
    "epochIndex": 9801,
@@ -40564,11 +40564,11 @@
    "x": 0.5991233842530292,
    "y": -0.0921806484430616,
    "z": -0.795332571000216,
-   "impactorDiameterMeters": 1148.0320524083645,
+   "impactorDiameterMeters": 1148.0320524083759,
    "velocityMetersPerSecond": 15534.87523959265,
-   "angleRadians": 1.242716367969181,
-   "craterDiameterMeters": 12159.681070914501,
-   "craterDepthMeters": 2431.9362141829
+   "sinAngle": 0.5643192523294596,
+   "craterDiameterMeters": 10233.684878220149,
+   "craterDepthMeters": 2046.7369756440298
   },
   {
    "epochIndex": 9848,
@@ -40928,11 +40928,11 @@
    "x": 0.643326334765629,
    "y": -0.23139313905107645,
    "z": 0.7297865730452373,
-   "impactorDiameterMeters": 1008.0229307523692,
+   "impactorDiameterMeters": 1008.0229310240279,
    "velocityMetersPerSecond": 20578.985171086155,
-   "angleRadians": 0.8348271262989675,
-   "craterDiameterMeters": 11459.675463659694,
-   "craterDepthMeters": 2291.9350927319388
+   "sinAngle": 0.7799843100550818,
+   "craterDiameterMeters": 11656.270518723893,
+   "craterDepthMeters": 2331.2541037447786
   },
   {
    "epochIndex": 9937,
@@ -40956,11 +40956,11 @@
    "x": -0.1351240850983353,
    "y": -0.6870207083514928,
    "z": 0.7139636040601447,
-   "impactorDiameterMeters": 1287.1579608830107,
+   "impactorDiameterMeters": 1287.157960883,
    "velocityMetersPerSecond": 18112.179616797664,
-   "angleRadians": 0.9546207396112665,
-   "craterDiameterMeters": 13536.85141859207,
-   "craterDepthMeters": 2707.370283718414
+   "sinAngle": 0.8661191007331257,
+   "craterDiameterMeters": 13807.976195728686,
+   "craterDepthMeters": 2761.5952391457377
   },
   {
    "epochIndex": 9942,
@@ -41068,11 +41068,11 @@
    "x": -0.4385636652226593,
    "y": 0.8359233135210751,
    "z": 0.32999109905937424,
-   "impactorDiameterMeters": 1045.6448033746824,
+   "impactorDiameterMeters": 1045.6448034043615,
    "velocityMetersPerSecond": 17149.11059438639,
-   "angleRadians": 0.7631433752668314,
-   "craterDiameterMeters": 10632.547696488315,
-   "craterDepthMeters": 2126.509539297663
+   "sinAngle": 0.7640899169404141,
+   "craterDiameterMeters": 10993.896872825359,
+   "craterDepthMeters": 2198.779374565072
   },
   {
    "epochIndex": 9968,
@@ -41204,11 +41204,11 @@
    "x": -0.3346174750071484,
    "y": -0.9421434997078436,
    "z": 0.019919120916767744,
-   "impactorDiameterMeters": 1165.7444344680139,
+   "impactorDiameterMeters": 1165.744434468016,
    "velocityMetersPerSecond": 15695.954273172969,
-   "angleRadians": 0.5316383002456084,
-   "craterDiameterMeters": 10038.497254153588,
-   "craterDepthMeters": 2007.6994508307178
+   "sinAngle": 0.7933049225891797,
+   "craterDiameterMeters": 11654.530884627284,
+   "craterDepthMeters": 2330.9061769254567
   },
   {
    "epochIndex": 10000,
@@ -41252,11 +41252,11 @@
    "x": 0.3767083033900409,
    "y": 0.660710805423,
    "z": -0.64927042575054,
-   "impactorDiameterMeters": 1050.488230391211,
+   "impactorDiameterMeters": 1050.4882304130783,
    "velocityMetersPerSecond": 19846.264169978873,
-   "angleRadians": 1.025612748102139,
-   "craterDiameterMeters": 12215.431029426962,
-   "craterDepthMeters": 2443.0862058853922
+   "sinAngle": 0.8681914459824821,
+   "craterDiameterMeters": 12277.77930592409,
+   "craterDepthMeters": 2455.5558611848182
   },
   {
    "epochIndex": 10010,
@@ -42216,11 +42216,11 @@
    "x": -0.03684127170426638,
    "y": -0.09315033265587336,
    "z": 0.9949702187630103,
-   "impactorDiameterMeters": 1068.9652775050167,
+   "impactorDiameterMeters": 1068.965277511512,
    "velocityMetersPerSecond": 24125.51373877101,
-   "angleRadians": 0.6879282778366437,
-   "craterDiameterMeters": 12219.195355218497,
-   "craterDepthMeters": 2443.8390710436993
+   "sinAngle": 0.9734184114985587,
+   "craterDiameterMeters": 14089.600679969555,
+   "craterDepthMeters": 2817.920135993911
   },
   {
    "epochIndex": 10249,
@@ -43044,11 +43044,11 @@
    "x": -0.10100343282147672,
    "y": -0.15716034860574857,
    "z": -0.9823944886777393,
-   "impactorDiameterMeters": 1255.5416335561752,
+   "impactorDiameterMeters": 1255.541633556172,
    "velocityMetersPerSecond": 22589.949229177928,
-   "angleRadians": 0.3235280121618673,
-   "craterDiameterMeters": 10686.402166827886,
-   "craterDepthMeters": 2137.280433365577
+   "sinAngle": 0.602741526937533,
+   "craterDiameterMeters": 13226.315885628457,
+   "craterDepthMeters": 2645.2631771256915
   },
   {
    "epochIndex": 10454,
@@ -43296,11 +43296,11 @@
    "x": 0.9416805942808586,
    "y": 0.07678977506741413,
    "z": 0.32762934667081484,
-   "impactorDiameterMeters": 1083.9283209913235,
+   "impactorDiameterMeters": 1083.9283209936082,
    "velocityMetersPerSecond": 19922.15634926164,
-   "angleRadians": 0.6769508586435512,
-   "craterDiameterMeters": 11303.535795568921,
-   "craterDepthMeters": 2260.707159113784
+   "sinAngle": 0.9389201706697178,
+   "craterDiameterMeters": 12936.064998889287,
+   "craterDepthMeters": 2587.2129997778575
   },
   {
    "epochIndex": 10515,
@@ -43324,11 +43324,11 @@
    "x": 0.4405984716141377,
    "y": 0.8427202617032595,
    "z": 0.3093469691561171,
-   "impactorDiameterMeters": 2353.7659278995498,
+   "impactorDiameterMeters": 2353.7659278995493,
    "velocityMetersPerSecond": 15698.33997737516,
-   "angleRadians": 0.8583654315402666,
-   "craterDiameterMeters": 19848.337646210537,
-   "craterDepthMeters": 3969.667529242108
+   "sinAngle": 0.03232997240592766,
+   "craterDiameterMeters": 6938.5753083573145,
+   "craterDepthMeters": 1387.715061671463
   },
   {
    "epochIndex": 10520,
@@ -43360,11 +43360,11 @@
    "x": 0.23110214578378302,
    "y": -0.41154251170997674,
    "z": -0.8816034024829843,
-   "impactorDiameterMeters": 2508.8533480135557,
+   "impactorDiameterMeters": 2508.853348052897,
    "velocityMetersPerSecond": 24170.736720857574,
-   "angleRadians": 0.7048077346435925,
-   "craterDiameterMeters": 23950.926004485147,
-   "craterDepthMeters": 4790.18520089703
+   "sinAngle": 0.9494653489365561,
+   "craterDiameterMeters": 27205.006917035633,
+   "craterDepthMeters": 5441.001383407127
   },
   {
    "epochIndex": 10527,
@@ -44288,11 +44288,11 @@
    "x": 0.6549750776356965,
    "y": -0.6141510877908904,
    "z": 0.44025684440037843,
-   "impactorDiameterMeters": 1494.1249804134413,
+   "impactorDiameterMeters": 1494.1249804136762,
    "velocityMetersPerSecond": 20084.2454889914,
-   "angleRadians": 1.032317270939923,
-   "craterDiameterMeters": 16184.80446665814,
-   "craterDepthMeters": 3236.9608933316285
+   "sinAngle": 0.8628156906247397,
+   "craterDiameterMeters": 16211.944635528853,
+   "craterDepthMeters": 3242.3889271057706
   },
   {
    "epochIndex": 10757,
@@ -44352,11 +44352,11 @@
    "x": -0.05713858648701642,
    "y": 0.9866495722240975,
    "z": -0.15250509356828398,
-   "impactorDiameterMeters": 1173.3993979571294,
+   "impactorDiameterMeters": 1173.39939795713,
    "velocityMetersPerSecond": 19789.007141625363,
-   "angleRadians": 0.5814866214961076,
-   "craterDiameterMeters": 11475.5363846971,
-   "craterDepthMeters": 2295.10727693942
+   "sinAngle": 0.799931577159954,
+   "craterDiameterMeters": 13007.569324531365,
+   "craterDepthMeters": 2601.5138649062733
   },
   {
    "epochIndex": 10771,
@@ -44478,9 +44478,9 @@
    "z": -0.9616066198700371,
    "impactorDiameterMeters": 3833.3354693896945,
    "velocityMetersPerSecond": 20424.81149073923,
-   "angleRadians": 0.7772736493371699,
-   "craterDiameterMeters": 31784.807679007157,
-   "craterDepthMeters": 6356.961535801432
+   "sinAngle": 0.9132205110221042,
+   "craterDiameterMeters": 34708.47704421442,
+   "craterDepthMeters": 6941.695408842885
   },
   {
    "epochIndex": 10800,
@@ -45768,11 +45768,11 @@
    "x": 0.39310038526769286,
    "y": 0.439367376176359,
    "z": 0.8077303980006529,
-   "impactorDiameterMeters": 1131.8072966764576,
+   "impactorDiameterMeters": 1131.8072966765085,
    "velocityMetersPerSecond": 15779.340359099599,
-   "angleRadians": 0.8965288107196419,
-   "craterDiameterMeters": 11357.079395041459,
-   "craterDepthMeters": 2271.415879008292
+   "sinAngle": 0.7111096068326715,
+   "craterDiameterMeters": 11006.891445464114,
+   "craterDepthMeters": 2201.378289092823
   },
   {
    "epochIndex": 11121,
@@ -46012,11 +46012,11 @@
    "x": 0.19831943518064157,
    "y": -0.5731490835009706,
    "z": 0.7950908939936543,
-   "impactorDiameterMeters": 1272.2557842018953,
+   "impactorDiameterMeters": 1272.255784201889,
    "velocityMetersPerSecond": 16975.890761203646,
-   "angleRadians": 0.9375054423156977,
-   "craterDiameterMeters": 12983.907651105113,
-   "craterDepthMeters": 2596.781530221023
+   "sinAngle": 0.035647386450550676,
+   "craterDiameterMeters": 4591.498956194252,
+   "craterDepthMeters": 918.2997912388505
   },
   {
    "epochIndex": 11180,
@@ -46300,11 +46300,11 @@
    "x": -0.1724325648544507,
    "y": 0.04867682965312115,
    "z": 0.983817857549169,
-   "impactorDiameterMeters": 1152.934274776127,
+   "impactorDiameterMeters": 1152.934274776134,
    "velocityMetersPerSecond": 17135.719183091736,
-   "angleRadians": 0.7237310321265272,
-   "craterDiameterMeters": 11307.551580317822,
-   "craterDepthMeters": 2261.5103160635645
+   "sinAngle": 0.9632668510385564,
+   "craterDiameterMeters": 12812.217928093118,
+   "craterDepthMeters": 2562.4435856186237
   },
   {
    "epochIndex": 11250,
@@ -46600,11 +46600,11 @@
    "x": 0.7933575676247046,
    "y": -0.5554275183020618,
    "z": 0.24916669481579057,
-   "impactorDiameterMeters": 1081.3041223353082,
+   "impactorDiameterMeters": 1081.3041223380642,
    "velocityMetersPerSecond": 23835.974770954985,
-   "angleRadians": 0.7594176009905417,
-   "craterDiameterMeters": 12599.321507267978,
-   "craterDepthMeters": 2519.8643014535955
+   "sinAngle": 0.5099807389360593,
+   "craterDiameterMeters": 11399.801071393167,
+   "craterDepthMeters": 2279.9602142786334
   },
   {
    "epochIndex": 11323,
@@ -46744,11 +46744,11 @@
    "x": -0.8822690401525898,
    "y": 0.4664676702645817,
    "z": 0.06331866538518477,
-   "impactorDiameterMeters": 1292.062354439468,
+   "impactorDiameterMeters": 1292.0623544394552,
    "velocityMetersPerSecond": 23937.708491634134,
-   "angleRadians": 0.4585255732645579,
-   "craterDiameterMeters": 12517.78345063549,
-   "craterDepthMeters": 2503.556690127098
+   "sinAngle": 0.5158570069415679,
+   "craterDiameterMeters": 13173.20411487614,
+   "craterDepthMeters": 2634.6408229752283
   },
   {
    "epochIndex": 11357,
@@ -46972,11 +46972,11 @@
    "x": 0.4977942976606351,
    "y": 0.3699217660587915,
    "z": -0.7844480379301739,
-   "impactorDiameterMeters": 1020.4033193196594,
+   "impactorDiameterMeters": 1020.4033194546284,
    "velocityMetersPerSecond": 22253.178432373545,
-   "angleRadians": 0.8866289799406925,
-   "craterDiameterMeters": 12153.531502054982,
-   "craterDepthMeters": 2430.7063004109964
+   "sinAngle": 0.5411878121765435,
+   "craterDiameterMeters": 10782.71414969926,
+   "craterDepthMeters": 2156.5428299398523
   },
   {
    "epochIndex": 11412,
@@ -47030,9 +47030,9 @@
    "z": -0.16610866899119675,
    "impactorDiameterMeters": 9002.82101689716,
    "velocityMetersPerSecond": 17967.656473740608,
-   "angleRadians": 1.0620998391630088,
-   "craterDiameterMeters": 62908.6240761304,
-   "craterDepthMeters": 12581.72481522608
+   "sinAngle": 0.6992221277027636,
+   "craterDiameterMeters": 58413.62277846008,
+   "craterDepthMeters": 11682.724555692017
   },
   {
    "epochIndex": 11424,
@@ -47652,11 +47652,11 @@
    "x": 0.9701119052308607,
    "y": -0.1804657976510943,
    "z": -0.16221894836147813,
-   "impactorDiameterMeters": 1309.5952579825191,
+   "impactorDiameterMeters": 1309.5952579824962,
    "velocityMetersPerSecond": 23165.296033274808,
-   "angleRadians": 0.5172363027384483,
-   "craterDiameterMeters": 12937.866281475684,
-   "craterDepthMeters": 2587.573256295137
+   "sinAngle": 0.8215507847473973,
+   "craterDiameterMeters": 15323.498461704417,
+   "craterDepthMeters": 3064.6996923408838
   },
   {
    "epochIndex": 11578,
@@ -48172,11 +48172,11 @@
    "x": 0.7192241277385238,
    "y": 0.13447343560663566,
    "z": 0.681640337124284,
-   "impactorDiameterMeters": 1353.6253913186165,
+   "impactorDiameterMeters": 1353.6253915770187,
    "velocityMetersPerSecond": 24287.502685845044,
-   "angleRadians": 0.244447318063548,
-   "craterDiameterMeters": 10682.477078671722,
-   "craterDepthMeters": 2136.4954157343445
+   "sinAngle": 0.3858609291460929,
+   "craterDiameterMeters": 12479.535478102633,
+   "craterDepthMeters": 2495.907095620527
   },
   {
    "epochIndex": 11706,
@@ -48636,11 +48636,11 @@
    "x": -0.10847780396456908,
    "y": 0.6760366278973332,
    "z": 0.7288395185417894,
-   "impactorDiameterMeters": 1016.1577956347701,
+   "impactorDiameterMeters": 1016.1577958068483,
    "velocityMetersPerSecond": 23835.154924400813,
-   "angleRadians": 0.41794144643813963,
-   "craterDiameterMeters": 10064.425992018163,
-   "craterDepthMeters": 2012.8851984036328
+   "sinAngle": 0.5019778580910452,
+   "craterDiameterMeters": 10803.173032022916,
+   "craterDepthMeters": 2160.6346064045833
   },
   {
    "epochIndex": 11820,
@@ -49036,11 +49036,11 @@
    "x": -0.4292405375964127,
    "y": 0.8574554624944344,
    "z": 0.2837652035088135,
-   "impactorDiameterMeters": 1448.806880808837,
+   "impactorDiameterMeters": 1448.8068808116898,
    "velocityMetersPerSecond": 18650.879724502065,
-   "angleRadians": 1.3125757580486928,
-   "craterDiameterMeters": 15912.283718196091,
-   "craterDepthMeters": 3182.4567436392185
+   "sinAngle": 0.5200262099328145,
+   "craterDiameterMeters": 12940.622572086228,
+   "craterDepthMeters": 2588.124514417246
   },
   {
    "epochIndex": 11918,
@@ -49796,11 +49796,11 @@
    "x": 0.5269791740807233,
    "y": -0.8164539231610264,
    "z": -0.23599987593252586,
-   "impactorDiameterMeters": 1175.074500491066,
+   "impactorDiameterMeters": 1175.0745004910664,
    "velocityMetersPerSecond": 20361.607810008274,
-   "angleRadians": 0.40738110730475285,
-   "craterDiameterMeters": 10433.249328889162,
-   "craterDepthMeters": 2086.6498657778325
+   "sinAngle": 0.7239312536902104,
+   "craterDiameterMeters": 12754.936495935386,
+   "craterDepthMeters": 2550.9872991870775
   },
   {
    "epochIndex": 12106,
@@ -50060,11 +50060,11 @@
    "x": -0.37993265713549196,
    "y": 0.5290116178012452,
    "z": 0.7588134713309154,
-   "impactorDiameterMeters": 1299.7325086759388,
+   "impactorDiameterMeters": 1299.7325086759222,
    "velocityMetersPerSecond": 22768.96927049165,
-   "angleRadians": 1.2300342269001672,
-   "craterDiameterMeters": 15826.39061694981,
-   "craterDepthMeters": 3165.2781233899623
+   "sinAngle": 0.5233709653900447,
+   "craterDiameterMeters": 13008.421458619701,
+   "craterDepthMeters": 2601.6842917239405
   },
   {
    "epochIndex": 12170,
@@ -50660,11 +50660,11 @@
    "x": 0.06262656307209961,
    "y": 0.5815054761083248,
    "z": 0.8111284083631929,
-   "impactorDiameterMeters": 1803.1208370995869,
+   "impactorDiameterMeters": 1803.1208374880512,
    "velocityMetersPerSecond": 24000.676193828098,
-   "angleRadians": 0.46101600257183856,
-   "craterDiameterMeters": 16280.052093113116,
-   "craterDepthMeters": 3256.0104186226235
+   "sinAngle": 0.6400293519522186,
+   "craterDiameterMeters": 18378.717323052577,
+   "craterDepthMeters": 3675.7434646105157
   },
   {
    "epochIndex": 12318,
@@ -50700,11 +50700,11 @@
    "x": -0.12759839636743492,
    "y": 0.016254332812666604,
    "z": -0.9916927174832303,
-   "impactorDiameterMeters": 1161.2472066693356,
+   "impactorDiameterMeters": 1161.2472066693388,
    "velocityMetersPerSecond": 18636.8650242636,
-   "angleRadians": 1.0186065252042509,
-   "craterDiameterMeters": 12830.107719737522,
-   "craterDepthMeters": 2566.0215439475046
+   "sinAngle": 0.8906183543088981,
+   "craterDiameterMeters": 13024.270052417867,
+   "craterDepthMeters": 2604.854010483574
   },
   {
    "epochIndex": 12326,
@@ -50766,9 +50766,9 @@
    "z": 0.8049370646009506,
    "impactorDiameterMeters": 2308.093487667151,
    "velocityMetersPerSecond": 24030.363817793223,
-   "angleRadians": 0.9917892736656181,
-   "craterDiameterMeters": 24379.94162379753,
-   "craterDepthMeters": 4875.988324759506
+   "sinAngle": 0.8169993396264217,
+   "craterDiameterMeters": 24184.120846185615,
+   "craterDepthMeters": 4836.824169237123
   },
   {
    "epochIndex": 12340,
@@ -51268,11 +51268,11 @@
    "x": -0.17743145225820264,
    "y": 0.9797598061282745,
    "z": -0.09267578996173272,
-   "impactorDiameterMeters": 1002.0984589180295,
+   "impactorDiameterMeters": 1002.0984592941921,
    "velocityMetersPerSecond": 17589.620834835645,
-   "angleRadians": 0.9011477011218698,
-   "craterDiameterMeters": 10847.255390716,
-   "craterDepthMeters": 2169.4510781432
+   "sinAngle": 0.9696530105199154,
+   "craterDiameterMeters": 11643.385479703897,
+   "craterDepthMeters": 2328.6770959407795
   },
   {
    "epochIndex": 12464,
@@ -51548,11 +51548,11 @@
    "x": 0.9280584766074687,
    "y": -0.370966805653145,
    "z": -0.03303169842025147,
-   "impactorDiameterMeters": 1411.0908207459602,
+   "impactorDiameterMeters": 1411.090820764617,
    "velocityMetersPerSecond": 18228.422133166896,
-   "angleRadians": 0.18713369673342267,
-   "craterDiameterMeters": 8909.187379656829,
-   "craterDepthMeters": 1781.8374759313658
+   "sinAngle": 0.14669860998760298,
+   "craterDiameterMeters": 8230.799124207559,
+   "craterDepthMeters": 1646.1598248415119
   },
   {
    "epochIndex": 12532,
@@ -51564,11 +51564,11 @@
    "x": -0.022918991785815593,
    "y": 0.9870461902608753,
    "z": 0.1587908627944753,
-   "impactorDiameterMeters": 1473.9649889866646,
+   "impactorDiameterMeters": 1473.9649889873922,
    "velocityMetersPerSecond": 17427.49070730298,
-   "angleRadians": 0.49813748066584457,
-   "craterDiameterMeters": 12375.419841453282,
-   "craterDepthMeters": 2475.0839682906567
+   "sinAngle": 0.8388995026240922,
+   "craterDiameterMeters": 14929.691824473504,
+   "craterDepthMeters": 2985.938364894701
   },
   {
    "epochIndex": 12534,
@@ -51800,11 +51800,11 @@
    "x": 0.23787127413736533,
    "y": 0.5918066662785205,
    "z": 0.7701831773601461,
-   "impactorDiameterMeters": 1262.228443604984,
+   "impactorDiameterMeters": 1262.2284436049795,
    "velocityMetersPerSecond": 23004.197652746658,
-   "angleRadians": 0.31573342001351123,
-   "craterDiameterMeters": 10732.326195055062,
-   "craterDepthMeters": 2146.4652390110127
+   "sinAngle": 0.5705131706631115,
+   "craterDiameterMeters": 13144.845637563043,
+   "craterDepthMeters": 2628.969127512609
   },
   {
    "epochIndex": 12591,
@@ -51956,11 +51956,11 @@
    "x": 0.7358201639305,
    "y": 0.017716668437365694,
    "z": -0.6769452016321353,
-   "impactorDiameterMeters": 1333.3915289299355,
+   "impactorDiameterMeters": 1333.3915289298866,
    "velocityMetersPerSecond": 16620.48196263835,
-   "angleRadians": 0.7167234105300285,
-   "craterDiameterMeters": 12463.443888647305,
-   "craterDepthMeters": 2492.6887777294614
+   "sinAngle": 0.5959379288331177,
+   "craterDiameterMeters": 12065.205779331112,
+   "craterDepthMeters": 2413.0411558662227
   },
   {
    "epochIndex": 12628,
@@ -52262,9 +52262,9 @@
    "z": -0.6930190912666945,
    "impactorDiameterMeters": 2272.3816100304784,
    "velocityMetersPerSecond": 21270.918000865735,
-   "angleRadians": 1.3298673251053459,
-   "craterDiameterMeters": 23985.899539683516,
-   "craterDepthMeters": 4797.179907936704
+   "sinAngle": 0.45113114062741233,
+   "craterDiameterMeters": 18576.6101595175,
+   "craterDepthMeters": 3715.3220319035
   },
   {
    "epochIndex": 12702,
@@ -52424,11 +52424,11 @@
    "x": -0.006270985182347429,
    "y": 0.9187408466158955,
    "z": -0.3948112606098644,
-   "impactorDiameterMeters": 1218.6392741164577,
+   "impactorDiameterMeters": 1218.639274116457,
    "velocityMetersPerSecond": 23013.68610595773,
-   "angleRadians": 0.6116564275779133,
-   "craterDiameterMeters": 12819.407720677586,
-   "craterDepthMeters": 2563.8815441355173
+   "sinAngle": 0.9383962522519381,
+   "craterDiameterMeters": 15099.741445985805,
+   "craterDepthMeters": 3019.948289197161
   },
   {
    "epochIndex": 12741,
@@ -55032,11 +55032,11 @@
    "x": 0.923944983555612,
    "y": 0.0616990890623938,
    "z": -0.3775167410477194,
-   "impactorDiameterMeters": 1107.4407753404732,
+   "impactorDiameterMeters": 1107.440775340862,
    "velocityMetersPerSecond": 24583.791748385534,
-   "angleRadians": 1.3148285651895357,
-   "craterDiameterMeters": 14573.969796123085,
-   "craterDepthMeters": 2914.793959224617
+   "sinAngle": 0.32902015801683226,
+   "craterDiameterMeters": 10172.956879787273,
+   "craterDepthMeters": 2034.5913759574546
   },
   {
    "epochIndex": 13391,
@@ -55212,11 +55212,11 @@
    "x": 0.4970460224051143,
    "y": -0.3878875685682641,
    "z": -0.7762013178045079,
-   "impactorDiameterMeters": 1180.6414298460438,
+   "impactorDiameterMeters": 1180.641429846044,
    "velocityMetersPerSecond": 20732.44683501153,
-   "angleRadians": 1.233998382183474,
-   "craterDiameterMeters": 14096.951481825336,
-   "craterDepthMeters": 2819.390296365067
+   "sinAngle": 0.7657242268106222,
+   "craterDiameterMeters": 13147.806353747425,
+   "craterDepthMeters": 2629.561270749485
   },
   {
    "epochIndex": 13434,
@@ -55340,11 +55340,11 @@
    "x": 0.31166128138895094,
    "y": 0.9265228863345412,
    "z": 0.21076666430274976,
-   "impactorDiameterMeters": 1146.1018037401534,
+   "impactorDiameterMeters": 1146.1018037401673,
    "velocityMetersPerSecond": 24324.165975285563,
-   "angleRadians": 0.8811245608712273,
-   "craterDiameterMeters": 13816.727044168756,
-   "craterDepthMeters": 2763.345408833751
+   "sinAngle": 0.9083659707692966,
+   "craterDiameterMeters": 14589.999652166298,
+   "craterDepthMeters": 2917.9999304332596
   },
   {
    "epochIndex": 13464,
@@ -55628,11 +55628,11 @@
    "x": 0.6433526913311184,
    "y": 0.2962328514637656,
    "z": -0.7059344249083289,
-   "impactorDiameterMeters": 12503.717061054565,
+   "impactorDiameterMeters": 12503.717061054622,
    "velocityMetersPerSecond": 24945.855743540113,
-   "angleRadians": 0.41608611278662305,
-   "craterDiameterMeters": 72635.16512338491,
-   "craterDepthMeters": 14527.033024676983
+   "sinAngle": 0.5231067013544852,
+   "craterDiameterMeters": 79156.05152482126,
+   "craterDepthMeters": 15831.210304964254
   },
   {
    "epochIndex": 13534,
@@ -55788,11 +55788,11 @@
    "x": 0.3273358974993628,
    "y": -0.9169666388207095,
    "z": 0.22808637289004535,
-   "impactorDiameterMeters": 5040.5271944265505,
+   "impactorDiameterMeters": 5040.527194426534,
    "velocityMetersPerSecond": 20424.156858517454,
-   "angleRadians": 0.6640481113095239,
-   "craterDiameterMeters": 37691.656923323346,
-   "craterDepthMeters": 7538.33138466467
+   "sinAngle": 0.9026323827016837,
+   "craterDiameterMeters": 42803.81804115657,
+   "craterDepthMeters": 8560.763608231315
   },
   {
    "epochIndex": 13572,
@@ -56060,11 +56060,11 @@
    "x": -0.2349719850151625,
    "y": -0.905962830623056,
    "z": 0.35216404669911167,
-   "impactorDiameterMeters": 1881.3592914565454,
+   "impactorDiameterMeters": 1881.3592914841154,
    "velocityMetersPerSecond": 21487.5867262491,
-   "angleRadians": 0.6567180061704738,
-   "craterDiameterMeters": 17812.910246063642,
-   "craterDepthMeters": 3562.5820492127286
+   "sinAngle": 0.9641495199798945,
+   "craterDiameterMeters": 20743.539051434316,
+   "craterDepthMeters": 4148.707810286864
   },
   {
    "epochIndex": 13638,
@@ -56432,11 +56432,11 @@
    "x": 0.9953469486010457,
    "y": 0.011846253330926565,
    "z": -0.09562488270636993,
-   "impactorDiameterMeters": 1391.4972254826089,
+   "impactorDiameterMeters": 1391.4972255307089,
    "velocityMetersPerSecond": 17076.273289425986,
-   "angleRadians": 1.045263408555686,
-   "craterDiameterMeters": 14292.282329060736,
-   "craterDepthMeters": 2858.456465812147
+   "sinAngle": 0.8486781926082855,
+   "craterDiameterMeters": 14201.506186687167,
+   "craterDepthMeters": 2840.3012373374336
   },
   {
    "epochIndex": 13729,
@@ -56456,11 +56456,11 @@
    "x": -0.26648839307012756,
    "y": -0.15615012673363285,
    "z": -0.9511051857076437,
-   "impactorDiameterMeters": 1021.9637717653272,
+   "impactorDiameterMeters": 1021.9637718886677,
    "velocityMetersPerSecond": 23194.498138616626,
-   "angleRadians": 0.8614663829876998,
-   "craterDiameterMeters": 12305.202516333313,
-   "craterDepthMeters": 2461.0405032666627
+   "sinAngle": 0.8246714895375922,
+   "craterDiameterMeters": 12651.449213512109,
+   "craterDepthMeters": 2530.289842702422
   },
   {
    "epochIndex": 13733,
@@ -56756,11 +56756,11 @@
    "x": 0.03468145706156994,
    "y": -0.6586298251961065,
    "z": 0.7516674463472746,
-   "impactorDiameterMeters": 2696.419325653104,
+   "impactorDiameterMeters": 2696.4193256530557,
    "velocityMetersPerSecond": 17474.925891284394,
-   "angleRadians": 0.8799813931826219,
-   "craterDiameterMeters": 23275.26731585343,
-   "craterDepthMeters": 4655.053463170686
+   "sinAngle": 0.905172855579482,
+   "craterDiameterMeters": 24556.793370533447,
+   "craterDepthMeters": 4911.358674106689
   },
   {
    "epochIndex": 13806,
@@ -57264,11 +57264,11 @@
    "x": -0.3682661783965223,
    "y": -0.707323189921137,
    "z": 0.603385388329058,
-   "impactorDiameterMeters": 1356.3956103144099,
+   "impactorDiameterMeters": 1356.3956105441323,
    "velocityMetersPerSecond": 21045.87560459247,
-   "angleRadians": 0.5619254273193862,
-   "craterDiameterMeters": 13068.676881724141,
-   "craterDepthMeters": 2613.735376344828
+   "sinAngle": 0.405628811367009,
+   "craterDiameterMeters": 11932.97285124746,
+   "craterDepthMeters": 2386.594570249492
   },
   {
    "epochIndex": 13931,
@@ -58108,11 +58108,11 @@
    "x": -0.9103502996014142,
    "y": -0.05673679919242838,
    "z": 0.40993080834820617,
-   "impactorDiameterMeters": 1249.2548199463647,
+   "impactorDiameterMeters": 1249.2548199463622,
    "velocityMetersPerSecond": 19106.312738121374,
-   "angleRadians": 0.5959863420192903,
-   "craterDiameterMeters": 11951.654962070794,
-   "craterDepthMeters": 2390.330992414159
+   "sinAngle": 0.5349543180381682,
+   "craterDiameterMeters": 11761.48254971488,
+   "craterDepthMeters": 2352.296509942976
   },
   {
    "epochIndex": 14140,
@@ -58140,11 +58140,11 @@
    "x": -0.06052361892057161,
    "y": -0.373550305270149,
    "z": 0.9256333296642553,
-   "impactorDiameterMeters": 1486.7797281045034,
+   "impactorDiameterMeters": 1486.7797281048588,
    "velocityMetersPerSecond": 23836.528691455143,
-   "angleRadians": 1.257984820315714,
-   "craterDiameterMeters": 17991.00906032367,
-   "craterDepthMeters": 3598.2018120647344
+   "sinAngle": 0.5772116884648618,
+   "craterDiameterMeters": 15230.068976744336,
+   "craterDepthMeters": 3046.0137953488675
   },
   {
    "epochIndex": 14146,
@@ -58270,9 +58270,9 @@
    "z": 0.6677273514750662,
    "impactorDiameterMeters": 1740.9641949383094,
    "velocityMetersPerSecond": 23021.547058670625,
-   "angleRadians": 0.4981739848336241,
-   "craterDiameterMeters": 15928.012394900798,
-   "craterDepthMeters": 3185.6024789801595
+   "sinAngle": 0.8404486098222651,
+   "craterDiameterMeters": 19226.925624202184,
+   "craterDepthMeters": 3845.385124840437
   },
   {
    "epochIndex": 14176,
@@ -58780,11 +58780,11 @@
    "x": -0.15095212345260198,
    "y": -0.92500240220384,
    "z": 0.348688990853276,
-   "impactorDiameterMeters": 1138.580477590024,
+   "impactorDiameterMeters": 1138.580477590052,
    "velocityMetersPerSecond": 22754.781481808506,
-   "angleRadians": 0.5712191027747905,
-   "craterDiameterMeters": 11856.798392550547,
-   "craterDepthMeters": 2371.3596785101095
+   "sinAngle": 0.6808434926193598,
+   "craterDiameterMeters": 12803.901313841288,
+   "craterDepthMeters": 2560.7802627682577
   },
   {
    "epochIndex": 14302,
@@ -58980,11 +58980,11 @@
    "x": -0.764487069503885,
    "y": -0.23229666610691196,
    "z": 0.6013300087946517,
-   "impactorDiameterMeters": 1307.7761626724446,
+   "impactorDiameterMeters": 1307.7761626724227,
    "velocityMetersPerSecond": 17942.133603128143,
-   "angleRadians": 0.9133730181046282,
-   "craterDiameterMeters": 13510.804223850637,
-   "craterDepthMeters": 2702.1608447701274
+   "sinAngle": 0.8548135382337839,
+   "craterDiameterMeters": 13861.449980385123,
+   "craterDepthMeters": 2772.2899960770246
   },
   {
    "epochIndex": 14350,
@@ -59072,11 +59072,11 @@
    "x": -0.2001907166199079,
    "y": -0.34886975918878554,
    "z": -0.9155400417801325,
-   "impactorDiameterMeters": 1197.1061609473677,
+   "impactorDiameterMeters": 1197.1061609473675,
    "velocityMetersPerSecond": 18493.89193105768,
-   "angleRadians": 0.5009060760206848,
-   "craterDiameterMeters": 10818.499712352565,
-   "craterDepthMeters": 2163.699942470513
+   "sinAngle": 0.5922394046387944,
+   "craterDiameterMeters": 11601.63611749535,
+   "craterDepthMeters": 2320.3272234990704
   },
   {
    "epochIndex": 14371,
@@ -59552,11 +59552,11 @@
    "x": 0.3440928360607504,
    "y": 0.6966214292854032,
    "z": 0.6295384852668118,
-   "impactorDiameterMeters": 1068.509892361824,
+   "impactorDiameterMeters": 1068.5098923685234,
    "velocityMetersPerSecond": 20147.816049235767,
-   "angleRadians": 1.0147205398487786,
-   "craterDiameterMeters": 12433.243994281318,
-   "craterDepthMeters": 2486.648798856264
+   "sinAngle": 0.864440788054602,
+   "craterDiameterMeters": 12506.530942458276,
+   "craterDepthMeters": 2501.306188491655
   },
   {
    "epochIndex": 14489,
@@ -60312,11 +60312,11 @@
    "x": -0.9567973568082845,
    "y": -0.04160745753136402,
    "z": -0.28776316213590664,
-   "impactorDiameterMeters": 1055.0931057587172,
+   "impactorDiameterMeters": 1055.0931057749958,
    "velocityMetersPerSecond": 19839.50376426249,
-   "angleRadians": 0.9489548422812608,
-   "craterDiameterMeters": 12050.185516353204,
-   "craterDepthMeters": 2410.0371032706407
+   "sinAngle": 0.9394470047511685,
+   "craterDiameterMeters": 12646.062690326316,
+   "craterDepthMeters": 2529.2125380652633
   },
   {
    "epochIndex": 14677,
@@ -60328,11 +60328,11 @@
    "x": -0.43750381569621977,
    "y": 0.8229656337739374,
    "z": -0.3623782235155828,
-   "impactorDiameterMeters": 4327.472564910393,
+   "impactorDiameterMeters": 4327.472565458344,
    "velocityMetersPerSecond": 15615.072675661264,
-   "angleRadians": 0.8878073794942976,
-   "craterDiameterMeters": 32104.730986729166,
-   "craterDepthMeters": 6420.946197345834
+   "sinAngle": 0.8649302144862133,
+   "craterDiameterMeters": 33291.499809360525,
+   "craterDepthMeters": 6658.299961872105
   },
   {
    "epochIndex": 14679,
@@ -60500,11 +60500,11 @@
    "x": -0.5150448246162748,
    "y": 0.8470565675517081,
    "z": 0.13124023774555332,
-   "impactorDiameterMeters": 1506.3070220068464,
+   "impactorDiameterMeters": 1506.3070220069653,
    "velocityMetersPerSecond": 22427.467351535328,
-   "angleRadians": 0.8665883779722673,
-   "craterDiameterMeters": 16432.6911425434,
-   "craterDepthMeters": 3286.5382285086803
+   "sinAngle": 0.33098081569562227,
+   "craterDiameterMeters": 12444.218902394192,
+   "craterDepthMeters": 2488.8437804788387
   },
   {
    "epochIndex": 14720,
@@ -60548,11 +60548,11 @@
    "x": -0.36331951657093575,
    "y": 0.7965847916043064,
    "z": -0.48316829227856567,
-   "impactorDiameterMeters": 2020.33636019915,
+   "impactorDiameterMeters": 2020.3363601992255,
    "velocityMetersPerSecond": 15812.841973146975,
-   "angleRadians": 1.0857273601873703,
-   "craterDiameterMeters": 18619.514657575706,
-   "craterDepthMeters": 3723.9029315151415
+   "sinAngle": 0.6611958688899707,
+   "craterDiameterMeters": 16897.49857030688,
+   "craterDepthMeters": 3379.4997140613764
   },
   {
    "epochIndex": 14730,
@@ -61044,11 +61044,11 @@
    "x": 0.8435374894344477,
    "y": -0.49379360626416846,
    "z": -0.21121642533490723,
-   "impactorDiameterMeters": 1157.0361175634994,
+   "impactorDiameterMeters": 1157.0361175635041,
    "velocityMetersPerSecond": 17061.456335906787,
-   "angleRadians": 0.9358178764501689,
-   "craterDiameterMeters": 12078.945757382011,
-   "craterDepthMeters": 2415.7891514764024
+   "sinAngle": 0.9509573608620132,
+   "craterDiameterMeters": 12768.372997208053,
+   "craterDepthMeters": 2553.6745994416106
   },
   {
    "epochIndex": 14852,
@@ -61200,11 +61200,11 @@
    "x": -0.4846637942844087,
    "y": 0.29527155000694894,
    "z": -0.8233563737934712,
-   "impactorDiameterMeters": 1014.0840432353014,
+   "impactorDiameterMeters": 1014.0840434288319,
    "velocityMetersPerSecond": 17432.739255610824,
-   "angleRadians": 0.2880582293544988,
-   "craterDiameterMeters": 7774.549831370218,
-   "craterDepthMeters": 1554.9099662740437
+   "sinAngle": 0.531905021318793,
+   "craterDiameterMeters": 9582.249121854,
+   "craterDepthMeters": 1916.4498243708001
   },
   {
    "epochIndex": 14889,
@@ -61788,11 +61788,11 @@
    "x": -0.20584908846631775,
    "y": 0.8097304105692047,
    "z": 0.5495114329811647,
-   "impactorDiameterMeters": 1338.8065331973196,
+   "impactorDiameterMeters": 1338.8065336760353,
    "velocityMetersPerSecond": 15582.946882231758,
-   "angleRadians": 0.9223081357440311,
-   "craterDiameterMeters": 12962.107935052863,
-   "craterDepthMeters": 2592.4215870105727
+   "sinAngle": 0.4127094185484373,
+   "craterDiameterMeters": 10408.897136287043,
+   "craterDepthMeters": 2081.7794272574088
   },
   {
    "epochIndex": 15034,
@@ -63220,11 +63220,11 @@
    "x": 0.29407546454161965,
    "y": -0.4712231625404771,
    "z": 0.8315457607612354,
-   "impactorDiameterMeters": 1165.985747589316,
+   "impactorDiameterMeters": 1165.9857475893177,
    "velocityMetersPerSecond": 17830.36914738866,
-   "angleRadians": 0.13660003870545265,
-   "craterDiameterMeters": 6851.96700567027,
-   "craterDepthMeters": 1370.393401134054
+   "sinAngle": 0.8543298951950126,
+   "craterDiameterMeters": 12637.388749824682,
+   "craterDepthMeters": 2527.4777499649367
   },
   {
    "epochIndex": 15390,
@@ -63444,11 +63444,11 @@
    "x": -0.8517498340768983,
    "y": 0.4947499763279189,
    "z": -0.17246646361974236,
-   "impactorDiameterMeters": 1045.8336548791697,
+   "impactorDiameterMeters": 1045.8336549085002,
    "velocityMetersPerSecond": 21785.94815722248,
-   "angleRadians": 1.2386650679620665,
-   "craterDiameterMeters": 13114.754427274129,
-   "craterDepthMeters": 2622.9508854548258
+   "sinAngle": 0.054207783174148594,
+   "craterDiameterMeters": 5057.274969932474,
+   "craterDepthMeters": 1011.4549939864949
   },
   {
    "epochIndex": 15444,
@@ -64460,11 +64460,11 @@
    "x": 0.9695158212419073,
    "y": 0.14182338808618278,
    "z": 0.1998129098766793,
-   "impactorDiameterMeters": 3508.901906936869,
+   "impactorDiameterMeters": 3508.901906938337,
    "velocityMetersPerSecond": 21334.64824219368,
-   "angleRadians": 0.5149571005631839,
-   "craterDiameterMeters": 26879.22363542237,
-   "craterDepthMeters": 5375.8447270844745
+   "sinAngle": 0.8558005389680066,
+   "craterDiameterMeters": 32315.153642534224,
+   "craterDepthMeters": 6463.030728506845
   },
   {
    "epochIndex": 15696,
@@ -64584,11 +64584,11 @@
    "x": 0.018434347508843103,
    "y": 0.6314513256767685,
    "z": -0.7751963610163394,
-   "impactorDiameterMeters": 1003.8039246206667,
+   "impactorDiameterMeters": 1003.80392496339,
    "velocityMetersPerSecond": 15144.3250381805,
-   "angleRadians": 1.0101875086386947,
-   "craterDiameterMeters": 10434.294087023423,
-   "craterDepthMeters": 2086.858817404685
+   "sinAngle": 0.8876076526107285,
+   "craterDiameterMeters": 10598.733697017917,
+   "craterDepthMeters": 2119.7467394035834
   },
   {
    "epochIndex": 15725,
@@ -65292,11 +65292,11 @@
    "x": 0.36215260865658305,
    "y": -0.9150608950035483,
    "z": 0.1775078772295391,
-   "impactorDiameterMeters": 2768.649092886437,
+   "impactorDiameterMeters": 2768.6490928860408,
    "velocityMetersPerSecond": 22408.24893474158,
-   "angleRadians": 0.24459566084021056,
-   "craterDiameterMeters": 18020.59855657023,
-   "craterDepthMeters": 3604.119711314046
+   "sinAngle": 0.895424816728859,
+   "craterDiameterMeters": 27866.06866209463,
+   "craterDepthMeters": 5573.213732418926
   },
   {
    "epochIndex": 15900,
@@ -65368,11 +65368,11 @@
    "x": 0.39145663618759763,
    "y": -0.9199915392520356,
    "z": -0.019423431451758386,
-   "impactorDiameterMeters": 1413.3285777761039,
+   "impactorDiameterMeters": 1413.328577792765,
    "velocityMetersPerSecond": 20247.08553197069,
-   "angleRadians": 1.1500341807499903,
-   "craterDiameterMeters": 15874.317591034598,
-   "craterDepthMeters": 3174.8635182069197
+   "sinAngle": 0.741238957595268,
+   "craterDiameterMeters": 14810.149341829012,
+   "craterDepthMeters": 2962.0298683658025
   },
   {
    "epochIndex": 15917,
@@ -66072,11 +66072,11 @@
    "x": -0.5815520749044799,
    "y": -0.7996947356294387,
    "z": 0.1492833345717346,
-   "impactorDiameterMeters": 1214.1895841631228,
+   "impactorDiameterMeters": 1214.1895841631224,
    "velocityMetersPerSecond": 17486.09617950333,
-   "angleRadians": 0.731671419294931,
-   "craterDiameterMeters": 11914.141893426397,
-   "craterDepthMeters": 2382.8283786852794
+   "sinAngle": 0.8115252242015866,
+   "craterDiameterMeters": 12711.98020875956,
+   "craterDepthMeters": 2542.396041751912
   },
   {
    "epochIndex": 16091,
@@ -66112,11 +66112,11 @@
    "x": -0.3899260660929768,
    "y": 0.6682132061355095,
    "z": 0.6335998533201841,
-   "impactorDiameterMeters": 1018.2881932269448,
+   "impactorDiameterMeters": 1018.288193379338,
    "velocityMetersPerSecond": 20995.879172415473,
-   "angleRadians": 1.1664565018960322,
-   "craterDiameterMeters": 12520.583697763517,
-   "craterDepthMeters": 2504.1167395527036
+   "sinAngle": 0.13528122338549148,
+   "craterDiameterMeters": 6610.102333860792,
+   "craterDepthMeters": 1322.0204667721584
   },
   {
    "epochIndex": 16099,
@@ -66996,11 +66996,11 @@
    "x": -0.8010164363290886,
    "y": 0.4788862595346472,
    "z": -0.3592222420167795,
-   "impactorDiameterMeters": 1352.7749628685701,
+   "impactorDiameterMeters": 1352.7749631364338,
    "velocityMetersPerSecond": 24970.85837907402,
-   "angleRadians": 1.179162703294028,
-   "craterDiameterMeters": 16894.542582059727,
-   "craterDepthMeters": 3378.9085164119456
+   "sinAngle": 0.916871562760167,
+   "craterDiameterMeters": 16849.241864650034,
+   "craterDepthMeters": 3369.848372930007
   },
   {
    "epochIndex": 16318,
@@ -67274,9 +67274,9 @@
    "z": -0.6001820362790897,
    "impactorDiameterMeters": 2270.4527622322967,
    "velocityMetersPerSecond": 24416.74827272229,
-   "angleRadians": 0.3964813348912928,
-   "craterDiameterMeters": 18729.634522101012,
-   "craterDepthMeters": 3745.926904420203
+   "sinAngle": 0.3920104709990983,
+   "craterDiameterMeters": 18823.50359516579,
+   "craterDepthMeters": 3764.700719033158
   },
   {
    "epochIndex": 16385,
@@ -67840,11 +67840,11 @@
    "x": -0.4648599930719931,
    "y": -0.7142545338426208,
    "z": -0.5232070792013112,
-   "impactorDiameterMeters": 1077.008978088959,
+   "impactorDiameterMeters": 1077.0089780926903,
    "velocityMetersPerSecond": 22300.60206268371,
-   "angleRadians": 0.9055244752957032,
-   "craterDiameterMeters": 12752.244789930972,
-   "craterDepthMeters": 2550.4489579861947
+   "sinAngle": 0.9509256547521832,
+   "craterDiameterMeters": 13583.867213677962,
+   "craterDepthMeters": 2716.7734427355927
   },
   {
    "epochIndex": 16525,
@@ -67932,11 +67932,11 @@
    "x": -0.9761910777888515,
    "y": -0.21021683708782407,
    "z": -0.05347766870602709,
-   "impactorDiameterMeters": 1221.0659447017056,
+   "impactorDiameterMeters": 1221.065944701705,
    "velocityMetersPerSecond": 16891.450778742063,
-   "angleRadians": 1.3358417654915236,
-   "craterDiameterMeters": 13357.168960588986,
-   "craterDepthMeters": 2671.4337921177976
+   "sinAngle": 0.4359113781371581,
+   "craterDiameterMeters": 10222.259658185749,
+   "craterDepthMeters": 2044.4519316371498
   },
   {
    "epochIndex": 16546,
@@ -68284,11 +68284,11 @@
    "x": 0.7676945226633203,
    "y": 0.5163485112481327,
    "z": -0.37951196925073905,
-   "impactorDiameterMeters": 1316.1843171000858,
+   "impactorDiameterMeters": 1316.1843171000573,
    "velocityMetersPerSecond": 20224.107910360224,
-   "angleRadians": 0.6272006172011404,
-   "craterDiameterMeters": 12954.390412248717,
-   "craterDepthMeters": 2590.8780824497435
+   "sinAngle": 0.837676221857473,
+   "craterDiameterMeters": 14585.651206479277,
+   "craterDepthMeters": 2917.1302412958557
   },
   {
    "epochIndex": 16632,
@@ -68376,11 +68376,11 @@
    "x": 0.43869652583439567,
    "y": -0.06358964715053718,
    "z": 0.8963825717828864,
-   "impactorDiameterMeters": 1615.9309893998395,
+   "impactorDiameterMeters": 1615.9309893998409,
    "velocityMetersPerSecond": 20253.04480361335,
-   "angleRadians": 0.15685516210497233,
-   "craterDiameterMeters": 9785.474704463797,
-   "craterDepthMeters": 1957.0949408927595
+   "sinAngle": 0.18655426631438152,
+   "craterDiameterMeters": 10381.930820001431,
+   "craterDepthMeters": 2076.3861640002865
   },
   {
    "epochIndex": 16653,
@@ -68532,11 +68532,11 @@
    "x": -0.804078025630603,
    "y": 0.4610520900217082,
    "z": -0.37535249963814826,
-   "impactorDiameterMeters": 1181.884722952332,
+   "impactorDiameterMeters": 1181.8847229523321,
    "velocityMetersPerSecond": 18906.99957729099,
-   "angleRadians": 1.037465567072022,
-   "craterDiameterMeters": 13139.970218790795,
-   "craterDepthMeters": 2627.994043758159
+   "sinAngle": 0.8494839585463569,
+   "craterDiameterMeters": 13080.523906595985,
+   "craterDepthMeters": 2616.104781319197
   },
   {
    "epochIndex": 16690,
@@ -68560,11 +68560,11 @@
    "x": -0.34675139952779543,
    "y": -0.014155672064937995,
    "z": -0.9378502459742201,
-   "impactorDiameterMeters": 1468.3473633337264,
+   "impactorDiameterMeters": 1468.347363334719,
    "velocityMetersPerSecond": 20872.283631748895,
-   "angleRadians": 0.7255563043040208,
-   "craterDiameterMeters": 14903.206535334855,
-   "craterDepthMeters": 2980.6413070669714
+   "sinAngle": 0.9790955235211702,
+   "craterDiameterMeters": 16966.664767855927,
+   "craterDepthMeters": 3393.3329535711855
   },
   {
    "epochIndex": 16695,
@@ -68636,11 +68636,11 @@
    "x": -0.7607389104354554,
    "y": 0.22581143737379947,
    "z": 0.6085108913574636,
-   "impactorDiameterMeters": 3333.769865340824,
+   "impactorDiameterMeters": 3333.769865412112,
    "velocityMetersPerSecond": 18825.331289025264,
-   "angleRadians": 0.5217517712075254,
-   "craterDiameterMeters": 24540.68225824143,
-   "craterDepthMeters": 4908.136451648286
+   "sinAngle": 0.7431257321498903,
+   "craterDiameterMeters": 28035.9217199581,
+   "craterDepthMeters": 5607.18434399162
   },
   {
    "epochIndex": 16712,
@@ -69872,11 +69872,11 @@
    "x": -0.22468980519832762,
    "y": 0.13533693656925283,
    "z": -0.9649862201295869,
-   "impactorDiameterMeters": 1103.3306478098366,
+   "impactorDiameterMeters": 1103.330647810373,
    "velocityMetersPerSecond": 21585.280413575194,
-   "angleRadians": 0.9003769499160982,
-   "craterDiameterMeters": 12792.290738189435,
-   "craterDepthMeters": 2558.458147637887
+   "sinAngle": 0.6500856737639052,
+   "craterDiameterMeters": 12020.269858581134,
+   "craterDepthMeters": 2404.053971716227
   },
   {
    "epochIndex": 17019,
@@ -70232,11 +70232,11 @@
    "x": 0.16894529550270163,
    "y": 0.4530682452938576,
    "z": 0.8753208852951296,
-   "impactorDiameterMeters": 1079.61630320404,
+   "impactorDiameterMeters": 1079.6163032071463,
    "velocityMetersPerSecond": 24522.284902340914,
-   "angleRadians": 0.5508655080819267,
-   "craterDiameterMeters": 11629.453255856817,
-   "craterDepthMeters": 2325.8906511713635
+   "sinAngle": 0.18439567404034932,
+   "craterDiameterMeters": 8213.433537976965,
+   "craterDepthMeters": 1642.6867075953933
   },
   {
    "epochIndex": 17107,
@@ -70296,11 +70296,11 @@
    "x": -0.14189253527665444,
    "y": 0.6853010973647122,
    "z": 0.7143030969997852,
-   "impactorDiameterMeters": 1250.9673708764558,
+   "impactorDiameterMeters": 1250.967370876453,
    "velocityMetersPerSecond": 15977.012120166371,
-   "angleRadians": 1.2263456418503083,
-   "craterDiameterMeters": 13138.450556817284,
-   "craterDepthMeters": 2627.690111363457
+   "sinAngle": 0.593095496030744,
+   "craterDiameterMeters": 11263.732414959355,
+   "craterDepthMeters": 2252.7464829918713
   },
   {
    "epochIndex": 17121,
@@ -70754,9 +70754,9 @@
    "z": -0.6417173666743023,
    "impactorDiameterMeters": 1185.849836232999,
    "velocityMetersPerSecond": 21101.626462939534,
-   "angleRadians": 0.5636019058630232,
-   "craterDiameterMeters": 11792.440132438485,
-   "craterDepthMeters": 2358.488026487697
+   "sinAngle": 0.8750937628979849,
+   "craterDiameterMeters": 13900.952899235393,
+   "craterDepthMeters": 2780.190579847079
   },
   {
    "epochIndex": 17233,
@@ -70876,11 +70876,11 @@
    "x": 0.9336645697286697,
    "y": -0.26232943212600746,
    "z": -0.24383137672134067,
-   "impactorDiameterMeters": 1091.6156617981844,
+   "impactorDiameterMeters": 1091.6156617994886,
    "velocityMetersPerSecond": 20275.072770026844,
-   "angleRadians": 0.8581725296783693,
-   "craterDiameterMeters": 12198.513100085724,
-   "craterDepthMeters": 2439.702620017145
+   "sinAngle": 0.899374932347174,
+   "craterDiameterMeters": 12921.779858865037,
+   "craterDepthMeters": 2584.3559717730077
   },
   {
    "epochIndex": 17262,
@@ -71532,11 +71532,11 @@
    "x": 0.4629356764502826,
    "y": 0.38230403183664036,
    "z": 0.7997088137009422,
-   "impactorDiameterMeters": 1235.649380322215,
+   "impactorDiameterMeters": 1235.6493803222136,
    "velocityMetersPerSecond": 19432.97712084429,
-   "angleRadians": 1.2929867192931426,
-   "craterDiameterMeters": 14285.433676776138,
-   "craterDepthMeters": 2857.0867353552276
+   "sinAngle": 0.306006676237216,
+   "craterDiameterMeters": 9752.817801827036,
+   "craterDepthMeters": 1950.5635603654073
   },
   {
    "epochIndex": 17424,
@@ -71556,11 +71556,11 @@
    "x": -0.41391899608815064,
    "y": -0.7954757855587208,
    "z": -0.44259387621962604,
-   "impactorDiameterMeters": 2748.398962410292,
+   "impactorDiameterMeters": 2748.398962409997,
    "velocityMetersPerSecond": 20743.66774596695,
-   "angleRadians": 0.36327789431270313,
-   "craterDiameterMeters": 19680.86325069427,
-   "craterDepthMeters": 3936.1726501388544
+   "sinAngle": 0.2956016097719651,
+   "craterDiameterMeters": 18509.655370825807,
+   "craterDepthMeters": 3701.9310741651616
   },
   {
    "epochIndex": 17428,
@@ -71688,11 +71688,11 @@
    "x": -0.7495094304955634,
    "y": -0.6165482557716093,
    "z": -0.2410474266678712,
-   "impactorDiameterMeters": 1072.7248530586935,
+   "impactorDiameterMeters": 1072.7248530637169,
    "velocityMetersPerSecond": 20372.08767637285,
-   "angleRadians": 0.9408439657642842,
-   "craterDiameterMeters": 12325.971379848108,
-   "craterDepthMeters": 2465.1942759696217
+   "sinAngle": 0.949268701629586,
+   "craterDiameterMeters": 13005.801825490966,
+   "craterDepthMeters": 2601.1603650981933
   },
   {
    "epochIndex": 17459,
@@ -71794,9 +71794,9 @@
    "z": 0.3642274742376998,
    "impactorDiameterMeters": 2251.5513730500493,
    "velocityMetersPerSecond": 19705.991733470422,
-   "angleRadians": 0.7157272930688436,
-   "craterDiameterMeters": 20206.044404397267,
-   "craterDepthMeters": 4041.208880879454
+   "sinAngle": 0.5615083920144875,
+   "craterDiameterMeters": 19183.538604457855,
+   "craterDepthMeters": 3836.707720891571
   },
   {
    "epochIndex": 17483,
@@ -72032,11 +72032,11 @@
    "x": -0.9898608188702794,
    "y": -0.13944540579605483,
    "z": 0.02702846773003476,
-   "impactorDiameterMeters": 1127.6352060816916,
+   "impactorDiameterMeters": 1127.6352060817649,
    "velocityMetersPerSecond": 22643.396455498885,
-   "angleRadians": 1.16307789152057,
-   "craterDiameterMeters": 14008.833693218616,
-   "craterDepthMeters": 2801.7667386437233
+   "sinAngle": 0.36681261828321526,
+   "craterDiameterMeters": 10318.061458575177,
+   "craterDepthMeters": 2063.6122917150356
   },
   {
    "epochIndex": 17541,
@@ -72164,11 +72164,11 @@
    "x": 0.9640467356459955,
    "y": -0.22364754939244147,
    "z": -0.14351189895285907,
-   "impactorDiameterMeters": 1175.6692458408618,
+   "impactorDiameterMeters": 1175.6692458408625,
    "velocityMetersPerSecond": 21246.514300385996,
-   "angleRadians": 1.3023773448026374,
-   "craterDiameterMeters": 14304.333464176167,
-   "craterDepthMeters": 2860.8666928352336
+   "sinAngle": 0.5023949125919863,
+   "craterDiameterMeters": 11510.520231842886,
+   "craterDepthMeters": 2302.104046368577
   },
   {
    "epochIndex": 17572,
@@ -72220,11 +72220,11 @@
    "x": 0.24128170900275517,
    "y": -0.20849452352963646,
    "z": -0.9477938439127254,
-   "impactorDiameterMeters": 2337.6371590909944,
+   "impactorDiameterMeters": 2337.637159090994,
    "velocityMetersPerSecond": 18898.77958476823,
-   "angleRadians": 1.0252571344132784,
-   "craterDiameterMeters": 22309.547823062243,
-   "craterDepthMeters": 4461.909564612449
+   "sinAngle": 0.37109679629809617,
+   "craterDiameterMeters": 16892.357502137893,
+   "craterDepthMeters": 3378.4715004275786
   },
   {
    "epochIndex": 17584,
@@ -72824,11 +72824,11 @@
    "x": 0.34408057742223924,
    "y": -0.05832162373659347,
    "z": 0.9371270695297973,
-   "impactorDiameterMeters": 1149.161945044669,
+   "impactorDiameterMeters": 1149.1619450446792,
    "velocityMetersPerSecond": 16119.76714370282,
-   "angleRadians": 0.9731017308200322,
-   "craterDiameterMeters": 11821.993357524763,
-   "craterDepthMeters": 2364.3986715049527
+   "sinAngle": 0.488175523111872,
+   "craterDiameterMeters": 9918.471616797702,
+   "craterDepthMeters": 1983.6943233595405
   },
   {
    "epochIndex": 17733,
@@ -72924,11 +72924,11 @@
    "x": -0.3116714320380479,
    "y": -0.4380254810770538,
    "z": 0.8432049551435096,
-   "impactorDiameterMeters": 1868.1719355687428,
+   "impactorDiameterMeters": 1868.171935613005,
    "velocityMetersPerSecond": 18604.8492589446,
-   "angleRadians": 1.0379748243583655,
-   "craterDiameterMeters": 18649.01871199132,
-   "craterDepthMeters": 3729.803742398264
+   "sinAngle": 0.3267474418983589,
+   "craterDiameterMeters": 13499.84908426027,
+   "craterDepthMeters": 2699.969816852054
   },
   {
    "epochIndex": 17756,
@@ -72948,11 +72948,11 @@
    "x": 0.2981622279684992,
    "y": 0.5433040936428101,
    "z": -0.7848056750838549,
-   "impactorDiameterMeters": 1052.1963797259018,
+   "impactorDiameterMeters": 1052.1963797455123,
    "velocityMetersPerSecond": 17099.33321757679,
-   "angleRadians": 1.1775022816114267,
-   "craterDiameterMeters": 11753.484020169763,
-   "craterDepthMeters": 2350.6968040339525
+   "sinAngle": 0.7054122996650034,
+   "craterDiameterMeters": 10743.477731515732,
+   "craterDepthMeters": 2148.6955463031463
   },
   {
    "epochIndex": 17760,
@@ -73036,11 +73036,11 @@
    "x": -0.6411070315811223,
    "y": -0.44884930044945476,
    "z": 0.6225078951654165,
-   "impactorDiameterMeters": 2090.405186210673,
+   "impactorDiameterMeters": 2090.405186210675,
    "velocityMetersPerSecond": 19447.914770278425,
-   "angleRadians": 0.7055751900018251,
-   "craterDiameterMeters": 18884.19488584159,
-   "craterDepthMeters": 3776.838977168318
+   "sinAngle": 0.984718937152302,
+   "craterDiameterMeters": 21705.62056053616,
+   "craterDepthMeters": 4341.124112107233
   },
   {
    "epochIndex": 17780,
@@ -73172,11 +73172,11 @@
    "x": -0.3889721786495826,
    "y": -0.7045902141457129,
    "z": 0.5935092875151119,
-   "impactorDiameterMeters": 1485.3061061492444,
+   "impactorDiameterMeters": 1485.3061061496308,
    "velocityMetersPerSecond": 17709.630120228456,
-   "angleRadians": 0.5455866469533189,
-   "craterDiameterMeters": 12887.822303021589,
-   "craterDepthMeters": 2577.564460604318
+   "sinAngle": 0.8063429508338589,
+   "craterDiameterMeters": 14927.46618052893,
+   "craterDepthMeters": 2985.4932361057863
   },
   {
    "epochIndex": 17812,
@@ -73732,11 +73732,11 @@
    "x": -0.6949551797250918,
    "y": 0.4619933826339684,
    "z": -0.5509985595041867,
-   "impactorDiameterMeters": 3354.6855407405897,
+   "impactorDiameterMeters": 3354.685540787283,
    "velocityMetersPerSecond": 24971.693050110858,
-   "angleRadians": 0.44389199018382275,
-   "craterDiameterMeters": 26573.155911475893,
-   "craterDepthMeters": 5314.631182295179
+   "sinAngle": 0.40757062948861933,
+   "craterDiameterMeters": 26113.83727383877,
+   "craterDepthMeters": 5222.767454767754
   },
   {
    "epochIndex": 17950,
@@ -73752,11 +73752,11 @@
    "x": -0.1350974111359792,
    "y": 0.3427514616139201,
    "z": -0.9296612958846235,
-   "impactorDiameterMeters": 1631.3987042551141,
+   "impactorDiameterMeters": 1631.398704255115,
    "velocityMetersPerSecond": 17423.414057195016,
-   "angleRadians": 1.018936627879437,
-   "craterDiameterMeters": 16238.650902436939,
-   "craterDepthMeters": 3247.7301804873878
+   "sinAngle": 0.8522641723664336,
+   "craterDiameterMeters": 16243.182869421627,
+   "craterDepthMeters": 3248.6365738843256
   },
   {
    "epochIndex": 17953,
@@ -73956,11 +73956,11 @@
    "x": 0.3549877549776218,
    "y": -0.748988830997612,
    "z": 0.5594635152150482,
-   "impactorDiameterMeters": 1085.6057952998956,
+   "impactorDiameterMeters": 1085.60579530192,
    "velocityMetersPerSecond": 20835.275180964454,
-   "angleRadians": 0.7678569231609096,
-   "craterDiameterMeters": 11946.959352982849,
-   "craterDepthMeters": 2389.39187059657
+   "sinAngle": 0.9674486505969315,
+   "craterDiameterMeters": 13342.05688433698,
+   "craterDepthMeters": 2668.411376867396
   },
   {
    "epochIndex": 18002,
@@ -74036,11 +74036,11 @@
    "x": -0.18374240614913895,
    "y": 0.2964334055909638,
    "z": 0.937211803293294,
-   "impactorDiameterMeters": 1549.7637565267985,
+   "impactorDiameterMeters": 1549.7637565268117,
    "velocityMetersPerSecond": 18559.710433276756,
-   "angleRadians": 0.9830060784665069,
-   "craterDiameterMeters": 15918.408075184025,
-   "craterDepthMeters": 3183.681615036805
+   "sinAngle": 0.9356585873340557,
+   "craterDiameterMeters": 16552.68386111633,
+   "craterDepthMeters": 3310.536772223266
   },
   {
    "epochIndex": 18020,
@@ -74128,11 +74128,11 @@
    "x": 0.07387233954422466,
    "y": 0.7033992876616962,
    "z": 0.7069457684768197,
-   "impactorDiameterMeters": 1072.1640399655907,
+   "impactorDiameterMeters": 1072.1640399708115,
    "velocityMetersPerSecond": 17751.210085379716,
-   "angleRadians": 1.219235957656084,
-   "craterDiameterMeters": 12191.157142963873,
-   "craterDepthMeters": 2438.2314285927746
+   "sinAngle": 0.3888568300096823,
+   "craterDiameterMeters": 9087.508870498941,
+   "craterDepthMeters": 1817.5017740997882
   },
   {
    "epochIndex": 18041,
@@ -75100,11 +75100,11 @@
    "x": 0.14934859167928796,
    "y": -0.8680335178092838,
    "z": 0.4735111510018041,
-   "impactorDiameterMeters": 1060.194943462337,
+   "impactorDiameterMeters": 1060.1949434740095,
    "velocityMetersPerSecond": 15365.001149141326,
-   "angleRadians": 0.8673486033543232,
-   "craterDiameterMeters": 10581.847297601078,
-   "craterDepthMeters": 2116.3694595202155
+   "sinAngle": 0.535165041887178,
+   "craterDiameterMeters": 9403.481145964333,
+   "craterDepthMeters": 1880.6962291928667
   },
   {
    "epochIndex": 18282,
@@ -75728,11 +75728,11 @@
    "x": 0.8790274604091961,
    "y": -0.12654645490729757,
    "z": 0.4596702280950493,
-   "impactorDiameterMeters": 1620.6883909679163,
+   "impactorDiameterMeters": 1620.6883909679175,
    "velocityMetersPerSecond": 16754.008140891845,
-   "angleRadians": 1.0008288407596222,
-   "craterDiameterMeters": 15819.232910937273,
-   "craterDepthMeters": 3163.8465821874547
+   "sinAngle": 0.8125983738652025,
+   "craterDiameterMeters": 15633.421920037528,
+   "craterDepthMeters": 3126.6843840075057
   },
   {
    "epochIndex": 18437,
@@ -76188,11 +76188,11 @@
    "x": 0.15237149726588048,
    "y": 0.3438632216872525,
    "z": -0.9265748818049285,
-   "impactorDiameterMeters": 1020.4618671147417,
+   "impactorDiameterMeters": 1020.4618672492563,
    "velocityMetersPerSecond": 23782.575913036413,
-   "angleRadians": 0.4329428819051569,
-   "craterDiameterMeters": 10199.81037958834,
-   "craterDepthMeters": 2039.962075917668
+   "sinAngle": 0.6905464111790356,
+   "craterDiameterMeters": 12042.88557732999,
+   "craterDepthMeters": 2408.577115465998
   },
   {
    "epochIndex": 18550,
@@ -76284,11 +76284,11 @@
    "x": 0.24062598918608114,
    "y": 0.8188498517457798,
    "z": 0.5211372694637508,
-   "impactorDiameterMeters": 1426.503004628215,
+   "impactorDiameterMeters": 1426.5030046372333,
    "velocityMetersPerSecond": 24558.11864535148,
-   "angleRadians": 1.1948688647308325,
-   "craterDiameterMeters": 17516.868294247077,
-   "craterDepthMeters": 3503.3736588494157
+   "sinAngle": 0.5276781629884365,
+   "craterDiameterMeters": 14500.816231493662,
+   "craterDepthMeters": 2900.1632462987327
   },
   {
    "epochIndex": 18572,
@@ -76540,11 +76540,11 @@
    "x": 0.8761866087334522,
    "y": 0.4807691068699055,
    "z": -0.034030758964292,
-   "impactorDiameterMeters": 1087.978929439059,
+   "impactorDiameterMeters": 1087.9789294407626,
    "velocityMetersPerSecond": 18477.39414046546,
-   "angleRadians": 0.8242617299094562,
-   "craterDiameterMeters": 11562.31098467592,
-   "craterDepthMeters": 2312.4621969351842
+   "sinAngle": 0.7455114462706326,
+   "craterDiameterMeters": 11622.196206156568,
+   "craterDepthMeters": 2324.4392412313136
   },
   {
    "epochIndex": 18634,
@@ -77088,11 +77088,11 @@
    "x": 0.37507038713444957,
    "y": -0.5720280555385047,
    "z": -0.7294560359416127,
-   "impactorDiameterMeters": 1450.4709912459184,
+   "impactorDiameterMeters": 1450.47099124853,
    "velocityMetersPerSecond": 22966.200427504155,
-   "angleRadians": 0.7600992063504577,
-   "craterDiameterMeters": 15589.97773946857,
-   "craterDepthMeters": 3117.995547893714
+   "sinAngle": 0.9987026269946908,
+   "craterDiameterMeters": 17643.546332506085,
+   "craterDepthMeters": 3528.709266501217
   },
   {
    "epochIndex": 18769,
@@ -77124,11 +77124,11 @@
    "x": 0.12323479164480347,
    "y": -0.6021796896258771,
    "z": 0.7887919925622622,
-   "impactorDiameterMeters": 1074.814951950935,
+   "impactorDiameterMeters": 1074.8149519552826,
    "velocityMetersPerSecond": 22193.16459034328,
-   "angleRadians": 1.0757147958042892,
-   "craterDiameterMeters": 13187.940767260408,
-   "craterDepthMeters": 2637.5881534520818
+   "sinAngle": 0.8252417829807167,
+   "craterDiameterMeters": 12908.86383069037,
+   "craterDepthMeters": 2581.772766138074
   },
   {
    "epochIndex": 18776,
@@ -77524,11 +77524,11 @@
    "x": -0.9173407123745605,
    "y": -0.07236129041525027,
    "z": 0.39147140517485274,
-   "impactorDiameterMeters": 1606.4394434919295,
+   "impactorDiameterMeters": 1606.4394434919313,
    "velocityMetersPerSecond": 19098.290840291407,
-   "angleRadians": 0.801734303713289,
-   "craterDiameterMeters": 15786.444585230283,
-   "craterDepthMeters": 3157.2889170460567
+   "sinAngle": 0.8777604750713884,
+   "craterDiameterMeters": 16875.422565898967,
+   "craterDepthMeters": 3375.0845131797937
   },
   {
    "epochIndex": 18874,
@@ -78188,11 +78188,11 @@
    "x": -0.27887224450727405,
    "y": 0.6660394489280339,
    "z": -0.6918249227334299,
-   "impactorDiameterMeters": 1184.0768931729688,
+   "impactorDiameterMeters": 1184.076893172969,
    "velocityMetersPerSecond": 15398.680701613463,
-   "angleRadians": 0.3075647543941256,
-   "craterDiameterMeters": 8485.338888648917,
-   "craterDepthMeters": 1697.0677777297835
+   "sinAngle": 0.5106972884080776,
+   "craterDiameterMeters": 10101.079558532805,
+   "craterDepthMeters": 2020.2159117065612
   },
   {
    "epochIndex": 19038,
@@ -79140,11 +79140,11 @@
    "x": 0.31179230041445094,
    "y": 0.4880141903905709,
    "z": 0.8152470247597966,
-   "impactorDiameterMeters": 1030.4559958575735,
+   "impactorDiameterMeters": 1030.455995932515,
    "velocityMetersPerSecond": 21362.92202053179,
-   "angleRadians": 0.21695562241990896,
-   "craterDiameterMeters": 7848.452546917287,
-   "craterDepthMeters": 1569.6905093834575
+   "sinAngle": 0.21842003952077282,
+   "craterDiameterMeters": 7886.700618570401,
+   "craterDepthMeters": 1577.3401237140804
   },
   {
    "epochIndex": 19274,
@@ -79300,11 +79300,11 @@
    "x": -0.9043092351758949,
    "y": -0.3623062334576845,
    "z": -0.22574100286233748,
-   "impactorDiameterMeters": 1108.441258686699,
+   "impactorDiameterMeters": 1108.4412586870583,
    "velocityMetersPerSecond": 22527.3832925488,
-   "angleRadians": 0.7307573270301169,
-   "craterDiameterMeters": 12400.96701327603,
-   "craterDepthMeters": 2480.1934026552062
+   "sinAngle": 0.9935847061794201,
+   "craterDiameterMeters": 14159.713171352356,
+   "craterDepthMeters": 2831.9426342704714
   },
   {
    "epochIndex": 19312,
@@ -79400,11 +79400,11 @@
    "x": -0.46657557776662867,
    "y": 0.2930561104792558,
    "z": 0.8345210281008543,
-   "impactorDiameterMeters": 1953.32626763409,
+   "impactorDiameterMeters": 1953.3262676357315,
    "velocityMetersPerSecond": 21205.365434137,
-   "angleRadians": 1.0933733985702272,
-   "craterDiameterMeters": 20662.934441190988,
-   "craterDepthMeters": 4132.586888238197
+   "sinAngle": 0.39010554580440016,
+   "craterDiameterMeters": 15706.715633099917,
+   "craterDepthMeters": 3141.3431266199837
   },
   {
    "epochIndex": 19335,
@@ -79532,11 +79532,11 @@
    "x": -0.14118400566783962,
    "y": 0.811033511922112,
    "z": -0.5677074238398409,
-   "impactorDiameterMeters": 1005.5150289713733,
+   "impactorDiameterMeters": 1005.5150292833833,
    "velocityMetersPerSecond": 23540.24074979513,
-   "angleRadians": 0.963117089775616,
-   "craterDiameterMeters": 12555.117344919463,
-   "craterDepthMeters": 2511.0234689838926
+   "sinAngle": 0.8149316619001319,
+   "craterDiameterMeters": 12524.233126878202,
+   "craterDepthMeters": 2504.8466253756405
   },
   {
    "epochIndex": 19366,
@@ -79620,11 +79620,11 @@
    "x": -0.9294152903008025,
    "y": 0.1013203480439315,
    "z": -0.35485406187238633,
-   "impactorDiameterMeters": 2558.2965222166667,
+   "impactorDiameterMeters": 2558.2965222264206,
    "velocityMetersPerSecond": 17616.8169755675,
-   "angleRadians": 0.3561844403445578,
-   "craterDiameterMeters": 17211.216694912808,
-   "craterDepthMeters": 3442.243338982562
+   "sinAngle": 0.6321776868478886,
+   "craterDiameterMeters": 20986.516191919975,
+   "craterDepthMeters": 4197.303238383995
   },
   {
    "epochIndex": 19386,
@@ -79932,11 +79932,11 @@
    "x": 0.25333682334953506,
    "y": -0.2906456599784164,
    "z": 0.9226838864263738,
-   "impactorDiameterMeters": 1897.6033596573347,
+   "impactorDiameterMeters": 1897.6033596724612,
    "velocityMetersPerSecond": 20258.245951236197,
-   "angleRadians": 0.8301346137948012,
-   "craterDiameterMeters": 18614.25813735944,
-   "craterDepthMeters": 3722.851627471888
+   "sinAngle": 0.9765192011483833,
+   "craterDiameterMeters": 20435.38622790277,
+   "craterDepthMeters": 4087.0772455805545
   },
   {
    "epochIndex": 19462,
@@ -80704,11 +80704,11 @@
    "x": -0.8931349873248607,
    "y": 0.26390678838163534,
    "z": 0.36422946265000555,
-   "impactorDiameterMeters": 1608.0324770514785,
+   "impactorDiameterMeters": 1608.0324770514806,
    "velocityMetersPerSecond": 16700.123876682694,
-   "angleRadians": 0.7762270454162871,
-   "craterDiameterMeters": 14767.690559195771,
-   "craterDepthMeters": 2953.538111839154
+   "sinAngle": 0.9396300192913014,
+   "craterDiameterMeters": 16285.825750728616,
+   "craterDepthMeters": 3257.1651501457236
   },
   {
    "epochIndex": 19653,
@@ -80880,11 +80880,11 @@
    "x": 0.8365051432837199,
    "y": 0.11458875146595272,
    "z": 0.5358437862823056,
-   "impactorDiameterMeters": 1416.846742197694,
+   "impactorDiameterMeters": 1416.8467422122626,
    "velocityMetersPerSecond": 16351.082052683209,
-   "angleRadians": 1.1457501365807723,
-   "craterDiameterMeters": 14468.352836953523,
-   "craterDepthMeters": 2893.670567390705
+   "sinAngle": 0.48842556988154506,
+   "craterDiameterMeters": 11753.736969226755,
+   "craterDepthMeters": 2350.747393845351
   },
   {
    "epochIndex": 19695,
@@ -81708,11 +81708,11 @@
    "x": 0.6061985013385274,
    "y": 0.4038478630173921,
    "z": 0.6851498234044939,
-   "impactorDiameterMeters": 1827.5210004235526,
+   "impactorDiameterMeters": 1827.5210006007542,
    "velocityMetersPerSecond": 19549.7771562698,
-   "angleRadians": 0.26206166245032964,
-   "craterDiameterMeters": 12552.964106838319,
-   "craterDepthMeters": 2510.592821367664
+   "sinAngle": 0.8198321699143117,
+   "craterDiameterMeters": 18429.52905101626,
+   "craterDepthMeters": 3685.9058102032523
   },
   {
    "epochIndex": 19900,

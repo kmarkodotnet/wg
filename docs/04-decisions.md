@@ -146,7 +146,7 @@ implementáció vagy előre számolt tábla + interpoláció közül választva)
 **M5-nél visszatérve: ld. ND-27** — a kockázat továbbra is elfogadva marad,
 de a hatókör kibővül és egy kemény, visszavonhatatlan határidő kerül rá.
 
-### ND-27 — ND-26 visszatérése M5-nél: kockázat elfogadva, de M12 (checkpoint) előtt kötelező lezárni
+### ND-27 — ND-26 visszatérése M5-nél → VÉGLEGESEN LEZÁRVA (B opció: saját polinomiális implementáció)
 
 Az ND-26-ban rögzített visszatérési pont: a hőmérséklet-modell (§28.2,
 Stefan–Boltzmann sugárzási egyensúly, `Math.Pow(x, 0.25)`) ténylegesen a
@@ -154,20 +154,63 @@ Stefan–Boltzmann sugárzási egyensúly, `Math.Pow(x, 0.25)`) ténylegesen a
 bemenetként, aminek kimenete (`TemperatureField`, ld. spec §5.4) idővel
 checkpointolt állapottá válik.
 
-**Döntés (felhasználó jóváhagyta a javaslatot):** a kockázat **továbbra is
-elfogadva** — az A opció (ld. ND-26 táblázata) marad érvényben, MOST MÁR a
-klíma-modulra is kiterjesztve, nem csak a csillagászatra. Indoklás: a
-jelenlegi cél a **vizuális validáció** (klímazónák felismerhetők-e), nem a
-végleges perzisztencia — a B (saját polinomiális implementáció) és C
-(előre számolt tábla) opciók jelentős önálló munkát igényelnek, amit nem
-indokolt a vizuális validáció előtt elvégezni.
+**Közbenső döntés (M5-nél, felhasználó jóváhagyta):** a kockázat
+átmenetileg elfogadva maradt (A opció), MOST MÁR a klíma-modulra is
+kiterjesztve. Utána M10-nél (lemezmozgás) és M11-nél (becsapódás) is
+kiterjedt ugyanerre a kockázati osztályra, három-négy modulra nőve.
 
-**KEMÉNY, VISSZAVONHATATLAN HATÁRIDŐ:** a `TemperatureField` (és minden
-rá épülő, Sin/Cos/Pow-alapú szimulációs mező) checkpointolása/perzisztálása
-(**M12**) **előtt** ezt a kockázatot **kötelezően fel kell számolni** — a B
-vagy C opció közül választva, véglegesen. M12-nél ez **nem halasztható
-tovább** — ha addig nem történik meg, M12 nem kezdődhet el a checkpoint-
-rendszeren, amíg ez nincs lezárva.
+**VÉGLEGES DÖNTÉS: B opció (saját polinomiális implementáció).**
+`src/WorldGen.Core/Numerics/DeterministicMath.cs` + Python-referencia
+(`tools/reference/deterministic_math_ref.py`) — csak a CLAUDE.md
+táblázat szerint GARANTÁLTAN bitpontos alapműveletekre épül
+(`+ - * /`, `Math.Sqrt`, `Math.Floor`/`Math.Round` — IEEE-754
+roundToIntegral EXAKT specifikáció, nem transzcendens közelítés —, és
+nyers bit-manipuláció `BitConverter`-rel):
+
+- **Sin/Cos**: oktáns-redukció (legközelebbi k·π/4-re redukálva
+  [-π/8,π/8] tartományba, kizárólag /, -, Floor-lal) + Taylor-polinom +
+  szög-összeg azonosság a 8 oktáns EXAKT értékével (0, ±1, ±√2/2).
+  Plauzibilitás valódi `Math.Sin/Cos`-hoz képest: < 2e-14.
+- **Exp/Ln/Pow**: IEEE-754 bit-dekompozíció (mantissza/exponens
+  szétválasztás, mint a C standard frexp/ldexp) + Taylor-sor szűk
+  tartományon. `Pow(x,y) = Exp(y·Ln(x))`, x=0,y&gt;0 esetén 0
+  (dokumentált konvenció). Plauzibilitás: Exp &lt; 3e-13 relatív, Ln
+  &lt; 2e-9 abszolút, Pow &lt; 3e-9 relatív hiba a valódi
+  függvényekhez képest.
+- A C#/Python implementáció **BITPONTOSAN** (0 tolerancia) egyezik
+  1000 tesztvektoron (500 sin/cos + 500 pow) — ez NEM
+  tolerancia-alapú teszt, mert mindkét oldal ugyanazt a saját
+  algoritmust futtatja, nem a rendszer könyvtárát.
+
+**Bekötve:** `OrbitalMechanics` (RotX/RotZ mátrixok, pálya-irány),
+`PlateMotion` (Rodrigues-forgatás), `ImpactCratering` (kráter-képlet
+Pow-jai + `cosAngularRadius`), `Temperature` (a negyedik-gyök
+sqrt(sqrt(x))-ként EGZAKT — nem is közelítés, jobb mint a
+DeterministicMath.Pow).
+
+**ALGORITMUS-VÁLTÁS (dokumentált, szándékos):** az `ImpactCratering`
+szög-mintavételezése emellett ÁT LETT TERVEZVE: az eredeti
+`angle = 0.5·Acos(1-2u)` helyett korong-alapú elutasításos mintavétel
+(Malley-módszer, ugyanaz az elv, mint `SampleUnitVector3`-nál) — ez
+KÖZVETLENÜL sin(θ)-t adja, Acos és utólagos Sin nélkül: (x,y) egyenletes
+az egységkorongon → sin(θ)=√(1-x²-y²). A kapott szög sűrűsége
+bizonyíthatóan pontosan sin(2θ) (levezetés a forráskódban), ugyanaz,
+mint az eredeti acos-inverzióé — de MÁS véletlenszám-fogyasztás, tehát
+más seed→esemény leképezés, mint a korábbi verzióban. Elfogadható,
+mert még nincs perzisztált világ, amit védeni kellene.
+
+**KIVÉTEL — `OrbitalMechanics.SubsolarPoint`:** Math.Asin/Atan2-t
+használ, SZÁNDÉKOSAN NEM cserélve. Jelenleg sehol nincs bekötve
+szimulációs kritikus útra (csak tesztekben hívott — az `Insolation`
+közvetlen pontszorzatot használ, nem szélesség/hosszúság koordinátán
+megy át). Ha ez változik, az ND-27 osztálya ide is kiterjed, és ekkor
+az `Atan2`/`Asin` is meg kell kapja a `DeterministicMath`-beli
+megfelelőjét (jelenleg nincs implementálva — nyitva marad, ha
+szükségessé válik).
+
+**Eredmény:** M12 (checkpoint) előtti kötelezettség **teljesítve** —
+nincs Math.Sin/Cos/Pow/Acos a jelenlegi szimulációs kritikus úton
+(csillagászat, klíma, lemezmozgás, becsapódás). 208/208 teszt zöld.
 
 ### ND-28 — M11 becsapódások: hatókör-szűkítés + valós bolygó-sugár bevezetése
 

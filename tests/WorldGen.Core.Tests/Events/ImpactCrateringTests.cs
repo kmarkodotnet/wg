@@ -12,13 +12,14 @@ namespace WorldGen.Core.Tests.Events;
 /// 20 000 epoch-os "történelem" végigjátszása - minden epoch-ra ellenőrzi,
 /// hogy a C# ugyanazt az occurred/nem-occurred döntést és (ha történt
 /// esemény) ugyanazokat a mezőket számolja-e ki, mint a Python oráklum.
-/// TOLERANCIA-alapú (ND-27/ND-28 osztály - Math.Pow/Sin/Cos nem
-/// garantáltan bitre azonos platformok között).
+/// BITPONTOS egyezés várt (ND-27 lezárva - mindkét oldal ugyanazt a saját
+/// DeterministicMath/deterministic_math_ref algoritmust futtatja, nem a
+/// rendszer Math.Sin/Cos/Pow-ját).
 /// </summary>
 public class ImpactCrateringVectorFileTests
 {
     [Fact]
-    public void MatchesPythonReferenceHistoryWithinTolerance()
+    public void MatchesPythonReferenceHistoryExactly()
     {
         string path = Path.Combine(AppContext.BaseDirectory, "testdata", "impacts_vectors.json");
         using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
@@ -34,7 +35,7 @@ public class ImpactCrateringVectorFileTests
             bool occurred = ImpactCratering.TryGenerateImpact(
                 worldSeed, epochIndex,
                 out double x, out double y, out double z,
-                out double impactorDiameter, out double velocity, out double angle,
+                out double impactorDiameter, out double velocity, out double sinAngle,
                 out double craterDiameter, out double craterDepth);
 
             Assert.True(occurred == expectedOccurred, $"epoch {epochIndex}: occurred eltér");
@@ -42,14 +43,14 @@ public class ImpactCrateringVectorFileTests
             if (expectedOccurred)
             {
                 occurredCount++;
-                Assert.True(Math.Abs(x - rec.GetProperty("x").GetDouble()) < 1e-9);
-                Assert.True(Math.Abs(y - rec.GetProperty("y").GetDouble()) < 1e-9);
-                Assert.True(Math.Abs(z - rec.GetProperty("z").GetDouble()) < 1e-9);
-                Assert.True(Math.Abs(impactorDiameter - rec.GetProperty("impactorDiameterMeters").GetDouble()) < 1e-6);
-                Assert.True(Math.Abs(velocity - rec.GetProperty("velocityMetersPerSecond").GetDouble()) < 1e-6);
-                Assert.True(Math.Abs(angle - rec.GetProperty("angleRadians").GetDouble()) < 1e-9);
-                Assert.True(Math.Abs(craterDiameter - rec.GetProperty("craterDiameterMeters").GetDouble()) < 1e-6);
-                Assert.True(Math.Abs(craterDepth - rec.GetProperty("craterDepthMeters").GetDouble()) < 1e-6);
+                Assert.Equal(rec.GetProperty("x").GetDouble(), x);
+                Assert.Equal(rec.GetProperty("y").GetDouble(), y);
+                Assert.Equal(rec.GetProperty("z").GetDouble(), z);
+                Assert.Equal(rec.GetProperty("impactorDiameterMeters").GetDouble(), impactorDiameter);
+                Assert.Equal(rec.GetProperty("velocityMetersPerSecond").GetDouble(), velocity);
+                Assert.Equal(rec.GetProperty("sinAngle").GetDouble(), sinAngle);
+                Assert.Equal(rec.GetProperty("craterDiameterMeters").GetDouble(), craterDiameter);
+                Assert.Equal(rec.GetProperty("craterDepthMeters").GetDouble(), craterDepth);
             }
             checkedCount++;
         }
@@ -101,18 +102,6 @@ public class ImpactCrateringStructuralTests
     [Fact]
     public void DifferentWorldSeedsGiveDifferentHistories()
     {
-        int occurredA = 0, occurredB = 0;
-        for (long epoch = 0; epoch < 2000; epoch++)
-        {
-            if (ImpactCratering.TryGenerateImpact(WorldSeed, epoch,
-                    out _, out _, out _, out _, out _, out _, out _, out _))
-                occurredA++;
-            if (ImpactCratering.TryGenerateImpact(WorldSeed + 1, epoch,
-                    out _, out _, out _, out _, out _, out _, out _, out _))
-                occurredB++;
-        }
-        // Nem a szamnak kell elterjnie feltetlenul, hanem annak, hogy MASIK
-        // seed mas epoch-okban tuzel - kulon ellenorizve lent.
         bool anyDifferentEpochFired = false;
         for (long epoch = 0; epoch < 2000; epoch++)
         {
@@ -126,31 +115,34 @@ public class ImpactCrateringStructuralTests
     [Fact]
     public void CraterSizeGrowsWithImpactorDiameter()
     {
-        double dSmall = ImpactCratering.TransientCraterDiameter(500.0, 20000.0, Math.PI / 4.0);
-        double dLarge = ImpactCratering.TransientCraterDiameter(5000.0, 20000.0, Math.PI / 4.0);
+        double sin45 = Math.Sin(Math.PI / 4.0);
+        double dSmall = ImpactCratering.TransientCraterDiameter(500.0, 20000.0, sin45);
+        double dLarge = ImpactCratering.TransientCraterDiameter(5000.0, 20000.0, sin45);
         Assert.True(dLarge > dSmall, "Nagyobb becsapódónak nagyobb krátert kell adnia");
     }
 
     [Fact]
     public void CraterSizeGrowsWithVelocity()
     {
-        double dSlow = ImpactCratering.TransientCraterDiameter(1000.0, 15000.0, Math.PI / 4.0);
-        double dFast = ImpactCratering.TransientCraterDiameter(1000.0, 25000.0, Math.PI / 4.0);
+        double sin45 = Math.Sin(Math.PI / 4.0);
+        double dSlow = ImpactCratering.TransientCraterDiameter(1000.0, 15000.0, sin45);
+        double dFast = ImpactCratering.TransientCraterDiameter(1000.0, 25000.0, sin45);
         Assert.True(dFast > dSlow, "Nagyobb sebességnek nagyobb krátert kell adnia");
     }
 
     [Fact]
     public void CraterSizeVariesWithAngle()
     {
-        double dSteep = ImpactCratering.TransientCraterDiameter(1000.0, 20000.0, Math.PI / 2.0); // 90 fok
-        double dShallow = ImpactCratering.TransientCraterDiameter(1000.0, 20000.0, Math.PI / 18.0); // 10 fok
+        double sinSteep = Math.Sin(Math.PI / 2.0); // 90 fok - merőleges becsapódás
+        double sinShallow = Math.Sin(Math.PI / 18.0); // 10 fok - súroló becsapódás
+        double dSteep = ImpactCratering.TransientCraterDiameter(1000.0, 20000.0, sinSteep);
+        double dShallow = ImpactCratering.TransientCraterDiameter(1000.0, 20000.0, sinShallow);
         Assert.True(dSteep > dShallow, "Merőlegesebb becsapódásnak nagyobb krátert kell adnia");
     }
 
     [Fact]
     public void DepthIsFixedFractionOfDiameter()
     {
-        double diameter = ImpactCratering.TransientCraterDiameter(1000.0, 20000.0, Math.PI / 4.0);
         long epoch = FindFiringEpoch(WorldSeed, 0, 20_000);
         ImpactCratering.TryGenerateImpact(WorldSeed, epoch,
             out _, out _, out _, out _, out _, out _,
@@ -189,6 +181,19 @@ public class ImpactCrateringStructuralTests
         int small = diameters.FindAll(d => d < 5000.0).Count;
         int large = diameters.FindAll(d => d >= 20000.0).Count;
         Assert.True(small > large, "Nehéz-farkú eloszlásnak sokkal több kis eseményt kell adnia, mint nagyot");
+    }
+
+    [Fact]
+    public void SinAngleIsAlwaysInValidRange()
+    {
+        for (long epoch = 0; epoch < 20_000; epoch++)
+        {
+            if (ImpactCratering.TryGenerateImpact(WorldSeed, epoch,
+                    out _, out _, out _, out _, out _, out double sinAngle, out _, out _))
+            {
+                Assert.True(sinAngle >= 0.0 && sinAngle <= 1.0, $"sin(angle) tartományon kívül: {sinAngle}");
+            }
+        }
     }
 
     private static long FindFiringEpoch(ulong worldSeed, long start, long limit)

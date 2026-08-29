@@ -20,8 +20,10 @@ namespace WorldGen.Core.Climate
     /// fizikai tény, nem kitalált szám. Ugyanaz a minta, mint ND-10-nél
     /// (fix Föld-szerű értékek v1.0-ban, később paraméterezhető).
     ///
-    /// ND-27: a Math.Sin/Cos/Pow használata itt ELFOGADOTT kockázat M12
-    /// (checkpoint-rendszer) előttig, felhasználói jóváhagyással.
+    /// ND-27 LEZÁRVA: a nap-irány <see cref="OrbitalMechanics.SunDirectionBodyFrame"/>-en
+    /// keresztül már <see cref="Numerics.DeterministicMath"/>-ot használ; a
+    /// negyedik-gyök (T^4 egyensúly) sqrt(sqrt(x))-ként EGZAKT (nem
+    /// közelítés) - nincs Math.Sin/Cos/Pow a kritikus úton.
     ///
     /// MÓDSZER a napi átlag-inszolációhoz: NEM zárt hour-angle formula (az
     /// tan(latitude)-alapú, a pólusoknál szinguláris lenne), hanem a már
@@ -75,7 +77,10 @@ namespace WorldGen.Core.Climate
 
             double albedo = isOceanic ? AlbedoOcean : AlbedoLand;
             double absorbed = fPeak * avgFactor * (1.0 - albedo);
-            double tEq = absorbed > 0.0 ? Math.Pow(absorbed / Sigma, 0.25) : 0.0;
+            // x^0.25 = sqrt(sqrt(x)) - EGZAKT (nem közelítés), mert mindkét
+            // Math.Sqrt IEEE-754 korrekt kerekítésű - jobb, mint akár a
+            // DeterministicMath.Pow is tudna adni (ND-27).
+            double tEq = absorbed > 0.0 ? Math.Sqrt(Math.Sqrt(absorbed / Sigma)) : 0.0;
 
             double heightAboveSea = Math.Max(0.0, elevationM - seaLevelM);
             double tAltitude = LapseRateKPerM * heightAboveSea;

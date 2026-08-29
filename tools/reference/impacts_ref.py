@@ -1,6 +1,6 @@
 """
 Becsapodas-esemenyek referencia-implementacioja M11-hez (docs/00-spec-v1.0.md
-Sz.22, docs/04-decisions.md ND-28).
+Sz.22, docs/04-decisions.md ND-28, ND-27).
 
 HATOKOR (tudatosan szukitve, ld. ND-28): csak becsapodas (nem
 vulkan/rift/lemez-hasadas), csak krater atmero+melyseg (nem
@@ -18,21 +18,26 @@ verifikalva):
   - Sebesseg: 15-25 km/s (idezett atlagos NEO-Fold utkozesi
     sebesseg-tartomany, kb. 15-21 km/s koze esik a legtobb forrasban).
   - Szog: P(theta) ~ sin(2*theta) - ez GEOMETRIAI TENY (veletlen iranyu
-    becsapodas a gombon), nem empirikus meres, zart alakban invertalhato:
-    u = (1 - cos(2*theta)) / 2  =>  theta = 0.5 * acos(1 - 2*u)
+    becsapodas a gombon), nem empirikus meres.
   - Surusegek: kozet becsapodo ~3000 kg/m^3, kereg cel ~2700 kg/m^3 (Fold
     kontinentalis kereg atlaga, jol ismert ertek).
 
-ND-27 OSZTALYA KITERJESZTVE (nem uj dontes): a krater-keplet
-Math.Pow/Sin/Cos-t hasznal - ugyanaz a trigonometria-kockazati kategoria
-es M12 elotti lezarasi hatarido vonatkozik ra, mint a klimara es a
-lemezmozgasra.
+ND-27 LEZARVA: nincs math.sin/cos/pow/acos a kritikus uton.
+  - A Pow-hivasok deterministic_math_ref.pow_-ra cserelve.
+  - A szog-mintavetelezes ATTERVEZVE: az eredeti
+    "angle = 0.5*acos(1-2u)" helyett korong-alapu elutasitasos mintavetel
+    (Malley-modszer, ugyanaz az elv, mint sample_unit_vector3-nal) - ez
+    KOZVETLENUL sin(theta)-t adja (nincs szukseg acos-ra vagy utolagos
+    sin-re): (x,y) egyenletes az egysegkorongon -> sin(theta)=sqrt(1-x^2-y^2).
+    Bizonyitas: a kapott szog suru sege pontosan sin(2*theta), ugyanaz,
+    mint az eredeti acos-inverzioe (ld. docs/04-decisions.md ND-27).
 
 NEM produkcios kod - csak orakulum, a python-reference skill szerint.
 """
 import math
 
-from plate_ref import _block
+from plate_ref import _block, sample4
+from deterministic_math_ref import pow_ as det_pow, cos as det_cos
 
 SCALE53 = 2.0 ** -53
 
@@ -54,6 +59,12 @@ IMPACTOR_DENSITY_KG_M3 = 3000.0
 TARGET_DENSITY_KG_M3 = 2700.0
 GRAVITY_M_S2 = 9.81
 DEPTH_TO_DIAMETER_RATIO = 0.2
+
+# Fix bemenetu Pow-eredmenyek egyszer kiszamolva - ld. ImpactCratering.cs
+# megjegyzese, ugyanaz az elv (nem kezzel szamolt/beirt konstans).
+_MIN_DIAMETER_RATE_FACTOR = det_pow(MIN_DIAMETER_M, -PARETO_ALPHA)
+_DENSITY_RATIO_CUBE_ROOT = det_pow(IMPACTOR_DENSITY_KG_M3 / TARGET_DENSITY_KG_M3, 1.0 / 3.0)
+_GRAVITY_TERM = det_pow(GRAVITY_M_S2, -0.22)
 
 
 def sample(world_seed, domain_id, spatial_id, time_bucket, property_id, sample_index=0):
@@ -78,22 +89,32 @@ def sample_unit_vector3(world_seed, domain_id, spatial_id, time_bucket, property
         i += 1
 
 
+def sample_sin_angle(world_seed, epoch_bucket):
+    """sin(becsapodasi szog), P(theta)~sin(2*theta) - Acos NELKUL (ND-27)."""
+    i = 0
+    while True:
+        a, b, _, _ = sample4(world_seed, DOMAIN_EVENTS, 0, epoch_bucket, PROPERTY_IMPACT_ANGLE, i)
+        px, py = 2.0 * a - 1.0, 2.0 * b - 1.0
+        r2 = px * px + py * py
+        if r2 <= 1.0:
+            return math.sqrt(1.0 - r2)
+        i += 1
+
+
 def epoch_probability():
     """Varhato esemenyszam / epoch a D>=MIN_DIAMETER_M kuszobre. Bernoulli-
     kozelitesben hasznalva a Poisson-rata helyett, mert rata << 1
     (dokumentalt egyszerusites, standard gyakorlat ritka esemenyekre)."""
-    rate_per_year = RATE_COEFFICIENT_PER_YEAR * MIN_DIAMETER_M ** (-PARETO_ALPHA)
+    rate_per_year = RATE_COEFFICIENT_PER_YEAR * _MIN_DIAMETER_RATE_FACTOR
     return rate_per_year * EPOCH_YEARS
 
 
-def transient_crater_diameter(impactor_diameter_m, velocity_mps, angle_rad):
+def transient_crater_diameter(impactor_diameter_m, velocity_mps, sin_angle):
     """Schmidt & Housen (1987) / Collins, Melosh & Marcus (2005) skalazas."""
-    density_ratio = (IMPACTOR_DENSITY_KG_M3 / TARGET_DENSITY_KG_M3) ** (1.0 / 3.0)
-    size_term = impactor_diameter_m ** 0.78
-    velocity_term = velocity_mps ** 0.44
-    gravity_term = GRAVITY_M_S2 ** (-0.22)
-    angle_term = math.sin(angle_rad) ** (1.0 / 3.0)
-    return 1.161 * density_ratio * size_term * velocity_term * gravity_term * angle_term
+    size_term = det_pow(impactor_diameter_m, 0.78)
+    velocity_term = det_pow(velocity_mps, 0.44)
+    angle_term = det_pow(sin_angle, 1.0 / 3.0)
+    return 1.161 * _DENSITY_RATIO_CUBE_ROOT * size_term * velocity_term * _GRAVITY_TERM * angle_term
 
 
 def try_generate_impact(world_seed, epoch_index):
@@ -104,7 +125,7 @@ def try_generate_impact(world_seed, epoch_index):
         return None
 
     u_mag = sample(world_seed, DOMAIN_EVENTS, 0, epoch_index, PROPERTY_IMPACT_MAGNITUDE)
-    diameter = MIN_DIAMETER_M / (1.0 - u_mag) ** (1.0 / PARETO_ALPHA)
+    diameter = MIN_DIAMETER_M / det_pow(1.0 - u_mag, 1.0 / PARETO_ALPHA)
     if diameter > MAX_DIAMETER_M:
         diameter = MAX_DIAMETER_M  # dokumentalt biztonsagi sapka, nem ujra-mintavetel (ND-28)
 
@@ -112,17 +133,16 @@ def try_generate_impact(world_seed, epoch_index):
     velocity = sample_range(
         world_seed, DOMAIN_EVENTS, 0, epoch_index,
         VELOCITY_MIN_MPS, VELOCITY_MAX_MPS, PROPERTY_IMPACT_VELOCITY)
-    u_angle = sample(world_seed, DOMAIN_EVENTS, 0, epoch_index, PROPERTY_IMPACT_ANGLE)
-    angle = 0.5 * math.acos(1.0 - 2.0 * u_angle)
+    sin_theta = sample_sin_angle(world_seed, epoch_index)
 
-    crater_diameter = transient_crater_diameter(diameter, velocity, angle)
+    crater_diameter = transient_crater_diameter(diameter, velocity, sin_theta)
     crater_depth = crater_diameter * DEPTH_TO_DIAMETER_RATIO
 
     return {
         "x": x, "y": y, "z": z,
         "impactorDiameterMeters": diameter,
         "velocityMetersPerSecond": velocity,
-        "angleRadians": angle,
+        "sinAngle": sin_theta,
         "craterDiameterMeters": crater_diameter,
         "craterDepthMeters": crater_depth,
     }
@@ -139,12 +159,25 @@ if __name__ == "__main__":
     print("OK - determinisztikus\n")
 
     print("--- Plauzibilitas: krater-meret nagysagrend ---")
-    # 1 km-es becsapodo, kb. 20 km/s, ~45 fok -> a szakirodalomban tobbszor
-    # idezett tartomanyhoz kepest (nehany km - nehany 10 km) plauzibilis
-    # meretu tranziens kratert kell adjon.
-    d = transient_crater_diameter(1000.0, 20000.0, math.radians(45.0))
+    # 1 km-es becsapodo, kb. 20 km/s, ~45 fok (sin(45 fok)~0.707) -> a
+    # szakirodalomban tobbszor idezett tartomanyhoz kepest (nehany km -
+    # nehany 10 km) plauzibilis meretu tranziens kratert kell adjon.
+    d = transient_crater_diameter(1000.0, 20000.0, math.sin(math.radians(45.0)))
     print(f"  1 km becsapodo, 20 km/s, 45 fok -> {d/1000.0:.2f} km transziens krater")
     assert 3000.0 < d < 30000.0, f"Nem plauzibilis kraterMeret: {d}"
+    print("OK\n")
+
+    print("--- sin(theta) eloszlas plauzibilitasa (P~sin(2theta) => atlag sin(theta) ~0.785) ---")
+    import random
+    rnd = random.Random(999)
+    samples = [sample_sin_angle(world_seed, e) for e in range(5000)]
+    mean_sin = sum(samples) / len(samples)
+    # Analitikus varhato ertek: E[sin(theta)] = integral(sin(theta)*sin(2theta)dtheta, 0..pi/2)
+    # = integral(2*sin^2(theta)*cos(theta)dtheta) = [u=sin(theta)] 2*integral(u^2 du, 0..1) = 2/3
+    expected = 2.0 / 3.0
+    print(f"  mintaatlag sin(theta) = {mean_sin:.4f} (varhato = 2/3 = {expected:.4f})")
+    assert abs(mean_sin - expected) < 0.02, "Nem egyezik a varhato sin(2theta) eloszlassal"
+    assert all(0.0 <= s <= 1.0 for s in samples), "sin(theta) tartomanyon kivuli ertek"
     print("OK\n")
 
     print("--- Historia-szimulacio: gyakorisag + meret-eloszlas plauzibilitasa ---")
@@ -158,7 +191,6 @@ if __name__ == "__main__":
     expected_rate = epoch_probability()
     print(f"  {len(events)} esemeny {n_epochs} epoch alatt "
           f"(megfigyelt rata={observed_rate:.5f}, varhato={expected_rate:.5f})")
-    # Statisztikai tolerancia: binomialis szoras kb. sqrt(n*p*(1-p))
     std = math.sqrt(n_epochs * expected_rate * (1 - expected_rate))
     assert abs(len(events) - n_epochs * expected_rate) < 5 * std, "Gyakorisag nem plauzibilis"
     print("OK - a gyakorisag statisztikailag egyezik a varhato ratval\n")
@@ -171,9 +203,6 @@ if __name__ == "__main__":
     print("OK - sok kicsi, keves nagy (nehez-farku eloszlas, spec Sz.22.3)\n")
 
     print("--- Minden parameter erdemben hat a kimenetre ---")
-    r_base = try_generate_impact(world_seed, 7)  # esemeny nelkuli epoch keresese kesobb
-    # Kulon domain/property hasznalata miatt a pozicio/sebesseg/szog
-    # fuggetlenul valtozik - kozvetlen ellenorzes egy tuzelo epoch-on.
     fired_epoch = next(e for e in range(n_epochs) if try_generate_impact(world_seed, e) is not None)
     r = try_generate_impact(world_seed, fired_epoch)
     r_next = try_generate_impact(world_seed, fired_epoch + 1) or {}
