@@ -134,6 +134,22 @@ namespace WorldGen.Viewer
                  "történelmet - egyetlen konzisztens 'ennyi idő telt el' fogalom.")]
         private bool showCraters = true;
 
+        [Header("M13: Vizfelszin (melysegfuggo szin)")]
+        [Tooltip("Meter - a fenyelnyeles jellemzo melysege a 't = 1 - exp(-melyseg/skala)' " +
+                 "telitodo gorbeben. Ennyi melyseg utan a vizszin mar kozel a legsotetebb " +
+                 "arnyalatnal van; sekelyebb viznel a szin a sekelytol a mely fele fokozatosan sotetedik.")]
+        [SerializeField]
+        private double waterDepthScaleMeters = 500.0;
+
+        [SerializeField]
+        [Tooltip("A legsekelyebb (part menti) viz szine.")]
+        private Color shallowWaterColor = new Color(0.20f, 0.65f, 0.65f);
+
+        [SerializeField]
+        [Tooltip("A legmelyebb (abisszikus) viz szine - majdnem fekete-kek, a valos " +
+                 "oceanban a fenyelnyeles miatt latszo egyszinu sotetseg kozelitese.")]
+        private Color deepWaterColor = new Color(0.01f, 0.03f, 0.10f);
+
         // M8: az utolsó Build() eredményének gyorsítótára - a panel-adatok
         // (ComputePanelData) ezekre épülnek, hogy ne kelljen a teljes
         // elevation-/óceán-/biome-számítást megismételni. Csak a render
@@ -233,15 +249,25 @@ namespace WorldGen.Viewer
 
             double axialTiltRad = climateAxialTiltDegrees * Math.PI / 180.0;
 
-            var verticesByCategory = new Dictionary<RenderCategory, List<Vector3>>();
-            var normalsByCategory = new Dictionary<RenderCategory, List<Vector3>>();
-            var trianglesByCategory = new Dictionary<RenderCategory, List<int>>();
-            foreach (RenderCategory c in AllCategories)
-            {
-                verticesByCategory[c] = new List<Vector3>();
-                normalsByCategory[c] = new List<Vector3>();
-                trianglesByCategory[c] = new List<int>();
-            }
+            // Kulcs = (RenderCategory, bucket). A legtobb kategorianal bucket
+            // mindig 0 (egyetlen lapos szin); az RenderCategory.Ocean-nal a
+            // bucket a MEGLEVO, mar kiszamolt tengerfenek-elevaciobol
+            // (OceanRockBucket) szarmazo finom feny/sotet variacio indexe -
+            // igy a tengerfenek nem teljesen egyszinu, de tovabbra sem kell
+            // uj szimulacios adat vagy per-vertex szin/shader.
+            var verticesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
+            var normalsByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
+            var trianglesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<int>>();
+
+            // A vizfelszin KULON, tile-racsbol epul, de a RenderCategory-tol
+            // fuggetlen buckettel (WaterDepthBucket, a helyi melysegbol) -
+            // lasd BuildWaterSurface. Nem resze a fenti verticesByKey-nek,
+            // mert a vizfelszin egy MASODIK, a tengerfenek folott ulo geometriai
+            // reteg (kulon GameObject/mesh), nem egy tovabbi RenderCategory.
+            var waterVerticesByBucket = new Dictionary<int, List<Vector3>>();
+            var waterNormalsByBucket = new Dictionary<int, List<Vector3>>();
+            var waterTrianglesByBucket = new Dictionary<int, List<int>>();
+            float waterSurfaceRadius = radius + (float)(seaLevel * elevationScale);
 
             var borderVerts = new List<Vector3>();
             var borderIndices = new List<int>();
@@ -283,6 +309,15 @@ namespace WorldGen.Viewer
                             : isRiver ? RenderCategory.River
                             : ToRenderCategory(biome);
 
+                        // A tengerfenek (RenderCategory.Ocean) MEGLEVO
+                        // elevation-erteket (a mar kiszamolt fraktal-zajjal
+                        // egyutt) hasznaljuk fel egy finom feny/sotet
+                        // bucket-hez - nincs uj szimulacios szamitas, csak a
+                        // meglevo field[id] es a CrustElevation.OceanicBaseMeters
+                        // referenciapont osszevetese (ld. OceanRockBucket).
+                        int bucket = category == RenderCategory.Ocean ? OceanRockBucket(elevation) : 0;
+                        var key = (category, bucket);
+
                         // FONTOS: a sarkok magasságát KULON-KULON, a sarok
                         // SAJAT pozicioja alapjan szamoljuk (nem a tile
                         // kozepenek egyetlen erteket hasznaljuk mind a 4
@@ -296,27 +331,35 @@ namespace WorldGen.Viewer
                         Vector3 p11 = ToDisplacedVector3(face, uMax, vMax, seed, seeds, craters);
                         Vector3 p01 = ToDisplacedVector3(face, uMin, vMax, seed, seeds, craters);
 
-                        List<Vector3> vertices = verticesByCategory[category];
-                        List<Vector3> normals = normalsByCategory[category];
-                        List<int> triangles = trianglesByCategory[category];
+                        GetOrAddLists(verticesByKey, normalsByKey, trianglesByKey, key,
+                            out List<Vector3> vertices, out List<Vector3> normals, out List<int> triangles);
+                        AddQuad(vertices, normals, triangles, p00, p10, p11, p01);
 
-                        int baseIndex = vertices.Count;
-                        vertices.Add(p00); vertices.Add(p10); vertices.Add(p11); vertices.Add(p01);
-
-                        Vector3 normal = Vector3.Cross(p10 - p00, p01 - p00).normalized;
-                        if (Vector3.Dot(normal, p00) < 0f) normal = -normal;
-                        normals.Add(normal); normals.Add(normal); normals.Add(normal); normals.Add(normal);
-
-                        Vector3 impliedNormal1 = Vector3.Cross(p10 - p00, p11 - p00);
-                        if (Vector3.Dot(impliedNormal1, normal) >= 0f)
+                        // M13: vizfelszin - CSAK a folyekony (nem fagyott)
+                        // oceani tile-ok folott, a KALIBRALT tengerszint
+                        // sugaranal (nem a sajat, mely tengerfenek-sugaranal).
+                        // A SeaIce tile-ok tovabbra is a sajat (jegszinu)
+                        // kategoria-szinukon, a sajat magassagukon jelennek
+                        // meg - nincs kulon vizreteg felettuk (fagyott
+                        // feluletet abrazolnak, nem folyekony vizet).
+                        if (isOceanic && biome == Biome.Ocean)
                         {
-                            triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 1); triangles.Add(baseIndex + 2);
-                            triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 2); triangles.Add(baseIndex + 3);
-                        }
-                        else
-                        {
-                            triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 2); triangles.Add(baseIndex + 1);
-                            triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 3); triangles.Add(baseIndex + 2);
+                            Vector3 wp00 = ToWaterVector3(face, uMin, vMin, waterSurfaceRadius);
+                            Vector3 wp10 = ToWaterVector3(face, uMax, vMin, waterSurfaceRadius);
+                            Vector3 wp11 = ToWaterVector3(face, uMax, vMax, waterSurfaceRadius);
+                            Vector3 wp01 = ToWaterVector3(face, uMin, vMax, waterSurfaceRadius);
+
+                            double depth = seaLevel - elevation;
+                            int waterBucket = WaterDepthBucket(depth);
+                            if (!waterVerticesByBucket.TryGetValue(waterBucket, out List<Vector3> waterVerts))
+                            {
+                                waterVerts = new List<Vector3>();
+                                waterVerticesByBucket[waterBucket] = waterVerts;
+                                waterNormalsByBucket[waterBucket] = new List<Vector3>();
+                                waterTrianglesByBucket[waterBucket] = new List<int>();
+                            }
+                            AddQuad(waterVerts, waterNormalsByBucket[waterBucket], waterTrianglesByBucket[waterBucket],
+                                wp00, wp10, wp11, wp01);
                         }
 
                         int b = borderVerts.Count;
@@ -329,10 +372,10 @@ namespace WorldGen.Viewer
                 }
             }
 
-            BuildMultiMaterialMesh(verticesByCategory, normalsByCategory, trianglesByCategory);
+            BuildMultiMaterialMesh(verticesByKey, normalsByKey, trianglesByKey);
             BuildBorders(borderVerts, borderIndices);
             BuildCraterMarkers(craters, seed, seeds);
-            BuildOceanShell(seaLevel);
+            BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket);
 
             _lastSeed = seed;
             _lastField = field;
@@ -482,8 +525,6 @@ namespace WorldGen.Viewer
             return min;
         }
 
-        private static readonly RenderCategory[] AllCategories = (RenderCategory[])Enum.GetValues(typeof(RenderCategory));
-
         private static RenderCategory ToRenderCategory(Biome biome) => biome switch
         {
             Biome.Ocean => RenderCategory.Ocean,
@@ -495,29 +536,92 @@ namespace WorldGen.Viewer
             _ => RenderCategory.Ocean,
         };
 
+        /// <summary>
+        /// Egy negyszog (4 sarok) hozzaadasa a megadott vertex/normal/
+        /// haromszog-listakhoz, a felszin kifele nezo normaljaval es a
+        /// megfelelo (CW/CCW) haromszog-sorrenddel. KOZOS a szarazfold-
+        /// (elevation-nel eltolt) es a vizfelszin- (fix tengerszint-sugaru)
+        /// negyszogekhez - a ket geometria csak a sarokpontok forrasaban
+        /// ter el, a negyszog->haromszog logika azonos.
+        /// </summary>
+        private static void AddQuad(
+            List<Vector3> vertices, List<Vector3> normals, List<int> triangles,
+            Vector3 p00, Vector3 p10, Vector3 p11, Vector3 p01)
+        {
+            int baseIndex = vertices.Count;
+            vertices.Add(p00); vertices.Add(p10); vertices.Add(p11); vertices.Add(p01);
+
+            Vector3 normal = Vector3.Cross(p10 - p00, p01 - p00).normalized;
+            if (Vector3.Dot(normal, p00) < 0f) normal = -normal;
+            normals.Add(normal); normals.Add(normal); normals.Add(normal); normals.Add(normal);
+
+            Vector3 impliedNormal1 = Vector3.Cross(p10 - p00, p11 - p00);
+            if (Vector3.Dot(impliedNormal1, normal) >= 0f)
+            {
+                triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 1); triangles.Add(baseIndex + 2);
+                triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 2); triangles.Add(baseIndex + 3);
+            }
+            else
+            {
+                triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 2); triangles.Add(baseIndex + 1);
+                triangles.Add(baseIndex + 0); triangles.Add(baseIndex + 3); triangles.Add(baseIndex + 2);
+            }
+        }
+
+        /// <summary>Get-or-add segedfuggveny a (kategoria, bucket) kulcsu lista-harmashoz.</summary>
+        private static void GetOrAddLists(
+            Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> verticesByKey,
+            Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> normalsByKey,
+            Dictionary<(RenderCategory Category, int Bucket), List<int>> trianglesByKey,
+            (RenderCategory Category, int Bucket) key,
+            out List<Vector3> vertices, out List<Vector3> normals, out List<int> triangles)
+        {
+            if (!verticesByKey.TryGetValue(key, out vertices))
+            {
+                vertices = new List<Vector3>();
+                normals = new List<Vector3>();
+                triangles = new List<int>();
+                verticesByKey[key] = vertices;
+                normalsByKey[key] = normals;
+                trianglesByKey[key] = triangles;
+            }
+            else
+            {
+                normals = normalsByKey[key];
+                triangles = trianglesByKey[key];
+            }
+        }
+
         private void BuildMultiMaterialMesh(
-            Dictionary<RenderCategory, List<Vector3>> verticesByCategory,
-            Dictionary<RenderCategory, List<Vector3>> normalsByCategory,
-            Dictionary<RenderCategory, List<int>> trianglesByCategory)
+            Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> verticesByKey,
+            Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> normalsByKey,
+            Dictionary<(RenderCategory Category, int Bucket), List<int>> trianglesByKey)
         {
             var allVertices = new List<Vector3>();
             var allNormals = new List<Vector3>();
             var submeshTriangleLists = new List<int[]>();
             var materials = new List<Material>();
 
-            foreach (RenderCategory category in AllCategories)
+            // Determinisztikus sorrend (kategoria, majd bucket szerint) - a
+            // dictionary bejarasi sorrendjere NEM szabad tamaszkodni (I1),
+            // bar itt "csak" a draw call sorrendet befolyasolja, nem a
+            // vilagmodellt - a stabil sorrend igy is jobb debugolhatosagot ad.
+            var keys = new List<(RenderCategory Category, int Bucket)>(verticesByKey.Keys);
+            keys.Sort((a, b) => a.Category != b.Category ? a.Category.CompareTo(b.Category) : a.Bucket.CompareTo(b.Bucket));
+
+            foreach ((RenderCategory Category, int Bucket) key in keys)
             {
-                List<Vector3> verts = verticesByCategory[category];
+                List<Vector3> verts = verticesByKey[key];
                 if (verts.Count == 0) continue;
 
                 int offset = allVertices.Count;
                 allVertices.AddRange(verts);
-                allNormals.AddRange(normalsByCategory[category]);
+                allNormals.AddRange(normalsByKey[key]);
 
-                int[] tris = trianglesByCategory[category].ToArray();
+                int[] tris = trianglesByKey[key].ToArray();
                 for (int i = 0; i < tris.Length; i++) tris[i] += offset;
                 submeshTriangleLists.Add(tris);
-                materials.Add(GetOrCreateCategoryMaterial(category));
+                materials.Add(GetOrCreateCategoryMaterial(key));
             }
 
             var mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
@@ -566,41 +670,143 @@ namespace WorldGen.Viewer
         }
 
         /// <summary>
-        /// Vízfelszín-réteg: egyszerű, átlátszatlan gömbhéj a KALIBRÁLT
-        /// tengerszint sugarán (nem kitalált érték - a SeaLevelCalibration
-        /// eredménye, ugyanaz, amit az óceán/szárazföld eldöntéséhez is
-        /// használunk, I3/I4). Enélkül az "Ocean" kategóriájú tile-ok a
-        /// saját (a fraktál-zaj miatt most már durva) tengerfenék-
-        /// magasságukon látszanak, víz nélkül - kiszáradt medencének tűnik.
-        ///
-        /// SZÁNDÉKOSAN EGYSZERŰ: nincs Fresnel-csillanás, mélységfüggő
-        /// szín/átlátszóság - az a teljes vízshader-munka (spec §3.2
-        /// WaterDepth réteg), M6/M13-ra tervezve. Ez csak egy helykitöltő,
-        /// hogy a víz ne HIÁNYOZZON, amíg a végleges shader el nem készül.
+        /// A viz felszinenek pozicioja egy adott tile-sarokban: IRANY a
+        /// racsbol (PositionFromFaceUV), de a sugar FIX (a kalibralt
+        /// tengerszintnel, `waterSurfaceRadius`) - szemben a szarazfold
+        /// ToDisplacedVector3-javal, ahol a sugar tile-onkent (sot
+        /// sarkonkent) elter a valodi domborzat szerint. Mivel a sugar
+        /// MINDEN vizes sarokra ugyanaz a konstans, ket szomszedos vizes
+        /// tile automatikusan varratmentesen illeszkedik - nincs szukseg
+        /// a plate-/hatar-/krater-fuggveny kiertekelesere (mint a
+        /// ComputeDisplacedRadius-ban), a viz sima, lapos felulet.
         /// </summary>
-        private void BuildOceanShell(double seaLevel)
+        private Vector3 ToWaterVector3(int face, double uc, double vc, float waterSurfaceRadius)
         {
-            Transform oceanChild = transform.Find("OceanShell");
-            GameObject oceanGo;
-            if (oceanChild == null)
+            TileGeometry.PositionFromFaceUV(face, uc, vc, out double x, out double y, out double z);
+            return BodyFrameConversion.ToUnity(x, y, z) * waterSurfaceRadius;
+        }
+
+        /// <summary>
+        /// Melyseg (meter) -> bucket-index a WaterDepthBucketCount lepesu,
+        /// de a szemnek sima hatasu telitodo gorbehez: t = 1 - exp(-melyseg/skala).
+        /// A t=0-hoz (sekely) a shallowWaterColor, t~1-hez (mely) a
+        /// deepWaterColor tartozik (ld. WaterBucketColor) - a valos vizben
+        /// tortent fenyelnyeles kozelitese, NEM a vilagmodell resze (csak
+        /// megjelenitesi szinvalasztas), ezert a Math.Exp hasznalata itt
+        /// NEM erinti a CLAUDE.md ND-23 transzcendens-fuggveny korlatozasat
+        /// (az kizarolag a src/WorldGen.Core szimulacios kritikus utjara
+        /// vonatkozik, nem a viewer renderelesere).
+        /// </summary>
+        private int WaterDepthBucket(double depthMeters)
+        {
+            double clampedDepth = depthMeters < 0.0 ? 0.0 : depthMeters;
+            double safeScale = waterDepthScaleMeters > 1.0 ? waterDepthScaleMeters : 1.0;
+            double t = 1.0 - Math.Exp(-clampedDepth / safeScale);
+            int bucket = (int)Math.Round(t * (WaterDepthBucketCount - 1));
+            return bucket < 0 ? 0 : (bucket > WaterDepthBucketCount - 1 ? WaterDepthBucketCount - 1 : bucket);
+        }
+
+        private Color WaterBucketColor(int bucket)
+        {
+            double bucketT = (bucket + 0.5) / WaterDepthBucketCount;
+            if (bucketT > 1.0) bucketT = 1.0;
+            return Color.Lerp(shallowWaterColor, deepWaterColor, (float)bucketT);
+        }
+
+        private const int WaterDepthBucketCount = 12;
+
+        private Dictionary<int, Material> _waterMaterials;
+
+        private Material GetOrCreateWaterMaterial(int bucket)
+        {
+            _waterMaterials ??= new Dictionary<int, Material>();
+            if (_waterMaterials.TryGetValue(bucket, out Material existing) && existing != null)
+                return existing;
+
+            Material mat = CreateFlatColorMaterial(WaterBucketColor(bucket));
+            _waterMaterials[bucket] = mat;
+            return mat;
+        }
+
+        /// <summary>
+        /// M13 vizfelszin-reteg: minden VIZ ALATTI, FOLYEKONY (biome ==
+        /// Ocean, tehat NEM fagyott SeaIce) tile folott egy LAPOS negyszog
+        /// a KALIBRALT tengerszint sugaranal - igy folytonos, sima
+        /// vizfelszin rajzolodik ki, nem a tengerfenek dombormintaja. A
+        /// szint a helyi melyseg (WaterDepthBucket) hatarozza meg.
+        ///
+        /// EZ VALTJA FEL a regi BuildOceanShell-t (kulonallo, tile-racstol
+        /// FUGGETLEN, EGYSEGES szinu primitiv gomb egyetlen fix sugaron).
+        /// A regi megoldas hibaja: mivel a hej sugara es szine SEMMILYEN
+        /// tile-adatot nem hasznalt, a mely oceani tile-ok folott a
+        /// (joval a hej sugara ALATT futo) domborzat-mesh sosem "utkozott"
+        /// a hejjal - onnan nezve csak a hej egyseges kek szine latszott.
+        /// A sekely, tengerszinthez kozeli tile-oknal viszont a domborzat
+        /// majdnem elerte a hej sugarat, ahol a tengerfenek-szin atuthetett
+        /// - ez adta a "ket tengerszint / csak a sekely reszek szurkek"
+        /// hibat. Mostantol a viz UGYANABBOL a field/isOceanField/seaLevel
+        /// adatbol epul, mint a tengerfenek, tehat strukturalisan nem tud
+        /// elszakadni tole - nincs kulon, nem-szinkronizalt geometria.
+        /// </summary>
+        private void BuildWaterSurface(
+            Dictionary<int, List<Vector3>> verticesByBucket,
+            Dictionary<int, List<Vector3>> normalsByBucket,
+            Dictionary<int, List<int>> trianglesByBucket)
+        {
+            Transform waterChild = transform.Find("WaterSurface");
+            GameObject waterGo;
+            if (waterChild == null)
             {
-                oceanGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                oceanGo.name = "OceanShell";
-                oceanGo.transform.SetParent(transform, false);
-                MeshRenderer mr = oceanGo.GetComponent<MeshRenderer>();
-                mr.sharedMaterial = CreateFlatColorMaterial(new Color(0.06f, 0.22f, 0.42f));
-                Collider col = oceanGo.GetComponent<Collider>();
-                if (col != null) SafeDestroy(col);
+                waterGo = new GameObject("WaterSurface");
+                waterGo.transform.SetParent(transform, false);
+                waterGo.AddComponent<MeshFilter>();
+                waterGo.AddComponent<MeshRenderer>();
             }
             else
             {
-                oceanGo = oceanChild.gameObject;
+                waterGo = waterChild.gameObject;
             }
 
-            float oceanRadius = radius + (float)(seaLevel * elevationScale);
-            // Unity beepitett Sphere primitiv atmeroje 1 egyseg -> a
-            // localScale-nek a SUGAR ketszerese kell legyen.
-            oceanGo.transform.localScale = Vector3.one * (oceanRadius * 2f);
+            if (verticesByBucket.Count == 0)
+            {
+                waterGo.SetActive(false);
+                return;
+            }
+            waterGo.SetActive(true);
+
+            var allVertices = new List<Vector3>();
+            var allNormals = new List<Vector3>();
+            var submeshTriangleLists = new List<int[]>();
+            var materials = new List<Material>();
+
+            var buckets = new List<int>(verticesByBucket.Keys);
+            buckets.Sort();
+
+            foreach (int bucket in buckets)
+            {
+                List<Vector3> verts = verticesByBucket[bucket];
+                if (verts.Count == 0) continue;
+
+                int offset = allVertices.Count;
+                allVertices.AddRange(verts);
+                allNormals.AddRange(normalsByBucket[bucket]);
+
+                int[] tris = trianglesByBucket[bucket].ToArray();
+                for (int i = 0; i < tris.Length; i++) tris[i] += offset;
+                submeshTriangleLists.Add(tris);
+                materials.Add(GetOrCreateWaterMaterial(bucket));
+            }
+
+            var mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
+            mesh.SetVertices(allVertices);
+            mesh.SetNormals(allNormals);
+            mesh.subMeshCount = submeshTriangleLists.Count;
+            for (int i = 0; i < submeshTriangleLists.Count; i++)
+                mesh.SetTriangles(submeshTriangleLists[i], i);
+            mesh.RecalculateBounds();
+
+            waterGo.GetComponent<MeshFilter>().sharedMesh = mesh;
+            waterGo.GetComponent<MeshRenderer>().sharedMaterials = materials.ToArray();
         }
 
         /// <summary>
@@ -639,7 +845,7 @@ namespace WorldGen.Viewer
             }
             markersParent.gameObject.SetActive(true);
 
-            Material markerMaterial = CreateFlatColorMaterial(CategoryColor(RenderCategory.Crater));
+            Material markerMaterial = CreateFlatColorMaterial(CategoryColor(RenderCategory.Crater, 0));
             double maxPossibleDepth = ImpactCratering.MaxDiameterMeters * ImpactCratering.DepthToDiameterRatio;
 
             foreach (ImpactCratering.CraterRecord crater in craters)
@@ -732,31 +938,69 @@ namespace WorldGen.Viewer
             return radius + (float)(elevation * elevationScale);
         }
 
-        private Dictionary<RenderCategory, Material> _categoryMaterials;
+        // ND-34-nel mar bevezetett referencia-amplitudo (CrustElevation):
+        // az oceani zaj +-(NoiseAmplitudeMeters * OceanicNoiseFactor)
+        // korul mozog a MountainMask altal tovabb tompitva - ezt hasznaljuk
+        // normalizalasi skalakent a tengerfenek feny/sotet bucket-jehez.
+        // NEM uj szimulacios konstans, csak a MAR LETEZO ertekek szorzata.
+        private const int OceanRockBucketCount = 5;
 
-        private Material GetOrCreateCategoryMaterial(RenderCategory category)
+        /// <summary>
+        /// A tengerfenek (RenderCategory.Ocean) tile-jainak finom feny/
+        /// sotet variacioja - a MEGLEVO, mar kiszamolt `elevation` es a
+        /// kereg-tipus alap-magassaga (CrustElevation.OceanicBaseMeters)
+        /// kulonbsegebol, NEM uj zaj-lekerdezesbol. Igy a mar meglevo
+        /// fraktal-domborzat (ND-33/ND-34 ridged multifractal, oceani
+        /// tompitassal) latszik a szinben is, nem csak a geometriaban.
+        /// </summary>
+        private static int OceanRockBucket(double elevation)
         {
-            _categoryMaterials ??= new Dictionary<RenderCategory, Material>();
-            if (_categoryMaterials.TryGetValue(category, out Material existing) && existing != null)
+            double referenceAmplitude = CrustElevation.NoiseAmplitudeMeters * CrustElevation.OceanicNoiseFactor;
+            double normalized = referenceAmplitude > 0.0
+                ? (elevation - CrustElevation.OceanicBaseMeters) / referenceAmplitude
+                : 0.0;
+            normalized = normalized < -1.0 ? -1.0 : (normalized > 1.0 ? 1.0 : normalized);
+            double t = (normalized + 1.0) * 0.5; // [-1,1] -> [0,1]
+            int bucket = (int)Math.Round(t * (OceanRockBucketCount - 1));
+            return bucket < 0 ? 0 : (bucket > OceanRockBucketCount - 1 ? OceanRockBucketCount - 1 : bucket);
+        }
+
+        private static Color OceanRockColor(int bucket)
+        {
+            Color baseColor = new Color(0.34f, 0.33f, 0.30f);
+            float t = OceanRockBucketCount > 1 ? (float)bucket / (OceanRockBucketCount - 1) : 0.5f;
+            float brightness = Mathf.Lerp(0.82f, 1.18f, t); // sotetebb melyedes -> vilagosabb kiemelkedes
+            return new Color(
+                Mathf.Clamp01(baseColor.r * brightness),
+                Mathf.Clamp01(baseColor.g * brightness),
+                Mathf.Clamp01(baseColor.b * brightness),
+                baseColor.a);
+        }
+
+        private Dictionary<(RenderCategory Category, int Bucket), Material> _categoryMaterials;
+
+        private Material GetOrCreateCategoryMaterial((RenderCategory Category, int Bucket) key)
+        {
+            _categoryMaterials ??= new Dictionary<(RenderCategory Category, int Bucket), Material>();
+            if (_categoryMaterials.TryGetValue(key, out Material existing) && existing != null)
                 return existing;
 
-            Material mat = CreateFlatColorMaterial(CategoryColor(category));
-            _categoryMaterials[category] = mat;
+            Material mat = CreateFlatColorMaterial(CategoryColor(key.Category, key.Bucket));
+            _categoryMaterials[key] = mat;
             return mat;
         }
 
-        private static Color CategoryColor(RenderCategory category) => category switch
+        private static Color CategoryColor(RenderCategory category, int bucket) => category switch
         {
-            // A tengerfeneket MAR NEM kek szinezzuk - a viz vizualis
-            // jelzeset kizarolag a BuildOceanShell altal epitett, egysegesen
-            // a tengerszint sugaranal ulo hej adja. Korabban a viz-alatti
-            // tile-ok a SAJAT (valodi, tile-onkent nagyon elutero) elevaciojuk
-            // szerinti sugarnal jelentek meg kekre szinezve is - ez ket
-            // fuggetlen, elteru magassagu kek feluletet adott (a valodi
-            // ocean-fenek mely resze ES az elarasztott kontinentalis-self
-            // sekely resze kozott), ami ugy nezett ki, mintha ket kulon
-            // tengerszint lenne. Semleges, "nedves uledek/kozet" tonus.
-            RenderCategory.Ocean => new Color(0.34f, 0.33f, 0.30f),
+            // A tengerfenek MAR NEM egyetlen lapos szin - az OceanRockBucket
+            // a MEGLEVO elevation-bol szarmazo finom feny/sotet variaciot ad
+            // (ld. OceanRockColor). A viz vizualis jelzeset a KULON
+            // BuildWaterSurface reteg adja, a kalibralt tengerszint
+            // sugaranal, a helyi melysegtol fuggo szinnel (WaterBucketColor) -
+            // igy a tengerfenek (ez a szin) es a viz (kulon reteg) egyutt
+            // adjak ki a vegso kepet, nem keverednek ossze egyetlen
+            // "Ocean" szinben.
+            RenderCategory.Ocean => OceanRockColor(bucket),
             RenderCategory.SeaIce => new Color(0.80f, 0.88f, 0.93f),
             RenderCategory.IceSheet => new Color(0.95f, 0.96f, 0.98f),
             RenderCategory.Tundra => new Color(0.52f, 0.52f, 0.42f),
