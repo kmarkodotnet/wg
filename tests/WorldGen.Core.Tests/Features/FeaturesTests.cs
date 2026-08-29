@@ -122,6 +122,11 @@ public class FeatureSegmentationStructuralTests
             biomeOf[id] = BiomeClassification.Classify(tK, isOcean[id]);
         }
 
+        Dictionary<TileId, List<TileId>> regions = FeatureSegmentation.FindWatershedRegions(flood.Parent, isOcean);
+        Dictionary<TileId, List<TileId>> sizedRegions = regions
+            .Where(kv => kv.Value.Count >= 5)
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+
         List<List<TileId>> continents = SeaLevelCalibration.CountContinents(field, seaLevel, minSize: 5);
         List<List<TileId>> sortedContinents = continents
             .OrderByDescending(c => c.Count)
@@ -140,21 +145,25 @@ public class FeatureSegmentationStructuralTests
             string name = NameGeneration.GenerateName(WorldSeed, (ulong)i, dominant.ToString());
 
             int mouths = FeatureMetrics.RiverMouthCount(comp, flood.Parent, isOcean, riverTiles);
+            int basins = FeatureMetrics.RiverBasinCount(new HashSet<TileId>(comp), sizedRegions);
 
             Assert.Equal(exp.GetProperty("name").GetString(), name);
             Assert.Equal(exp.GetProperty("areaTiles").GetInt32(), comp.Count);
             Assert.Equal(exp.GetProperty("biomeCount").GetInt32(), biomesPresent.Count);
             Assert.Equal(exp.GetProperty("dominantBiome").GetString(), dominant.ToString());
             Assert.Equal(exp.GetProperty("riverMouthCount").GetInt32(), mouths);
+            Assert.Equal(exp.GetProperty("riverBasinCount").GetInt32(), basins);
             checkedContinents++;
         }
         Assert.Equal(2, checkedContinents);
 
-        Dictionary<TileId, List<TileId>> regions = FeatureSegmentation.FindWatershedRegions(flood.Parent, isOcean);
+        double oceanCoverage = FeatureMetrics.OceanCoverageFraction(isOcean);
+        Assert.Equal(root.GetProperty("worldOceanCoverage").GetDouble(), oceanCoverage, 9);
+
         List<TileId> sizedRootsSorted = regions.Keys
-            .Where(root => regions[root].Count >= 5)
-            .OrderByDescending(root => regions[root].Count)
-            .ThenBy(root => root, Comparer<TileId>.Create(CompareTileByFaceUV))
+            .Where(root2 => regions[root2].Count >= 5)
+            .OrderByDescending(root2 => regions[root2].Count)
+            .ThenBy(root2 => root2, Comparer<TileId>.Create(CompareTileByFaceUV))
             .ToList();
 
         JsonElement expectedRegions = root.GetProperty("regions");

@@ -70,6 +70,51 @@ public class FeatureMetricsStructuralTests
             new HashSet<TileId>());
         Assert.Equal(0, mouths);
     }
+
+    [Fact]
+    public void OceanCoverageFractionComputesCorrectRatio()
+    {
+        var isOcean = new Dictionary<TileId, bool>
+        {
+            [TileId.FromFaceLevelUV(0, 3, 0, 0)] = true,
+            [TileId.FromFaceLevelUV(0, 3, 1, 0)] = true,
+            [TileId.FromFaceLevelUV(0, 3, 2, 0)] = false,
+            [TileId.FromFaceLevelUV(0, 3, 3, 0)] = false,
+        };
+        Assert.Equal(0.5, FeatureMetrics.OceanCoverageFraction(isOcean), 9);
+    }
+
+    [Fact]
+    public void OceanCoverageFractionIsZeroForEmptyField()
+    {
+        Assert.Equal(0.0, FeatureMetrics.OceanCoverageFraction(new Dictionary<TileId, bool>()));
+    }
+
+    [Fact]
+    public void RiverBasinCountCountsOnlyIntersectingRegions()
+    {
+        TileId a = TileId.FromFaceLevelUV(0, 3, 0, 0);
+        TileId b = TileId.FromFaceLevelUV(0, 3, 1, 0);
+        TileId c = TileId.FromFaceLevelUV(0, 3, 2, 0);
+        TileId outsideRegionTile = TileId.FromFaceLevelUV(0, 3, 5, 5);
+
+        var continentTiles = new HashSet<TileId> { a, b };
+        var regions = new Dictionary<TileId, List<TileId>>
+        {
+            [a] = new List<TileId> { a }, // metszi a kontinenst
+            [c] = new List<TileId> { b, c }, // metszi (b benne van)
+            [outsideRegionTile] = new List<TileId> { outsideRegionTile }, // nem metszi
+        };
+
+        Assert.Equal(2, FeatureMetrics.RiverBasinCount(continentTiles, regions));
+    }
+
+    [Fact]
+    public void RiverBasinCountIsZeroForEmptyRegions()
+    {
+        var tiles = new HashSet<TileId> { TileId.FromFaceLevelUV(0, 3, 0, 0) };
+        Assert.Equal(0, FeatureMetrics.RiverBasinCount(tiles, new Dictionary<TileId, List<TileId>>()));
+    }
 }
 
 public class SelectRiverTilesTests

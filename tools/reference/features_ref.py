@@ -124,6 +124,23 @@ def dominant_biome(tiles, biome_of):
     return max(counts.items(), key=lambda kv: kv[1])[0]
 
 
+def ocean_coverage_fraction(is_ocean):
+    if not is_ocean:
+        return 0.0
+    ocean_count = sum(1 for v in is_ocean.values() if v)
+    return ocean_count / len(is_ocean)
+
+
+def river_basin_count(tiles, regions):
+    """Hany DISTINCT vizgyujto-regio metsz bele egy tile-halmazba."""
+    tile_set = set(tiles)
+    count = 0
+    for region_tiles in regions.values():
+        if any(t in tile_set for t in region_tiles):
+            count += 1
+    return count
+
+
 if __name__ == "__main__":
     world_seed = 0xA7C944210000
     plate_count = 20
@@ -174,13 +191,14 @@ if __name__ == "__main__":
         dom = dominant_biome(comp, biome_of)
         name = generate_name(world_seed, feature_id=i, dominant_biome=dom)
         mouths = river_mouth_count(comp, parent, is_ocean, river_tiles)
+        basins = river_basin_count(comp, sized_regions)  # csak a "named" (>=5 tile) regiok szamitanak
         result = {
             "name": name, "areaTiles": len(comp), "biomeCount": len(biomes_present),
-            "dominantBiome": dom, "riverMouthCount": mouths,
+            "dominantBiome": dom, "riverMouthCount": mouths, "riverBasinCount": basins,
         }
         continent_results.append(result)
         print(f"  {name}: {len(comp)} tile, {len(biomes_present)} biome, "
-              f"dominans={dom}, {mouths} folyo-torkolat")
+              f"dominans={dom}, {mouths} folyo-torkolat, {basins} vizgyujto")
 
     print("\n--- Regiok (top 10 meret szerint) ---")
     region_results = []
@@ -228,10 +246,14 @@ if __name__ == "__main__":
         name = generate_name(world_seed, feature_id, biome)
         name_vectors.append({"featureId": feature_id, "biome": biome, "name": name})
 
+    world_ocean_coverage = ocean_coverage_fraction(is_ocean)
+    print(f"\nVilag ocean-borítottság: {world_ocean_coverage*100:.1f}%")
+
     import json
     with open("features_vectors.json", "w", newline="\n") as f:
         json.dump({
             "worldSeed": world_seed, "plateCount": plate_count, "level": level,
+            "worldOceanCoverage": world_ocean_coverage,
             "continents": continent_results, "regions": region_results,
             "nameVectors": name_vectors,
         }, f, indent=1)

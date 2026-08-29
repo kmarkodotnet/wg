@@ -45,5 +45,44 @@ namespace WorldGen.Core.Features
             }
             return count;
         }
+
+        /// <summary>
+        /// Az óceán aránya a mezőben (0..1) - a "World Overview" panel
+        /// "Ocean coverage" mezőjének forrása (docs/01-architecture.md §2.1).
+        /// </summary>
+        public static double OceanCoverageFraction(Dictionary<TileId, bool> isOcean)
+        {
+            if (isOcean.Count == 0)
+                return 0.0;
+            int oceanCount = 0;
+            foreach (bool v in isOcean.Values)
+                if (v) oceanCount++;
+            return (double)oceanCount / isOcean.Count;
+        }
+
+        /// <summary>
+        /// Hány DISTINCT vízgyűjtő-régió (a <see cref="FeatureSegmentation.
+        /// FindWatershedRegions"/> eredménye, kifolyás-tile szerint
+        /// azonosítva) metsz bele egy adott tile-halmazba (kontinensbe) -
+        /// a "River basins" panel-mező (§2.2) forrása. Egy régió akkor
+        /// számít bele, ha LEGALÁBB EGY tile-ja a halmazban van.
+        /// </summary>
+        public static int RiverBasinCount(
+            HashSet<TileId> tiles, Dictionary<TileId, List<TileId>> regions)
+        {
+            int count = 0;
+            foreach (KeyValuePair<TileId, List<TileId>> region in regions)
+            {
+                foreach (TileId t in region.Value)
+                {
+                    if (tiles.Contains(t))
+                    {
+                        count++;
+                        break;
+                    }
+                }
+            }
+            return count;
+        }
     }
 }

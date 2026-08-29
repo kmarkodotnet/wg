@@ -2,20 +2,23 @@
  "worldSeed": 184482873278464,
  "plateCount": 20,
  "level": 6,
+ "worldOceanCoverage": 0.6499837239583334,
  "continents": [
   {
    "name": "Aulight Woods",
    "areaTiles": 7346,
    "biomeCount": 4,
    "dominantBiome": "Temperate",
-   "riverMouthCount": 7
+   "riverMouthCount": 7,
+   "riverBasinCount": 13
   },
   {
    "name": "Rhacy Barrens",
    "areaTiles": 1221,
    "biomeCount": 4,
    "dominantBiome": "Tundra",
-   "riverMouthCount": 1
+   "riverMouthCount": 1,
+   "riverBasinCount": 3
   }
  ],
  "regions": [
