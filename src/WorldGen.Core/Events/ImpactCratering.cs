@@ -195,6 +195,25 @@ namespace WorldGen.Core.Events
         }
 
         /// <summary>
+        /// Igaz, ha a pont legalább egy kráteren belül esik - a
+        /// megjelenítő oldal (Unity) ezzel jelölheti meg az érintett
+        /// tile-okat kategóriaként, a felbontás-korlát miatt (ld.
+        /// <see cref="ApplyToField"/> dokumentációja), anélkül hogy a
+        /// szimulációs logikát duplikálná (a CLAUDE.md szerint a
+        /// megjelenítő réteg nem tartalmazhat saját szimulációs matekot).
+        /// </summary>
+        public static bool IsInsideAnyCrater(double x, double y, double z, List<CraterRecord> craters)
+        {
+            foreach (CraterRecord crater in craters)
+            {
+                double dot = x * crater.X + y * crater.Y + z * crater.Z;
+                if (dot >= crater.CosAngularRadius)
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// A becsapódások alkalmazása egy elevation-mezőre
         /// <paramref name="timeMyr"/> időpontig.
         ///
