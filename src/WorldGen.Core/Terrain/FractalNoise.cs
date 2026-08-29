@@ -7,12 +7,11 @@ namespace WorldGen.Core.Terrain
     /// "Improving Noise" Ken Perlin 2002 kvintikus fade-görbével) + fBm
     /// (spec §13.2 "F: fractal detail").
     ///
-    /// CÉL: a <see cref="Tectonics.CrustElevation.TileNoiseJitter"/>
-    /// korábbi FEHÉR ZAJÁT (tile-onként FÜGGETLEN, térben NEM koherens)
-    /// váltja fel valódi, térben koherens fBm-mel — ez töri meg a
-    /// lemez-Voronoi-cellák "túl szabályos" határát organikus
-    /// változatossággal, dokumentált, korábban ismert hiányosság
-    /// (ld. CrustElevation korábbi osztály-doc-ja, ND-31).
+    /// CÉL: a <see cref="Tectonics.CrustElevation"/> korábbi FEHÉR ZAJÁT
+    /// (tile-onként FÜGGETLEN, térben NEM koherens) váltja fel valódi,
+    /// térben koherens fBm-mel — ez töri meg a lemez-Voronoi-cellák
+    /// "túl szabályos" határát organikus változatossággal, dokumentált,
+    /// korábban ismert hiányosság (ND-31).
     ///
     /// MÓDSZER: a rácspont-gradiensek hash-elése ÚJRAFELHASZNÁLJA a már
     /// verifikált <see cref="DeterministicRandom.SampleUnitVector3"/>

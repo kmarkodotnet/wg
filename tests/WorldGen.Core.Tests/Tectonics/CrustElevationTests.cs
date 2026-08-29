@@ -12,8 +12,9 @@ public class CrustElevationVectorFileTests
 {
     /// <summary>
     /// A Python referencia (tools/reference/crust_elevation_ref.py) által
-    /// generált vektorok. BITPONTOS egyezés várt - Sample/Chance csak egész
-    /// aritmetikát használ (nincs Sqrt/Sin/Cos itt), ld. DeterministicRandom.
+    /// generált vektorok. BITPONTOS egyezés várt (ND-27/ND-31 lezárt
+    /// megoldása - DeterministicMath/FractalNoise mindkét oldalon
+    /// ugyanaz a saját algoritmus, nem a rendszer könyvtára).
     /// </summary>
     [Fact]
     public void MatchesPythonReferenceExactly()
@@ -45,7 +46,8 @@ public class CrustElevationVectorFileTests
             bool expectedOceanic = v.GetProperty("isOceanic").GetBoolean();
 
             TileId id = TileId.FromFaceLevelUV(face, level, u, w);
-            double elevation = CrustElevation.BaseElevation(worldSeed, plateId, id.Value, out bool isOceanic);
+            TileGeometry.ToPosition(id, out double x, out double y, out double z);
+            double elevation = CrustElevation.BaseElevation(worldSeed, plateId, x, y, z, out bool isOceanic);
 
             Assert.Equal(expectedOceanic, isOceanic);
             Assert.Equal(expectedElevation, elevation);
@@ -61,8 +63,8 @@ public class CrustElevationPurityTests
     [Fact]
     public void RepeatedCallsAreIdentical()
     {
-        double a = CrustElevation.BaseElevation(123UL, 3, 456UL, out bool oa);
-        double b = CrustElevation.BaseElevation(123UL, 3, 456UL, out bool ob);
+        double a = CrustElevation.BaseElevation(123UL, 3, 0.6, 0.5, 0.7, out bool oa);
+        double b = CrustElevation.BaseElevation(123UL, 3, 0.6, 0.5, 0.7, out bool ob);
         Assert.Equal(a, b);
         Assert.Equal(oa, ob);
     }
@@ -89,18 +91,19 @@ public class CrustElevationParameterSensitivityTests
     }
 
     [Fact]
-    public void DifferentTileIdGivesDifferentJitter()
+    public void DifferentPositionGivesDifferentNoise()
     {
-        double a = CrustElevation.TileNoiseJitter(1UL, 100UL);
-        double b = CrustElevation.TileNoiseJitter(1UL, 200UL);
+        CrustElevation.BaseElevation(1UL, 0, 0.6, 0.5, 0.7, out _);
+        double a = CrustElevation.BaseElevation(1UL, 0, 0.6, 0.5, 0.7, out _);
+        double b = CrustElevation.BaseElevation(1UL, 0, -0.2, 0.9, 0.3, out _);
         Assert.NotEqual(a, b);
     }
 
     [Fact]
     public void DifferentWorldSeedChangesElevation()
     {
-        double a = CrustElevation.BaseElevation(1UL, 0, 1UL, out _);
-        double b = CrustElevation.BaseElevation(2UL, 0, 1UL, out _);
+        double a = CrustElevation.BaseElevation(1UL, 0, 0.6, 0.5, 0.7, out _);
+        double b = CrustElevation.BaseElevation(2UL, 0, 0.6, 0.5, 0.7, out _);
         Assert.NotEqual(a, b);
     }
 }
@@ -108,38 +111,48 @@ public class CrustElevationParameterSensitivityTests
 public class CrustElevationPlausibilityTests
 {
     [Fact]
-    public void JitterIsWithinExpectedRange()
-    {
-        for (ulong i = 0; i < 5000; i++)
-        {
-            double jitter = CrustElevation.TileNoiseJitter(42UL, i);
-            Assert.InRange(jitter, -1.0, 1.0);
-        }
-    }
-
-    [Fact]
     public void OceanicAndContinentalElevationsAreClearlySeparatedBands()
     {
         const ulong worldSeed = 42UL;
         double maxOceanic = double.NegativeInfinity;
         double minContinental = double.PositiveInfinity;
 
-        for (ulong i = 0; i < 2000; i++)
+        var rnd = new System.Random(7);
+        for (int i = 0; i < 2000; i++)
         {
-            double elev = CrustElevation.BaseElevation(worldSeed, plateId: 0, tileIdValue: i, out bool oceanic);
+            (double x, double y, double z) = RandomUnitVector(rnd);
+            double elev = CrustElevation.BaseElevation(worldSeed, plateId: 0, x, y, z, out bool oceanic);
             if (oceanic) maxOceanic = Math.Max(maxOceanic, elev);
         }
-        for (ulong i = 0; i < 2000; i++)
+        for (int i = 0; i < 2000; i++)
         {
-            double elev = CrustElevation.BaseElevation(worldSeed, plateId: 1, tileIdValue: i, out bool oceanic);
+            (double x, double y, double z) = RandomUnitVector(rnd);
+            double elev = CrustElevation.BaseElevation(worldSeed, plateId: 1, x, y, z, out bool oceanic);
             if (!oceanic) minContinental = Math.Min(minContinental, elev);
         }
 
-        // A jitter (+-500m) nem lophatja at a ket bazis (-4000 vs +800) kozotti
-        // szakadekot - ha az egyik plateId oceani a masik kontinentalis (ami
-        // Bernoulli-proba miatt tobbnyire igy lesz kulon plateId-knal).
+        // A zaj-amplitudo (+-500m korul, fBm-normalt) nem lophatja at a ket
+        // bazis (-4000 vs +800) kozotti szakadekot, meg jelentos tulcsordulassal
+        // szamolva sem - ha az egyik plateId oceani a masik kontinentalis
+        // (ami Bernoulli-proba miatt tobbnyire igy lesz kulon plateId-knal).
         Assert.True(maxOceanic < minContinental,
             $"Az óceáni és kontinentális sávok átfedik egymást: maxOceanic={maxOceanic}, minContinental={minContinental}");
+    }
+
+    private static (double X, double Y, double Z) RandomUnitVector(System.Random rnd)
+    {
+        while (true)
+        {
+            double x = rnd.NextDouble() * 2 - 1;
+            double y = rnd.NextDouble() * 2 - 1;
+            double z = rnd.NextDouble() * 2 - 1;
+            double lenSq = x * x + y * y + z * z;
+            if (lenSq > 1e-9 && lenSq <= 1.0)
+            {
+                double inv = 1.0 / Math.Sqrt(lenSq);
+                return (x * inv, y * inv, z * inv);
+            }
+        }
     }
 }
 

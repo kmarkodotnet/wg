@@ -57,7 +57,7 @@ def boundary_uplift(position, seeds, gap_scale=GAP_SCALE, uplift_max=UPLIFT_MAX_
 
 def elevation_with_boundary(world_seed, plate_id, tile_id_value, position, seeds,
                              gap_scale=GAP_SCALE, uplift_max=UPLIFT_MAX_M):
-    base, oceanic = base_elevation(world_seed, plate_id, tile_id_value)
+    base, oceanic = base_elevation(world_seed, plate_id, position)
     uplift = boundary_uplift(position, seeds, gap_scale, uplift_max)
     return base + uplift, oceanic
 

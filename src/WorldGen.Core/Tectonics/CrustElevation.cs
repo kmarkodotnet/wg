@@ -1,17 +1,22 @@
 using WorldGen.Core.Random;
+using WorldGen.Core.Terrain;
 
 namespace WorldGen.Core.Tectonics
 {
     /// <summary>
     /// M4 kéreg-típus és alap-eleváció (§4.2, docs/05-milestones.md).
     ///
-    /// HATÓKÖR (dokumentált egyszerűsítés, NEM ND — később finomítható):
+    /// HATÓKÖR (dokumentált egyszerűsítés, NEM ND — később finomíthető):
     ///   - Kéreg-típus PLATE-szinten (a spec §14.1 Plate struct-ja is így
     ///     modellezi: egy plate egyetlen CrustType mezővel rendelkezik).
-    ///   - Az §13.2 "fraktál részlet" (F) helyett egyszerű, tile-onként
-    ///     FÜGGETLEN (fehér zaj-szerű) magasság-jitter — NEM térben koherens
-    ///     fBm/Perlin. A makro-szerkezetet a plate-szintű kéreg-típus adja,
-    ///     ami már térben koherens (nagy Voronoi-régiók).
+    ///
+    /// ND-31 (docs/04-decisions.md): az §13.2 "fraktál részlet" (F)
+    /// korábban egyszerű, tile-onként FÜGGETLEN (fehér zaj-szerű)
+    /// magasság-jitter volt — NEM térben koherens fBm/Perlin, dokumentált,
+    /// ismert hiányosság ("túl szabályos" Voronoi-cella határok). MOST már
+    /// valódi, térben koherens fBm (<see cref="FractalNoise"/>) — ez töri
+    /// meg a lemez-határok túl szabályos alakját organikus
+    /// változatossággal.
     /// </summary>
     public static class CrustElevation
     {
@@ -28,23 +33,15 @@ namespace WorldGen.Core.Tectonics
                 oceanicProbability, RandomProperty.CrustType);
         }
 
-        /// <summary>[-1,1) független "jitter" tile-onként — NEM térben koherens (ld. osztály-doc).</summary>
-        public static double TileNoiseJitter(ulong worldSeed, ulong tileIdValue)
-        {
-            double v = DeterministicRandom.Sample(
-                worldSeed, RandomDomain.Terrain, tileIdValue, 0, RandomProperty.NoiseGradient);
-            return 2.0 * v - 1.0;
-        }
-
-        /// <summary>A tile alap-magassága méterben: kéreg-típus bázis + jitter.</summary>
+        /// <summary>A tile alap-magassága méterben: kéreg-típus bázis + térben koherens fBm-zaj.</summary>
         public static double BaseElevation(
-            ulong worldSeed, int plateId, ulong tileIdValue, out bool isOceanic,
+            ulong worldSeed, int plateId, double x, double y, double z, out bool isOceanic,
             double oceanicProbability = DefaultOceanicProbability)
         {
             isOceanic = IsOceanic(worldSeed, plateId, oceanicProbability);
             double baseValue = isOceanic ? OceanicBaseMeters : ContinentalBaseMeters;
-            double jitter = TileNoiseJitter(worldSeed, tileIdValue);
-            return baseValue + jitter * NoiseAmplitudeMeters;
+            double noise = FractalNoise.Fbm(worldSeed, x, y, z);
+            return baseValue + noise * NoiseAmplitudeMeters;
         }
     }
 }

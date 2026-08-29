@@ -357,6 +357,55 @@ osztály, mint a Math.Sin/Cos/Pow (ND-27), nem igényel ND-kockázatvállalást.
 227/227 teszt zöld, a Python-referenciával (`state_hash_ref.py`)
 BITPONTOS SHA-256 egyezés.
 
+### ND-31 — M13 fraktál-zaj: a CrustElevation fehér zaja lecserélve térben koherens fBm-re
+
+**Kérdés:** a `CrustElevation` osztály saját dokumentációja MÁR M4 óta
+explicit módon felvetette (nem ND-ként, hanem "később finomítható
+egyszerűsítésként"): az §13.2 "fraktál részlet" (F) helyett egyszerű,
+tile-onként FÜGGETLEN (fehér zaj-szerű) magasság-jitter volt használva —
+NEM térben koherens fBm/Perlin. Ez okozta a korábban (M4/M13
+vizsgálatnál) dokumentált "túl szabályos" Voronoi-cella-szerű
+partvonal/hegylánc-benyomást. A felhasználó explicit kérésére ez a
+lépés MOST lezárva (korábban "A" opcióval — halasztás — döntött).
+
+**Döntés:** valódi 3D gradiens-zaj (`FractalNoise`, Ken Perlin
+"Improving Noise" 2002 kvintikus fade-görbével) + fBm (5 oktáv,
+persistence=0.5, lacunarity=2.0 — standard, széles körben idézett
+paraméterek) váltja fel a fehér zajt. A rácspont-gradiensek hash-elése
+ÚJRAFELHASZNÁLJA a már verifikált `SampleUnitVector3`-at (nincs új,
+ellenőrizetlen hash-függvény). A kvintikus fade-görbe és a trilineáris
+interpoláció TISZTA POLINOM — nincs új transzcendens-kockázat (ND-27
+osztálya nem bővül).
+
+**Hatókör:** csak az "F: fractal detail" komponens — a §13.2 teljes
+`H0(p) = w_c·C(p) + w_f·F(p) + w_r·R(p) + w_v·V(p)` képletéből a
+kontinens-maszk (C) továbbra is a lemez-Voronoi-struktúra, a ridged
+mountains (R) és volcanic field (V) komponensek NEM külön modellezettek
+most (R részben már létezik `PlateBoundaryEffect` uplift formájában, V
+az M11 szuper-vulkán eseményekben — ezek nem lettek most újratervezve).
+
+**BLAST RADIUS (dokumentált, szándékos):** ez ELTÉRŐ, magasabb kockázatú
+kategória, mint a korábbi ND-k, mert az `M4` bázis-elevációt módosítja,
+amire SZINTE MINDEN azóta épült modul épül. Érintett, újragenerált
+tesztvektorok: `crust_elevation_vectors.json`, `plate_boundary_vectors.json`,
+`hydrology_vectors.json`, `features_vectors.json`, `state_hash_vectors.json`.
+`TEST-EARTH-001` (50-75% víz, ≥2 kontinens) VÁLTOZATLANUL teljesül (65.00%
+víz, 2 kontinens — a pontos tile-számok kis mértékben eltolódtak:
+7346+1221 → 7343+1220). A régió-szegmentálás régió-száma is változott
+(16→8) — ez a koherens zaj miatt módosult vízgyűjtő-topológia
+természetes következménye, nem hiba.
+
+**API-változás:** `CrustElevation.BaseElevation` és
+`PlateBoundaryEffect.ElevationWithBoundary` mostantól a pozíciót
+(x,y,z) használja a zaj-kiértékeléshez a korábbi `tileIdValue` helyett
+(a `tileIdValue` paraméter megmaradt `ElevationWithBoundary`-n, csak
+belül nem használt — visszamenőleges hívási kompatibilitás). A Unity
+oldal NEM érintett (csak `ElevationWithBoundary`-t hívja, aminek a
+publikus szignatúrája változatlan).
+
+234/234 teszt zöld, a Python-referenciával BITPONTOS egyezés minden
+érintett láncban.
+
 ## Nyitott döntések
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai

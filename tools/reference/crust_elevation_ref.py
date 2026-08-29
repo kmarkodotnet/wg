@@ -2,29 +2,28 @@
 Kereg-tipus es alap-elevacio referencia-implementacioja M4-hez
 (docs/05-milestones.md §4.2).
 
-HATOKOR (tudatosan szukitve, dokumentalt egyszerusites - NEM architekturalis
-dontes/ND, csak egy kesobb finomithato reszlet):
+HATOKOR (dokumentalt egyszerusites - NEM architekturalis dontes/ND, csak
+egy kesobb finomithato reszlet):
   - A kereg-tipus PLATE-szinten van (a spec §14.1 Plate struct-ja is így
     modellezi: egy plate egyetlen CrustType mezovel rendelkezik).
-  - Az "F fraktal reszlet" (§13.2) helyett EGYSZERU, tile-onkent FUGGETLEN
-    (feher zaj-szeru) magassag-jitter - NEM terben koherens fBm/Perlin.
-    A makro-szerkezetet (kontinensek/oceanok) igy is a plate-szintu
-    kereg-tipus adja, ami mar terben koherens (a Voronoi-regiok nagyok).
-    Valodi koherens zaj kesobbi finomitas, ha a vizualis minoseg
-    megkoveteli.
+
+ND-31 (docs/04-decisions.md): az "F fraktal reszlet" (§13.2) korabban
+EGYSZERU, tile-onkent FUGGETLEN (feher zaj-szeru) magassag-jitter volt -
+NEM terben koherens fBm/Perlin, dokumentalt, ismert hianyossag ("tul
+szabalyos" Voronoi-cella hatarok). MOST mar valodi, terben koherens fBm
+(noise_ref.gradient_noise3d/fbm) - ez torik meg a lemez-hatarok tul
+szabalyos alakjat organikus valtozatossaggal.
 
 NEM produkcios kod - csak orakulum, a python-reference skill szerint.
 """
-import math
 from threefry_ref import threefry4x64
+from noise_ref import fbm
 
 M64 = (1 << 64) - 1
 SCALE53 = 2.0 ** -53
 
 DOMAIN_TECTONICS = 2
-DOMAIN_TERRAIN = 1
 PROPERTY_CRUST_TYPE = 13  # uj RandomProperty - Tectonics domain
-PROPERTY_NOISE_GRADIENT = 2  # mar letezo - Terrain domain
 
 # Fold-szeru bazisertekek meterben (csak illusztraciohoz - a vegso
 # skalazas majd a tengerszint-kalibracional dol el, §4.4).
@@ -55,18 +54,13 @@ def is_oceanic(world_seed, plate_id, oceanic_probability=OCEANIC_PROBABILITY):
     return sample(world_seed, DOMAIN_TECTONICS, plate_id, 0, PROPERTY_CRUST_TYPE) < oceanic_probability
 
 
-def tile_noise_jitter(world_seed, tile_id_value):
-    """[-1,1) fuggetlen "jitter" tile-onkent - NEM terben koherens (ld. modul docstring)."""
-    v = sample(world_seed, DOMAIN_TERRAIN, tile_id_value, 0, PROPERTY_NOISE_GRADIENT)
-    return 2.0 * v - 1.0
-
-
-def base_elevation(world_seed, plate_id, tile_id_value, oceanic_probability=OCEANIC_PROBABILITY):
-    """A tile alap-magassaga meterben: kereg-tipus bazis + jitter."""
+def base_elevation(world_seed, plate_id, position, oceanic_probability=OCEANIC_PROBABILITY):
+    """A tile alap-magassaga meterben: kereg-tipus bazis + terben koherens fBm-zaj."""
     oceanic = is_oceanic(world_seed, plate_id, oceanic_probability)
     base = OCEANIC_BASE_M if oceanic else CONTINENTAL_BASE_M
-    jitter = tile_noise_jitter(world_seed, tile_id_value)
-    return base + jitter * NOISE_AMPLITUDE_M, oceanic
+    x, y, z = position
+    noise = fbm(world_seed, x, y, z)
+    return base + noise * NOISE_AMPLITUDE_M, oceanic
 
 
 if __name__ == "__main__":
@@ -100,7 +94,7 @@ if __name__ == "__main__":
                 pos = position_from_tile(face, level, u, v)
                 plate_id = assign_plate(pos, seeds)
                 tid = tile_id(face, level, u, v)
-                elev, _ = base_elevation(world_seed, plate_id, tid)
+                elev, _ = base_elevation(world_seed, plate_id, pos)
                 elevations.append(elev)
 
     elevations.sort()
@@ -125,7 +119,7 @@ if __name__ == "__main__":
             pos = position_from_tile(face, level, u, v)
             plate_id = assign_plate(pos, seeds)
             tid = tile_id(face, level, u, v)
-            elev, oceanic = base_elevation(world_seed, plate_id, tid)
+            elev, oceanic = base_elevation(world_seed, plate_id, pos)
             vectors.append({
                 "face": face, "level": level, "u": u, "v": v,
                 "plateId": plate_id, "elevation": elev, "isOceanic": oceanic,

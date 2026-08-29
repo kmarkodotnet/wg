@@ -62,7 +62,7 @@ namespace WorldGen.Core.Tectonics
             out bool isOceanic,
             double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters)
         {
-            double baseElevation = CrustElevation.BaseElevation(worldSeed, plateId, tileIdValue, out isOceanic);
+            double baseElevation = CrustElevation.BaseElevation(worldSeed, plateId, x, y, z, out isOceanic);
             double uplift = BoundaryUplift(x, y, z, seeds, gapScale, upliftMax);
             return baseElevation + uplift;
         }
