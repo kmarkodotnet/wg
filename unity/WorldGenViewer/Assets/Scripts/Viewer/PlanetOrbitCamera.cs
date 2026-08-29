@@ -22,7 +22,13 @@ namespace WorldGen.Viewer
         [SerializeField] private float minDistance = 120f;
         [SerializeField] private float maxDistance = 800f;
 
-        [SerializeField] private float rotationSpeed = 120f;
+        [SerializeField]
+        [Tooltip("Fok/pixel/másodperc, EGYSÉGNYI távolságra vetítve - a tényleges " +
+                 "forgási sebesség a jelenlegi távolsággal SZORZÓDIK (közelebbről " +
+                 "lassabb, távolabbról gyorsabb), mert fix fok/pixel érték közelről " +
+                 "túl gyorsnak, távolról túl lassúnak érződne ugyanannyi képernyő-mozgásra.")]
+        private float rotationSpeedPerDistance = 3.33f;
+
         [SerializeField] private float zoomSpeed = 150f;
 
         [SerializeField] private float minPitch = -85f;
@@ -53,8 +59,9 @@ namespace WorldGen.Viewer
             {
                 float dx = Input.GetAxis("Mouse X");
                 float dy = Input.GetAxis("Mouse Y");
-                _yaw += dx * rotationSpeed * Time.deltaTime;
-                _pitch -= dy * rotationSpeed * Time.deltaTime;
+                float effectiveRotationSpeed = rotationSpeedPerDistance * distance;
+                _yaw += dx * effectiveRotationSpeed * Time.deltaTime;
+                _pitch -= dy * effectiveRotationSpeed * Time.deltaTime;
                 _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
             }
 
