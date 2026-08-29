@@ -5,26 +5,26 @@
  "worldOceanCoverage": 0.6499837239583334,
  "continents": [
   {
-   "name": "Aulight Waste",
-   "areaTiles": 7343,
+   "name": "Aulight Woods",
+   "areaTiles": 7370,
    "biomeCount": 4,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Temperate",
    "riverMouthCount": 7,
-   "riverBasinCount": 7
+   "riverBasinCount": 9
   },
   {
    "name": "Rhacy Barrens",
-   "areaTiles": 1220,
+   "areaTiles": 1232,
    "biomeCount": 4,
    "dominantBiome": "Tundra",
    "riverMouthCount": 1,
-   "riverBasinCount": 1
+   "riverBasinCount": 2
   }
  ],
  "regions": [
   {
    "name": "Tideos Forest",
-   "areaTiles": 2152,
+   "areaTiles": 2147,
    "dominantBiome": "Temperate",
    "outlet": [
     0,
@@ -35,7 +35,7 @@
   },
   {
    "name": "Vermar Tundra",
-   "areaTiles": 1071,
+   "areaTiles": 1064,
    "dominantBiome": "Tundra",
    "outlet": [
     5,
@@ -46,29 +46,29 @@
   },
   {
    "name": "Rinum Glacier",
-   "areaTiles": 1016,
+   "areaTiles": 1014,
    "dominantBiome": "IceSheet",
    "outlet": [
     4,
-    37,
+    36,
     33
    ],
    "riverMouthCount": 1
   },
   {
    "name": "Verhal Glacier",
-   "areaTiles": 1009,
+   "areaTiles": 1000,
    "dominantBiome": "IceSheet",
    "outlet": [
     4,
-    6,
-    54
+    7,
+    53
    ],
    "riverMouthCount": 1
   },
   {
    "name": "Mirnor Vale",
-   "areaTiles": 950,
+   "areaTiles": 956,
    "dominantBiome": "Temperate",
    "outlet": [
     0,
@@ -79,7 +79,7 @@
   },
   {
    "name": "Mirlu Woods",
-   "areaTiles": 947,
+   "areaTiles": 946,
    "dominantBiome": "Temperate",
    "outlet": [
     3,
@@ -90,18 +90,18 @@
   },
   {
    "name": "Frosos Waste",
-   "areaTiles": 367,
+   "areaTiles": 366,
    "dominantBiome": "Tundra",
    "outlet": [
     0,
-    2,
-    15
+    18,
+    10
    ],
    "riverMouthCount": 1
   },
   {
    "name": "Quelau Tundra",
-   "areaTiles": 346,
+   "areaTiles": 347,
    "dominantBiome": "Tundra",
    "outlet": [
     3,
@@ -109,6 +109,39 @@
     3
    ],
    "riverMouthCount": 1
+  },
+  {
+   "name": "Mirrel Frost",
+   "areaTiles": 11,
+   "dominantBiome": "IceSheet",
+   "outlet": [
+    4,
+    6,
+    54
+   ],
+   "riverMouthCount": 0
+  },
+  {
+   "name": "Northal Glacier",
+   "areaTiles": 5,
+   "dominantBiome": "IceSheet",
+   "outlet": [
+    1,
+    11,
+    31
+   ],
+   "riverMouthCount": 0
+  },
+  {
+   "name": "Lightdel Rime",
+   "areaTiles": 5,
+   "dominantBiome": "IceSheet",
+   "outlet": [
+    4,
+    26,
+    19
+   ],
+   "riverMouthCount": 0
   }
  ],
  "nameVectors": [

@@ -23,7 +23,7 @@ namespace WorldGen.Core.Events
     ///   - Felső sapka: 5×10¹² m³ (La Garita Caldera/Fish Canyon Tuff, a
     ///     valaha ismert legnagyobb kitörés).
     ///   - Geometria: pajzsvulkán-kúp, lejtőszög ~6°.
-    ///   - Pozíció: <see cref="PlateBoundaryEffect.TwoBestDots"/> "gap"
+    ///   - Pozíció: <c>PlateBoundaryEffect.TwoBestDots</c> "gap"
     ///     ÚJRAFELHASZNÁLVA — elutasításos mintavétel a lemezhatárok köré.
     ///
     /// Nincs Math.Sin/Cos/Pow/Acos a kritikus úton (ND-27 lezárt
@@ -71,7 +71,7 @@ namespace WorldGen.Core.Events
         /// <summary>
         /// Elutasításos mintavétel: egyenletes gömbi pont, elfogadva a
         /// lemezhatár-közelséggel arányos valószínűséggel (1 - gap/GapScale,
-        /// 0 ha gap ≥ GapScale) - a <see cref="PlateBoundaryEffect.TwoBestDots"/>
+        /// 0 ha gap ≥ GapScale) - a <c>PlateBoundaryEffect.TwoBestDots</c>
         /// ÚJRAFELHASZNÁLÁSÁVAL, nincs duplikált határ-közelség logika.
         /// </summary>
         public static void SamplePositionNearBoundary(

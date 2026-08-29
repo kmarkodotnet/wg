@@ -26,10 +26,11 @@ hegyvidek/orogen ovezetek a szarazfold kisebbik reszet teszik ki).
 
 NEM produkcios kod - csak orakulum, a python-reference skill szerint.
 """
-from crust_elevation_ref import base_elevation
+from crust_elevation_ref import base_elevation, is_oceanic
 
 GAP_SCALE = 0.04
 UPLIFT_MAX_M = 1500.0
+OCEANIC_OCEANIC_UPLIFT_FACTOR = 0.15  # ND-32: oceani-oceani hataron csokkentett uplift
 
 
 def two_best_dots(position, seeds):
@@ -46,19 +47,45 @@ def two_best_dots(position, seeds):
     return best, second
 
 
-def boundary_uplift(position, seeds, gap_scale=GAP_SCALE, uplift_max=UPLIFT_MAX_M):
-    """Hatar-kozeli kiemelkedes-bonusz: minel kisebb a gap, annal nagyobb."""
-    best, second = two_best_dots(position, seeds)
+def two_best_dots_with_indices(position, seeds):
+    """Ugyanaz, mint two_best_dots, de a ket legkozelebbi lemez INDEXET is
+    visszaadja (kereg-tipus lekerdezesehez, ND-32)."""
+    x, y, z = position
+    best, second = -2.0, -2.0
+    best_index, second_index = -1, -1
+    for i, (sx, sy, sz) in enumerate(seeds):
+        d = x * sx + y * sy + z * sz
+        if d > best:
+            second, second_index = best, best_index
+            best, best_index = d, i
+        elif d > second:
+            second, second_index = d, i
+    return best, second, best_index, second_index
+
+
+def boundary_uplift(world_seed, position, seeds, gap_scale=GAP_SCALE, uplift_max=UPLIFT_MAX_M,
+                     oceanic_oceanic_factor=OCEANIC_OCEANIC_UPLIFT_FACTOR):
+    """Hatar-kozeli kiemelkedes-bonusz: minel kisebb a gap, annal nagyobb.
+    Oceani-oceani hataron oceanic_oceanic_factor-ral csokkentve (ND-32) -
+    a valosagban ott vulkani szigetivek epulnek, nem kontinentalis-utkozes
+    lepteku hegylancok."""
+    best, second, best_idx, second_idx = two_best_dots_with_indices(position, seeds)
     gap = best - second
     if gap >= gap_scale:
         return 0.0
-    return uplift_max * (1.0 - gap / gap_scale)
+    raw_uplift = uplift_max * (1.0 - gap / gap_scale)
+
+    best_oceanic = is_oceanic(world_seed, best_idx)
+    second_oceanic = second_idx >= 0 and is_oceanic(world_seed, second_idx)
+    if best_oceanic and second_oceanic:
+        return raw_uplift * oceanic_oceanic_factor
+    return raw_uplift
 
 
 def elevation_with_boundary(world_seed, plate_id, tile_id_value, position, seeds,
                              gap_scale=GAP_SCALE, uplift_max=UPLIFT_MAX_M):
     base, oceanic = base_elevation(world_seed, plate_id, position)
-    uplift = boundary_uplift(position, seeds, gap_scale, uplift_max)
+    uplift = boundary_uplift(world_seed, position, seeds, gap_scale, uplift_max)
     return base + uplift, oceanic
 
 
@@ -84,7 +111,7 @@ if __name__ == "__main__":
         for u in range(0, n, 2):
             for v in range(0, n, 2):
                 pos = position_from_tile(face, level, u, v)
-                up = boundary_uplift(pos, seeds)
+                up = boundary_uplift(world_seed, pos, seeds)
                 total += 1
                 if up > 0:
                     affected += 1
@@ -98,8 +125,8 @@ if __name__ == "__main__":
     print("OK - a lemezhatar-hatas zonaja plauzibilis meretu\n")
 
     # Determinizmus
-    up1 = boundary_uplift((0.5, 0.5, 0.7071), seeds)
-    up2 = boundary_uplift((0.5, 0.5, 0.7071), seeds)
+    up1 = boundary_uplift(world_seed, (0.5, 0.5, 0.7071), seeds)
+    up2 = boundary_uplift(world_seed, (0.5, 0.5, 0.7071), seeds)
     assert up1 == up2, "Nem tiszta fuggveny!"
     print("OK - determinisztikus (tiszta függvény)")
 

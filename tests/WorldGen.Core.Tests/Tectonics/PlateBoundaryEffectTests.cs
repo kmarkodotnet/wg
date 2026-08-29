@@ -53,13 +53,14 @@ public class PlateBoundaryEffectVectorFileTests
 
 public class PlateBoundaryEffectPlausibilityTests
 {
+    private const ulong WorldSeed = 0xA7C944210000UL;
+
     [Fact]
     public void BoundaryZoneCoversAPlausibleFraction()
     {
-        const ulong worldSeed = 0xA7C944210000UL;
         const int plateCount = 12;
         const int level = 6;
-        var seeds = PlateGeneration.GenerateSeeds(worldSeed, plateCount);
+        var seeds = PlateGeneration.GenerateSeeds(WorldSeed, plateCount);
 
         uint n = 1u << level;
         int total = 0, affected = 0;
@@ -73,7 +74,7 @@ public class PlateBoundaryEffectPlausibilityTests
                 {
                     TileId id = TileId.FromFaceLevelUV(face, level, u, v);
                     TileGeometry.ToPosition(id, out double x, out double y, out double z);
-                    double uplift = PlateBoundaryEffect.BoundaryUplift(x, y, z, seeds);
+                    double uplift = PlateBoundaryEffect.BoundaryUplift(WorldSeed, x, y, z, seeds);
                     total++;
                     if (uplift > 0.0)
                     {
@@ -87,8 +88,13 @@ public class PlateBoundaryEffectPlausibilityTests
         double fraction = affected / (double)total;
         Assert.True(fraction > 0.05 && fraction < 0.35,
             $"A határ-hatás zónája túl szűk vagy túl széles: {fraction:P1}");
-        Assert.True(Math.Abs(maxUplift - PlateBoundaryEffect.DefaultUpliftMaxMeters) < 1.0,
-            $"A max uplift-nak kb. a plafonértéknek kell lennie a határon: {maxUplift}");
+        // A max uplift most mar kereg-tipus-fuggo lehet (ND-32) - ha a
+        // legkozelebbi hatar epp oceani-oceani, a max ertek a csokkentett
+        // sapkat (DefaultUpliftMaxMeters * DefaultOceanicOceanicUpliftFactor)
+        // is elerhetne, ezert csak azt varjuk el, hogy a plafonertek EGYIK
+        // dokumentalt sapkanal se legyen magasabb.
+        Assert.True(maxUplift <= PlateBoundaryEffect.DefaultUpliftMaxMeters + 1.0,
+            $"A max uplift nem lehet nagyobb a plafonértéknél: {maxUplift}");
     }
 
     [Fact]
@@ -99,9 +105,54 @@ public class PlateBoundaryEffectPlausibilityTests
         {
             TileId id = TileId.FromFaceLevelUV(i % 6, 6, (uint)(i * 3 % 64), (uint)(i * 5 % 64));
             TileGeometry.ToPosition(id, out double x, out double y, out double z);
-            double uplift = PlateBoundaryEffect.BoundaryUplift(x, y, z, seeds);
+            double uplift = PlateBoundaryEffect.BoundaryUplift(1UL, x, y, z, seeds);
             Assert.True(uplift >= 0.0);
         }
+    }
+
+    [Fact]
+    public void OceanicOceanicBoundaryGetsReducedUplift()
+    {
+        // Ket szintetikus, KEZZEL kontrollalt, KOZELI mag - mindketto
+        // oceani-e vagy sem az a worldSeed+plateId Bernoulli-probajatol
+        // fugg, ezert addig probalunk seedeket, amig talalunk egy olyan
+        // (worldSeed, plateId=0,1) part, ahol mindketto oceani, ES egy
+        // masikat, ahol legalabb az egyik kontinentalis - igy direkt
+        // osszehasonlithato ugyanazon gap mellett a ket eset uplift-je.
+        var seeds = new (double X, double Y, double Z)[]
+        {
+            (1.0, 0.0, 0.0),
+            (0.9999, 0.01414, 0.0), // nagyon kozeli masodik mag -> kis gap -> kozel max uplift
+        };
+        // Normalizalas
+        for (int i = 0; i < seeds.Length; i++)
+        {
+            double len = Math.Sqrt(seeds[i].X * seeds[i].X + seeds[i].Y * seeds[i].Y + seeds[i].Z * seeds[i].Z);
+            seeds[i] = (seeds[i].X / len, seeds[i].Y / len, seeds[i].Z / len);
+        }
+
+        ulong oceanicOceanicSeed = 0;
+        ulong mixedSeed = 0;
+        for (ulong candidate = 1; candidate < 100000; candidate++)
+        {
+            bool p0Oceanic = CrustElevation.IsOceanic(candidate, 0);
+            bool p1Oceanic = CrustElevation.IsOceanic(candidate, 1);
+            if (p0Oceanic && p1Oceanic && oceanicOceanicSeed == 0)
+                oceanicOceanicSeed = candidate;
+            if (!(p0Oceanic && p1Oceanic) && mixedSeed == 0)
+                mixedSeed = candidate;
+            if (oceanicOceanicSeed != 0 && mixedSeed != 0)
+                break;
+        }
+        Assert.True(oceanicOceanicSeed != 0 && mixedSeed != 0, "Nem találtunk megfelelő teszt-seedeket");
+
+        double upliftOceanicOceanic = PlateBoundaryEffect.BoundaryUplift(
+            oceanicOceanicSeed, seeds[0].X, seeds[0].Y, seeds[0].Z, seeds);
+        double upliftMixed = PlateBoundaryEffect.BoundaryUplift(
+            mixedSeed, seeds[0].X, seeds[0].Y, seeds[0].Z, seeds);
+
+        Assert.True(upliftOceanicOceanic < upliftMixed,
+            $"Óceáni-óceáni uplift ({upliftOceanicOceanic}) nem kisebb, mint a kontinentálist is érintő ({upliftMixed})");
     }
 }
 
@@ -124,7 +175,7 @@ public class PlateBoundaryEffectEdgeCaseTests
             (-1.0, 0.0, 0.0), (0.0, -1.0, 0.0), (0.0, 0.0, -1.0),
         };
         double uplift = PlateBoundaryEffect.BoundaryUplift(
-            seeds[0].X, seeds[0].Y, seeds[0].Z, seeds);
+            1UL, seeds[0].X, seeds[0].Y, seeds[0].Z, seeds);
         Assert.Equal(0.0, uplift);
     }
 
@@ -133,7 +184,7 @@ public class PlateBoundaryEffectEdgeCaseTests
     {
         // 1 lemeznel nincs "masodik legkozelebbi", a gap vegtelen -> mindig 0.
         var seeds = PlateGeneration.GenerateSeeds(5UL, 1);
-        double uplift = PlateBoundaryEffect.BoundaryUplift(0.5, 0.5, 0.5, seeds);
+        double uplift = PlateBoundaryEffect.BoundaryUplift(5UL, 0.5, 0.5, 0.5, seeds);
         Assert.Equal(0.0, uplift);
     }
 
@@ -141,8 +192,8 @@ public class PlateBoundaryEffectEdgeCaseTests
     public void IsPure()
     {
         var seeds = PlateGeneration.GenerateSeeds(9UL, 12);
-        double a = PlateBoundaryEffect.BoundaryUplift(0.3, 0.4, 0.5, seeds);
-        double b = PlateBoundaryEffect.BoundaryUplift(0.3, 0.4, 0.5, seeds);
+        double a = PlateBoundaryEffect.BoundaryUplift(9UL, 0.3, 0.4, 0.5, seeds);
+        double b = PlateBoundaryEffect.BoundaryUplift(9UL, 0.3, 0.4, 0.5, seeds);
         Assert.Equal(a, b);
     }
 }

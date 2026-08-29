@@ -22,7 +22,10 @@ namespace WorldGen.Core.Tectonics
     {
         public const double OceanicBaseMeters = -4000.0;
         public const double ContinentalBaseMeters = 800.0;
-        public const double NoiseAmplitudeMeters = 500.0;
+        // ND-32: felhasznaloi visszajelzes - a korabbi 500m eltorpult a
+        // hatar-uplift (1500m) es az ocean/kontinens alapszint-kulonbseg
+        // (4800m) mellett, gyakorlatilag lathatatlan volt.
+        public const double NoiseAmplitudeMeters = 2000.0;
         public const double DefaultOceanicProbability = 0.55;
 
         /// <summary>Kéreg-típus lemezenként — determinisztikus Bernoulli-próba.</summary>

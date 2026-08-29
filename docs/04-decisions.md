@@ -406,6 +406,58 @@ publikus szignatúrája változatlan).
 234/234 teszt zöld, a Python-referenciával BITPONTOS egyezés minden
 érintett láncban.
 
+### ND-32 — ND-31 vizuális visszajelzés alapján: erősebb zaj + kéreg-típus-tudatos határhatás
+
+**Kérdés:** az ND-31 Unity-beli vizuális ellenőrzésekor a felhasználó
+konkrét, jól diagnosztizálható hibákat talált:
+1. A fraktál-zaj gyakorlatilag észrevehetetlen volt.
+2. A kontinensek továbbra is szinte pontosan a lemez-Voronoi-cellákkal
+   egyeztek.
+3. A lemezhatárokon fix magasságú, "falszerű" kiemelkedés látszott.
+4. **Óceáni-óceáni lemezhatárokon is** megemelkedett az óceán
+   látszólagos szintje.
+5. Óceán-kontinens határon a szárazföld irreálisan kidudorodott.
+
+**Diagnózis (mérve, nem találgatva):** egy statisztikai teszt
+kimutatta, hogy a "part-vonal - lemezhatár egyezés" mértéke (0.28%
+eltérés) FÜGGETLEN volt a zaj-amplitúdótól (500-3500m tartományban
+tesztelve) — ez bizonyította, hogy nem a zaj gyengesége az elsődleges
+ok, hanem a `PlateBoundaryEffect.BoundaryUplift` egységes (kéreg-
+típustól független) alkalmazása, ami minden határon (óceáni-óceáni is)
+ugyanazt a max. 1500m-es kiemelkedést adja hozzá — ez már önmagában a
+tengerszint fölé emelhet óceáni tile-okat.
+
+**Döntés (két összehangolt javítás):**
+1. **`CrustElevation.NoiseAmplitudeMeters`: 500 → 2000m.** A korábbi
+   érték eltörpült a határ-uplift (1500m) és az óceán/kontinens
+   alapszint-különbség (4800m) mellett — Unity-oldalon
+   `elevationScale`-lel szorozva a zaj-hozzájárulás vizuálisan
+   gyakorlatilag nem volt megkülönböztethető a sima felülettől.
+2. **`PlateBoundaryEffect.BoundaryUplift` kéreg-típus-tudatos:** ha a
+   két legközelebbi lemez MINDKETTŐ óceáni, az uplift
+   `DefaultOceanicOceanicUpliftFactor = 0.15`-tel szorzódik (nem
+   nullázva — a valóságban óceáni-óceáni konvergens határon vulkáni
+   szigetívek épülnek, csak keskenyebb/alacsonyabb relieffel, mint egy
+   kontinentális ütközési zóna). `TwoBestDots` új túlterhelést kapott,
+   ami a két legközelebbi lemez INDEXÉT is visszaadja (a kéreg-típus
+   lekérdezéséhez) — a régi, csak dot-productot visszaadó verzió
+   megmaradt (backward-kompatibilis, `VolcanicEruption` ezt hívja
+   tovább, mert annak nincs szüksége kéreg-típusra).
+
+**MÉG NYITVA (a felhasználóval egyeztetve, külön kérésre indítva):** a
+"kontinensek pontosan a lemez-Voronoi-cellákkal egyeznek" probléma
+STRUKTURÁLIS — a kéreg-típus jelenleg lemez-szinten bináris (§14.1
+Plate struct mintájára), a nearest-seed plate-hozzárendelés pedig
+mindig geometriailag sima (nagykör-szerű) határvonalat ad. Ennek valódi
+javítása **domain warping**-ot igényelne (a spec §13.1 is név szerint
+említi) — a pozíciót magát eltorzítani zajjal, MIELŐTT a lemez-
+hozzárendelés/gap-számítás megtörténne. Ez jóval nagyobb hatókörű
+változás lenne (a `PlateGeneration.AssignPlate` szignatúráját és
+gyakorlatilag minden hívóját érintené) — külön döntés kell róla, nem
+ennek az ND-nek a része.
+
+235/235 teszt zöld, Python-referenciával bitpontos egyezés.
+
 ## Nyitott döntések
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai

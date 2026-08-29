@@ -29,7 +29,9 @@ PROPERTY_CRUST_TYPE = 13  # uj RandomProperty - Tectonics domain
 # skalazas majd a tengerszint-kalibracional dol el, §4.4).
 OCEANIC_BASE_M = -4000.0
 CONTINENTAL_BASE_M = 800.0
-NOISE_AMPLITUDE_M = 500.0
+NOISE_AMPLITUDE_M = 2000.0  # ND-32: felhasznaloi visszajelzes - a korabbi 500m
+# eltorpult a hatar-uplift (1500m) es az ocean/kontinens alapszint-kulonbseg
+# (4800m) mellett, gyakorlatilag lathatatlan volt
 OCEANIC_PROBABILITY = 0.55  # kb. Fold-szeru arany a lemezek kozott
 
 

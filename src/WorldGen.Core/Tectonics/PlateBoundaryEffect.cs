@@ -10,6 +10,15 @@ namespace WorldGen.Core.Tectonics
     /// "határ-közeli kiemelkedés": minél közelebb van egy tile a két lemez
     /// közötti határhoz, annál nagyobb az uplift-bónusz.
     ///
+    /// ND-32 (docs/04-decisions.md, felhasználói vizuális visszajelzés
+    /// alapján): az uplift MOST MÁR kéreg-típus-tudatos — óceáni-óceáni
+    /// határon jelentősen (nem nullára, hanem egy tört részére) csökkentett,
+    /// mert a valóságban ott vulkáni szigetívek (keskeny, alacsonyabb
+    /// relief) épülnek, nem kontinentális-ütközés-léptékű hegyláncok. Ez
+    /// javítja a korábban vizuálisan észlelt hibát: az óceáni lemezek
+    /// határainál az egységes uplift a tengerszint fölé emelte a tile-okat,
+    /// irreálisan "szárazföldnek" tűnő sávot húzva óceán közepén.
+    ///
     /// A "távolság a határtól" a két legközelebbi lemez-mag dot-product-
     /// jainak KÜLÖNBSÉGÉBŐL (gap) jön — nincs explicit Voronoi-él
     /// konstrukció, nincs transzcendens függvény, tehát BITPONTOS marad
@@ -20,39 +29,67 @@ namespace WorldGen.Core.Tectonics
     {
         public const double DefaultGapScale = 0.04;
         public const double DefaultUpliftMaxMeters = 1500.0;
+        public const double DefaultOceanicOceanicUpliftFactor = 0.15;
 
         /// <summary>A két legnagyobb dot-product egy pozíció és a lemez-magok között.</summary>
         public static void TwoBestDots(
             double x, double y, double z, (double X, double Y, double Z)[] seeds,
             out double best, out double second)
         {
+            TwoBestDots(x, y, z, seeds, out best, out second, out _, out _);
+        }
+
+        /// <summary>Ugyanaz, mint a másik <c>TwoBestDots</c> túlterhelés,
+        /// de a két legközelebbi lemez INDEXÉT is visszaadja (kéreg-típus lekérdezéséhez).</summary>
+        public static void TwoBestDots(
+            double x, double y, double z, (double X, double Y, double Z)[] seeds,
+            out double best, out double second, out int bestIndex, out int secondIndex)
+        {
             best = double.NegativeInfinity;
             second = double.NegativeInfinity;
+            bestIndex = -1;
+            secondIndex = -1;
             for (int i = 0; i < seeds.Length; i++)
             {
                 double d = x * seeds[i].X + y * seeds[i].Y + z * seeds[i].Z;
                 if (d > best)
                 {
                     second = best;
+                    secondIndex = bestIndex;
                     best = d;
+                    bestIndex = i;
                 }
                 else if (d > second)
                 {
                     second = d;
+                    secondIndex = i;
                 }
             }
         }
 
-        /// <summary>Határ-közeli kiemelkedés-bónusz: minél kisebb a gap, annál nagyobb.</summary>
+        /// <summary>
+        /// Határ-közeli kiemelkedés-bónusz: minél kisebb a gap, annál nagyobb.
+        /// Óceáni-óceáni határon <see cref="DefaultOceanicOceanicUpliftFactor"/>
+        /// szorzóval csökkentve (ND-32).
+        /// </summary>
         public static double BoundaryUplift(
-            double x, double y, double z, (double X, double Y, double Z)[] seeds,
-            double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters)
+            ulong worldSeed, double x, double y, double z, (double X, double Y, double Z)[] seeds,
+            double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters,
+            double oceanicOceanicUpliftFactor = DefaultOceanicOceanicUpliftFactor)
         {
-            TwoBestDots(x, y, z, seeds, out double best, out double second);
+            TwoBestDots(x, y, z, seeds, out double best, out double second, out int bestIndex, out int secondIndex);
             double gap = best - second;
             if (gap >= gapScale)
                 return 0.0;
-            return upliftMax * (1.0 - gap / gapScale);
+
+            double rawUplift = upliftMax * (1.0 - gap / gapScale);
+
+            bool bestOceanic = CrustElevation.IsOceanic(worldSeed, bestIndex);
+            bool secondOceanic = secondIndex >= 0 && CrustElevation.IsOceanic(worldSeed, secondIndex);
+            if (bestOceanic && secondOceanic)
+                return rawUplift * oceanicOceanicUpliftFactor;
+
+            return rawUplift;
         }
 
         /// <summary>Alap-eleváció (§4.2) + határ-közeli uplift-bónusz (§4.3).</summary>
@@ -63,7 +100,7 @@ namespace WorldGen.Core.Tectonics
             double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters)
         {
             double baseElevation = CrustElevation.BaseElevation(worldSeed, plateId, x, y, z, out isOceanic);
-            double uplift = BoundaryUplift(x, y, z, seeds, gapScale, upliftMax);
+            double uplift = BoundaryUplift(worldSeed, x, y, z, seeds, gapScale, upliftMax);
             return baseElevation + uplift;
         }
     }
