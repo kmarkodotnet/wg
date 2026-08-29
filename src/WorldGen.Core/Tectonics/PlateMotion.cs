@@ -73,5 +73,24 @@ namespace WorldGen.Core.Tectonics
 
             RodriguesRotate(seedX0, seedY0, seedZ0, axisX, axisY, axisZ, angle, out x, out y, out z);
         }
+
+        /// <summary>
+        /// Az összes lemez-mag pozíciója <paramref name="timeMyr"/> időpontban -
+        /// egyetlen helyen, hogy minden hívó (Core és motoroldali render is)
+        /// ugyanazt az elmozdult seed-tömböt használja, sose a t=0 seedeket
+        /// a t&gt;0 domborzat-számításhoz.
+        /// </summary>
+        public static (double X, double Y, double Z)[] MovedSeeds(
+            ulong worldSeed, (double X, double Y, double Z)[] seeds0, double timeMyr)
+        {
+            var moved = new (double X, double Y, double Z)[seeds0.Length];
+            for (int i = 0; i < seeds0.Length; i++)
+            {
+                PlateSeedAtTime(worldSeed, i, seeds0[i].X, seeds0[i].Y, seeds0[i].Z, timeMyr,
+                    out double x, out double y, out double z);
+                moved[i] = (x, y, z);
+            }
+            return moved;
+        }
     }
 }

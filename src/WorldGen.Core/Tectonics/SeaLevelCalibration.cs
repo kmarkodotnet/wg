@@ -34,14 +34,7 @@ namespace WorldGen.Core.Tectonics
             ulong worldSeed, int plateCount, int level, double timeMyr)
         {
             var seeds0 = PlateGeneration.GenerateSeeds(worldSeed, plateCount);
-            var movedSeeds = new (double X, double Y, double Z)[seeds0.Length];
-            for (int i = 0; i < seeds0.Length; i++)
-            {
-                PlateMotion.PlateSeedAtTime(
-                    worldSeed, i, seeds0[i].X, seeds0[i].Y, seeds0[i].Z, timeMyr,
-                    out double x, out double y, out double z);
-                movedSeeds[i] = (x, y, z);
-            }
+            var movedSeeds = PlateMotion.MovedSeeds(worldSeed, seeds0, timeMyr);
             return ComputeElevationFieldWithSeeds(worldSeed, movedSeeds, level);
         }
 

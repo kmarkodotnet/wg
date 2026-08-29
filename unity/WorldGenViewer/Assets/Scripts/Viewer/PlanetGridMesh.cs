@@ -124,7 +124,14 @@ namespace WorldGen.Viewer
         public void Build()
         {
             ulong seed = unchecked((ulong)worldSeed);
-            var seeds = PlateGeneration.GenerateSeeds(seed, plateCount);
+            var seeds0 = PlateGeneration.GenerateSeeds(seed, plateCount);
+
+            // FONTOS (M10): a sarok-alapu megjelenites (ToDisplacedVector3)
+            // UGYANAZOKKAL az elmozdult seedekkel szamol, mint a tile-kozepu
+            // `field` - kulonben a biome (field-bol) mozogna, de a domborzat
+            // (ha a statikus t=0 seedeket hasznalna) nem, ami pontosan az a
+            // hiba volt, amit a felhasznalo vizualisan eszrevett.
+            var seeds = PlateMotion.MovedSeeds(seed, seeds0, deepTimeMyr);
 
             // A MAR verifikalt M4/M7 Core-modulokat hivjuk kozvetlenul -
             // nincs duplikalt elevation-/folyoszamitas.
