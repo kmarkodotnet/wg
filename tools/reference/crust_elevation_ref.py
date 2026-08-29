@@ -10,14 +10,19 @@ egy kesobb finomithato reszlet):
 ND-31 (docs/04-decisions.md): az "F fraktal reszlet" (§13.2) korabban
 EGYSZERU, tile-onkent FUGGETLEN (feher zaj-szeru) magassag-jitter volt -
 NEM terben koherens fBm/Perlin, dokumentalt, ismert hianyossag ("tul
-szabalyos" Voronoi-cella hatarok). MOST mar valodi, terben koherens fBm
-(noise_ref.gradient_noise3d/fbm) - ez torik meg a lemez-hatarok tul
-szabalyos alakjat organikus valtozatossaggal.
+szabalyos" Voronoi-cella hatarok).
+
+ND-33 (docs/04-decisions.md): a sima fBm (ND-31) tovabbra is tul
+simanak/eszrevehetetlennek bizonyult vizualisan, meg 4x amplitudoval is
+(felhasznaloi visszajelzes: "katasztrofa"). Oka: a sima fBm ELEVE
+lekerekitett dombokat ad, nem eles kontraszt. MOST "ridged multifractal"
+(spec Sz.13.1 nevesitve is emliti) - minden oktavnal (1-|zaj|)^2, ami
+eles gerinceket ad, sokkal nagyobb vizualis kontraszttal.
 
 NEM produkcios kod - csak orakulum, a python-reference skill szerint.
 """
 from threefry_ref import threefry4x64
-from noise_ref import fbm
+from noise_ref import ridged_multifractal
 
 M64 = (1 << 64) - 1
 SCALE53 = 2.0 ** -53
@@ -29,9 +34,8 @@ PROPERTY_CRUST_TYPE = 13  # uj RandomProperty - Tectonics domain
 # skalazas majd a tengerszint-kalibracional dol el, §4.4).
 OCEANIC_BASE_M = -4000.0
 CONTINENTAL_BASE_M = 800.0
-NOISE_AMPLITUDE_M = 2000.0  # ND-32: felhasznaloi visszajelzes - a korabbi 500m
-# eltorpult a hatar-uplift (1500m) es az ocean/kontinens alapszint-kulonbseg
-# (4800m) mellett, gyakorlatilag lathatatlan volt
+NOISE_AMPLITUDE_M = 3000.0  # ND-33: tovabb emelve (2000->3000), ridged
+# multifractalra valtva a sima fBm helyett a nagyobb vizualis kontrasztert
 OCEANIC_PROBABILITY = 0.55  # kb. Fold-szeru arany a lemezek kozott
 
 
@@ -57,11 +61,16 @@ def is_oceanic(world_seed, plate_id, oceanic_probability=OCEANIC_PROBABILITY):
 
 
 def base_elevation(world_seed, plate_id, position, oceanic_probability=OCEANIC_PROBABILITY):
-    """A tile alap-magassaga meterben: kereg-tipus bazis + terben koherens fBm-zaj."""
+    """A tile alap-magassaga meterben: kereg-tipus bazis + terben koherens ridged zaj."""
     oceanic = is_oceanic(world_seed, plate_id, oceanic_probability)
     base = OCEANIC_BASE_M if oceanic else CONTINENTAL_BASE_M
     x, y, z = position
-    noise = fbm(world_seed, x, y, z)
+    # ridged_multifractal kb. [0,1]-hez kozeli, atlagosan ~0.7 korul -
+    # (r-0.5)*2 -al [-1,1]-hez kozeli, ELOJELES modositova alakitva, hogy
+    # tovabbra is ugy hasson, mint egy szimmetrikus magassag-perturbacio
+    # (nem csak felfele told).
+    r = ridged_multifractal(world_seed, x, y, z)
+    noise = (r - 0.5) * 2.0
     return base + noise * NOISE_AMPLITUDE_M, oceanic
 
 

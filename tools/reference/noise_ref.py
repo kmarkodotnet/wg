@@ -98,6 +98,29 @@ def fbm(world_seed, x, y, z, base_frequency=8.0, octaves=5, persistence=0.5, lac
     return total / max_amplitude
 
 
+def ridged_multifractal(world_seed, x, y, z, base_frequency=8.0, octaves=5, persistence=0.5, lacunarity=2.0):
+    """
+    "Ridged" multifraktal (spec Sz.13.1 "ridged multifractal", ND-33):
+    minden oktavnal (1-|noise|)^2 - ez ELES gerinceket ad ott, ahol az
+    alap gradiens-zaj nullat metsz, nem a sima fBm lekerekitett dombjait.
+    [0,1]-hez kozeli tartomanyba normalva, majd a hivo oldal (0,1) kozepre
+    tolja, ha szimmetrikus (+-) magassag-modositokent hasznalja.
+    """
+    total = 0.0
+    amplitude = 1.0
+    frequency = base_frequency
+    max_amplitude = 0.0
+    for octave in range(octaves):
+        n = gradient_noise3d(world_seed, x * frequency, y * frequency, z * frequency, octave)
+        ridged = 1.0 - abs(n)
+        ridged = ridged * ridged
+        total += ridged * amplitude
+        max_amplitude += amplitude
+        amplitude *= persistence
+        frequency *= lacunarity
+    return total / max_amplitude
+
+
 if __name__ == "__main__":
     import random
     rnd = random.Random(2024)
@@ -158,6 +181,23 @@ if __name__ == "__main__":
     assert v1 != v2
     print("OK\n")
 
+    print("--- Ridged multifraktal plauzibilitasa ---")
+    ridged_values = []
+    for _ in range(20000):
+        vx, vy, vz = rnd.uniform(-1, 1), rnd.uniform(-1, 1), rnd.uniform(-1, 1)
+        length = math.sqrt(vx * vx + vy * vy + vz * vz)
+        if length < 1e-9:
+            continue
+        vx, vy, vz = vx / length, vy / length, vz / length
+        ridged_values.append(ridged_multifractal(0xA7C944210000, vx, vy, vz))
+    rlo, rhi = min(ridged_values), max(ridged_values)
+    print(f"  tartomany: [{rlo:.4f}, {rhi:.4f}]")
+    assert 0.0 <= rlo and rhi <= 1.0001, "A ridged multifraktal tartomanya nem plauzibilis"
+    r1 = ridged_multifractal(1, 0.5123, 0.3456, 0.7891)
+    r2 = ridged_multifractal(1, 0.5123, 0.3456, 0.7891)
+    assert r1 == r2, "A ridged multifraktal nem tiszta fuggveny!"
+    print("OK - determinisztikus, plauzibilis tartomany\n")
+
     print("--- Tesztvektorok generalasa (C# porthoz) ---")
     import json
     from threefry_ref import threefry4x64
@@ -174,7 +214,8 @@ if __name__ == "__main__":
             continue
         vx, vy, vz = vx / length, vy / length, vz / length
         value = fbm(0xA7C944210000, vx, vy, vz)
-        vectors.append({"x": vx, "y": vy, "z": vz, "fbm": value})
+        ridged_value = ridged_multifractal(0xA7C944210000, vx, vy, vz)
+        vectors.append({"x": vx, "y": vy, "z": vz, "fbm": value, "ridged": ridged_value})
 
     with open("noise_vectors.json", "w", newline="\n") as f:
         json.dump({"worldSeed": 0xA7C944210000, "vectors": vectors}, f, indent=1)

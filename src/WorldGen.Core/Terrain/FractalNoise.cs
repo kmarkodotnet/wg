@@ -113,5 +113,35 @@ namespace WorldGen.Core.Terrain
 
             return total / maxAmplitude;
         }
+
+        /// <summary>
+        /// "Ridged" multifraktál (spec §13.1 "ridged multifractal", ND-33):
+        /// minden oktávnál (1-|zaj|)² — ez ÉLES gerinceket ad ott, ahol az
+        /// alap gradiens-zaj nullát metsz, nem a sima fBm lekerekített
+        /// dombjait. Kb. [0,1]-hez közeli tartományba normálva.
+        /// </summary>
+        public static double RidgedMultifractal(
+            ulong worldSeed, double x, double y, double z,
+            double baseFrequency = DefaultBaseFrequency, int octaves = DefaultOctaves,
+            double persistence = DefaultPersistence, double lacunarity = DefaultLacunarity)
+        {
+            double total = 0.0;
+            double amplitude = 1.0;
+            double frequency = baseFrequency;
+            double maxAmplitude = 0.0;
+
+            for (int octave = 0; octave < octaves; octave++)
+            {
+                double n = GradientNoise3D(worldSeed, x * frequency, y * frequency, z * frequency, octave);
+                double ridged = 1.0 - System.Math.Abs(n);
+                ridged *= ridged;
+                total += ridged * amplitude;
+                maxAmplitude += amplitude;
+                amplitude *= persistence;
+                frequency *= lacunarity;
+            }
+
+            return total / maxAmplitude;
+        }
     }
 }

@@ -22,7 +22,7 @@
    "u": 58,
    "v": 3,
    "plateId": 3,
-   "elevation": 867.4331576918986,
+   "elevation": 2046.7894614547001,
    "isOceanic": false
   },
   {
@@ -31,7 +31,7 @@
    "u": 46,
    "v": 53,
    "plateId": 9,
-   "elevation": -4073.455937959795,
+   "elevation": -3296.8115374895788,
    "isOceanic": true
   },
   {
@@ -40,7 +40,7 @@
    "u": 4,
    "v": 59,
    "plateId": 6,
-   "elevation": -3579.926984806814,
+   "elevation": -3503.053083838983,
    "isOceanic": true
   },
   {
@@ -49,7 +49,7 @@
    "u": 17,
    "v": 40,
    "plateId": 1,
-   "elevation": -3790.506066593614,
+   "elevation": -2437.297112317977,
    "isOceanic": true
   },
   {
@@ -58,7 +58,7 @@
    "u": 52,
    "v": 18,
    "plateId": 2,
-   "elevation": -3746.859073774743,
+   "elevation": -2880.0129127016194,
    "isOceanic": true
   },
   {
@@ -67,7 +67,7 @@
    "u": 55,
    "v": 8,
    "plateId": 5,
-   "elevation": -4000.9628670275883,
+   "elevation": -1823.7467422015911,
    "isOceanic": true
   },
   {
@@ -76,7 +76,7 @@
    "u": 38,
    "v": 52,
    "plateId": 2,
-   "elevation": -4042.0967159692455,
+   "elevation": -1465.0033737193912,
    "isOceanic": true
   },
   {
@@ -85,7 +85,7 @@
    "u": 30,
    "v": 26,
    "plateId": 4,
-   "elevation": 659.9497463165599,
+   "elevation": 2445.8707183851357,
    "isOceanic": false
   },
   {
@@ -94,7 +94,7 @@
    "u": 55,
    "v": 24,
    "plateId": 5,
-   "elevation": -3556.8147834887604,
+   "elevation": -3563.8255772678644,
    "isOceanic": true
   },
   {
@@ -103,7 +103,7 @@
    "u": 35,
    "v": 17,
    "plateId": 8,
-   "elevation": -3869.8324542888677,
+   "elevation": -1952.4131461780712,
    "isOceanic": true
   },
   {
@@ -112,7 +112,7 @@
    "u": 6,
    "v": 45,
    "plateId": 1,
-   "elevation": -3596.64326854494,
+   "elevation": -3044.1527558613607,
    "isOceanic": true
   },
   {
@@ -121,7 +121,7 @@
    "u": 46,
    "v": 44,
    "plateId": 5,
-   "elevation": -3803.338339075397,
+   "elevation": -2974.724285360092,
    "isOceanic": true
   },
   {
@@ -130,7 +130,7 @@
    "u": 22,
    "v": 16,
    "plateId": 4,
-   "elevation": 954.9574672935324,
+   "elevation": 2789.874656735451,
    "isOceanic": false
   },
   {
@@ -139,7 +139,7 @@
    "u": 45,
    "v": 38,
    "plateId": 8,
-   "elevation": -4096.472189524532,
+   "elevation": -2502.7898137552447,
    "isOceanic": true
   },
   {
@@ -148,7 +148,7 @@
    "u": 27,
    "v": 31,
    "plateId": 9,
-   "elevation": -4002.0437527694144,
+   "elevation": -2219.6311644066163,
    "isOceanic": true
   },
   {
@@ -157,7 +157,7 @@
    "u": 11,
    "v": 38,
    "plateId": 6,
-   "elevation": -3793.6643890500286,
+   "elevation": -2275.146493498798,
    "isOceanic": true
   },
   {
@@ -166,7 +166,7 @@
    "u": 0,
    "v": 22,
    "plateId": 7,
-   "elevation": 740.176116631046,
+   "elevation": 2822.9679973964626,
    "isOceanic": false
   },
   {
@@ -175,7 +175,7 @@
    "u": 57,
    "v": 11,
    "plateId": 2,
-   "elevation": -3405.809824265929,
+   "elevation": -4596.767558076548,
    "isOceanic": true
   },
   {
@@ -184,7 +184,7 @@
    "u": 17,
    "v": 29,
    "plateId": 6,
-   "elevation": -3985.1376801848687,
+   "elevation": -2057.601146309628,
    "isOceanic": true
   },
   {
@@ -193,7 +193,7 @@
    "u": 55,
    "v": 21,
    "plateId": 10,
-   "elevation": 863.105218193303,
+   "elevation": 1973.2112929938614,
    "isOceanic": false
   },
   {
@@ -202,7 +202,7 @@
    "u": 63,
    "v": 23,
    "plateId": 4,
-   "elevation": 811.3105883825301,
+   "elevation": 3419.8306992322314,
    "isOceanic": false
   },
   {
@@ -211,7 +211,7 @@
    "u": 35,
    "v": 21,
    "plateId": 2,
-   "elevation": -3805.4996245481816,
+   "elevation": -2082.4427962068057,
    "isOceanic": true
   },
   {
@@ -220,7 +220,7 @@
    "u": 4,
    "v": 52,
    "plateId": 6,
-   "elevation": -4049.4727900351004,
+   "elevation": -2098.153849546482,
    "isOceanic": true
   },
   {
@@ -229,7 +229,7 @@
    "u": 32,
    "v": 53,
    "plateId": 1,
-   "elevation": -4031.9096681764563,
+   "elevation": -1810.5913853433335,
    "isOceanic": true
   },
   {
@@ -238,7 +238,7 @@
    "u": 34,
    "v": 21,
    "plateId": 3,
-   "elevation": 682.1023470598282,
+   "elevation": 1261.1840957171153,
    "isOceanic": false
   },
   {
@@ -247,7 +247,7 @@
    "u": 6,
    "v": 30,
    "plateId": 6,
-   "elevation": -4088.1068432344123,
+   "elevation": -1881.479616080971,
    "isOceanic": true
   },
   {
@@ -256,7 +256,7 @@
    "u": 28,
    "v": 36,
    "plateId": 1,
-   "elevation": -4264.835376768181,
+   "elevation": -2979.2991540378634,
    "isOceanic": true
   },
   {
@@ -265,7 +265,7 @@
    "u": 23,
    "v": 6,
    "plateId": 11,
-   "elevation": 792.5406338846075,
+   "elevation": 3470.1579747411256,
    "isOceanic": false
   },
   {
@@ -274,7 +274,7 @@
    "u": 17,
    "v": 53,
    "plateId": 0,
-   "elevation": -3836.9718087861047,
+   "elevation": -4044.8431505472986,
    "isOceanic": true
   },
   {
@@ -283,7 +283,7 @@
    "u": 9,
    "v": 61,
    "plateId": 3,
-   "elevation": 919.1763005927364,
+   "elevation": 2050.2063071351317,
    "isOceanic": false
   },
   {
@@ -292,7 +292,7 @@
    "u": 1,
    "v": 34,
    "plateId": 2,
-   "elevation": -4216.889430704183,
+   "elevation": -3435.4252197710703,
    "isOceanic": true
   },
   {
@@ -301,7 +301,7 @@
    "u": 56,
    "v": 4,
    "plateId": 3,
-   "elevation": 914.9082770966351,
+   "elevation": 1380.0500212052993,
    "isOceanic": false
   },
   {
@@ -310,7 +310,7 @@
    "u": 16,
    "v": 59,
    "plateId": 0,
-   "elevation": -4006.7913308075968,
+   "elevation": -2959.2305758990087,
    "isOceanic": true
   },
   {
@@ -319,7 +319,7 @@
    "u": 33,
    "v": 48,
    "plateId": 2,
-   "elevation": -3896.49554395602,
+   "elevation": -2042.7492294121864,
    "isOceanic": true
   },
   {
@@ -328,7 +328,7 @@
    "u": 16,
    "v": 57,
    "plateId": 0,
-   "elevation": -3996.798269586547,
+   "elevation": -2696.196493440979,
    "isOceanic": true
   },
   {
@@ -337,7 +337,7 @@
    "u": 55,
    "v": 54,
    "plateId": 11,
-   "elevation": 566.0119967874953,
+   "elevation": 1826.9679101262918,
    "isOceanic": false
   },
   {
@@ -346,7 +346,7 @@
    "u": 0,
    "v": 42,
    "plateId": 1,
-   "elevation": -3999.8429529059304,
+   "elevation": -2073.0824376112932,
    "isOceanic": true
   },
   {
@@ -355,7 +355,7 @@
    "u": 35,
    "v": 1,
    "plateId": 10,
-   "elevation": 850.9748101944593,
+   "elevation": 3139.7561355865373,
    "isOceanic": false
   },
   {
@@ -364,7 +364,7 @@
    "u": 28,
    "v": 21,
    "plateId": 6,
-   "elevation": -3628.8483837311414,
+   "elevation": -3325.495843693276,
    "isOceanic": true
   },
   {
@@ -373,7 +373,7 @@
    "u": 36,
    "v": 17,
    "plateId": 3,
-   "elevation": 937.9172433739373,
+   "elevation": 2120.977290825658,
    "isOceanic": false
   },
   {
@@ -382,7 +382,7 @@
    "u": 51,
    "v": 32,
    "plateId": 2,
-   "elevation": -4083.4969161717972,
+   "elevation": -3201.2401474789194,
    "isOceanic": true
   },
   {
@@ -391,7 +391,7 @@
    "u": 59,
    "v": 44,
    "plateId": 5,
-   "elevation": -4018.641646498271,
+   "elevation": -1901.1639196786928,
    "isOceanic": true
   },
   {
@@ -400,7 +400,7 @@
    "u": 9,
    "v": 53,
    "plateId": 6,
-   "elevation": -3897.411333432016,
+   "elevation": -2267.750931686145,
    "isOceanic": true
   },
   {
@@ -409,7 +409,7 @@
    "u": 46,
    "v": 15,
    "plateId": 3,
-   "elevation": 883.6377156046035,
+   "elevation": 2674.7752424670043,
    "isOceanic": false
   },
   {
@@ -418,7 +418,7 @@
    "u": 51,
    "v": 7,
    "plateId": 7,
-   "elevation": 850.9606262752145,
+   "elevation": 2070.579623207183,
    "isOceanic": false
   },
   {
@@ -427,7 +427,7 @@
    "u": 31,
    "v": 28,
    "plateId": 1,
-   "elevation": -4146.126058357133,
+   "elevation": -2118.546549493438,
    "isOceanic": true
   },
   {
@@ -436,7 +436,7 @@
    "u": 28,
    "v": 57,
    "plateId": 6,
-   "elevation": -4429.475912530656,
+   "elevation": -3404.6535424073472,
    "isOceanic": true
   },
   {
@@ -445,7 +445,7 @@
    "u": 24,
    "v": 59,
    "plateId": 0,
-   "elevation": -3735.3933764695107,
+   "elevation": -2879.3389280948863,
    "isOceanic": true
   },
   {
@@ -454,7 +454,7 @@
    "u": 49,
    "v": 28,
    "plateId": 5,
-   "elevation": -3979.5205231306363,
+   "elevation": -2827.9470240578585,
    "isOceanic": true
   },
   {
@@ -463,7 +463,7 @@
    "u": 42,
    "v": 17,
    "plateId": 3,
-   "elevation": 367.6228582363168,
+   "elevation": 1595.609345694957,
    "isOceanic": false
   },
   {
@@ -472,7 +472,7 @@
    "u": 53,
    "v": 44,
    "plateId": 3,
-   "elevation": 707.7420096315615,
+   "elevation": 3082.9984280797157,
    "isOceanic": false
   },
   {
@@ -481,7 +481,7 @@
    "u": 46,
    "v": 19,
    "plateId": 3,
-   "elevation": 833.2421515776526,
+   "elevation": 2160.588061424498,
    "isOceanic": false
   },
   {
@@ -490,7 +490,7 @@
    "u": 33,
    "v": 49,
    "plateId": 2,
-   "elevation": -4281.789425441754,
+   "elevation": -2909.4021679165744,
    "isOceanic": true
   },
   {
@@ -499,7 +499,7 @@
    "u": 28,
    "v": 9,
    "plateId": 8,
-   "elevation": -3741.4391459103704,
+   "elevation": -2623.889697886665,
    "isOceanic": true
   },
   {
@@ -508,7 +508,7 @@
    "u": 43,
    "v": 53,
    "plateId": 6,
-   "elevation": -3893.9669108843464,
+   "elevation": -3121.109935733426,
    "isOceanic": true
   },
   {
@@ -517,7 +517,7 @@
    "u": 58,
    "v": 20,
    "plateId": 5,
-   "elevation": -4196.116438423821,
+   "elevation": -2346.1546838736467,
    "isOceanic": true
   },
   {
@@ -526,7 +526,7 @@
    "u": 44,
    "v": 21,
    "plateId": 10,
-   "elevation": 827.3405177257407,
+   "elevation": 3228.346954576191,
    "isOceanic": false
   },
   {
@@ -535,7 +535,7 @@
    "u": 39,
    "v": 23,
    "plateId": 10,
-   "elevation": 735.2365395272833,
+   "elevation": 2409.0656132282156,
    "isOceanic": false
   },
   {
@@ -544,7 +544,7 @@
    "u": 1,
    "v": 53,
    "plateId": 11,
-   "elevation": 385.2174743103981,
+   "elevation": 1610.2656810536087,
    "isOceanic": false
   },
   {
@@ -553,7 +553,7 @@
    "u": 45,
    "v": 19,
    "plateId": 10,
-   "elevation": 700.1621316517355,
+   "elevation": 2716.034494766537,
    "isOceanic": false
   },
   {
@@ -562,7 +562,7 @@
    "u": 5,
    "v": 23,
    "plateId": 1,
-   "elevation": -3833.503539608942,
+   "elevation": -2006.6955560378235,
    "isOceanic": true
   },
   {
@@ -571,7 +571,7 @@
    "u": 12,
    "v": 11,
    "plateId": 9,
-   "elevation": -3723.810410440585,
+   "elevation": -3671.657842647085,
    "isOceanic": true
   },
   {
@@ -580,7 +580,7 @@
    "u": 40,
    "v": 60,
    "plateId": 3,
-   "elevation": 650.1803034885548,
+   "elevation": 2872.4531162415415,
    "isOceanic": false
   },
   {
@@ -589,7 +589,7 @@
    "u": 48,
    "v": 1,
    "plateId": 10,
-   "elevation": 838.9938333458789,
+   "elevation": 1959.945779847409,
    "isOceanic": false
   },
   {
@@ -598,7 +598,7 @@
    "u": 18,
    "v": 3,
    "plateId": 2,
-   "elevation": -3995.693949707049,
+   "elevation": -1837.3584744820932,
    "isOceanic": true
   },
   {
@@ -607,7 +607,7 @@
    "u": 47,
    "v": 62,
    "plateId": 5,
-   "elevation": -3736.689715068183,
+   "elevation": -2538.4954622319965,
    "isOceanic": true
   },
   {
@@ -616,7 +616,7 @@
    "u": 52,
    "v": 56,
    "plateId": 6,
-   "elevation": -4042.7571297619147,
+   "elevation": -2564.7483077610523,
    "isOceanic": true
   },
   {
@@ -625,7 +625,7 @@
    "u": 25,
    "v": 40,
    "plateId": 11,
-   "elevation": 1080.6358505811352,
+   "elevation": 2151.879466632736,
    "isOceanic": false
   },
   {
@@ -634,7 +634,7 @@
    "u": 12,
    "v": 49,
    "plateId": 9,
-   "elevation": -4188.7239692942985,
+   "elevation": -2706.538486707822,
    "isOceanic": true
   },
   {
@@ -643,7 +643,7 @@
    "u": 45,
    "v": 25,
    "plateId": 10,
-   "elevation": 1404.573704361454,
+   "elevation": 589.7476599753782,
    "isOceanic": false
   },
   {
@@ -652,7 +652,7 @@
    "u": 11,
    "v": 44,
    "plateId": 1,
-   "elevation": -3962.5495534200395,
+   "elevation": -1541.2427174111986,
    "isOceanic": true
   },
   {
@@ -661,7 +661,7 @@
    "u": 58,
    "v": 27,
    "plateId": 5,
-   "elevation": -3779.392218663449,
+   "elevation": -2418.8402119052953,
    "isOceanic": true
   },
   {
@@ -670,7 +670,7 @@
    "u": 30,
    "v": 41,
    "plateId": 4,
-   "elevation": 1137.226576321541,
+   "elevation": 1228.45709246232,
    "isOceanic": false
   },
   {
@@ -679,7 +679,7 @@
    "u": 57,
    "v": 30,
    "plateId": 5,
-   "elevation": -3806.4416246736846,
+   "elevation": -4223.387563232516,
    "isOceanic": true
   },
   {
@@ -688,7 +688,7 @@
    "u": 24,
    "v": 56,
    "plateId": 1,
-   "elevation": -3954.3451069427747,
+   "elevation": -2369.888477188176,
    "isOceanic": true
   },
   {
@@ -697,7 +697,7 @@
    "u": 4,
    "v": 56,
    "plateId": 3,
-   "elevation": 583.6117686775849,
+   "elevation": 1660.827730924546,
    "isOceanic": false
   },
   {
@@ -706,7 +706,7 @@
    "u": 9,
    "v": 45,
    "plateId": 11,
-   "elevation": 1184.5777946256023,
+   "elevation": 1212.848829268695,
    "isOceanic": false
   },
   {
@@ -715,7 +715,7 @@
    "u": 19,
    "v": 8,
    "plateId": 2,
-   "elevation": -3626.7968384857913,
+   "elevation": -3373.9769873800274,
    "isOceanic": true
   },
   {
@@ -724,7 +724,7 @@
    "u": 33,
    "v": 59,
    "plateId": 0,
-   "elevation": -3779.950415589512,
+   "elevation": -2524.501774317661,
    "isOceanic": true
   },
   {
@@ -733,7 +733,7 @@
    "u": 41,
    "v": 62,
    "plateId": 6,
-   "elevation": -4318.59399015892,
+   "elevation": -3599.6639588004127,
    "isOceanic": true
   },
   {
@@ -742,7 +742,7 @@
    "u": 42,
    "v": 32,
    "plateId": 5,
-   "elevation": -3953.0460276043123,
+   "elevation": -2513.5606825388704,
    "isOceanic": true
   },
   {
@@ -751,7 +751,7 @@
    "u": 49,
    "v": 20,
    "plateId": 10,
-   "elevation": 881.856397334558,
+   "elevation": 2140.998863264931,
    "isOceanic": false
   },
   {
@@ -760,7 +760,7 @@
    "u": 29,
    "v": 0,
    "plateId": 10,
-   "elevation": 1053.302714630698,
+   "elevation": 1748.137340481479,
    "isOceanic": false
   },
   {
@@ -769,7 +769,7 @@
    "u": 28,
    "v": 52,
    "plateId": 3,
-   "elevation": 831.3565541323927,
+   "elevation": 2974.711948268351,
    "isOceanic": false
   },
   {
@@ -778,7 +778,7 @@
    "u": 23,
    "v": 41,
    "plateId": 9,
-   "elevation": -3947.7861649226716,
+   "elevation": -2195.6601234128625,
    "isOceanic": true
   },
   {
@@ -787,7 +787,7 @@
    "u": 3,
    "v": 27,
    "plateId": 4,
-   "elevation": 966.9366492640191,
+   "elevation": 2846.8699693096114,
    "isOceanic": false
   },
   {
@@ -796,7 +796,7 @@
    "u": 60,
    "v": 31,
    "plateId": 11,
-   "elevation": 1070.2263587932393,
+   "elevation": 2225.1078037758216,
    "isOceanic": false
   },
   {
@@ -805,7 +805,7 @@
    "u": 25,
    "v": 11,
    "plateId": 8,
-   "elevation": -4023.626588615212,
+   "elevation": -1904.1175844117165,
    "isOceanic": true
   },
   {
@@ -814,7 +814,7 @@
    "u": 47,
    "v": 57,
    "plateId": 3,
-   "elevation": 258.2517846367747,
+   "elevation": 827.9009745333823,
    "isOceanic": false
   },
   {
@@ -823,7 +823,7 @@
    "u": 8,
    "v": 48,
    "plateId": 4,
-   "elevation": 1268.2541689663817,
+   "elevation": 1068.2586988687833,
    "isOceanic": false
   },
   {
@@ -832,7 +832,7 @@
    "u": 16,
    "v": 14,
    "plateId": 1,
-   "elevation": -3636.317245313124,
+   "elevation": -3354.1279303103975,
    "isOceanic": true
   },
   {
@@ -841,7 +841,7 @@
    "u": 33,
    "v": 57,
    "plateId": 0,
-   "elevation": -3993.5484111476617,
+   "elevation": -3866.226723229726,
    "isOceanic": true
   },
   {
@@ -850,7 +850,7 @@
    "u": 0,
    "v": 0,
    "plateId": 7,
-   "elevation": 392.2134453874817,
+   "elevation": 1576.168362010463,
    "isOceanic": false
   },
   {
@@ -859,7 +859,7 @@
    "u": 31,
    "v": 53,
    "plateId": 0,
-   "elevation": -4026.3707893170936,
+   "elevation": -2003.815475746361,
    "isOceanic": true
   },
   {
@@ -868,7 +868,7 @@
    "u": 49,
    "v": 12,
    "plateId": 3,
-   "elevation": 820.1498120918858,
+   "elevation": 2947.861341190661,
    "isOceanic": false
   },
   {
@@ -877,7 +877,7 @@
    "u": 52,
    "v": 40,
    "plateId": 3,
-   "elevation": 1030.4123100678944,
+   "elevation": 2360.444034881909,
    "isOceanic": false
   },
   {
@@ -886,7 +886,7 @@
    "u": 4,
    "v": 10,
    "plateId": 11,
-   "elevation": 221.19766910734518,
+   "elevation": 585.0148805247202,
    "isOceanic": false
   },
   {
@@ -895,7 +895,7 @@
    "u": 58,
    "v": 39,
    "plateId": 2,
-   "elevation": -4027.0097507542628,
+   "elevation": -2016.0090936557797,
    "isOceanic": true
   },
   {
@@ -904,7 +904,7 @@
    "u": 56,
    "v": 22,
    "plateId": 10,
-   "elevation": 821.015042020158,
+   "elevation": 2943.100689570585,
    "isOceanic": false
   },
   {
@@ -913,7 +913,7 @@
    "u": 7,
    "v": 28,
    "plateId": 9,
-   "elevation": -3769.6199792316493,
+   "elevation": -2279.6813917498484,
    "isOceanic": true
   },
   {
@@ -922,7 +922,7 @@
    "u": 57,
    "v": 41,
    "plateId": 2,
-   "elevation": -3652.505161775233,
+   "elevation": -2898.4308805634923,
    "isOceanic": true
   },
   {
@@ -931,7 +931,7 @@
    "u": 46,
    "v": 49,
    "plateId": 3,
-   "elevation": 878.180691613516,
+   "elevation": 1907.9915126172891,
    "isOceanic": false
   },
   {
@@ -940,7 +940,7 @@
    "u": 11,
    "v": 40,
    "plateId": 4,
-   "elevation": 886.8326671230066,
+   "elevation": 1965.344651652878,
    "isOceanic": false
   },
   {
@@ -949,7 +949,7 @@
    "u": 6,
    "v": 34,
    "plateId": 4,
-   "elevation": 553.1157728715197,
+   "elevation": 1971.3761784864405,
    "isOceanic": false
   },
   {
@@ -958,7 +958,7 @@
    "u": 57,
    "v": 4,
    "plateId": 10,
-   "elevation": 870.7297377692287,
+   "elevation": 3042.2920638724304,
    "isOceanic": false
   },
   {
@@ -967,7 +967,7 @@
    "u": 45,
    "v": 21,
    "plateId": 3,
-   "elevation": 875.7082535188922,
+   "elevation": 2838.269711675236,
    "isOceanic": false
   },
   {
@@ -976,7 +976,7 @@
    "u": 26,
    "v": 40,
    "plateId": 4,
-   "elevation": 875.9986011168774,
+   "elevation": 1866.9824955659642,
    "isOceanic": false
   },
   {
@@ -985,7 +985,7 @@
    "u": 26,
    "v": 0,
    "plateId": 5,
-   "elevation": -4049.332193092195,
+   "elevation": -1630.6044173285186,
    "isOceanic": true
   },
   {
@@ -994,7 +994,7 @@
    "u": 5,
    "v": 48,
    "plateId": 2,
-   "elevation": -3976.366997447958,
+   "elevation": -1915.1502417363536,
    "isOceanic": true
   },
   {
@@ -1003,7 +1003,7 @@
    "u": 43,
    "v": 47,
    "plateId": 5,
-   "elevation": -3993.98113588834,
+   "elevation": -3161.296718996509,
    "isOceanic": true
   },
   {
@@ -1012,7 +1012,7 @@
    "u": 27,
    "v": 6,
    "plateId": 8,
-   "elevation": -3560.020238607186,
+   "elevation": -3242.619120997326,
    "isOceanic": true
   },
   {
@@ -1021,7 +1021,7 @@
    "u": 27,
    "v": 22,
    "plateId": 10,
-   "elevation": 878.6960182425673,
+   "elevation": 1990.181796435134,
    "isOceanic": false
   },
   {
@@ -1030,7 +1030,7 @@
    "u": 14,
    "v": 39,
    "plateId": 0,
-   "elevation": -4094.035547700433,
+   "elevation": -3569.3717332603605,
    "isOceanic": true
   },
   {
@@ -1039,7 +1039,7 @@
    "u": 47,
    "v": 33,
    "plateId": 5,
-   "elevation": -4112.114117046046,
+   "elevation": -2595.9155512334128,
    "isOceanic": true
   },
   {
@@ -1048,7 +1048,7 @@
    "u": 21,
    "v": 6,
    "plateId": 6,
-   "elevation": -3997.1978802356316,
+   "elevation": -2298.959524824648,
    "isOceanic": true
   },
   {
@@ -1057,7 +1057,7 @@
    "u": 18,
    "v": 63,
    "plateId": 2,
-   "elevation": -4306.395596984817,
+   "elevation": -3441.6953817658823,
    "isOceanic": true
   },
   {
@@ -1066,7 +1066,7 @@
    "u": 37,
    "v": 44,
    "plateId": 9,
-   "elevation": -4216.887673725546,
+   "elevation": -2883.181582727919,
    "isOceanic": true
   },
   {
@@ -1075,7 +1075,7 @@
    "u": 43,
    "v": 44,
    "plateId": 0,
-   "elevation": -3860.329162662886,
+   "elevation": -3151.0930995461945,
    "isOceanic": true
   },
   {
@@ -1084,7 +1084,7 @@
    "u": 60,
    "v": 13,
    "plateId": 11,
-   "elevation": 833.5281852479727,
+   "elevation": 2695.6617939644602,
    "isOceanic": false
   },
   {
@@ -1093,7 +1093,7 @@
    "u": 14,
    "v": 18,
    "plateId": 9,
-   "elevation": -3983.57011321335,
+   "elevation": -1762.5198515571865,
    "isOceanic": true
   },
   {
@@ -1102,7 +1102,7 @@
    "u": 38,
    "v": 46,
    "plateId": 5,
-   "elevation": -3858.878698392756,
+   "elevation": -1904.6353920262854,
    "isOceanic": true
   },
   {
@@ -1111,7 +1111,7 @@
    "u": 46,
    "v": 1,
    "plateId": 10,
-   "elevation": 880.9363514064058,
+   "elevation": 3289.1726101239237,
    "isOceanic": false
   },
   {
@@ -1120,7 +1120,7 @@
    "u": 29,
    "v": 7,
    "plateId": 2,
-   "elevation": -3801.0514558960713,
+   "elevation": -2228.9634698786494,
    "isOceanic": true
   },
   {
@@ -1129,7 +1129,7 @@
    "u": 50,
    "v": 44,
    "plateId": 4,
-   "elevation": 861.1108929779272,
+   "elevation": 2909.0958557081785,
    "isOceanic": false
   },
   {
@@ -1138,7 +1138,7 @@
    "u": 2,
    "v": 17,
    "plateId": 11,
-   "elevation": 595.5067731488689,
+   "elevation": 2475.408226567436,
    "isOceanic": false
   },
   {
@@ -1147,7 +1147,7 @@
    "u": 5,
    "v": 60,
    "plateId": 0,
-   "elevation": -3908.152678657516,
+   "elevation": -1476.7525886612352,
    "isOceanic": true
   },
   {
@@ -1156,7 +1156,7 @@
    "u": 10,
    "v": 62,
    "plateId": 0,
-   "elevation": -4073.283169071594,
+   "elevation": -3216.1118168657295,
    "isOceanic": true
   },
   {
@@ -1165,7 +1165,7 @@
    "u": 19,
    "v": 35,
    "plateId": 0,
-   "elevation": -4168.379212076108,
+   "elevation": -3714.7605922715798,
    "isOceanic": true
   },
   {
@@ -1174,7 +1174,7 @@
    "u": 6,
    "v": 57,
    "plateId": 6,
-   "elevation": -3748.915948318547,
+   "elevation": -3215.121971338216,
    "isOceanic": true
   },
   {
@@ -1183,7 +1183,7 @@
    "u": 0,
    "v": 9,
    "plateId": 6,
-   "elevation": -3787.988636511287,
+   "elevation": -3367.514276041493,
    "isOceanic": true
   },
   {
@@ -1192,7 +1192,7 @@
    "u": 38,
    "v": 24,
    "plateId": 10,
-   "elevation": 952.7774071284057,
+   "elevation": 2901.4899456199487,
    "isOceanic": false
   },
   {
@@ -1201,7 +1201,7 @@
    "u": 41,
    "v": 41,
    "plateId": 10,
-   "elevation": 863.8330325246634,
+   "elevation": 2509.8205450637306,
    "isOceanic": false
   },
   {
@@ -1210,7 +1210,7 @@
    "u": 57,
    "v": 57,
    "plateId": 5,
-   "elevation": -3895.5438218249624,
+   "elevation": -1784.4281072881145,
    "isOceanic": true
   },
   {
@@ -1219,7 +1219,7 @@
    "u": 61,
    "v": 38,
    "plateId": 5,
-   "elevation": -4475.4876232840215,
+   "elevation": -3489.7765711499537,
    "isOceanic": true
   },
   {
@@ -1228,7 +1228,7 @@
    "u": 37,
    "v": 32,
    "plateId": 3,
-   "elevation": 769.3998907472696,
+   "elevation": 2430.867165696555,
    "isOceanic": false
   },
   {
@@ -1237,7 +1237,7 @@
    "u": 51,
    "v": 23,
    "plateId": 5,
-   "elevation": -3885.619625301503,
+   "elevation": -2844.154487124012,
    "isOceanic": true
   },
   {
@@ -1246,7 +1246,7 @@
    "u": 2,
    "v": 38,
    "plateId": 11,
-   "elevation": 711.1133324486443,
+   "elevation": 2250.460686618683,
    "isOceanic": false
   },
   {
@@ -1255,7 +1255,7 @@
    "u": 24,
    "v": 22,
    "plateId": 2,
-   "elevation": -3957.661912817665,
+   "elevation": -2179.5962652519265,
    "isOceanic": true
   },
   {
@@ -1264,7 +1264,7 @@
    "u": 12,
    "v": 35,
    "plateId": 9,
-   "elevation": -3723.8004930017205,
+   "elevation": -2754.173891828513,
    "isOceanic": true
   },
   {
@@ -1273,7 +1273,7 @@
    "u": 10,
    "v": 17,
    "plateId": 4,
-   "elevation": 890.221551003247,
+   "elevation": 3080.543988586406,
    "isOceanic": false
   },
   {
@@ -1282,7 +1282,7 @@
    "u": 63,
    "v": 57,
    "plateId": 11,
-   "elevation": 1019.9657644594024,
+   "elevation": 2571.9340280067436,
    "isOceanic": false
   },
   {
@@ -1291,7 +1291,7 @@
    "u": 4,
    "v": 35,
    "plateId": 2,
-   "elevation": -4082.092076694785,
+   "elevation": -1718.5724130776543,
    "isOceanic": true
   },
   {
@@ -1300,7 +1300,7 @@
    "u": 39,
    "v": 11,
    "plateId": 3,
-   "elevation": 931.6072293478395,
+   "elevation": 2563.4326265033305,
    "isOceanic": false
   },
   {
@@ -1309,7 +1309,7 @@
    "u": 39,
    "v": 61,
    "plateId": 2,
-   "elevation": -3650.1510648837852,
+   "elevation": -3435.201168617193,
    "isOceanic": true
   },
   {
@@ -1318,7 +1318,7 @@
    "u": 56,
    "v": 18,
    "plateId": 11,
-   "elevation": 933.7554867061328,
+   "elevation": 2650.2553951014274,
    "isOceanic": false
   },
   {
@@ -1327,7 +1327,7 @@
    "u": 54,
    "v": 56,
    "plateId": 6,
-   "elevation": -4318.131547386946,
+   "elevation": -2998.914082517231,
    "isOceanic": true
   },
   {
@@ -1336,7 +1336,7 @@
    "u": 4,
    "v": 2,
    "plateId": 10,
-   "elevation": 694.8547817346398,
+   "elevation": 2585.1510654182684,
    "isOceanic": false
   },
   {
@@ -1345,7 +1345,7 @@
    "u": 13,
    "v": 32,
    "plateId": 6,
-   "elevation": -4090.144237743189,
+   "elevation": -3466.7001887656697,
    "isOceanic": true
   },
   {
@@ -1354,7 +1354,7 @@
    "u": 30,
    "v": 30,
    "plateId": 2,
-   "elevation": -3772.423798942769,
+   "elevation": -2394.8007631846494,
    "isOceanic": true
   },
   {
@@ -1363,7 +1363,7 @@
    "u": 24,
    "v": 23,
    "plateId": 11,
-   "elevation": 413.1238179459713,
+   "elevation": 1617.618464085138,
    "isOceanic": false
   },
   {
@@ -1372,7 +1372,7 @@
    "u": 62,
    "v": 53,
    "plateId": 5,
-   "elevation": -4360.684285703881,
+   "elevation": -3330.244332318428,
    "isOceanic": true
   },
   {
@@ -1381,7 +1381,7 @@
    "u": 20,
    "v": 20,
    "plateId": 6,
-   "elevation": -4052.459113717036,
+   "elevation": -1810.5226322660633,
    "isOceanic": true
   },
   {
@@ -1390,7 +1390,7 @@
    "u": 15,
    "v": 28,
    "plateId": 9,
-   "elevation": -4316.908203205747,
+   "elevation": -3740.887986787619,
    "isOceanic": true
   },
   {
@@ -1399,7 +1399,7 @@
    "u": 54,
    "v": 14,
    "plateId": 10,
-   "elevation": 1028.1548976250183,
+   "elevation": 1883.9147892948847,
    "isOceanic": false
   },
   {
@@ -1408,7 +1408,7 @@
    "u": 62,
    "v": 58,
    "plateId": 3,
-   "elevation": 670.4093700011189,
+   "elevation": 2645.7786978027934,
    "isOceanic": false
   },
   {
@@ -1417,7 +1417,7 @@
    "u": 30,
    "v": 12,
    "plateId": 8,
-   "elevation": -4087.2104723781667,
+   "elevation": -2384.672441751226,
    "isOceanic": true
   },
   {
@@ -1426,7 +1426,7 @@
    "u": 27,
    "v": 39,
    "plateId": 9,
-   "elevation": -3871.89998450598,
+   "elevation": -2019.6154308132654,
    "isOceanic": true
   },
   {
@@ -1435,7 +1435,7 @@
    "u": 2,
    "v": 62,
    "plateId": 3,
-   "elevation": 1112.016730593457,
+   "elevation": 1852.061535160304,
    "isOceanic": false
   },
   {
@@ -1444,7 +1444,7 @@
    "u": 34,
    "v": 23,
    "plateId": 3,
-   "elevation": 510.10124080655936,
+   "elevation": 924.6271249378867,
    "isOceanic": false
   },
   {
@@ -1453,7 +1453,7 @@
    "u": 18,
    "v": 50,
    "plateId": 2,
-   "elevation": -3697.0779497032618,
+   "elevation": -2714.411249146946,
    "isOceanic": true
   },
   {
@@ -1462,7 +1462,7 @@
    "u": 51,
    "v": 10,
    "plateId": 2,
-   "elevation": -3814.5511027199177,
+   "elevation": -2310.22240606991,
    "isOceanic": true
   },
   {
@@ -1471,7 +1471,7 @@
    "u": 5,
    "v": 16,
    "plateId": 6,
-   "elevation": -3843.3205948865902,
+   "elevation": -2358.6045171588803,
    "isOceanic": true
   },
   {
@@ -1480,7 +1480,7 @@
    "u": 20,
    "v": 25,
    "plateId": 4,
-   "elevation": 940.8615188692393,
+   "elevation": 2146.086299083001,
    "isOceanic": false
   },
   {
@@ -1489,7 +1489,7 @@
    "u": 49,
    "v": 25,
    "plateId": 5,
-   "elevation": -4101.813429729982,
+   "elevation": -1578.731945474729,
    "isOceanic": true
   },
   {
@@ -1498,7 +1498,7 @@
    "u": 30,
    "v": 7,
    "plateId": 5,
-   "elevation": -3849.6728242435547,
+   "elevation": -2731.9777860166805,
    "isOceanic": true
   },
   {
@@ -1507,7 +1507,7 @@
    "u": 35,
    "v": 8,
    "plateId": 6,
-   "elevation": -3989.785748834778,
+   "elevation": -2271.6464405168167,
    "isOceanic": true
   },
   {
@@ -1516,7 +1516,7 @@
    "u": 13,
    "v": 35,
    "plateId": 6,
-   "elevation": -4021.7635603006183,
+   "elevation": -2795.1025151418226,
    "isOceanic": true
   },
   {
@@ -1525,7 +1525,7 @@
    "u": 48,
    "v": 3,
    "plateId": 10,
-   "elevation": 932.411779981667,
+   "elevation": 1025.9874255141892,
    "isOceanic": false
   },
   {
@@ -1534,7 +1534,7 @@
    "u": 32,
    "v": 47,
    "plateId": 1,
-   "elevation": -4269.392100852526,
+   "elevation": -3428.0343694292305,
    "isOceanic": true
   },
   {
@@ -1543,7 +1543,7 @@
    "u": 9,
    "v": 9,
    "plateId": 6,
-   "elevation": -4111.277902646919,
+   "elevation": -2070.0418909907303,
    "isOceanic": true
   },
   {
@@ -1552,7 +1552,7 @@
    "u": 42,
    "v": 53,
    "plateId": 5,
-   "elevation": -3768.693818822597,
+   "elevation": -3086.602238291744,
    "isOceanic": true
   },
   {
@@ -1561,7 +1561,7 @@
    "u": 31,
    "v": 7,
    "plateId": 6,
-   "elevation": -3694.5400438236184,
+   "elevation": -3449.2996910769207,
    "isOceanic": true
   },
   {
@@ -1570,7 +1570,7 @@
    "u": 49,
    "v": 34,
    "plateId": 5,
-   "elevation": -4290.305133714257,
+   "elevation": -2755.714450643024,
    "isOceanic": true
   },
   {
@@ -1579,7 +1579,7 @@
    "u": 23,
    "v": 10,
    "plateId": 5,
-   "elevation": -3886.200802821374,
+   "elevation": -1716.202312501949,
    "isOceanic": true
   },
   {
@@ -1588,7 +1588,7 @@
    "u": 18,
    "v": 4,
    "plateId": 1,
-   "elevation": -4383.793329894254,
+   "elevation": -3252.7085329160773,
    "isOceanic": true
   },
   {
@@ -1597,7 +1597,7 @@
    "u": 53,
    "v": 32,
    "plateId": 5,
-   "elevation": -4060.900628198907,
+   "elevation": -1784.8845329793844,
    "isOceanic": true
   },
   {
@@ -1606,7 +1606,7 @@
    "u": 44,
    "v": 4,
    "plateId": 5,
-   "elevation": -3922.332629665669,
+   "elevation": -2061.2282417616902,
    "isOceanic": true
   },
   {
@@ -1615,7 +1615,7 @@
    "u": 42,
    "v": 1,
    "plateId": 2,
-   "elevation": -4164.371730379198,
+   "elevation": -2275.4532002967935,
    "isOceanic": true
   },
   {
@@ -1624,7 +1624,7 @@
    "u": 16,
    "v": 39,
    "plateId": 9,
-   "elevation": -3778.7654329731085,
+   "elevation": -2638.589663349897,
    "isOceanic": true
   },
   {
@@ -1633,7 +1633,7 @@
    "u": 25,
    "v": 17,
    "plateId": 4,
-   "elevation": 754.1212530068069,
+   "elevation": 2529.139764350021,
    "isOceanic": false
   },
   {
@@ -1642,7 +1642,7 @@
    "u": 55,
    "v": 56,
    "plateId": 0,
-   "elevation": -3968.663067976048,
+   "elevation": -2304.231463348331,
    "isOceanic": true
   },
   {
@@ -1651,7 +1651,7 @@
    "u": 44,
    "v": 15,
    "plateId": 3,
-   "elevation": 655.2464626245344,
+   "elevation": 2682.562688643373,
    "isOceanic": false
   },
   {
@@ -1660,7 +1660,7 @@
    "u": 43,
    "v": 2,
    "plateId": 5,
-   "elevation": -4240.507419640406,
+   "elevation": -2641.1134845915585,
    "isOceanic": true
   },
   {
@@ -1669,7 +1669,7 @@
    "u": 40,
    "v": 25,
    "plateId": 10,
-   "elevation": 1172.6046519419567,
+   "elevation": 1420.7244932716826,
    "isOceanic": false
   },
   {
@@ -1678,7 +1678,7 @@
    "u": 60,
    "v": 26,
    "plateId": 5,
-   "elevation": -4019.71799562817,
+   "elevation": -2691.476620395927,
    "isOceanic": true
   },
   {
@@ -1687,7 +1687,7 @@
    "u": 50,
    "v": 11,
    "plateId": 2,
-   "elevation": -3940.430609279591,
+   "elevation": -2311.9085849228186,
    "isOceanic": true
   },
   {
@@ -1696,7 +1696,7 @@
    "u": 63,
    "v": 26,
    "plateId": 4,
-   "elevation": 804.2086870406127,
+   "elevation": 2551.4522294956478,
    "isOceanic": false
   },
   {
@@ -1705,7 +1705,7 @@
    "u": 38,
    "v": 2,
    "plateId": 10,
-   "elevation": 730.2350159590469,
+   "elevation": 2477.9534947750963,
    "isOceanic": false
   },
   {
@@ -1714,7 +1714,7 @@
    "u": 18,
    "v": 37,
    "plateId": 11,
-   "elevation": 712.6333287657914,
+   "elevation": 3114.3284336708994,
    "isOceanic": false
   },
   {
@@ -1723,7 +1723,7 @@
    "u": 57,
    "v": 25,
    "plateId": 5,
-   "elevation": -3568.2592340973006,
+   "elevation": -3240.2131357820026,
    "isOceanic": true
   },
   {
@@ -1732,7 +1732,7 @@
    "u": 16,
    "v": 39,
    "plateId": 2,
-   "elevation": -3880.9297755295,
+   "elevation": -1688.1830636985637,
    "isOceanic": true
   },
   {
@@ -1741,7 +1741,7 @@
    "u": 43,
    "v": 1,
    "plateId": 7,
-   "elevation": 873.6386776040923,
+   "elevation": 2559.8218091217595,
    "isOceanic": false
   },
   {
@@ -1750,7 +1750,7 @@
    "u": 61,
    "v": 6,
    "plateId": 10,
-   "elevation": 1056.0206689525028,
+   "elevation": 1123.9333360126825,
    "isOceanic": false
   },
   {
@@ -1759,7 +1759,7 @@
    "u": 12,
    "v": 37,
    "plateId": 2,
-   "elevation": -4157.751101445032,
+   "elevation": -1890.145035811293,
    "isOceanic": true
   },
   {
@@ -1768,7 +1768,7 @@
    "u": 6,
    "v": 34,
    "plateId": 6,
-   "elevation": -4060.929204459014,
+   "elevation": -2967.889424089726,
    "isOceanic": true
   },
   {
@@ -1777,7 +1777,7 @@
    "u": 3,
    "v": 1,
    "plateId": 9,
-   "elevation": -4277.865133086735,
+   "elevation": -3034.201803780331,
    "isOceanic": true
   },
   {
@@ -1786,7 +1786,7 @@
    "u": 43,
    "v": 4,
    "plateId": 6,
-   "elevation": -3578.887100593764,
+   "elevation": -3503.165180757021,
    "isOceanic": true
   },
   {
@@ -1795,7 +1795,7 @@
    "u": 37,
    "v": 47,
    "plateId": 0,
-   "elevation": -4234.901973800748,
+   "elevation": -2927.4950144421473,
    "isOceanic": true
   },
   {
@@ -1804,7 +1804,7 @@
    "u": 24,
    "v": 43,
    "plateId": 4,
-   "elevation": 765.1946982351465,
+   "elevation": 2331.169278278987,
    "isOceanic": false
   },
   {
@@ -1813,7 +1813,7 @@
    "u": 39,
    "v": 53,
    "plateId": 0,
-   "elevation": -4242.108333758809,
+   "elevation": -2363.6744470366866,
    "isOceanic": true
   },
   {
@@ -1822,7 +1822,7 @@
    "u": 63,
    "v": 59,
    "plateId": 5,
-   "elevation": -4224.0592495113315,
+   "elevation": -2622.73748656871,
    "isOceanic": true
   },
   {
@@ -1831,7 +1831,7 @@
    "u": 31,
    "v": 41,
    "plateId": 9,
-   "elevation": -4121.410490515882,
+   "elevation": -1774.7620066330246,
    "isOceanic": true
   },
   {
@@ -1840,7 +1840,7 @@
    "u": 54,
    "v": 16,
    "plateId": 10,
-   "elevation": 908.1634443917445,
+   "elevation": 2788.941339161657,
    "isOceanic": false
   },
   {
@@ -1849,7 +1849,7 @@
    "u": 46,
    "v": 42,
    "plateId": 4,
-   "elevation": 1220.6559640386226,
+   "elevation": 1408.0615484296166,
    "isOceanic": false
   },
   {
@@ -1858,7 +1858,7 @@
    "u": 34,
    "v": 6,
    "plateId": 7,
-   "elevation": 932.5556869970078,
+   "elevation": 2805.732428085331,
    "isOceanic": false
   },
   {
@@ -1867,7 +1867,7 @@
    "u": 29,
    "v": 35,
    "plateId": 9,
-   "elevation": -3830.5283329483846,
+   "elevation": -1976.3011182129512,
    "isOceanic": true
   },
   {
@@ -1876,7 +1876,7 @@
    "u": 41,
    "v": 38,
    "plateId": 5,
-   "elevation": -3953.467869415591,
+   "elevation": -1894.5247961408272,
    "isOceanic": true
   },
   {
@@ -1885,7 +1885,7 @@
    "u": 50,
    "v": 33,
    "plateId": 3,
-   "elevation": 817.5947661448199,
+   "elevation": 3228.5275368269386,
    "isOceanic": false
   },
   {
@@ -1894,7 +1894,7 @@
    "u": 21,
    "v": 56,
    "plateId": 1,
-   "elevation": -3630.3965953682655,
+   "elevation": -3215.561862718808,
    "isOceanic": true
   },
   {
@@ -1903,7 +1903,7 @@
    "u": 44,
    "v": 33,
    "plateId": 8,
-   "elevation": -4073.8175947725877,
+   "elevation": -1868.6406915472812,
    "isOceanic": true
   },
   {
@@ -1912,7 +1912,7 @@
    "u": 38,
    "v": 56,
    "plateId": 0,
-   "elevation": -4085.720029712709,
+   "elevation": -2142.5581233452376,
    "isOceanic": true
   },
   {
@@ -1921,7 +1921,7 @@
    "u": 59,
    "v": 17,
    "plateId": 5,
-   "elevation": -3694.6830617972005,
+   "elevation": -2997.023438771998,
    "isOceanic": true
   },
   {
@@ -1930,7 +1930,7 @@
    "u": 25,
    "v": 32,
    "plateId": 9,
-   "elevation": -3936.7976650154355,
+   "elevation": -2330.7302951183847,
    "isOceanic": true
   },
   {
@@ -1939,7 +1939,7 @@
    "u": 53,
    "v": 54,
    "plateId": 0,
-   "elevation": -4168.563992124131,
+   "elevation": -2232.225794449454,
    "isOceanic": true
   },
   {
@@ -1948,7 +1948,7 @@
    "u": 23,
    "v": 11,
    "plateId": 11,
-   "elevation": 855.2592124053729,
+   "elevation": 2948.249878058967,
    "isOceanic": false
   },
   {
@@ -1957,7 +1957,7 @@
    "u": 33,
    "v": 48,
    "plateId": 0,
-   "elevation": -3943.8922389310214,
+   "elevation": -2249.57799874997,
    "isOceanic": true
   },
   {
@@ -1966,7 +1966,7 @@
    "u": 36,
    "v": 34,
    "plateId": 2,
-   "elevation": -3893.431070170217,
+   "elevation": -1924.976611538937,
    "isOceanic": true
   },
   {
@@ -1975,7 +1975,7 @@
    "u": 29,
    "v": 12,
    "plateId": 1,
-   "elevation": -3883.655536279211,
+   "elevation": -2517.9383957033197,
    "isOceanic": true
   },
   {
@@ -1984,7 +1984,7 @@
    "u": 20,
    "v": 28,
    "plateId": 9,
-   "elevation": -3776.475817086894,
+   "elevation": -2817.0996754093408,
    "isOceanic": true
   },
   {
@@ -1993,7 +1993,7 @@
    "u": 18,
    "v": 19,
    "plateId": 9,
-   "elevation": -4122.876230101468,
+   "elevation": -1939.8698823608765,
    "isOceanic": true
   },
   {
@@ -2002,7 +2002,7 @@
    "u": 16,
    "v": 6,
    "plateId": 11,
-   "elevation": 982.0341676006435,
+   "elevation": 2060.6344654613395,
    "isOceanic": false
   },
   {
@@ -2011,7 +2011,7 @@
    "u": 30,
    "v": 12,
    "plateId": 2,
-   "elevation": -3891.606363718371,
+   "elevation": -2326.6591207234205,
    "isOceanic": true
   },
   {
@@ -2020,7 +2020,7 @@
    "u": 23,
    "v": 48,
    "plateId": 1,
-   "elevation": -3949.650692685776,
+   "elevation": -1612.0665561454448,
    "isOceanic": true
   },
   {
@@ -2029,7 +2029,7 @@
    "u": 18,
    "v": 42,
    "plateId": 11,
-   "elevation": 749.8761379321118,
+   "elevation": 2166.90284146701,
    "isOceanic": false
   },
   {
@@ -2038,7 +2038,7 @@
    "u": 46,
    "v": 5,
    "plateId": 10,
-   "elevation": 683.8634913025617,
+   "elevation": 2541.001449536942,
    "isOceanic": false
   },
   {
@@ -2047,7 +2047,7 @@
    "u": 52,
    "v": 2,
    "plateId": 7,
-   "elevation": 839.3126264992143,
+   "elevation": 2904.0376216906498,
    "isOceanic": false
   },
   {
@@ -2056,7 +2056,7 @@
    "u": 25,
    "v": 27,
    "plateId": 11,
-   "elevation": 450.6058091139385,
+   "elevation": 1753.4789273255049,
    "isOceanic": false
   },
   {
@@ -2065,7 +2065,7 @@
    "u": 53,
    "v": 23,
    "plateId": 5,
-   "elevation": -3821.213567158563,
+   "elevation": -2723.9905597208103,
    "isOceanic": true
   },
   {
@@ -2074,7 +2074,7 @@
    "u": 39,
    "v": 48,
    "plateId": 0,
-   "elevation": -3670.1281303869555,
+   "elevation": -2912.389370385033,
    "isOceanic": true
   },
   {
@@ -2083,7 +2083,7 @@
    "u": 20,
    "v": 63,
    "plateId": 6,
-   "elevation": -3556.563112360052,
+   "elevation": -3303.781565170072,
    "isOceanic": true
   },
   {
@@ -2092,7 +2092,7 @@
    "u": 63,
    "v": 28,
    "plateId": 4,
-   "elevation": 501.39220698665173,
+   "elevation": 1903.678890395943,
    "isOceanic": false
   },
   {
@@ -2101,7 +2101,7 @@
    "u": 31,
    "v": 58,
    "plateId": 6,
-   "elevation": -3847.469569076492,
+   "elevation": -2258.358122501647,
    "isOceanic": true
   },
   {
@@ -2110,7 +2110,7 @@
    "u": 27,
    "v": 22,
    "plateId": 6,
-   "elevation": -3799.042928016026,
+   "elevation": -2712.821617059024,
    "isOceanic": true
   },
   {
@@ -2119,7 +2119,7 @@
    "u": 23,
    "v": 56,
    "plateId": 6,
-   "elevation": -3841.124185390341,
+   "elevation": -2431.8672283147407,
    "isOceanic": true
   },
   {
@@ -2128,7 +2128,7 @@
    "u": 37,
    "v": 30,
    "plateId": 10,
-   "elevation": 976.2657947570165,
+   "elevation": 2314.552475705967,
    "isOceanic": false
   },
   {
@@ -2137,7 +2137,7 @@
    "u": 18,
    "v": 3,
    "plateId": 5,
-   "elevation": -3931.9101164337794,
+   "elevation": -1467.0847719355866,
    "isOceanic": true
   },
   {
@@ -2146,7 +2146,7 @@
    "u": 57,
    "v": 48,
    "plateId": 3,
-   "elevation": 886.5776159929559,
+   "elevation": 708.2338511330212,
    "isOceanic": false
   },
   {
@@ -2155,7 +2155,7 @@
    "u": 53,
    "v": 31,
    "plateId": 3,
-   "elevation": 760.4602699139879,
+   "elevation": 2801.0142166521664,
    "isOceanic": false
   },
   {
@@ -2164,7 +2164,7 @@
    "u": 17,
    "v": 8,
    "plateId": 6,
-   "elevation": -4278.921879353542,
+   "elevation": -3256.0261254115785,
    "isOceanic": true
   },
   {
@@ -2173,7 +2173,7 @@
    "u": 40,
    "v": 17,
    "plateId": 2,
-   "elevation": -4061.4981965657134,
+   "elevation": -3617.124318710559,
    "isOceanic": true
   },
   {
@@ -2182,7 +2182,7 @@
    "u": 34,
    "v": 4,
    "plateId": 2,
-   "elevation": -3793.3817046804247,
+   "elevation": -2140.6858885468546,
    "isOceanic": true
   },
   {
@@ -2191,7 +2191,7 @@
    "u": 25,
    "v": 1,
    "plateId": 2,
-   "elevation": -4168.039567781798,
+   "elevation": -2212.976221099675,
    "isOceanic": true
   },
   {
@@ -2200,7 +2200,7 @@
    "u": 10,
    "v": 43,
    "plateId": 11,
-   "elevation": 1015.4077537680134,
+   "elevation": 2270.306963637351,
    "isOceanic": false
   },
   {
@@ -2209,7 +2209,7 @@
    "u": 21,
    "v": 57,
    "plateId": 0,
-   "elevation": -3851.3129066110228,
+   "elevation": -2589.427508777241,
    "isOceanic": true
   },
   {
@@ -2218,7 +2218,7 @@
    "u": 41,
    "v": 24,
    "plateId": 8,
-   "elevation": -4073.4207526699906,
+   "elevation": -1880.6824711852487,
    "isOceanic": true
   },
   {
@@ -2227,7 +2227,7 @@
    "u": 32,
    "v": 61,
    "plateId": 2,
-   "elevation": -4030.181737401247,
+   "elevation": -3083.92890600156,
    "isOceanic": true
   },
   {
@@ -2236,7 +2236,7 @@
    "u": 30,
    "v": 16,
    "plateId": 8,
-   "elevation": -4266.730641267044,
+   "elevation": -4130.355576165606,
    "isOceanic": true
   },
   {
@@ -2245,7 +2245,7 @@
    "u": 53,
    "v": 56,
    "plateId": 5,
-   "elevation": -4169.497328085665,
+   "elevation": -2840.970300345537,
    "isOceanic": true
   },
   {
@@ -2254,7 +2254,7 @@
    "u": 0,
    "v": 18,
    "plateId": 10,
-   "elevation": 881.3605165375935,
+   "elevation": 2920.4923218498466,
    "isOceanic": false
   },
   {
@@ -2263,7 +2263,7 @@
    "u": 32,
    "v": 54,
    "plateId": 0,
-   "elevation": -3922.002676097476,
+   "elevation": -2431.0908247343314,
    "isOceanic": true
   },
   {
@@ -2272,7 +2272,7 @@
    "u": 35,
    "v": 55,
    "plateId": 9,
-   "elevation": -4025.875289654328,
+   "elevation": -2277.9229563958943,
    "isOceanic": true
   },
   {
@@ -2281,7 +2281,7 @@
    "u": 56,
    "v": 54,
    "plateId": 3,
-   "elevation": 639.5970131768001,
+   "elevation": 1738.3745843069185,
    "isOceanic": false
   },
   {
@@ -2290,7 +2290,7 @@
    "u": 55,
    "v": 50,
    "plateId": 3,
-   "elevation": 1014.5269809128238,
+   "elevation": 2641.5686117344176,
    "isOceanic": false
   },
   {
@@ -2299,7 +2299,7 @@
    "u": 15,
    "v": 35,
    "plateId": 9,
-   "elevation": -3936.4848348195915,
+   "elevation": -1586.4548651394784,
    "isOceanic": true
   },
   {
@@ -2308,7 +2308,7 @@
    "u": 41,
    "v": 30,
    "plateId": 10,
-   "elevation": 780.8866323695727,
+   "elevation": 1240.7091090910442,
    "isOceanic": false
   },
   {
@@ -2317,7 +2317,7 @@
    "u": 11,
    "v": 63,
    "plateId": 3,
-   "elevation": 908.1020943355368,
+   "elevation": 1476.2635265061642,
    "isOceanic": false
   },
   {
@@ -2326,7 +2326,7 @@
    "u": 22,
    "v": 38,
    "plateId": 11,
-   "elevation": 953.0943622934224,
+   "elevation": 2874.5554173466576,
    "isOceanic": false
   },
   {
@@ -2335,7 +2335,7 @@
    "u": 35,
    "v": 2,
    "plateId": 10,
-   "elevation": 877.189267372762,
+   "elevation": 1775.2050845189617,
    "isOceanic": false
   },
   {
@@ -2344,7 +2344,7 @@
    "u": 26,
    "v": 12,
    "plateId": 5,
-   "elevation": -4093.135954760672,
+   "elevation": -2558.6525321546997,
    "isOceanic": true
   },
   {
@@ -2353,7 +2353,7 @@
    "u": 49,
    "v": 23,
    "plateId": 10,
-   "elevation": 632.1868926545837,
+   "elevation": 2315.2103095822863,
    "isOceanic": false
   },
   {
@@ -2362,7 +2362,7 @@
    "u": 24,
    "v": 57,
    "plateId": 6,
-   "elevation": -4111.007413343853,
+   "elevation": -1851.658979001997,
    "isOceanic": true
   },
   {
@@ -2371,7 +2371,7 @@
    "u": 17,
    "v": 40,
    "plateId": 0,
-   "elevation": -3927.636899878182,
+   "elevation": -1848.3153207573346,
    "isOceanic": true
   },
   {
@@ -2380,7 +2380,7 @@
    "u": 3,
    "v": 8,
    "plateId": 7,
-   "elevation": 481.8575212326887,
+   "elevation": 1619.9114262039334,
    "isOceanic": false
   },
   {
@@ -2389,7 +2389,7 @@
    "u": 54,
    "v": 62,
    "plateId": 5,
-   "elevation": -3585.1887380359058,
+   "elevation": -3189.5707625577006,
    "isOceanic": true
   },
   {
@@ -2398,7 +2398,7 @@
    "u": 62,
    "v": 30,
    "plateId": 9,
-   "elevation": -4042.233615435999,
+   "elevation": -3372.57788840733,
    "isOceanic": true
   },
   {
@@ -2407,7 +2407,7 @@
    "u": 6,
    "v": 40,
    "plateId": 9,
-   "elevation": -4366.441861176509,
+   "elevation": -3331.102135251602,
    "isOceanic": true
   },
   {
@@ -2416,7 +2416,7 @@
    "u": 17,
    "v": 62,
    "plateId": 0,
-   "elevation": -4148.32192908811,
+   "elevation": -2057.76727452116,
    "isOceanic": true
   },
   {
@@ -2425,7 +2425,7 @@
    "u": 31,
    "v": 51,
    "plateId": 0,
-   "elevation": -4099.711219578351,
+   "elevation": -2245.061950261793,
    "isOceanic": true
   },
   {
@@ -2434,7 +2434,7 @@
    "u": 2,
    "v": 34,
    "plateId": 11,
-   "elevation": 557.6753125797795,
+   "elevation": 1594.0817638712094,
    "isOceanic": false
   },
   {
@@ -2443,7 +2443,7 @@
    "u": 14,
    "v": 34,
    "plateId": 6,
-   "elevation": -3517.1666835466863,
+   "elevation": -3446.1864737924598,
    "isOceanic": true
   },
   {
@@ -2452,7 +2452,7 @@
    "u": 11,
    "v": 56,
    "plateId": 2,
-   "elevation": -3978.9490492102595,
+   "elevation": -1802.4474238581643,
    "isOceanic": true
   },
   {
@@ -2461,7 +2461,7 @@
    "u": 47,
    "v": 32,
    "plateId": 2,
-   "elevation": -4091.75442742424,
+   "elevation": -2220.412493973952,
    "isOceanic": true
   },
   {
@@ -2470,7 +2470,7 @@
    "u": 36,
    "v": 25,
    "plateId": 1,
-   "elevation": -3898.4237980083244,
+   "elevation": -2343.311163853616,
    "isOceanic": true
   },
   {
@@ -2479,7 +2479,7 @@
    "u": 14,
    "v": 3,
    "plateId": 6,
-   "elevation": -4138.259015857529,
+   "elevation": -3002.2244005395028,
    "isOceanic": true
   },
   {
@@ -2488,7 +2488,7 @@
    "u": 48,
    "v": 8,
    "plateId": 7,
-   "elevation": 615.8654267477351,
+   "elevation": 2284.2951621333996,
    "isOceanic": false
   },
   {
@@ -2497,7 +2497,7 @@
    "u": 21,
    "v": 48,
    "plateId": 2,
-   "elevation": -3845.6248939461357,
+   "elevation": -2166.154820173261,
    "isOceanic": true
   },
   {
@@ -2506,7 +2506,7 @@
    "u": 21,
    "v": 37,
    "plateId": 11,
-   "elevation": 807.1161467041192,
+   "elevation": 3148.9141201230836,
    "isOceanic": false
   },
   {
@@ -2515,7 +2515,7 @@
    "u": 21,
    "v": 9,
    "plateId": 11,
-   "elevation": 491.4936605344415,
+   "elevation": 1981.1931823197422,
    "isOceanic": false
   },
   {
@@ -2524,7 +2524,7 @@
    "u": 38,
    "v": 28,
    "plateId": 3,
-   "elevation": 1183.8363649682078,
+   "elevation": 1452.8435996899539,
    "isOceanic": false
   },
   {
@@ -2533,7 +2533,7 @@
    "u": 2,
    "v": 50,
    "plateId": 0,
-   "elevation": -3608.2430962895473,
+   "elevation": -3209.5191948773263,
    "isOceanic": true
   },
   {
@@ -2542,7 +2542,7 @@
    "u": 49,
    "v": 2,
    "plateId": 2,
-   "elevation": -3711.7956395358797,
+   "elevation": -3810.293472299557,
    "isOceanic": true
   },
   {
@@ -2551,7 +2551,7 @@
    "u": 5,
    "v": 31,
    "plateId": 1,
-   "elevation": -4202.418824138489,
+   "elevation": -2620.3750094013594,
    "isOceanic": true
   },
   {
@@ -2560,7 +2560,7 @@
    "u": 22,
    "v": 8,
    "plateId": 5,
-   "elevation": -4178.04895200196,
+   "elevation": -2174.2506467659978,
    "isOceanic": true
   },
   {
@@ -2569,7 +2569,7 @@
    "u": 33,
    "v": 30,
    "plateId": 10,
-   "elevation": 599.5312604649102,
+   "elevation": 2224.6496998677057,
    "isOceanic": false
   },
   {
@@ -2578,7 +2578,7 @@
    "u": 56,
    "v": 15,
    "plateId": 3,
-   "elevation": 515.2758115496385,
+   "elevation": 1793.5375879148064,
    "isOceanic": false
   },
   {
@@ -2587,7 +2587,7 @@
    "u": 22,
    "v": 2,
    "plateId": 1,
-   "elevation": -4129.397814675234,
+   "elevation": -2443.1061406142594,
    "isOceanic": true
   },
   {
@@ -2596,7 +2596,7 @@
    "u": 44,
    "v": 63,
    "plateId": 6,
-   "elevation": -4128.006469573442,
+   "elevation": -2151.4227921351717,
    "isOceanic": true
   },
   {
@@ -2605,7 +2605,7 @@
    "u": 30,
    "v": 49,
    "plateId": 0,
-   "elevation": -4195.796380022854,
+   "elevation": -2492.605138245147,
    "isOceanic": true
   },
   {
@@ -2614,7 +2614,7 @@
    "u": 32,
    "v": 62,
    "plateId": 3,
-   "elevation": 822.0619651136595,
+   "elevation": 2706.6497380501996,
    "isOceanic": false
   },
   {
@@ -2623,7 +2623,7 @@
    "u": 14,
    "v": 11,
    "plateId": 9,
-   "elevation": -3700.1027436287795,
+   "elevation": -3232.5623070544916,
    "isOceanic": true
   },
   {
@@ -2632,7 +2632,7 @@
    "u": 42,
    "v": 1,
    "plateId": 10,
-   "elevation": 449.88154463120225,
+   "elevation": 1900.9162112199724,
    "isOceanic": false
   },
   {
@@ -2641,7 +2641,7 @@
    "u": 61,
    "v": 23,
    "plateId": 5,
-   "elevation": -4484.231237792761,
+   "elevation": -3534.735302799948,
    "isOceanic": true
   },
   {
@@ -2650,7 +2650,7 @@
    "u": 46,
    "v": 58,
    "plateId": 0,
-   "elevation": -3731.222650767099,
+   "elevation": -2830.7498612735976,
    "isOceanic": true
   },
   {
@@ -2659,7 +2659,7 @@
    "u": 20,
    "v": 63,
    "plateId": 0,
-   "elevation": -4035.035862681615,
+   "elevation": -2134.2694490651247,
    "isOceanic": true
   },
   {
@@ -2668,7 +2668,7 @@
    "u": 8,
    "v": 8,
    "plateId": 11,
-   "elevation": 1153.119536313151,
+   "elevation": 1881.0304357102516,
    "isOceanic": false
   },
   {
@@ -2677,7 +2677,7 @@
    "u": 27,
    "v": 63,
    "plateId": 3,
-   "elevation": 968.4436676764985,
+   "elevation": 2529.9430169779885,
    "isOceanic": false
   },
   {
@@ -2686,7 +2686,7 @@
    "u": 24,
    "v": 46,
    "plateId": 1,
-   "elevation": -3803.9802181886216,
+   "elevation": -2475.5640640019083,
    "isOceanic": true
   },
   {
@@ -2695,7 +2695,7 @@
    "u": 43,
    "v": 42,
    "plateId": 10,
-   "elevation": 879.4040786984954,
+   "elevation": 2571.81186741069,
    "isOceanic": false
   },
   {
@@ -2704,7 +2704,7 @@
    "u": 43,
    "v": 11,
    "plateId": 8,
-   "elevation": -3854.7251491974716,
+   "elevation": -2274.396893627683,
    "isOceanic": true
   },
   {
@@ -2713,7 +2713,7 @@
    "u": 39,
    "v": 37,
    "plateId": 3,
-   "elevation": 630.109157710441,
+   "elevation": 2578.342056009858,
    "isOceanic": false
   },
   {
@@ -2722,7 +2722,7 @@
    "u": 14,
    "v": 10,
    "plateId": 6,
-   "elevation": -3890.2951700826084,
+   "elevation": -2140.0088302927493,
    "isOceanic": true
   },
   {
@@ -2731,7 +2731,7 @@
    "u": 2,
    "v": 35,
    "plateId": 11,
-   "elevation": 505.52772910879116,
+   "elevation": 1628.40091422788,
    "isOceanic": false
   },
   {
@@ -2740,7 +2740,7 @@
    "u": 56,
    "v": 57,
    "plateId": 6,
-   "elevation": -3953.777517938007,
+   "elevation": -1785.4501886250932,
    "isOceanic": true
   },
   {
@@ -2749,7 +2749,7 @@
    "u": 3,
    "v": 29,
    "plateId": 4,
-   "elevation": 380.4470468971486,
+   "elevation": 1554.6098893282945,
    "isOceanic": false
   },
   {
@@ -2758,7 +2758,7 @@
    "u": 26,
    "v": 59,
    "plateId": 0,
-   "elevation": -3792.4412508954456,
+   "elevation": -2952.542693446925,
    "isOceanic": true
   },
   {
@@ -2767,7 +2767,7 @@
    "u": 10,
    "v": 6,
    "plateId": 6,
-   "elevation": -3640.9153921923444,
+   "elevation": -2951.2517903398766,
    "isOceanic": true
   },
   {
@@ -2776,7 +2776,7 @@
    "u": 60,
    "v": 29,
    "plateId": 3,
-   "elevation": 794.4798222517837,
+   "elevation": 3494.7635153493784,
    "isOceanic": false
   },
   {
@@ -2785,7 +2785,7 @@
    "u": 45,
    "v": 63,
    "plateId": 0,
-   "elevation": -4163.497675943296,
+   "elevation": -2176.091827996529,
    "isOceanic": true
   },
   {
@@ -2794,7 +2794,7 @@
    "u": 49,
    "v": 40,
    "plateId": 8,
-   "elevation": -3984.047412323586,
+   "elevation": -1584.311330826758,
    "isOceanic": true
   },
   {
@@ -2803,7 +2803,7 @@
    "u": 38,
    "v": 37,
    "plateId": 0,
-   "elevation": -4174.308083969742,
+   "elevation": -2875.720707508474,
    "isOceanic": true
   },
   {
@@ -2812,7 +2812,7 @@
    "u": 7,
    "v": 18,
    "plateId": 4,
-   "elevation": 903.1541513332293,
+   "elevation": 2152.923055244245,
    "isOceanic": false
   },
   {
@@ -2821,7 +2821,7 @@
    "u": 8,
    "v": 45,
    "plateId": 11,
-   "elevation": 1192.8103216323202,
+   "elevation": 1007.6897319938317,
    "isOceanic": false
   },
   {
@@ -2830,7 +2830,7 @@
    "u": 40,
    "v": 17,
    "plateId": 8,
-   "elevation": -4296.025878164497,
+   "elevation": -3634.7709069177017,
    "isOceanic": true
   },
   {
@@ -2839,7 +2839,7 @@
    "u": 16,
    "v": 21,
    "plateId": 4,
-   "elevation": 769.0803579268653,
+   "elevation": 2839.414432229672,
    "isOceanic": false
   },
   {
@@ -2848,7 +2848,7 @@
    "u": 55,
    "v": 35,
    "plateId": 2,
-   "elevation": -4303.566541657264,
+   "elevation": -2653.479631386692,
    "isOceanic": true
   },
   {
@@ -2857,7 +2857,7 @@
    "u": 58,
    "v": 62,
    "plateId": 0,
-   "elevation": -3965.4894680622674,
+   "elevation": -2324.8485837512194,
    "isOceanic": true
   },
   {
@@ -2866,7 +2866,7 @@
    "u": 46,
    "v": 21,
    "plateId": 10,
-   "elevation": 514.4768600074269,
+   "elevation": 1489.455878284119,
    "isOceanic": false
   },
   {
@@ -2875,7 +2875,7 @@
    "u": 37,
    "v": 33,
    "plateId": 10,
-   "elevation": 439.6587589089513,
+   "elevation": 1796.2024448222828,
    "isOceanic": false
   },
   {
@@ -2884,7 +2884,7 @@
    "u": 32,
    "v": 47,
    "plateId": 2,
-   "elevation": -3940.176708269648,
+   "elevation": -1997.3074223571202,
    "isOceanic": true
   },
   {
@@ -2893,7 +2893,7 @@
    "u": 2,
    "v": 8,
    "plateId": 5,
-   "elevation": -4251.288437370939,
+   "elevation": -2539.1918941101258,
    "isOceanic": true
   },
   {
@@ -2902,7 +2902,7 @@
    "u": 51,
    "v": 26,
    "plateId": 3,
-   "elevation": 532.2874767760732,
+   "elevation": 1373.3746946884098,
    "isOceanic": false
   },
   {
@@ -2911,7 +2911,7 @@
    "u": 46,
    "v": 18,
    "plateId": 10,
-   "elevation": 1102.727915355361,
+   "elevation": 2064.371845495518,
    "isOceanic": false
   },
   {
@@ -2920,7 +2920,7 @@
    "u": 16,
    "v": 23,
    "plateId": 6,
-   "elevation": -4047.77539965542,
+   "elevation": -1981.2727360130364,
    "isOceanic": true
   },
   {
@@ -2929,7 +2929,7 @@
    "u": 15,
    "v": 61,
    "plateId": 0,
-   "elevation": -4143.573902184544,
+   "elevation": -1965.682042279864,
    "isOceanic": true
   },
   {
@@ -2938,7 +2938,7 @@
    "u": 41,
    "v": 31,
    "plateId": 5,
-   "elevation": -4089.893565007015,
+   "elevation": -3040.2988165206693,
    "isOceanic": true
   },
   {
@@ -2947,7 +2947,7 @@
    "u": 10,
    "v": 53,
    "plateId": 0,
-   "elevation": -4240.252308233682,
+   "elevation": -2338.9972476195676,
    "isOceanic": true
   },
   {
@@ -2956,7 +2956,7 @@
    "u": 61,
    "v": 46,
    "plateId": 6,
-   "elevation": -3870.921582455799,
+   "elevation": -1719.344924566342,
    "isOceanic": true
   },
   {
@@ -2965,7 +2965,7 @@
    "u": 59,
    "v": 28,
    "plateId": 10,
-   "elevation": 1095.934363737255,
+   "elevation": 1667.273069355666,
    "isOceanic": false
   },
   {
@@ -2974,7 +2974,7 @@
    "u": 35,
    "v": 44,
    "plateId": 9,
-   "elevation": -4390.890018429714,
+   "elevation": -3097.8884114183784,
    "isOceanic": true
   },
   {
@@ -2983,7 +2983,7 @@
    "u": 54,
    "v": 4,
    "plateId": 10,
-   "elevation": 715.303609607426,
+   "elevation": 2265.952812925025,
    "isOceanic": false
   },
   {
@@ -2992,7 +2992,7 @@
    "u": 58,
    "v": 44,
    "plateId": 11,
-   "elevation": 1004.0454761358076,
+   "elevation": 2594.509493769232,
    "isOceanic": false
   },
   {
@@ -3001,7 +3001,7 @@
    "u": 51,
    "v": 12,
    "plateId": 10,
-   "elevation": 395.94607091820603,
+   "elevation": 1357.6601049865499,
    "isOceanic": false
   },
   {
@@ -3010,7 +3010,7 @@
    "u": 62,
    "v": 1,
    "plateId": 10,
-   "elevation": 1001.3700544365963,
+   "elevation": 1162.4089733048718,
    "isOceanic": false
   },
   {
@@ -3019,7 +3019,7 @@
    "u": 47,
    "v": 52,
    "plateId": 0,
-   "elevation": -3857.617191886102,
+   "elevation": -2138.836221829769,
    "isOceanic": true
   },
   {
@@ -3028,7 +3028,7 @@
    "u": 61,
    "v": 37,
    "plateId": 5,
-   "elevation": -4470.263511548934,
+   "elevation": -3444.594470328418,
    "isOceanic": true
   },
   {
@@ -3037,7 +3037,7 @@
    "u": 1,
    "v": 58,
    "plateId": 0,
-   "elevation": -3868.694579191441,
+   "elevation": -2396.859564873903,
    "isOceanic": true
   },
   {
@@ -3046,7 +3046,7 @@
    "u": 21,
    "v": 56,
    "plateId": 2,
-   "elevation": -3987.1007745405245,
+   "elevation": -2013.0733617853616,
    "isOceanic": true
   },
   {
@@ -3055,7 +3055,7 @@
    "u": 31,
    "v": 25,
    "plateId": 2,
-   "elevation": -3988.025514951358,
+   "elevation": -3126.5101034959343,
    "isOceanic": true
   },
   {
@@ -3064,7 +3064,7 @@
    "u": 43,
    "v": 32,
    "plateId": 10,
-   "elevation": 1114.613796595237,
+   "elevation": 2082.9697425513214,
    "isOceanic": false
   },
   {
@@ -3073,7 +3073,7 @@
    "u": 30,
    "v": 31,
    "plateId": 0,
-   "elevation": -3957.3528512632274,
+   "elevation": -2507.3820748103317,
    "isOceanic": true
   },
   {
@@ -3082,7 +3082,7 @@
    "u": 55,
    "v": 53,
    "plateId": 3,
-   "elevation": 549.3254694715557,
+   "elevation": 1642.508460216783,
    "isOceanic": false
   },
   {
@@ -3091,7 +3091,7 @@
    "u": 56,
    "v": 57,
    "plateId": 0,
-   "elevation": -4189.498369477229,
+   "elevation": -3158.402070805651,
    "isOceanic": true
   },
   {
@@ -3100,7 +3100,7 @@
    "u": 32,
    "v": 32,
    "plateId": 0,
-   "elevation": -4084.3807946680527,
+   "elevation": -2656.412678176861,
    "isOceanic": true
   },
   {
@@ -3109,7 +3109,7 @@
    "u": 34,
    "v": 42,
    "plateId": 9,
-   "elevation": -3932.49692685467,
+   "elevation": -1831.5964417318178,
    "isOceanic": true
   },
   {
@@ -3118,7 +3118,7 @@
    "u": 12,
    "v": 60,
    "plateId": 1,
-   "elevation": -4044.714936617679,
+   "elevation": -1924.29494587702,
    "isOceanic": true
   },
   {
@@ -3127,7 +3127,7 @@
    "u": 43,
    "v": 20,
    "plateId": 8,
-   "elevation": -4202.148229722666,
+   "elevation": -2349.5135647383204,
    "isOceanic": true
   },
   {
@@ -3136,7 +3136,7 @@
    "u": 37,
    "v": 4,
    "plateId": 2,
-   "elevation": -4138.819174521754,
+   "elevation": -1836.4172970224427,
    "isOceanic": true
   },
   {
@@ -3145,7 +3145,7 @@
    "u": 23,
    "v": 13,
    "plateId": 6,
-   "elevation": -3651.826921241875,
+   "elevation": -3692.2599347049504,
    "isOceanic": true
   },
   {
@@ -3154,7 +3154,7 @@
    "u": 10,
    "v": 19,
    "plateId": 6,
-   "elevation": -4024.48072351844,
+   "elevation": -2412.934210868487,
    "isOceanic": true
   },
   {
@@ -3163,7 +3163,7 @@
    "u": 55,
    "v": 48,
    "plateId": 3,
-   "elevation": 934.677692304211,
+   "elevation": 1593.1334887331204,
    "isOceanic": false
   },
   {
@@ -3172,7 +3172,7 @@
    "u": 40,
    "v": 28,
    "plateId": 2,
-   "elevation": -4240.865744020388,
+   "elevation": -2341.446876809423,
    "isOceanic": true
   },
   {
@@ -3181,7 +3181,7 @@
    "u": 61,
    "v": 3,
    "plateId": 5,
-   "elevation": -3906.076613890366,
+   "elevation": -2193.9936055186013,
    "isOceanic": true
   },
   {
@@ -3190,7 +3190,7 @@
    "u": 8,
    "v": 37,
    "plateId": 2,
-   "elevation": -4193.62007149281,
+   "elevation": -2105.071613906277,
    "isOceanic": true
   },
   {
@@ -3199,7 +3199,7 @@
    "u": 7,
    "v": 32,
    "plateId": 4,
-   "elevation": 780.3843274430068,
+   "elevation": 2710.978039827794,
    "isOceanic": false
   },
   {
@@ -3208,7 +3208,7 @@
    "u": 25,
    "v": 57,
    "plateId": 0,
-   "elevation": -3946.8794685440726,
+   "elevation": -1848.2455113388705,
    "isOceanic": true
   },
   {
@@ -3217,7 +3217,7 @@
    "u": 61,
    "v": 51,
    "plateId": 3,
-   "elevation": 705.835191199038,
+   "elevation": 1383.7908770232098,
    "isOceanic": false
   },
   {
@@ -3226,7 +3226,7 @@
    "u": 47,
    "v": 9,
    "plateId": 10,
-   "elevation": 701.255217044921,
+   "elevation": 2501.0281885645754,
    "isOceanic": false
   },
   {
@@ -3235,7 +3235,7 @@
    "u": 16,
    "v": 2,
    "plateId": 5,
-   "elevation": -4177.594556304005,
+   "elevation": -2144.24815098791,
    "isOceanic": true
   },
   {
@@ -3244,7 +3244,7 @@
    "u": 14,
    "v": 31,
    "plateId": 2,
-   "elevation": -4276.496387904144,
+   "elevation": -2575.087160128831,
    "isOceanic": true
   },
   {
@@ -3253,7 +3253,7 @@
    "u": 16,
    "v": 9,
    "plateId": 11,
-   "elevation": 898.2162113809455,
+   "elevation": 2623.707435338151,
    "isOceanic": false
   },
   {
@@ -3262,7 +3262,7 @@
    "u": 3,
    "v": 12,
    "plateId": 11,
-   "elevation": 419.29661489188004,
+   "elevation": 1962.9551658801124,
    "isOceanic": false
   },
   {
@@ -3271,7 +3271,7 @@
    "u": 5,
    "v": 43,
    "plateId": 11,
-   "elevation": 603.6333272701329,
+   "elevation": 2595.397515906231,
    "isOceanic": false
   },
   {
@@ -3280,7 +3280,7 @@
    "u": 3,
    "v": 31,
    "plateId": 1,
-   "elevation": -4096.514227748014,
+   "elevation": -2162.589480254358,
    "isOceanic": true
   },
   {
@@ -3289,7 +3289,7 @@
    "u": 39,
    "v": 25,
    "plateId": 1,
-   "elevation": -3688.352806197836,
+   "elevation": -2706.657324907624,
    "isOceanic": true
   },
   {
@@ -3298,7 +3298,7 @@
    "u": 47,
    "v": 20,
    "plateId": 10,
-   "elevation": 694.2773316957482,
+   "elevation": 2200.518952507422,
    "isOceanic": false
   },
   {
@@ -3307,7 +3307,7 @@
    "u": 5,
    "v": 42,
    "plateId": 9,
-   "elevation": -4176.358269778164,
+   "elevation": -3182.160098672717,
    "isOceanic": true
   },
   {
@@ -3316,7 +3316,7 @@
    "u": 11,
    "v": 63,
    "plateId": 3,
-   "elevation": 908.1020943355368,
+   "elevation": 1476.2635265061642,
    "isOceanic": false
   },
   {
@@ -3325,7 +3325,7 @@
    "u": 38,
    "v": 63,
    "plateId": 6,
-   "elevation": -4134.598736196371,
+   "elevation": -1760.3868554174023,
    "isOceanic": true
   },
   {
@@ -3334,7 +3334,7 @@
    "u": 61,
    "v": 10,
    "plateId": 3,
-   "elevation": 830.3380377630856,
+   "elevation": 1683.341358206028,
    "isOceanic": false
   },
   {
@@ -3343,7 +3343,7 @@
    "u": 32,
    "v": 22,
    "plateId": 5,
-   "elevation": -3748.7638199058356,
+   "elevation": -2420.0834307113178,
    "isOceanic": true
   },
   {
@@ -3352,7 +3352,7 @@
    "u": 10,
    "v": 3,
    "plateId": 5,
-   "elevation": -4277.191038866698,
+   "elevation": -3493.455094355537,
    "isOceanic": true
   },
   {
@@ -3361,7 +3361,7 @@
    "u": 43,
    "v": 43,
    "plateId": 2,
-   "elevation": -4331.145260786042,
+   "elevation": -2907.925292793443,
    "isOceanic": true
   },
   {
@@ -3370,7 +3370,7 @@
    "u": 41,
    "v": 56,
    "plateId": 0,
-   "elevation": -3925.1143799591555,
+   "elevation": -1993.2787138167791,
    "isOceanic": true
   },
   {
@@ -3379,7 +3379,7 @@
    "u": 61,
    "v": 9,
    "plateId": 10,
-   "elevation": 547.8389244731085,
+   "elevation": 2233.289309405904,
    "isOceanic": false
   },
   {
@@ -3388,7 +3388,7 @@
    "u": 61,
    "v": 62,
    "plateId": 0,
-   "elevation": -3849.374675955438,
+   "elevation": -2387.2620687597228,
    "isOceanic": true
   },
   {
@@ -3397,7 +3397,7 @@
    "u": 26,
    "v": 9,
    "plateId": 5,
-   "elevation": -3970.757599143321,
+   "elevation": -1847.5367158321078,
    "isOceanic": true
   },
   {
@@ -3406,7 +3406,7 @@
    "u": 33,
    "v": 38,
    "plateId": 10,
-   "elevation": 1022.251033770171,
+   "elevation": 1923.3893369024838,
    "isOceanic": false
   },
   {
@@ -3415,7 +3415,7 @@
    "u": 33,
    "v": 13,
    "plateId": 2,
-   "elevation": -4276.353485482,
+   "elevation": -2604.1034824192866,
    "isOceanic": true
   },
   {
@@ -3424,7 +3424,7 @@
    "u": 17,
    "v": 32,
    "plateId": 11,
-   "elevation": 1020.6071931279916,
+   "elevation": 1870.7618232624354,
    "isOceanic": false
   },
   {
@@ -3433,7 +3433,7 @@
    "u": 57,
    "v": 14,
    "plateId": 5,
-   "elevation": -3983.9278783295167,
+   "elevation": -2142.992930414553,
    "isOceanic": true
   },
   {
@@ -3442,7 +3442,7 @@
    "u": 36,
    "v": 38,
    "plateId": 2,
-   "elevation": -3812.1763422810586,
+   "elevation": -2944.4639229609456,
    "isOceanic": true
   },
   {
@@ -3451,7 +3451,7 @@
    "u": 14,
    "v": 45,
    "plateId": 2,
-   "elevation": -4094.480962937666,
+   "elevation": -2204.4908275636653,
    "isOceanic": true
   },
   {
@@ -3460,7 +3460,7 @@
    "u": 51,
    "v": 0,
    "plateId": 2,
-   "elevation": -3934.7773300690124,
+   "elevation": -2850.737204607358,
    "isOceanic": true
   },
   {
@@ -3469,7 +3469,7 @@
    "u": 48,
    "v": 42,
    "plateId": 2,
-   "elevation": -4278.489951566349,
+   "elevation": -3011.6872028981793,
    "isOceanic": true
   },
   {
@@ -3478,7 +3478,7 @@
    "u": 55,
    "v": 51,
    "plateId": 3,
-   "elevation": 877.452673321369,
+   "elevation": 2688.087970685662,
    "isOceanic": false
   },
   {
@@ -3487,7 +3487,7 @@
    "u": 45,
    "v": 60,
    "plateId": 3,
-   "elevation": 670.5055669031282,
+   "elevation": 3012.1263615063435,
    "isOceanic": false
   },
   {
@@ -3496,7 +3496,7 @@
    "u": 62,
    "v": 53,
    "plateId": 11,
-   "elevation": 817.1962458901081,
+   "elevation": 2735.992660203089,
    "isOceanic": false
   },
   {
@@ -3505,7 +3505,7 @@
    "u": 5,
    "v": 54,
    "plateId": 0,
-   "elevation": -3666.968034431395,
+   "elevation": -3284.510316557112,
    "isOceanic": true
   },
   {
@@ -3514,7 +3514,7 @@
    "u": 35,
    "v": 5,
    "plateId": 10,
-   "elevation": 1123.5671146723357,
+   "elevation": 1910.8014898984036,
    "isOceanic": false
   },
   {
@@ -3523,7 +3523,7 @@
    "u": 4,
    "v": 22,
    "plateId": 9,
-   "elevation": -4221.857210549359,
+   "elevation": -3025.752386850969,
    "isOceanic": true
   },
   {
@@ -3532,7 +3532,7 @@
    "u": 63,
    "v": 47,
    "plateId": 4,
-   "elevation": 1151.9678363945156,
+   "elevation": 1820.3865908561002,
    "isOceanic": false
   },
   {
@@ -3541,7 +3541,7 @@
    "u": 5,
    "v": 36,
    "plateId": 9,
-   "elevation": -3947.6172012118536,
+   "elevation": -1853.1955966745186,
    "isOceanic": true
   },
   {
@@ -3550,7 +3550,7 @@
    "u": 27,
    "v": 32,
    "plateId": 0,
-   "elevation": -4007.615858202144,
+   "elevation": -1322.2901238719865,
    "isOceanic": true
   },
   {
@@ -3559,7 +3559,7 @@
    "u": 59,
    "v": 9,
    "plateId": 2,
-   "elevation": -3652.5156291871044,
+   "elevation": -3271.772278914178,
    "isOceanic": true
   },
   {
@@ -3568,7 +3568,7 @@
    "u": 50,
    "v": 63,
    "plateId": 6,
-   "elevation": -3853.0041950201817,
+   "elevation": -2497.6054569420066,
    "isOceanic": true
   },
   {
@@ -3577,7 +3577,7 @@
    "u": 27,
    "v": 59,
    "plateId": 3,
-   "elevation": 724.8688778138496,
+   "elevation": 3226.7254560364754,
    "isOceanic": false
   },
   {
@@ -3586,7 +3586,7 @@
    "u": 42,
    "v": 62,
    "plateId": 2,
-   "elevation": -3709.4748744564854,
+   "elevation": -3338.2260404026024,
    "isOceanic": true
   },
   {
@@ -3595,7 +3595,7 @@
    "u": 3,
    "v": 60,
    "plateId": 3,
-   "elevation": 1308.8324863163439,
+   "elevation": 799.913077957391,
    "isOceanic": false
   },
   {
@@ -3604,7 +3604,7 @@
    "u": 63,
    "v": 45,
    "plateId": 5,
-   "elevation": -4068.461316909103,
+   "elevation": -2527.007789575472,
    "isOceanic": true
   },
   {
@@ -3613,7 +3613,7 @@
    "u": 60,
    "v": 23,
    "plateId": 11,
-   "elevation": 789.2401276597683,
+   "elevation": 2798.3762003014785,
    "isOceanic": false
   }
  ]

@@ -28,10 +28,13 @@ public class FractalNoiseVectorFileTests
             double y = v.GetProperty("y").GetDouble();
             double z = v.GetProperty("z").GetDouble();
             double expected = v.GetProperty("fbm").GetDouble();
+            double expectedRidged = v.GetProperty("ridged").GetDouble();
 
             double got = FractalNoise.Fbm(worldSeed, x, y, z);
+            double gotRidged = FractalNoise.RidgedMultifractal(worldSeed, x, y, z);
 
             Assert.Equal(expected, got);
+            Assert.Equal(expectedRidged, gotRidged);
             checkedCount++;
         }
         Assert.True(checkedCount > 400);
@@ -54,6 +57,35 @@ public class FractalNoiseStructuralTests
         double a = FractalNoise.Fbm(1, 0.5123, 0.3456, 0.7891);
         double b = FractalNoise.Fbm(2, 0.5123, 0.3456, 0.7891);
         Assert.NotEqual(a, b);
+    }
+
+    [Fact]
+    public void RidgedMultifractalIsPure()
+    {
+        double a = FractalNoise.RidgedMultifractal(1, 0.5123, 0.3456, 0.7891);
+        double b = FractalNoise.RidgedMultifractal(1, 0.5123, 0.3456, 0.7891);
+        Assert.Equal(a, b);
+    }
+
+    [Fact]
+    public void RidgedMultifractalValueRangeIsPlausible()
+    {
+        var rnd = new System.Random(99);
+        double min = double.MaxValue, max = double.MinValue;
+        for (int i = 0; i < 5000; i++)
+        {
+            double x = rnd.NextDouble() * 2 - 1;
+            double y = rnd.NextDouble() * 2 - 1;
+            double z = rnd.NextDouble() * 2 - 1;
+            double len = Math.Sqrt(x * x + y * y + z * z);
+            if (len < 1e-9) continue;
+            x /= len; y /= len; z /= len;
+
+            double v = FractalNoise.RidgedMultifractal(0xA7C944210000UL, x, y, z);
+            min = Math.Min(min, v);
+            max = Math.Max(max, v);
+        }
+        Assert.True(min >= 0.0 && max <= 1.0001, $"Nem plauzibilis tartomány: [{min}, {max}]");
     }
 
     [Fact]

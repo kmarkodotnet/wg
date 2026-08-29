@@ -458,6 +458,49 @@ ennek az ND-nek a része.
 
 235/235 teszt zöld, Python-referenciával bitpontos egyezés.
 
+### ND-33 — ND-32 után is "katasztrofálisan" gyenge zaj: sima fBm lecserélve ridged multifractalra
+
+**Kérdés:** az ND-32 (4x amplitúdó + kéreg-típus-tudatos uplift) Unity-
+beli ellenőrzésekor a felhasználó szerint a zaj továbbra is
+"katasztrofálisan" gyenge/észrevehetetlen maradt.
+
+**Diagnózis:** a sima fBm (Perlin-alapú gradiens-zaj összege) ELVE
+lekerekített, sima dombokat ad — ez a technika lényegéből fakad, nem
+hangolási hiba. Bármennyire is nő az amplitúdó, a JELLEGE (lágy,
+folytonos átmenetek) vizuálisan "simának" hat, nem "zajosnak".
+
+**Döntés:** a sima fBm helyett **ridged multifractal** (a spec §13.1
+maga is név szerint felsorolja, mint külön noise-családot) —
+oktávonként `(1-|zaj|)²`, ami ÉLES gerinceket ad ott, ahol az alap
+gradiens-zaj nullát metsz, alapvetően más — sokkal kontrasztosabb —
+vizuális jelleggel, mint a sima fBm. Emellett az amplitúdó tovább nőtt
+(2000→3000m).
+
+**Módszer:** `FractalNoise.RidgedMultifractal` — ugyanazt a már
+verifikált `GradientNoise3D` primitívet és oktáv-összegzési vázat
+használja, mint az `Fbm` (nincs új hash-függvény, nincs új
+transzcendens-kockázat) — csak az oktávonkénti kombinálás formulája más
+(`(1-|n|)²` `n` helyett). A `CrustElevation.BaseElevation` az `Fbm`
+hívást `RidgedMultifractal`-ra cserélte, `(r-0.5)·2` előjeles
+átalakítással (a ridged kimenet [0,1]-hez közeli, ~0.7 átlaggal — a
+`(r-0.5)·2` visszaadja a szimmetrikus, mindkét irányba ható
+perturbáció-jelleget).
+
+**Hatás (mérve):** a nyers elevációtartomány -4872…+3674m-re nőtt
+(korábban -4746…+1599m) — a legmagasabb kontinentális csúcs több mint
+duplájára nőtt az alapszinthez (800m) képest. A vízgyűjtő-topológia is
+jelentősen összetettebbé vált (11→35 régió) — közvetlen jele annak,
+hogy a domborzat ténylegesen sokkal tagoltabb lett.
+
+**Még mindig nyitva (változatlanul, ld. ND-32):** a "kontinensek
+pontosan a lemez-Voronoi-cellákkal egyeznek" strukturális kérdés —
+domain warping nélkül ez továbbra is fennáll, függetlenül a zaj
+erősségétől/jellegétől, mert a lemez-HOZZÁRENDELÉS (nem csak az
+eleváció) geometriailag sima marad.
+
+237/237 teszt zöld, Python-referenciával bitpontos egyezés (`ridged`
+mező hozzáadva a meglévő zaj-tesztvektorokhoz).
+
 ## Nyitott döntések
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai

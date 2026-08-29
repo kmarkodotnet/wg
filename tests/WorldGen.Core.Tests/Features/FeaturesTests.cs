@@ -184,7 +184,7 @@ public class FeatureSegmentationStructuralTests
             Assert.Equal(exp.GetProperty("riverMouthCount").GetInt32(), mouths);
             checkedRegions++;
         }
-        Assert.Equal(11, checkedRegions);
+        Assert.Equal(35, checkedRegions);
     }
 
     [Fact]
