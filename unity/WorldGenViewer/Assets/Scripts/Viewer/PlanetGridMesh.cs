@@ -143,12 +143,12 @@ namespace WorldGen.Viewer
 
         [SerializeField]
         [Tooltip("A legsekelyebb (part menti) viz szine.")]
-        private Color shallowWaterColor = new Color(0.20f, 0.65f, 0.65f);
+        private Color shallowWaterColor = new Color(0.18f, 0.48f, 0.52f);
 
         [SerializeField]
         [Tooltip("A legmelyebb (abisszikus) viz szine - majdnem fekete-kek, a valos " +
                  "oceanban a fenyelnyeles miatt latszo egyszinu sotetseg kozelitese.")]
-        private Color deepWaterColor = new Color(0.01f, 0.03f, 0.10f);
+        private Color deepWaterColor = new Color(0.05f, 0.14f, 0.26f);
 
         // M8: az utolsó Build() eredményének gyorsítótára - a panel-adatok
         // (ComputePanelData) ezekre épülnek, hogy ne kelljen a teljes
