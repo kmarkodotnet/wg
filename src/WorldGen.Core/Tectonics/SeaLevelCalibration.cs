@@ -61,10 +61,19 @@ namespace WorldGen.Core.Tectonics
                         // BaseElevation zaj-kiertekeles) VALTOZATLANUL a NYERS
                         // (x,y,z)-t kapja - a warp csak a lemez-topologia
                         // dontesehez hasznalt, a domborzat-textura nem.
+                        //
+                        // ND-39 "C" opio (warp-hoisting): a warp CSAK EGYSZER
+                        // fut ide pontonkent - az AssignPlate ES a
+                        // BoundaryUplift (ElevationWithBoundaryFromWarped-en
+                        // keresztul) UGYANAZT a mar kiszamitott (wx,wy,wz)-t
+                        // hasznalja, ahelyett hogy a BoundaryUplift sajat maga
+                        // ujraszamolna a WarpPosition-t ugyanarra a pontra.
+                        // Tiszta fuggveny -> bitre azonos eredmeny, mint
+                        // korabban, csak a redundans szamitas tunt el.
                         DomainWarp.WarpPosition(worldSeed, x, y, z, out double wx, out double wy, out double wz);
                         int plateId = PlateGeneration.AssignPlate(wx, wy, wz, seeds);
-                        double elevation = PlateBoundaryEffect.ElevationWithBoundary(
-                            worldSeed, plateId, id.Value, x, y, z, seeds, out _);
+                        double elevation = PlateBoundaryEffect.ElevationWithBoundaryFromWarped(
+                            worldSeed, plateId, id.Value, x, y, z, wx, wy, wz, seeds, out _);
                         field[id] = elevation;
                     }
                 }

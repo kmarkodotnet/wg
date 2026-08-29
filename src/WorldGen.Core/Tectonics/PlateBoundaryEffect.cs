@@ -94,6 +94,12 @@ namespace WorldGen.Core.Tectonics
         /// szorzóval csökkentve (ND-32); a <see cref="CrustElevation.MountainMask"/>
         /// regionális maszkjával is szorozva (ND-35) - sík régióban a
         /// parti sáv sem kap maximális kiemelkedést.
+        ///
+        /// Ez az overload MAGA számolja ki a <see cref="DomainWarp.WarpPosition"/>-t
+        /// a nyers (x,y,z)-ből. Ha a hívó már rendelkezik a warpolt pozícióval
+        /// (pl. az <c>AssignPlate</c>-hez is felhasználta), használja a
+        /// <see cref="BoundaryUpliftFromWarped"/> overloadot, hogy a warpot
+        /// ne kelljen ugyanarra a pontra kétszer kiszámolni (ND-39 "C" opció).
         /// </summary>
         public static double BoundaryUplift(
             ulong worldSeed, double x, double y, double z, (double X, double Y, double Z)[] seeds,
@@ -101,6 +107,26 @@ namespace WorldGen.Core.Tectonics
             double oceanicOceanicUpliftFactor = DefaultOceanicOceanicUpliftFactor)
         {
             DomainWarp.WarpPosition(worldSeed, x, y, z, out double wx, out double wy, out double wz);
+            return BoundaryUpliftFromWarped(worldSeed, x, y, z, wx, wy, wz, seeds, gapScale, upliftMax, oceanicOceanicUpliftFactor);
+        }
+
+        /// <summary>
+        /// Ugyanaz, mint <see cref="BoundaryUplift"/>, de a MÁR KISZÁMÍTOTT
+        /// warpolt <paramref name="wx"/>/<paramref name="wy"/>/<paramref name="wz"/>
+        /// pozíciót kapja paraméterként, ahelyett hogy saját maga újraszámolná
+        /// a <see cref="DomainWarp.WarpPosition"/>-t (ND-39 "C" opció -
+        /// warp-hoisting, tisztán teljesítmény-refaktor, bitre azonos
+        /// eredményt ad, mint a warpot belül újraszámoló <see cref="BoundaryUplift"/>).
+        /// A nyers <paramref name="x"/>/<paramref name="y"/>/<paramref name="z"/>
+        /// TOVÁBBRA IS kell a <see cref="CrustElevation.MountainMask"/>
+        /// hívásához - az SZÁNDÉKOSAN a nyers pozíciót kapja (ld. osztály-doc, ND-36).
+        /// </summary>
+        public static double BoundaryUpliftFromWarped(
+            ulong worldSeed, double x, double y, double z,
+            double wx, double wy, double wz, (double X, double Y, double Z)[] seeds,
+            double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters,
+            double oceanicOceanicUpliftFactor = DefaultOceanicOceanicUpliftFactor)
+        {
             TwoBestDots(wx, wy, wz, seeds, out double best, out double second, out int bestIndex, out int secondIndex);
             double gap = best - second;
             if (gap >= gapScale)
@@ -117,15 +143,42 @@ namespace WorldGen.Core.Tectonics
             return rawUplift * mask;
         }
 
-        /// <summary>Alap-eleváció (§4.2) + határ-közeli uplift-bónusz (§4.3).</summary>
+        /// <summary>
+        /// Alap-eleváció (§4.2) + határ-közeli uplift-bónusz (§4.3). Ez az
+        /// overload MAGA számolja ki a warpot - ld. <see cref="BoundaryUplift"/>
+        /// megjegyzését az <see cref="ElevationWithBoundaryFromWarped"/>
+        /// preferálásáról, ha a hívó már ismeri a warpolt pozíciót.
+        /// </summary>
         public static double ElevationWithBoundary(
             ulong worldSeed, int plateId, ulong tileIdValue,
             double x, double y, double z, (double X, double Y, double Z)[] seeds,
             out bool isOceanic,
             double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters)
         {
+            DomainWarp.WarpPosition(worldSeed, x, y, z, out double wx, out double wy, out double wz);
+            return ElevationWithBoundaryFromWarped(
+                worldSeed, plateId, tileIdValue, x, y, z, wx, wy, wz, seeds, out isOceanic, gapScale, upliftMax);
+        }
+
+        /// <summary>
+        /// Ugyanaz, mint <see cref="ElevationWithBoundary"/>, de a MÁR
+        /// KISZÁMÍTOTT warpolt pozíciót kapja paraméterként (ND-39 "C" opció -
+        /// warp-hoisting). Jellemzően akkor hívandó, ha a hívó ugyanerre a
+        /// pontra már meghívta a <see cref="DomainWarp.WarpPosition"/>-t az
+        /// <c>AssignPlate</c>-hez (pl. <see cref="SeaLevelCalibration"/>,
+        /// a Unity <c>PlanetGridMesh.ComputeDisplacedRadius</c>) - így a warp
+        /// (3 független, oktávonkénti fBm-kiértékelés, ld. ND-39) pontonként
+        /// csak EGYSZER fut le, nem kétszer.
+        /// </summary>
+        public static double ElevationWithBoundaryFromWarped(
+            ulong worldSeed, int plateId, ulong tileIdValue,
+            double x, double y, double z,
+            double wx, double wy, double wz, (double X, double Y, double Z)[] seeds,
+            out bool isOceanic,
+            double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters)
+        {
             double baseElevation = CrustElevation.BaseElevation(worldSeed, plateId, x, y, z, out isOceanic);
-            double uplift = BoundaryUplift(worldSeed, x, y, z, seeds, gapScale, upliftMax);
+            double uplift = BoundaryUpliftFromWarped(worldSeed, x, y, z, wx, wy, wz, seeds, gapScale, upliftMax);
             return baseElevation + uplift;
         }
     }
