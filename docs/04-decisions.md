@@ -501,6 +501,48 @@ eleváció) geometriailag sima marad.
 237/237 teszt zöld, Python-referenciával bitpontos egyezés (`ridged`
 mező hozzáadva a meglévő zaj-tesztvektorokhoz).
 
+### ND-34 — Óceán-fenék tompítása + regionális "hegyvidékiség" maszk
+
+**Kérdés:** az ND-33 (ridged multifractal) Unity-beli ellenőrzésekor a
+felhasználó két további, konkrét problémát talált: (a) az óceánfenék is
+túl erősen "hegyesnek" látszott (irreális — a valóságban az óceáni
+relief szelídebb, a középóceáni hátak/árkok kivételével, amiket nem
+modellezünk külön); (b) a durvaság EGYENLETES volt az egész
+szárazföldön, holott realisztikusabb, ha van sík/fennsík ÉS hegyvidék
+is, nem mindenhol ugyanolyan "zajos" a felszín.
+
+**Döntés (két összehangolt javítás):**
+1. **`OceanicNoiseFactor = 0.25`** — óceáni tile-ok a zaj negyedét
+   kapják csak.
+2. **`MountainMask`** — külön, ALACSONY FREKVENCIÁS (2.5, szemben a
+   ridged részlet 8-as alapfrekvenciájával), 3 oktávos, SIMA fBm (nem
+   ridged!) adja meg REGIONÁLISAN [0,1] tartományban, mennyire
+   érvényesüljön a ridged részlet-zaj adott a helyen — `normalized =
+   clamp01(m·1.3+0.5)`, majd `normalized^1.5` (a hatványozás a legtöbb
+   területet inkább sík felé tolja, ritkábban ad dramatikusan durva
+   zónát). Mérve: a maszk kb. 6.5%-a esik <0.1 alá (gyakorlatilag sík),
+   ~20%-a >0.5 fölé (kifejezetten hegyvidéki) — valódi, nem egyenletes
+   eloszlás.
+
+**Módszer:** mindkét primitívet (`FractalNoise.Fbm` a maszkhoz,
+`RidgedMultifractal` a részlethez) ÚJRAFELHASZNÁLJA — nincs új
+hash-függvény vagy transzcendens-kockázat, csak eltérő
+frekvencia/oktáv-paraméterezéssel és a végén szorzással kombinálva:
+`noise · mask · amplitude`.
+
+**Hatás (mérve):** a nyers elevációtartomány -4119…+2790m-re szűkült
+(kevésbé szélsőséges, mint ND-33 -4872…+3674m-je — a maszk miatt csak a
+terület egy RÉSZÉN érvényesül a teljes ridged amplitúdó). A stray
+(5 tile alatti) szigetek eltűntek (10→2 nyers komponens), a
+vízgyűjtő-szám 35→12-re csökkent — mérsékeltebb, de még mindig sokkal
+tagoltabb domborzat, mint az ND-31 előtti fehér zaj.
+
+`TEST-EARTH-001` VÁLTOZATLANUL teljesül (65.00% víz, 2 kontinens,
+7375+1227 tile).
+
+237/237 teszt zöld, Python-referenciával bitpontos egyezés minden
+érintett láncban.
+
 ## Nyitott döntések
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai

@@ -19,10 +19,23 @@ lekerekitett dombokat ad, nem eles kontraszt. MOST "ridged multifractal"
 (spec Sz.13.1 nevesitve is emliti) - minden oktavnal (1-|zaj|)^2, ami
 eles gerinceket ad, sokkal nagyobb vizualis kontraszttal.
 
+ND-34 (docs/04-decisions.md): tovabbi felhasznaloi visszajelzes - (a) az
+ocean-fenek is tul erosen "hegyes" lett, pedig a valosagban az oceani
+relief alapvetoen szelidebb a kontinentalisnal (kiveve a specifikusan
+nem modellezett kozeposceani hatak/arkok); (b) a durvasag EGYENLETES
+volt a szarazfoldon, holott realisztikusabb, ha van sik/fennsik ES
+hegyvidek is, nem mindenhol ugyanannyira "zajos" a felszin. Ket
+valtoztatas:
+  1. Oceani tile-ok a zaj OCEANIC_NOISE_FACTOR-szorosat kapjak csak.
+  2. Egy KULON, ALACSONY FREKVENCIAS "hegyvidekiseg" maszk (sima fBm,
+     nem ridged) hatarozza meg REGIONALISAN, hogy a ridged reszlet
+     mennyire ervenyesuljon - igy nagy teruletek maradhatnak simak,
+     mig masok dramatikusan durvak, nem egyenletes texturat kapva.
+
 NEM produkcios kod - csak orakulum, a python-reference skill szerint.
 """
 from threefry_ref import threefry4x64
-from noise_ref import ridged_multifractal
+from noise_ref import ridged_multifractal, fbm
 
 M64 = (1 << 64) - 1
 SCALE53 = 2.0 ** -53
@@ -36,7 +49,25 @@ OCEANIC_BASE_M = -4000.0
 CONTINENTAL_BASE_M = 800.0
 NOISE_AMPLITUDE_M = 3000.0  # ND-33: tovabb emelve (2000->3000), ridged
 # multifractalra valtva a sima fBm helyett a nagyobb vizualis kontrasztert
+OCEANIC_NOISE_FACTOR = 0.25  # ND-34: az ocean-fenek szelidebb, mint a szarazfold
+MOUNTAIN_MASK_FREQUENCY = 2.5  # ND-34: alacsony frekvencia -> nagy, regionalis zonak
+MOUNTAIN_MASK_OCTAVES = 3
+MOUNTAIN_MASK_GAIN = 1.3  # a maszk fBm nyers tartomanyat [0,1]-hez kozelebb nyujtja
+MOUNTAIN_MASK_BIAS_POWER = 1.5  # >1: tobbnyire sik, ritkabban dramatikusan durva
 OCEANIC_PROBABILITY = 0.55  # kb. Fold-szeru arany a lemezek kozott
+
+
+def _clamp01(v):
+    return 0.0 if v < 0.0 else (1.0 if v > 1.0 else v)
+
+
+def mountain_mask(world_seed, position):
+    """[0,1] regionalis "hegyvidekieseg" - alacsony frekvencias, sima fBm
+    (NEM ridged), hogy nagy, osszefuggo zonakat adjon sik/durva teruletekre."""
+    x, y, z = position
+    m = fbm(world_seed, x, y, z, base_frequency=MOUNTAIN_MASK_FREQUENCY, octaves=MOUNTAIN_MASK_OCTAVES)
+    normalized = _clamp01(m * MOUNTAIN_MASK_GAIN + 0.5)
+    return normalized ** MOUNTAIN_MASK_BIAS_POWER
 
 
 def _block(world_seed, domain_id, spatial_id, time_bucket, property_id, sample_index):
@@ -71,7 +102,9 @@ def base_elevation(world_seed, plate_id, position, oceanic_probability=OCEANIC_P
     # (nem csak felfele told).
     r = ridged_multifractal(world_seed, x, y, z)
     noise = (r - 0.5) * 2.0
-    return base + noise * NOISE_AMPLITUDE_M, oceanic
+    mask = mountain_mask(world_seed, position)
+    amplitude = NOISE_AMPLITUDE_M * (OCEANIC_NOISE_FACTOR if oceanic else 1.0)
+    return base + noise * mask * amplitude, oceanic
 
 
 if __name__ == "__main__":
