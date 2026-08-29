@@ -16,7 +16,7 @@ enélkül nem derül ki időben, ha valami rossz irányba megy.
 | **M8** | **Features + panelek** | Szegmentálás, névadás, aggregált metrikák | World/Continent/Region panelek élesben | Kontinens/régió-szegmentálás + névgenerálás + aggregált metrikák (Area, BiomeDiversity, RiverMouthCount) ✅ **numerikusan kész** (190/190 teszt); a legtöbb panel-mező (Habitability, Coastal complexity stb.) halasztva; vizuális render hátra |
 | M9 | Continent + Region nézet | Magas LOD, displacement, kamera-átmenetek | Referenciakép 1, 3, 4 szintje | Zoom-átmenet folyamatos |
 | **M10** | **Deep time** | Lemezmozgás, erózió, eljegesedés, tengerszint | Az időcsúszka él | Lemezmozgás ✅ **vizuálisan megerősítve** (163/163 teszt, TimestepInvariance egzakt; `deepTimeMyr` Unity idő-csúszka - domborzat ÉS biome egyaránt elmozdul, felhasználó által tesztelve); erózió/eljegesedés/dinamikus tengerszint halasztva |
-| **M11** | **Események** | Becsapódás, vulkán, rift, split/merge | Kráterek, kitörések láthatók | Becsapódás ✅ **vizuálisan megerősítve** (181/181 teszt; kráter-markerek a tényleges felszínen, felhasználó által tesztelve); vulkán/rift/split-merge halasztva (ND-28) |
+| **M11** | **Események** | Becsapódás, vulkán, rift, split/merge | Kráterek, kitörések láthatók | Becsapódás ✅ **vizuálisan megerősítve**; szuper-vulkán (VEI8) ✅ **numerikusan kész** (220/220 teszt, ND-29); rift/split-merge halasztva — strukturálisan más (folytonos, nem diszkrét esemény-alapú) modellt igényelnek, önálló tervezést érdemelnek |
 | M12 | Perzisztencia + CLI | Checkpoint, .worldpkg, state hash | — | `worldgen verify` reprodukál |
 | M13 | Polish | Volumetrikus felhő, AO, víz-shader, színkalibráció | Végleges látvány | Vizuális acceptance (spec §73) |
 
