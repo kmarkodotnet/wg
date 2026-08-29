@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using WorldGen.Core.Grid;
 using WorldGen.Core.Random;
 
 namespace WorldGen.Core.Events
@@ -110,6 +112,119 @@ namespace WorldGen.Core.Events
             craterDiameterMeters = craterDiameter;
             craterDepthMeters = craterDiameter * DepthToDiameterRatio;
             return true;
+        }
+
+        /// <summary>Hány 10 000-éves epoch telt el <paramref name="timeMyr"/> millió év alatt.</summary>
+        public static long EpochCountForTime(double timeMyr)
+        {
+            return (long)(timeMyr * 1_000_000.0 / EpochYears);
+        }
+
+        /// <summary>
+        /// Egy már megtörtént becsapódás krátere - a mezőre gyakorolt
+        /// hatás kiszámításához szükséges minimális adat. A szög helyett a
+        /// koszinuszát tároljuk, hogy a tile-onkénti teszt egyetlen
+        /// pontszorzat-összehasonlítás legyen (nincs szükség Math.Acos-ra
+        /// tile-onként, csak egyszer, krátertenként).
+        /// </summary>
+        public readonly struct CraterRecord
+        {
+            public readonly double X, Y, Z;
+            public readonly double CosAngularRadius;
+            public readonly double DepthMeters;
+
+            public CraterRecord(double x, double y, double z, double cosAngularRadius, double depthMeters)
+            {
+                X = x; Y = y; Z = z;
+                CosAngularRadius = cosAngularRadius;
+                DepthMeters = depthMeters;
+            }
+        }
+
+        /// <summary>
+        /// Az összes becsapódás, ami <paramref name="timeMyr"/> millió évig
+        /// (t=0-tól) megtörtént - tiszta függvény, mindig újraszámolva a
+        /// worldSeed+idő alapján (nincs eltárolt "történelem").
+        /// </summary>
+        public static List<CraterRecord> GenerateCratersUpToTime(ulong worldSeed, double timeMyr)
+        {
+            long epochCount = EpochCountForTime(timeMyr);
+            var craters = new List<CraterRecord>();
+            for (long epoch = 0; epoch < epochCount; epoch++)
+            {
+                bool occurred = TryGenerateImpact(worldSeed, epoch,
+                    out double x, out double y, out double z,
+                    out _, out _, out _,
+                    out double craterDiameterMeters, out double craterDepthMeters);
+                if (!occurred)
+                    continue;
+
+                // Kis-szög közelítés (angularRadius ~ chord/R): a legnagyobb
+                // modellezett kráter (100 km átmérő) is csak ~0.4 fokos
+                // szögsugarat ad egy 7420 km sugarú bolygón - Math.Asin
+                // hozzáadása itt nem javítana érdemben a pontosságon, csak
+                // egy plusz transzcendens hívás lenne a kritikus úton.
+                double angularRadius = (craterDiameterMeters / 2.0) / PlanetConstants.RadiusMeters;
+                double cosAngularRadius = Math.Cos(angularRadius);
+                craters.Add(new CraterRecord(x, y, z, cosAngularRadius, craterDepthMeters));
+            }
+            return craters;
+        }
+
+        /// <summary>
+        /// Egy adott pont (egységvektor) magasság-eltolása az összes átadott
+        /// kráter hatásából - sima, körkörös "tál" profil (0 a peremen,
+        /// -DepthMeters a középpontban), FELÜLETI KÖZELÍTÉS, nem valódi
+        /// kráter-geometria (nincs perem-kiemelkedés - ld. ND-28, rimHeight
+        /// halasztva).
+        /// </summary>
+        public static double ElevationDelta(double x, double y, double z, List<CraterRecord> craters)
+        {
+            double delta = 0.0;
+            foreach (CraterRecord crater in craters)
+            {
+                double dot = x * crater.X + y * crater.Y + z * crater.Z;
+                if (dot < crater.CosAngularRadius)
+                    continue; // a pont a kráteren kívül esik
+
+                double denom = 1.0 - crater.CosAngularRadius;
+                double t = denom > 0.0 ? (dot - crater.CosAngularRadius) / denom : 1.0;
+                delta -= crater.DepthMeters * t;
+            }
+            return delta;
+        }
+
+        /// <summary>
+        /// A becsapódások alkalmazása egy elevation-mezőre
+        /// <paramref name="timeMyr"/> időpontig.
+        ///
+        /// FONTOS FELBONTÁS-KORLÁT (dokumentálva, nem hiba): a rács
+        /// tile-sarkai jelenlegi LOD-okon (5-7) tipikusan 90-3000 km-re
+        /// vannak egymástól, míg a modellezett kráterek átmérője 1-100 km -
+        /// a KIS kráterek (a leggyakoribbak) statisztikailag szinte soha nem
+        /// találnak el egyetlen tile-sarkot sem, tehát a mezőn nem
+        /// jelennek meg. Ez VÁRT viselkedés a jelenlegi rácsfelbontáson -
+        /// csak a ritka, nagy (tíz-egynéhány km-es) becsapódások okoznak
+        /// mérhető elmozdulást. Finomabb LOD-on (M9, kontinens/régió nézet)
+        /// ez javulni fog. A vizuális checkpointnál emellett a Unity-oldal
+        /// a becsapódás-érintett tile-okat KATEGÓRIÁKÉNT is megjelölheti
+        /// (a folyó-highlight mintáját követve), hogy a ritka találatok se
+        /// vesszenek el a felbontás miatt.
+        /// </summary>
+        public static Dictionary<TileId, double> ApplyToField(
+            Dictionary<TileId, double> field, ulong worldSeed, double timeMyr)
+        {
+            List<CraterRecord> craters = GenerateCratersUpToTime(worldSeed, timeMyr);
+            if (craters.Count == 0)
+                return field;
+
+            var result = new Dictionary<TileId, double>(field.Count);
+            foreach (KeyValuePair<TileId, double> kv in field)
+            {
+                TileGeometry.ToPosition(kv.Key, out double x, out double y, out double z);
+                result[kv.Key] = kv.Value + ElevationDelta(x, y, z, craters);
+            }
+            return result;
         }
     }
 }
