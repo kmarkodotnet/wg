@@ -1,9 +1,19 @@
 """
 Homerseklet-modell referencia-implementacioja M5-hoz (docs/05-milestones.md
-§5.1): Stefan-Boltzmann sugarzasi egyensuly + lapse rate.
+§5.1): Stefan-Boltzmann sugarzasi egyensuly + uveghazhatas + lapse rate.
 
 HATOKOR (tudatosan szukitve, ld. milestones "M5 hatokor"):
-  T = T_radiative - T_altitude   (T_greenhouse/T_ocean/T_weather/T_cycle halasztva)
+  T = T_radiative + T_greenhouse - T_altitude   (T_ocean/T_weather/T_cycle halasztva)
+
+T_greenhouse: a spec (§10.2) csak "derived value"-kent emliti
+(greenhouseStrength), zart formula nelkul - meg nincs epitett
+AtmosphereLayer modul (osszetetel: CO2/H2O/stb.), ami ebbol szamolna.
+Addig egy FIX, VALODI CSILLAGASZATI/KLIMATOLOGIAI ERTEKKEL kozelitjuk:
+a Fold tenyleges globalis atlaghomerseklete (~288K) es a legkor nelkuli,
+sugarzasi egyensulyi homerseklete (~255K, a globalisan atlagolt "S/4"
+kepletbol) kozotti kulonbseg kb. 33K - ez jol dokumentalt, hivatkozhato
+fizikai teny, nem kitalalt szam. Ugyanaz a minta, mint ND-10-nel (fix
+Fold-szeru ertekek v1.0-ban, kesobb parameterezheto).
 
 ND-27: a Sin/Cos/Pow hasznalata itt ELFOGADOTT kockazat M12 (checkpoint)
 elottig, felhasznaloi jovahagyassal.
@@ -28,6 +38,7 @@ ALBEDO_OCEAN = 0.06
 ALBEDO_LAND = 0.30
 LAPSE_RATE_K_PER_M = 0.0065
 NUM_DAY_SAMPLES = 24
+GREENHOUSE_K_DEFAULT = 33.0  # Fold-szeru uveghazhatas, ld. modul docstring
 
 
 def daily_average_insolation_factor(
@@ -60,6 +71,7 @@ def temperature_kelvin(
     tile_position, day_t, orbital_period, rotation_period, axial_tilt,
     is_oceanic, elevation_m, sea_level_m,
     orbital_phase0=0.0, rotation_phase0=0.0, f_peak=F_PEAK_DEFAULT,
+    greenhouse_k=GREENHOUSE_K_DEFAULT,
 ):
     avg_factor = daily_average_insolation_factor(
         tile_position, day_t, orbital_period, rotation_period, axial_tilt,
@@ -72,7 +84,7 @@ def temperature_kelvin(
     height_above_sea = max(0.0, elevation_m - sea_level_m)
     t_altitude = LAPSE_RATE_K_PER_M * height_above_sea
 
-    return t_eq - t_altitude
+    return t_eq + greenhouse_k - t_altitude
 
 
 if __name__ == "__main__":

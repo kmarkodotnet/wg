@@ -5,11 +5,20 @@ namespace WorldGen.Core.Climate
 {
     /// <summary>
     /// M5 hőmérséklet-modell (§5.1, docs/05-milestones.md): Stefan-Boltzmann
-    /// sugárzási egyensúly + lapse rate.
+    /// sugárzási egyensúly + üvegházhatás + lapse rate.
     ///
-    /// HATÓKÖR (tudatosan szűkítve): T = T_radiative - T_altitude
-    /// (T_greenhouse/T_ocean/T_weather/T_cycle halasztva, ld. milestones
-    /// "M5 hatókör" szakasza).
+    /// HATÓKÖR (tudatosan szűkítve): T = T_radiative + T_greenhouse - T_altitude
+    /// (T_ocean/T_weather/T_cycle halasztva, ld. milestones "M5 hatókör").
+    ///
+    /// T_greenhouse: a spec (§10.2) csak "derived value"-ként említi
+    /// (greenhouseStrength), zárt formula nélkül — még nincs épített
+    /// AtmosphereLayer modul (összetétel: CO2/H2O/stb.), ami ebből
+    /// számolná. Addig egy FIX, VALÓDI CSILLAGÁSZATI/KLIMATOLÓGIAI
+    /// ÉRTÉKKEL közelítjük: a Föld tényleges globális átlaghőmérséklete
+    /// (~288K) és a légkör nélküli, sugárzási egyensúlyi hőmérséklete
+    /// (~255K) közötti különbség kb. 33K — jól dokumentált, hivatkozható
+    /// fizikai tény, nem kitalált szám. Ugyanaz a minta, mint ND-10-nél
+    /// (fix Föld-szerű értékek v1.0-ban, később paraméterezhető).
     ///
     /// ND-27: a Math.Sin/Cos/Pow használata itt ELFOGADOTT kockázat M12
     /// (checkpoint-rendszer) előttig, felhasználói jóváhagyással.
@@ -29,6 +38,7 @@ namespace WorldGen.Core.Climate
         public const double AlbedoLand = 0.30;
         public const double LapseRateKPerM = 0.0065;
         public const int DefaultNumDaySamples = 24;
+        public const double DefaultGreenhouseK = 33.0; // Föld-szerű üvegházhatás, ld. osztály-doc
 
         /// <summary>max(0,cos theta) átlaga egy teljes forgás (nap) alatt, sűrű mintavétellel.</summary>
         public static double DailyAverageInsolationFactor(
@@ -56,7 +66,8 @@ namespace WorldGen.Core.Climate
             double x, double y, double z, double dayT,
             double orbitalPeriod, double rotationPeriod, double axialTilt,
             bool isOceanic, double elevationM, double seaLevelM,
-            double orbitalPhase0 = 0.0, double rotationPhase0 = 0.0, double fPeak = DefaultFPeak)
+            double orbitalPhase0 = 0.0, double rotationPhase0 = 0.0, double fPeak = DefaultFPeak,
+            double greenhouseK = DefaultGreenhouseK)
         {
             double avgFactor = DailyAverageInsolationFactor(
                 x, y, z, dayT, orbitalPeriod, rotationPeriod, axialTilt,
@@ -69,7 +80,7 @@ namespace WorldGen.Core.Climate
             double heightAboveSea = Math.Max(0.0, elevationM - seaLevelM);
             double tAltitude = LapseRateKPerM * heightAboveSea;
 
-            return tEq - tAltitude;
+            return tEq + greenhouseK - tAltitude;
         }
     }
 }

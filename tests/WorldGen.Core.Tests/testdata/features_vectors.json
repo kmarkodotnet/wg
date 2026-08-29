@@ -4,23 +4,23 @@
  "level": 6,
  "continents": [
   {
-   "name": "Aulight Rime",
+   "name": "Aulight Woods",
    "areaTiles": 7346,
-   "biomeCount": 2,
-   "dominantBiome": "IceSheet"
+   "biomeCount": 4,
+   "dominantBiome": "Temperate"
   },
   {
-   "name": "Rhacy Glacier",
+   "name": "Rhacy Barrens",
    "areaTiles": 1221,
-   "biomeCount": 2,
-   "dominantBiome": "IceSheet"
+   "biomeCount": 4,
+   "dominantBiome": "Tundra"
   }
  ],
  "regions": [
   {
-   "name": "Tideos Frost",
+   "name": "Tideos Forest",
    "areaTiles": 2140,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Temperate",
    "outlet": [
     0,
     52,
@@ -28,9 +28,9 @@
    ]
   },
   {
-   "name": "Vermar Glacier",
+   "name": "Vermar Tundra",
    "areaTiles": 1016,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     57,
@@ -58,9 +58,9 @@
    ]
   },
   {
-   "name": "Mirnor Ice",
+   "name": "Mirnor Vale",
    "areaTiles": 951,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Temperate",
    "outlet": [
     0,
     22,
@@ -68,9 +68,9 @@
    ]
   },
   {
-   "name": "Mirlu Rime",
+   "name": "Mirlu Woods",
    "areaTiles": 944,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Temperate",
    "outlet": [
     3,
     32,
@@ -78,9 +78,9 @@
    ]
   },
   {
-   "name": "Frosos Frost",
+   "name": "Frosos Waste",
    "areaTiles": 348,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     0,
     3,
@@ -88,9 +88,9 @@
    ]
   },
   {
-   "name": "Quelau Rime",
+   "name": "Quelau Tundra",
    "areaTiles": 337,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     1,
     39,
@@ -108,9 +108,9 @@
    ]
   },
   {
-   "name": "Northal Glacier",
+   "name": "Northal Barrens",
    "areaTiles": 15,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     0,
     19,
@@ -118,9 +118,9 @@
    ]
   },
   {
-   "name": "Lightdel Rime",
+   "name": "Lightdel Barrens",
    "areaTiles": 11,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     1,
     25,
@@ -128,9 +128,9 @@
    ]
   },
   {
-   "name": "Frosrel Rime",
+   "name": "Frosrel Tundra",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     1,
     56,
@@ -158,9 +158,9 @@
    ]
   },
   {
-   "name": "Umka Rime",
+   "name": "Umka Barrens",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     0,
     20,
@@ -168,9 +168,9 @@
    ]
   },
   {
-   "name": "Kaum Glacier",
+   "name": "Kaum Tundra",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     1,
     51,
