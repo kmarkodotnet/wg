@@ -2,6 +2,7 @@ using System;
 using WorldGen.Core.Numerics;
 using WorldGen.Core.Random;
 using WorldGen.Core.Tectonics;
+using WorldGen.Core.Terrain;
 
 namespace WorldGen.Core.Events
 {
@@ -73,6 +74,13 @@ namespace WorldGen.Core.Events
         /// lemezhatár-közelséggel arányos valószínűséggel (1 - gap/GapScale,
         /// 0 ha gap ≥ GapScale) - a <c>PlateBoundaryEffect.TwoBestDots</c>
         /// ÚJRAFELHASZNÁLÁSÁVAL, nincs duplikált határ-közelség logika.
+        ///
+        /// ND-36: az elfogadási gap-et a WARPOLT kandidát-pozícióra
+        /// számoljuk (<see cref="DomainWarp.WarpPosition"/>) - a
+        /// VISSZAADOTT pozíció maga továbbra is a NYERS (x,y,z), csak a
+        /// döntésnél használjuk a warpolt változatot, ugyanúgy mint a
+        /// többi lemezhatár-közelség-alapú döntésnél
+        /// (<see cref="PlateBoundaryEffect.BoundaryUplift"/>).
         /// </summary>
         public static void SamplePositionNearBoundary(
             ulong worldSeed, ulong epochBucket, (double X, double Y, double Z)[] seeds,
@@ -96,7 +104,8 @@ namespace WorldGen.Core.Events
                     double inv = 1.0 / Math.Sqrt(lenSq);
                     double cx = px * inv, cy = py * inv, cz = pz * inv;
 
-                    PlateBoundaryEffect.TwoBestDots(cx, cy, cz, seeds, out double best, out double second);
+                    DomainWarp.WarpPosition(worldSeed, cx, cy, cz, out double wx, out double wy, out double wz);
+                    PlateBoundaryEffect.TwoBestDots(wx, wy, wz, seeds, out double best, out double second);
                     double gap = best - second;
                     double acceptProb = gap < GapScale ? (1.0 - gap / GapScale) : 0.0;
                     if (d < acceptProb)

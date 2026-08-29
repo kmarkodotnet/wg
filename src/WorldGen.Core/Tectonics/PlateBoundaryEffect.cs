@@ -1,3 +1,5 @@
+using WorldGen.Core.Terrain;
+
 namespace WorldGen.Core.Tectonics
 {
     /// <summary>
@@ -33,6 +35,16 @@ namespace WorldGen.Core.Tectonics
     /// lemezhatár), irreálisan magas "falat" húzva a tengerszint fölé
     /// szinte minden parton, függetlenül attól, hogy ott sík vidéknek
     /// vagy hegyvidéknek kellene lennie.
+    ///
+    /// ND-36 (docs/04-decisions.md, domain warping): a "gap" (határ-
+    /// közelség) számítása a <see cref="DomainWarp.WarpPosition"/>-nal
+    /// TORZÍTOTT pozíción történik — így maga a határvonal (és az
+    /// uplift-zóna) is organikusan hullámzik, nem a nyers Voronoi-cellák
+    /// éles, nagykör-ív-szerű határa mentén fut. A <see cref="CrustElevation.MountainMask"/>
+    /// viszont SZÁNDÉKOSAN a NYERS pozíciót kapja: az egy regionális
+    /// hegyvidékiség-textúra-maszk, a terep-részlet része, nem a
+    /// lemez-topológia — nem indokolt ugyanazzal a warp-torzítással
+    /// összekötni.
     /// </summary>
     public static class PlateBoundaryEffect
     {
@@ -88,7 +100,8 @@ namespace WorldGen.Core.Tectonics
             double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters,
             double oceanicOceanicUpliftFactor = DefaultOceanicOceanicUpliftFactor)
         {
-            TwoBestDots(x, y, z, seeds, out double best, out double second, out int bestIndex, out int secondIndex);
+            DomainWarp.WarpPosition(worldSeed, x, y, z, out double wx, out double wy, out double wz);
+            TwoBestDots(wx, wy, wz, seeds, out double best, out double second, out int bestIndex, out int secondIndex);
             double gap = best - second;
             if (gap >= gapScale)
                 return 0.0;

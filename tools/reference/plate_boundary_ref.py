@@ -27,6 +27,7 @@ hegyvidek/orogen ovezetek a szarazfold kisebbik reszet teszik ki).
 NEM produkcios kod - csak orakulum, a python-reference skill szerint.
 """
 from crust_elevation_ref import base_elevation, is_oceanic, mountain_mask
+from domain_warp_ref import warp_position
 
 GAP_SCALE = 0.04
 UPLIFT_MAX_M = 1500.0
@@ -74,8 +75,17 @@ def boundary_uplift(world_seed, position, seeds, gap_scale=GAP_SCALE, uplift_max
     Oceani-oceani hataron oceanic_oceanic_factor-ral csokkentve (ND-32) -
     a valosagban ott vulkani szigetivek epulnek, nem kontinentalis-utkozes
     lepteku hegylancok. A regionalis hegyvidekiseg-maszkkal is szorozva
-    (ND-35) - sik regioban a parti sav sem kap maximalis kiemelkedest."""
-    best, second, best_idx, second_idx = two_best_dots_with_indices(position, seeds)
+    (ND-35) - sik regioban a parti sav sem kap maximalis kiemelkedest.
+
+    A hatar-KOZELSEG (gap) szamitasa a WARPOLT pozicion tortenik
+    (domain_warp_ref.warp_position) - igy maga a hatarvonal (es az uplift-
+    zona) is organikusan hullamzik, nem a nyers Voronoi-cellak eles,
+    nagykor-iv-szeru hatara menten fut. A mountain_mask viszont
+    SZANDEKOSAN a NYERS position-t kapja: az egy regionalis
+    hegyvidekiseg-textura-maszk, a terep-reszlet resze, nem a lemez-
+    topologia - nem indokolt ugyanazzal a warp-torzitassal osszekotni."""
+    warped_position = warp_position(world_seed, position)
+    best, second, best_idx, second_idx = two_best_dots_with_indices(warped_position, seeds)
     gap = best - second
     if gap >= gap_scale:
         return 0.0

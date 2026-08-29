@@ -20,10 +20,18 @@ from plate_boundary_ref import elevation_with_boundary
 from morton_ref import tile_id
 from sphere_position_ref import position_from_tile
 from neighbor_ref import neighbor, DIRECTIONS
+from domain_warp_ref import warp_position
 
 
 def compute_elevation_field(world_seed, plate_count, level):
-    """Minden tile elevacioja + oceani-flag egy level-n adott racson."""
+    """Minden tile elevacioja + oceani-flag egy level-n adott racson.
+
+    A lemez-HOZZARENDELES a WARPOLT pozicion tortenik (domain_warp_ref) -
+    ez tori meg a tiszta legkozelebbi-mag Voronoi hatarok tul geometrikus,
+    nagykor-iv-szeru jelleget. Az elevation_with_boundary (es a benne levo
+    base_elevation zaj-kiertekeles) VALTOZATLANUL a NYERS pozicot kapja -
+    a warp csak a lemez-topologia dontesehez hasznalt, a domborzat-textura
+    nem."""
     seeds = generate_plate_seeds(world_seed, plate_count)
     n = 1 << level
     field = {}  # (face,u,v) -> elevation
@@ -31,7 +39,8 @@ def compute_elevation_field(world_seed, plate_count, level):
         for u in range(n):
             for v in range(n):
                 pos = position_from_tile(face, level, u, v)
-                plate_id = assign_plate(pos, seeds)
+                warped_pos = warp_position(world_seed, pos)
+                plate_id = assign_plate(warped_pos, seeds)
                 tid = tile_id(face, level, u, v)
                 elev, _ = elevation_with_boundary(world_seed, plate_id, tid, pos, seeds)
                 field[(face, u, v)] = elev

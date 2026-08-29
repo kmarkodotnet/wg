@@ -9,6 +9,7 @@ using WorldGen.Core.Features;
 using WorldGen.Core.Grid;
 using WorldGen.Core.Hydrology;
 using WorldGen.Core.Tectonics;
+using WorldGen.Core.Terrain;
 
 namespace WorldGen.Viewer
 {
@@ -649,7 +650,13 @@ namespace WorldGen.Viewer
             // hivatalos, TEST-EARTH-001-hez hasznalt tile-kozepu
             // elevation-t (amiben BENNE van a jitter) ez nem erinti, csak a
             // vizualis corner-interpolacio es a marker-magassag egyszerusodik.
-            int plateId = PlateGeneration.AssignPlate(x, y, z, seeds);
+            // ND-36 (domain warping): a lemez-hozzarendeles a WARPOLT
+            // poziciot kapja - UGYANAZ a szabaly, mint amit a Core-oldali
+            // SeaLevelCalibration/PlateBoundaryEffect hasznal, kulonben ez
+            // a sarok-alapu megjelenites inkonzisztens (nem-warpolt)
+            // lemezhatarokat mutatna a tile-kozepu adatokhoz kepest.
+            DomainWarp.WarpPosition(seed, x, y, z, out double wx, out double wy, out double wz);
+            int plateId = PlateGeneration.AssignPlate(wx, wy, wz, seeds);
             double elevation = PlateBoundaryEffect.ElevationWithBoundary(
                 seed, plateId, tileIdValue: 0UL, x, y, z, seeds, out _);
 

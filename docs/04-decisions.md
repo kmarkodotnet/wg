@@ -574,7 +574,143 @@ sáv most sokkal tagoltabb, kevésbé egyenletesen "fal-szerű".
 
 237/237 teszt zöld, Python-referenciával bitpontos egyezés.
 
+### ND-36 — Domain warping: a lemez-Voronoi HATÁRA is organikusan hullámzik, nem csak a rárakott zaj
+
+**Kérdés (a felhasználó ismételt visszajelzése, ND-32-ben már diagnosztizálva,
+de akkor külön döntésre halasztva):** a lemez-HOZZÁRENDELÉS
+(`PlateGeneration.AssignPlate`) egy tiszta "legközelebbi mag" (nearest-seed)
+Voronoi-felosztás a gömbön — ez MATEMATIKAILAG MINDIG sima, nagykör-ív-szerű
+határvonalat ad, FÜGGETLENÜL attól, mennyi zajt teszünk az elevációra
+utólag (ND-31→ND-35 mind csak az ELEVÁCIÓT tette változatosabbá). Emiatt a
+kontinensek/lemezhatárok (és ezzel a partvonal) továbbra is irreálisan
+"geometrikusnak" hatottak.
+
+**Döntés:** **domain warping** (a spec §13.1 is név szerint említi) — a
+lemez-hozzárendeléshez és a lemezhatár-közelség ("gap",
+`PlateBoundaryEffect.TwoBestDots`) számításhoz használt POZÍCIÓT egy
+zaj-alapú eltolással torzítjuk el, MIELŐTT a legközelebbi-mag
+keresés/gap-számítás megtörténne. Új, motorfüggetlen modul:
+`src/WorldGen.Core/Terrain/DomainWarp.cs` (`DomainWarp.WarpPosition`).
+
+**Módszer:** három FÜGGETLEN `FractalNoise.Fbm`-kiértékelés (dx,dy,dz) —
+a MÁR VERIFIKÁLT primitívet ÚJRAFELHASZNÁLJA VÁLTOZATLAN szignatúrával
+(nincs új hash-függvény, nincs új `RandomProperty`). A három komponens
+dekorrelációját KIZÁRÓLAG fix, egymástól és nullától távoli bemeneti
+koordináta-eltolással oldottuk meg (pl. `fbm(seed, x+7.13, y+2.71, z+9.01, ...)`
+a dx-hez), mert a `Fbm` API nem vesz fel `property_id` paramétert. Az
+eltolt (wx,wy,wz) vektort a nyers (x,y,z)-hez adva, majd egységvektorra
+renormalizálva kapjuk a warpolt pozíciót — a renormalizálás
+**KÖZVETLEN OSZTÁSSAL** történik (`wx/length`, nem `wx*(1/length)`
+reciprok-szorzással), hogy bitre egyezzen a Python referenciával (ez volt
+az első portolási kísérlet egyetlen ULP-eltérése, ld. lent).
+
+**Paraméter-hangolás (empirikusan mérve, `tools/reference/domain_warp_ref.py`):**
+`Strength=1.0, Frequency=2.0, Octaves=3` → átlagos szögeltolódás ~9.0 fok
+(8000 véletlen ponton mérve, célzott nagyságrend 5-15 fok volt), és a
+lemezhatárok közelében (gap < `PlateBoundaryEffect.DefaultGapScale`=0.04)
+lévő pontok ~40%-ánál változik meg az `AssignPlate` eredménye a warp
+hatására — érdemi, de nem kaotikus/domináló hatás.
+
+**Hatókör (szándékos, indokolt):** a lemez-HOZZÁRENDELÉS és a
+HATÁR-KÖZELSÉG kapja a warpolt pozíciót. A TÉNYLEGES ELEVÁCIÓ-ZAJ
+kiértékelése (`CrustElevation.BaseElevation`, `CrustElevation.MountainMask`)
+VÁLTOZATLANUL a NYERS pozíciót kapja — a már jól hangolt (ND-31→ND-35)
+zaj-textúra ne változzon meg alapvetően emiatt. Négy hívási hely lett
+konzisztensen bekötve: `SeaLevelCalibration.ComputeElevationFieldWithSeeds`
+(AssignPlate előtt), `PlateBoundaryEffect.BoundaryUplift` (TwoBestDots
+előtt, a `MountainMask` hívás NYERS pozíción marad), `VolcanicEruption.
+SamplePositionNearBoundary` (az elfogadási gap-döntés előtt, a
+VISSZAADOTT pozíció nyers marad), és a Unity `PlanetGridMesh.
+ComputeDisplacedRadius` (AssignPlate előtt, konzisztensen a Core-oldali
+logikával — különben a sarok-alapú megjelenítés nem-warpolt határokat
+mutatna a tile-közepű adatokhoz képest).
+
+**Hibakeresési tanulság (dokumentálva, mert újra elő fog jönni):** az első
+C# port a Python `wx/length` osztást tévesen `wx*(1.0/length)`
+reciprok-szorzásra cserélte (más C#-beli mintákat, pl.
+`DeterministicRandom.SampleUnitVector3`-ot követve, ahol a Python IS
+reciprok-szorzást használ) — ez 3, egymástól függő tesztfájlban okozott
+egyetlen-ULP-differenciát (`PlateBoundaryEffectVectorFileTests`,
+`FlowNetworkVectorFileTests`, `WorldStateHashVectorFileTests`), amíg ki
+nem derült, hogy a `domain_warp_ref.py` KÖZVETLEN osztást használ, NEM a
+projekt többi helyén megszokott reciprok-szorzás mintát. A tanulság:
+**minden egyes osztás/normalizálás műveletet külön ellenőrizni kell a
+Python referenciában**, nem szabad feltételezni, hogy egy korábban látott
+minta (reciprok-szorzás) mindenhol érvényes — ez pontosan az a fajta
+csendes IEEE-754 eltérés, amit a CLAUDE.md lebegőpontos táblázata figyelmeztet.
+
+**Mért hatás:** `TEST-EARTH-001` VÁLTOZATLANUL teljesül (65.00% víz), de a
+kontinens-szám 2→6-ra nőtt (7462+1053+37+30+7+6 tile, a korábbi 2 nagy
+kontinens több, kisebb darabra esett szét — ez a warp SZÁNDÉKOLT hatása,
+nem hiba). A régió-szám 51→100-ra nőtt. A parti magasság (tengerszinthez
+képesti relatív eleváció) statisztikailag alig változott (ld. ND-37 —
+kiderült, hogy ez NEM elsősorban a lemezhatár-geometria problémája volt).
+
+249/249 teszt zöld (12 új: `DomainWarpTests.cs`), Python-referenciával
+BITPONTOS egyezés minden érintett láncban (`domain_warp_vectors.json`,
+és az újragenerált `plate_boundary_vectors.json`, `hydrology_vectors.json`,
+`features_vectors.json`, `state_hash_vectors.json`, `volcanism_vectors.json`).
+A `plate_vectors.json` és `crust_elevation_vectors.json` VÁLTOZATLAN
+maradt (a mögöttes `AssignPlate`/`BaseElevation` függvények szignatúrája
+és logikája nem változott — csak a HÍVÓ oldal ad nekik más pozíciót).
+
 ## Nyitott döntések
+
+### ND-37 — a kalibrált tengerszint mélyen az óceáni-kéreg elevációtartományba esik, nem egy valódi part-átmenetnél
+
+**Kérdés (ND-36 domain warping vizsgálata közben derült ki, mérve, nem
+találgatva):** a felhasználó eredeti panasza ("a part túl magas a
+tengerszinthez képest") a domain warping UTÁN is fennállt — a parti sáv
+(óceáni szomszéddal rendelkező szárazföld-tile-ok) átlagos elevációja a
+kalibrált tengerszinthez képest ELŐTTE ~4255m, UTÁNA ~4072m volt (level 6,
+teljes mező) — a warp csak ~4%-ot javított, elhanyagolható.
+
+**Gyökérok (mérve):** a `SeaLevelCalibration.CalibrateSeaLevel`
+percentilis-módszere a `TargetWaterFraction`=0.65-nél kalibrál. A
+`CrustElevation.DefaultOceanicProbability`=0.55 (lemez-szintű Bernoulli-
+valószínűség) miatt a TILE-SÚLYOZOTT óceáni-lemez-arány a mért világon
+véletlenül ~66.7% — gyakorlatilag EGYBEESIK a célzott víz-aránnyal (65%).
+Emiatt a kalibrált tengerszint (mérve: -3220.7m) NEM egy valódi
+kontinentális-perem elevációs átmenetnél metsz, hanem MÉLYEN az óceáni
+kéreg elevációtartományán (`OceanicBaseMeters`=-4000m körül) BELÜL — a
+"parti" tile-ok (elevation ≥ sea_level) valójában az óceáni-kéreg-eloszlás
+FELSŐ SZÉLÉN lévő tile-ok, aminek a tengerszinthez viszonyított relatív
+magassága ezért matematikailag nagy szám lesz, még ha a nyers eleváció
+önmagában plauzibilis (néhány száz-pár ezer méteres) tartományban is van.
+
+**Miért nem oldható meg egyszerű konstans-hangolással (mérve, kizárva):**
+a `ContinentalBaseMeters`/`DefaultUpliftMaxMeters`/`NoiseAmplitudeMeters`
+együttes DRASZTIKUS csökkentése is csak ~4240m→~3712m-re (kb. 12%)
+mozdítja az átlagot — mert a probléma nem ezekben a konstansokban van,
+hanem magában a percentilis-kalibráció és a lemez-szintű bináris
+kéreg-típus KÖLCSÖNHATÁSÁBAN. Az `OceanicBaseMeters` közvetlen
+csökkentése (pl. -2000m-re) erősen hat (~2460m-re csökkenti az átlagot),
+de irreálisan sekély óceánt eredményezne — fizikailag rosszabb
+kompromisszum, mint a jelenlegi állapot.
+
+**Egyelőre NYITVA HAGYVA, NEM egyetlen konstans átírásával csendben
+"lezárva".** Ez architekturális kérdés — nincs kontinentális-perem/
+átmeneti gradiens a kéreg-típus jelenlegi éles (lemez-szintű bináris)
+lépcsőjében, ami miatt a percentilis-kalibráció strukturálisan hajlamos a
+fenti egybeesésre. Lehetséges jövőbeli irányok (nem eldöntve, csak
+jegyzetként):
+1. A kéreg-típus finomítása tile-szintű gradiensre (nem bináris
+   lemezenkénti Bernoulli) a lemezhatárok közelében — ez a domain warping
+   (ND-36) természetes folytatása lenne.
+2. A `TargetWaterFraction` és `DefaultOceanicProbability` explicit
+   szétválasztása/decorrelálása, hogy a kalibrált tengerszint ne essen
+   szisztematikusan egybe egy kéreg-típus-arány közeli értékkel.
+3. A "parti magasság" metrika újragondolása — lehet, hogy maga a mérési
+   módszer (nyers eleváció - tengerszint) félrevezető egy percentilis-
+   kalibrált világon, és egy másik metrika (pl. relatív a helyi
+   szomszédság-átlaghoz) informatívabb lenne.
+
+**`TEST-EARTH-001` állapota:** VÁLTOZATLANUL teljesül (65.00% víz, ≥2
+kontinens) — ez a nyitott kérdés NEM töri a jelenlegi elfogadási
+kritériumot, csak egy vizuálisan érzékelt, dokumentált hiányosság.
+
+249/249 teszt zöld — ez az ND nem igényelt kódváltozást, csak mérést és
+dokumentációt.
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai
 

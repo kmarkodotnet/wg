@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using WorldGen.Core.Events;
 using WorldGen.Core.Tectonics;
+using WorldGen.Core.Terrain;
 using Xunit;
 
 namespace WorldGen.Core.Tests.Events;
@@ -102,6 +103,12 @@ public class VolcanicEruptionStructuralTests
     [Fact]
     public void AllEventsAreNearPlateBoundaries()
     {
+        // ND-36 (domain warping): az elfogadas/elutasitas dontese a WARPOLT
+        // kandidat-poziciora tortenik (VolcanicEruption.SamplePositionNearBoundary),
+        // a MEGORZOTT invarians tehat az, hogy a WARPOLT pozicio gap-je <
+        // GapScale - NEM a visszaadott nyers (x,y,z)-e (az a warp miatt akar
+        // a hataroktol tavolabbra is "csuszhat", ugyanaz a szandekos hatas,
+        // mint a lemezhatar-upliftnel, ld. tools/reference/volcanism_ref.py).
         var seeds = Seeds();
         int checkedEvents = 0;
         for (long epoch = 0; epoch < 20_000; epoch++)
@@ -109,9 +116,10 @@ public class VolcanicEruptionStructuralTests
             if (VolcanicEruption.TryGenerateEruption(WorldSeed, epoch, seeds,
                     out double x, out double y, out double z, out _, out _, out _))
             {
-                PlateBoundaryEffect.TwoBestDots(x, y, z, seeds, out double best, out double second);
+                DomainWarp.WarpPosition(WorldSeed, x, y, z, out double wx, out double wy, out double wz);
+                PlateBoundaryEffect.TwoBestDots(wx, wy, wz, seeds, out double best, out double second);
                 double gap = best - second;
-                Assert.True(gap < VolcanicEruption.GapScale, $"epoch {epoch}: gap={gap} túl nagy");
+                Assert.True(gap < VolcanicEruption.GapScale, $"epoch {epoch}: warpolt gap={gap} túl nagy");
                 checkedEvents++;
             }
         }

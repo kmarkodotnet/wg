@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using WorldGen.Core.Grid;
+using WorldGen.Core.Terrain;
 
 namespace WorldGen.Core.Tectonics
 {
@@ -52,7 +53,16 @@ namespace WorldGen.Core.Tectonics
                     {
                         TileId id = TileId.FromFaceLevelUV(face, level, u, v);
                         TileGeometry.ToPosition(id, out double x, out double y, out double z);
-                        int plateId = PlateGeneration.AssignPlate(x, y, z, seeds);
+
+                        // ND-36: a lemez-HOZZARENDELES a WARPOLT poziciot
+                        // kapja (DomainWarp) - ez tori meg a nyers legkozelebbi-mag
+                        // Voronoi-hatarok tul geometrikus, nagykor-iv-szeru
+                        // jelleget. Az ElevationWithBoundary (es a benne levo
+                        // BaseElevation zaj-kiertekeles) VALTOZATLANUL a NYERS
+                        // (x,y,z)-t kapja - a warp csak a lemez-topologia
+                        // dontesehez hasznalt, a domborzat-textura nem.
+                        DomainWarp.WarpPosition(worldSeed, x, y, z, out double wx, out double wy, out double wz);
+                        int plateId = PlateGeneration.AssignPlate(wx, wy, wz, seeds);
                         double elevation = PlateBoundaryEffect.ElevationWithBoundary(
                             worldSeed, plateId, id.Value, x, y, z, seeds, out _);
                         field[id] = elevation;

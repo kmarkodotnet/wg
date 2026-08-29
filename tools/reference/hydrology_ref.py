@@ -32,13 +32,15 @@ from plate_boundary_ref import elevation_with_boundary
 from sphere_position_ref import position_from_tile
 from morton_ref import tile_id
 from neighbor_ref import neighbor, DIRECTIONS
+from domain_warp_ref import warp_position
 
 
 def compute_elevation_and_ocean_field(world_seed, plate_count, level, target_water_fraction=0.65):
     """
     Elevacio-mezo + kalibralt tengerszint alapjan ocean-flag minden tile-ra.
     UGYANAZ a szamitas, mint sea_level_ref.compute_elevation_field (valodi
-    tile_id-vel, a jitter taggal egyutt) - a hidrologia a MAR VALIDALT
+    tile_id-vel, a jitter taggal egyutt, es a lemez-hozzarendeles ugyanugy a
+    domain-warpolt pozicion tortenik) - a hidrologia a MAR VALIDALT
     (TEST-EARTH-001) M4 mezon dolgozik, nem egy elteroen szamolt masikon.
     """
     seeds = generate_plate_seeds(world_seed, plate_count)
@@ -48,7 +50,8 @@ def compute_elevation_and_ocean_field(world_seed, plate_count, level, target_wat
         for u in range(n):
             for v in range(n):
                 pos = position_from_tile(face, level, u, v)
-                plate_id = assign_plate(pos, seeds)
+                warped_pos = warp_position(world_seed, pos)
+                plate_id = assign_plate(warped_pos, seeds)
                 tid = tile_id(face, level, u, v)
                 elev, _ = elevation_with_boundary(world_seed, plate_id, tid, pos, seeds)
                 field[(face, u, v)] = elev

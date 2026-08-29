@@ -38,6 +38,7 @@ import math
 from plate_ref import _block, sample4, generate_plate_seeds, assign_plate
 from plate_boundary_ref import two_best_dots
 from deterministic_math_ref import pow_ as det_pow
+from domain_warp_ref import warp_position
 
 SCALE53 = 2.0 ** -53
 
@@ -83,7 +84,11 @@ def edifice_geometry(volume_m3):
 
 def sample_position_near_boundary(world_seed, epoch_bucket, seeds):
     """Elutasitasos mintavetel: egyenletes gombi pont, elfogadva a
-    lemezhatar-kozelseggel aranyos valoszinuseggel."""
+    lemezhatar-kozelseggel aranyos valoszinuseggel. A gap-et (elfogadasi
+    dontes) a WARPOLT kandidat-poziciora szamoljuk (domain_warp_ref) - a
+    VISSZAADOTT pozicio maga tovabbra is a NYERS (cx,cy,cz), csak a
+    dontesnel hasznaljuk a warpolt valtozatot, ugyanugy mint a tobbi
+    lemezhatar-kozelseg-alapu dontesnel (boundary_uplift)."""
     i = 0
     while True:
         xs = _block(world_seed, DOMAIN_EVENTS, 0, epoch_bucket, PROPERTY_VOLCANIC_POSITION, i)
@@ -93,7 +98,8 @@ def sample_position_near_boundary(world_seed, epoch_bucket, seeds):
         if 1e-12 < len_sq <= 1.0:
             inv = 1.0 / math.sqrt(len_sq)
             cx, cy, cz = px * inv, py * inv, pz * inv
-            best, second = two_best_dots((cx, cy, cz), seeds)
+            warped = warp_position(world_seed, (cx, cy, cz))
+            best, second = two_best_dots(warped, seeds)
             gap = best - second
             accept_prob = (1.0 - gap / GAP_SCALE) if gap < GAP_SCALE else 0.0
             if d < accept_prob:
@@ -162,13 +168,27 @@ if __name__ == "__main__":
 
     if events:
         print("--- Pozicio-plauzibilitas: a hataroktol vett tavolsag ---")
-        gaps = []
+        # Az elfogadas/elutasitas dontese a WARPOLT kandidat-poziciora
+        # tortenik (domain_warp_ref bekotese, ld. sample_position_near_boundary
+        # docstring) - a MEGORZOTT invarians tehat az, hogy a WARPOLT pozicio
+        # gap-je < GAP_SCALE, NEM a visszaadott nyers (x,y,z)-e (az utobbi a
+        # warp miatt akar a hataroktol tavolabbra is "csuszhat" - ez szandekos,
+        # ugyanaz a domain-warp hatas, mint a lemezhatar-uplift-nel).
+        raw_gaps = []
+        warped_gaps = []
         for e in events:
-            best, second = two_best_dots((e["x"], e["y"], e["z"]), seeds)
-            gaps.append(best - second)
-        max_gap = max(gaps)
-        print(f"  max gap a {len(gaps)} esemeny kozott: {max_gap:.4f} (kuszob: {GAP_SCALE})")
-        assert max_gap < GAP_SCALE, "Egy esemeny sem eshet a hatar-savon kivul"
+            raw_pos = (e["x"], e["y"], e["z"])
+            best, second = two_best_dots(raw_pos, seeds)
+            raw_gaps.append(best - second)
+            warped_pos = warp_position(world_seed, raw_pos)
+            wbest, wsecond = two_best_dots(warped_pos, seeds)
+            warped_gaps.append(wbest - wsecond)
+        max_raw_gap = max(raw_gaps)
+        max_warped_gap = max(warped_gaps)
+        print(f"  max NYERS gap a {len(raw_gaps)} esemeny kozott: {max_raw_gap:.4f} "
+              f"(a domain warp miatt EZ MAR NEM garantaltan < {GAP_SCALE})")
+        print(f"  max WARPOLT gap: {max_warped_gap:.4f} (kuszob: {GAP_SCALE}) - EZ a valodi invarians")
+        assert max_warped_gap < GAP_SCALE, "Egy esemeny warpolt pozicioja sem eshet a hatar-savon kivul"
         print("OK - minden esemeny a lemezhatarok kozeleben van\n")
 
     print("--- Tesztvektorok generalasa (C# porthoz) ---")

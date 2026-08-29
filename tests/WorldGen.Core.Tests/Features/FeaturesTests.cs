@@ -155,7 +155,10 @@ public class FeatureSegmentationStructuralTests
             Assert.Equal(exp.GetProperty("riverBasinCount").GetInt32(), basins);
             checkedContinents++;
         }
-        Assert.Equal(2, checkedContinents);
+        // ND-36 (domain warping): a lemez-hozzarendeles warpolt pozicion
+        // tortenik, ami a korabbi 2 nagy kontinenst tobb, kisebb darabra
+        // bontja - szandekolt hatas, ld. docs/04-decisions.md.
+        Assert.Equal(6, checkedContinents);
 
         double oceanCoverage = FeatureMetrics.OceanCoverageFraction(isOcean);
         Assert.Equal(root.GetProperty("worldOceanCoverage").GetDouble(), oceanCoverage, 9);
@@ -184,7 +187,7 @@ public class FeatureSegmentationStructuralTests
             Assert.Equal(exp.GetProperty("riverMouthCount").GetInt32(), mouths);
             checkedRegions++;
         }
-        Assert.Equal(51, checkedRegions);
+        Assert.Equal(100, checkedRegions);
     }
 
     [Fact]
