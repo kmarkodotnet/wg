@@ -98,6 +98,17 @@ namespace WorldGen.Viewer
                  "0 = a referencia napéjegyenlőség.")]
         private double climateDayT = 0.0;
 
+        [Header("M10: Deep time (lemezmozgás)")]
+        // NINCS [Range] itt szandekosan (ld. axialTiltDegrees-nel korabban):
+        // a Unity RangeAttribute csak (float,float)/(int,int) konstruktort
+        // fogad, double->float NEM implicit konverzio C#-ban.
+        [SerializeField]
+        [Tooltip("Millió év (Myr) - mennyi idő telt el a lemez-magok kezdő " +
+                 "pozíciójához képest. 0 = a statikus M4 domborzat. A lemezek " +
+                 "Euler-pólus körüli forgással (Rodrigues) mozognak - lásd " +
+                 "PlateMotion.cs, docs/04-decisions.md ND-27.")]
+        private double deepTimeMyr = 0.0;
+
         [Header("M7: Folyóhálózat")]
         [SerializeField]
         private bool showRivers = true;
@@ -117,7 +128,7 @@ namespace WorldGen.Viewer
 
             // A MAR verifikalt M4/M7 Core-modulokat hivjuk kozvetlenul -
             // nincs duplikalt elevation-/folyoszamitas.
-            Dictionary<TileId, double> field = SeaLevelCalibration.ComputeElevationField(seed, plateCount, level);
+            Dictionary<TileId, double> field = SeaLevelCalibration.ComputeElevationFieldAtTime(seed, plateCount, level, deepTimeMyr);
             double seaLevel = SeaLevelCalibration.CalibrateSeaLevel(field.Values, targetWaterFraction);
             Dictionary<TileId, bool> isOceanField = FlowNetwork.ComputeOceanField(field, seaLevel);
 
