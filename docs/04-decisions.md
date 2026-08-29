@@ -322,6 +322,41 @@ egyezésével):**
 (köbgyök) és egy fix, konstrukciós idejű `tan(6°)` az egyetlen
 nem-egész-aritmetikai elem, ugyanaz az ND-27 lezárt megoldása.
 
+### ND-30 — M12 perzisztencia: hatókör a determinisztikus hash-függvényre szűkítve
+
+**Kérdés:** a spec (§47, §60, §64) egy teljes event-sourcing +
+checkpoint + `.worldpkg` fájlformátum + `worldgen verify` CLI rendszert
+ír le. Ez a jelenlegi projekt-állapothoz képest (a legtöbb spec-beli
+réteg — `AtmosphereLayer`, `ResourceLayer`, `CryosphereLayer` stb. —
+még meg sem épült) messze aránytalan lenne egyetlen lépésben megépíteni.
+
+**Döntés (hatókör-szűkítés, a korábbi mérföldkövekével azonos mintát
+követve):** ez a lépés CSAK a determinisztikus **hash-függvényt**
+(`WorldStateHash`) adja — a `.worldpkg` fájlformátum, a CLI
+(`worldgen verify`), az event-sourcing/replay rendszer HALASZTVA.
+
+**Indoklás, ami ezt NEM csonka félmegoldássá teszi:** a Core minden
+része MÁR MOST is tiszta függvénye a `(worldSeed, paraméterek, idő)`
+hármasnak (ld. `SeaLevelCalibration.ComputeElevationFieldAtTime`,
+`ImpactCratering.GenerateCratersUpToTime` stb.) — nincs
+"irreverzibilis" szimulációs állapot, amit event-sourcing-gal kellene
+tárolni. Ebből következik, hogy a "világ mentése" valójában már ma is
+triviális (elég a `WorldDefinition`-t, azaz a bemeneti paramétereket
+elmenteni — a state ebből újraszámolható), és amire TÉNYLEGESEN szükség
+van már MOST, az egy módszer annak automatizált ellenőrzésére, hogy
+"ugyanaz a definíció ugyanazt a világot adja-e minden platformon" (I1).
+Pont ezt adja a hash-függvény, a nagyobb fájlformátum/CLI-réteg nélkül is.
+
+**Módszer:** SHA-256 egy `(TileId → double)` mezőn, KANONIKUS
+(`TileId.Value` szerint növekvő, nem `Dictionary` bejárási sorrend)
+sorrendben, EXPLICIT big-endian bájtsorrendben (nem a platform natív
+bájtsorrendjére támaszkodva). SHA-256 GARANTÁLTAN determinisztikus
+(bit-manipuláció, nem transzcendens közelítés) — más kockázati
+osztály, mint a Math.Sin/Cos/Pow (ND-27), nem igényel ND-kockázatvállalást.
+
+227/227 teszt zöld, a Python-referenciával (`state_hash_ref.py`)
+BITPONTOS SHA-256 egyezés.
+
 ## Nyitott döntések
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai
