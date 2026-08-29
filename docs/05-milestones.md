@@ -440,3 +440,62 @@ visszakövethető számítási lánc (I4) — nincs kitalált/placeholder érté
    vizuális ellenőrzésed szükséges
 
 Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → mérés**.
+
+---
+
+## M10 — Következő, részletes terv (autonóm folytatás, felhasználói jóváhagyással: "csináld magadtól")
+
+### Cél
+
+Az időcsúszka él — a lemezek ténylegesen mozognak deep-time-ban (§14.2:
+`P(t) = R(ωt)P₀`), nem statikus pillanatkép, mint M4-ben.
+
+### Hatókör (tudatosan szűkítve, a teljes M10 tartalmához képest)
+
+**Benne van:** lemezmozgás (Euler-pólus + szögsebesség, Rodrigues-
+forgatás), a `TileId -> plate -> elevation` lánc időfüggővé tétele.
+
+**Halasztva** (dokumentált, nem hiányosság — mindegyik önálló,
+referencia-előbb ciklust igényelne): erózió idővel felhalmozódó hatása,
+eljegesedés (jégkorszak-ciklusok), dinamikus tengerszint (térfogat-
+megmaradás alapú, nem csak percentilis-újrakalibráció), lemez-születés/
+-halál (§16). A tengerszint egyelőre továbbra is a MINDENKORI
+elevation-mező percentilise (mint M4-ben), csak az elevation-mező maga
+változik idővel a lemezmozgás miatt.
+
+**Új időtengely:** a lemezmozgás időegysége **millió év (Myr)**, külön
+a csillagászat/klíma "nap" (day_t) tengelyétől — geológiai időskála,
+nem napi/évi ciklus.
+
+**ND-27 kiterjesztése (nem új döntés, ugyanaz a már jóváhagyott elv):**
+a Rodrigues-forgatás Sin/Cos-t használ — ugyanaz a trigonometria-
+kockázati kategória, mint az ND-26/27-nél, ugyanazzal a határidővel
+(M12, checkpoint-rendszer előtt kötelező lezárni).
+
+### 10.1 Lemezmozgás
+
+Lemezenként Euler-pólus (`RandomProperty.EulerPole`, M1-ben már
+fenntartva) + szögsebesség (`RandomProperty.PlateVelocity`, már
+fenntartva, illusztratív tartomány: 0.01-0.09 rad/Myr, kb. 0.5-5°/Myr —
+nagyságrendileg reális Föld-analógia). A lemez-mag pozíciója időben:
+Rodrigues-forgatás az Euler-pólus körül, `θ = ω·t` szöggel.
+
+**Kötelező teszt:** a lemez-mag `t=0`-nál megegyezik az M4 statikus
+pozícióval (visszamenőleges kompatibilitás); `t>0`-nál a pozíció
+ténylegesen elmozdul; a forgatás egységvektort ad vissza (nem
+degenerálódik); a forgatás explicit, zárt függvénye `t`-nek (nem
+iteratív akkumulátor), ezért a "timestep-invariancia" (ND-04)
+triviálisan, szerkezetileg garantált — ezt egy konkrét teszt is
+bizonyítja (ugyanaz az állapot érkezik meg, függetlenül attól, hogy
+egy nagy lépésben vagy sok kis lépés összegeként kérdezzük le `t`-t).
+
+### 10.2 Javasolt sorrend
+
+1. `tools/reference/` — Python lemezmozgás (Rodrigues-forgatás) +
+   verifikáció (t=0 visszakompatibilis, timestep-invariancia)
+2. C# port + tesztek
+3. Unity render-kiegészítés (időcsúszka/idő-mező a `PlanetGridMesh`-en,
+   hogy lásd a kontinensek elmozdulását) — vizuális ellenőrzésed
+   szükséges, ekkor jelentkezem
+
+Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → mérés**.
