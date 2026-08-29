@@ -23,11 +23,20 @@ namespace WorldGen.Viewer
         [SerializeField] private float maxDistance = 800f;
 
         [SerializeField]
-        [Tooltip("Fok/pixel/másodperc, EGYSÉGNYI távolságra vetítve - a tényleges " +
-                 "forgási sebesség a jelenlegi távolsággal SZORZÓDIK (közelebbről " +
-                 "lassabb, távolabbról gyorsabb), mert fix fok/pixel érték közelről " +
-                 "túl gyorsnak, távolról túl lassúnak érződne ugyanannyi képernyő-mozgásra.")]
-        private float rotationSpeedPerDistance = 3.33f;
+        [Tooltip("A bolygó sugara (PlanetGridMesh alapértéke 100) - a forgási " +
+                 "sebesség a FELSZÍNTŐL mért magassággal (distance - surfaceRadius) " +
+                 "skálázódik, nem a középponttól mért nyers távolsággal. Enélkül a " +
+                 "sebesség minDistance-nél (120) is 'csak' 20%-kal csökkenne a " +
+                 "defaulthoz képest, holott a kamera valójában a felszín közvetlen " +
+                 "közelében van (100 sugár + 20 magasság).")]
+        private float surfaceRadius = 100f;
+
+        [SerializeField]
+        [Tooltip("Fok/pixel/másodperc, EGYSÉGNYI felszín-feletti magasságra vetítve - " +
+                 "a tényleges forgási sebesség a jelenlegi magassággal (distance - " +
+                 "surfaceRadius) SZORZÓDIK, úgyhogy a felszín közelében arányosan " +
+                 "sokkal lassabb, mint messziről nézve.")]
+        private float rotationSpeedPerAltitude = 5f;
 
         [SerializeField] private float zoomSpeed = 150f;
 
@@ -59,7 +68,8 @@ namespace WorldGen.Viewer
             {
                 float dx = Input.GetAxis("Mouse X");
                 float dy = Input.GetAxis("Mouse Y");
-                float effectiveRotationSpeed = rotationSpeedPerDistance * distance;
+                float altitude = Mathf.Max(1f, distance - surfaceRadius);
+                float effectiveRotationSpeed = rotationSpeedPerAltitude * altitude;
                 _yaw += dx * effectiveRotationSpeed * Time.deltaTime;
                 _pitch -= dy * effectiveRotationSpeed * Time.deltaTime;
                 _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
