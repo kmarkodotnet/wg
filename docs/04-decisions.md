@@ -169,6 +169,60 @@ vagy C opció közül választva, véglegesen. M12-nél ez **nem halasztható
 tovább** — ha addig nem történik meg, M12 nem kezdődhet el a checkpoint-
 rendszeren, amíg ez nincs lezárva.
 
+### ND-28 — M11 becsapódások: hatókör-szűkítés + valós bolygó-sugár bevezetése
+
+**Kérdés:** az M11 (Események) spec-hatóköre széles (becsapódás, vulkán,
+rift, lemez-hasadás/egyesülés — §22-23 és a milestone-tábla). Emellett a
+kráter geometriájának a rács-térbe (angular méret) illesztéséhez szükség
+van egy **valós bolygó-sugárra méterben** — ez eddig sehol nem szerepelt
+explicit Core-konstansként (a Unity `radius=100f` szándékosan tetszőleges
+vizuális egység, ND-19 miatt még nem valós lépték).
+
+**Döntés (hatókör-szűkítés, a korábbi mérföldkövekével azonos mintát
+követve — ld. M5 szél/csapadék, M7 tavak/jég, M10 erózió/eljegesedés
+halasztása):**
+
+1. **M11 MVP = csak becsapódás.** Vulkán, rift, lemez-hasadás/egyesülés
+   halasztva — nincs önálló numerikus alapjuk még, és a spec-ben is
+   kevésbé kidolgozottak, mint a becsapódás (§22, konkrét képletekkel).
+2. **Kráter-paraméterek közül csak `diameter` + `depth`.** A `rimHeight`
+   és `ejectaRadius` (spec §22.4) halasztva — vizuálisan nem
+   elengedhetetlen az első checkpointhoz ("kráterek látszanak"), és
+   külön geometria-munkát igényelne (gyűrű alakú kiemelkedés a
+   tile-mesh-en).
+3. **Új `PlanetConstants.RadiusMeters = 7_420_000.0`** (a spec kanonikus
+   példa-bolygója, `docs/00-spec-v1.0.md:2170,2253` — `radiusKm: 7420`).
+   Ez **nem** oldja meg ND-19-et (floating origin, Unity-oldali render-
+   precízió nagy léptéken) — az változatlanul M9-re marad. Ez csak azt
+   mondja ki, hogy a Core matematikája (ami az elevation-t is már most
+   is méterben kezeli, ld. M4 dokumentáció) mostantól egy konkrét
+   bolygóméretet is ismer, a kráter valós fizikai méretének a rács
+   szögtartományára (radián) való átváltásához.
+4. **A becsapódás fizikája forrásból ellenőrzött, nem kitalált érték**
+   (a projekt "ne bízz emlékezetben" elve szerint, WebSearch-csel
+   verifikálva, két független találat egyezésével):
+   - Tranziens kráter átmérő: Schmidt & Housen (1987) / Collins, Melosh
+     & Marcus (2005) skálázás — `D_tr = 1.161 · (ρᵢ/ρₜ)^(1/3) · L^0.78 ·
+     v^0.44 · g^-0.22 · sin(θ)^(1/3)`.
+   - Mélység: egyszerű kráterekre mélység/átmérő ≈ 1:5 (közismert,
+     széles körben idézett arány).
+   - Becsapódási gyakoriság: `ρ(≥D) = 20 · D^-2.4` [1/év], D méterben —
+     hatványtörvény NEO-becsapódási ráta-modell.
+   - Sebesség: 15-25 km/s (a szakirodalomban idézett átlagos NEO-Föld
+     ütközési sebesség 15-21 km/s köré esik).
+   - Szög: `P(θ) ∝ sin(2θ)` — ez NEM empirikus, hanem geometriai tény
+     (véletlen irányú becsapódás a gömbön), zárt alakban invertálható.
+   - Sűrűségek: kőzet becsapódó ~3000 kg/m³, kéreg cél ~2700 kg/m³
+     (Föld kontinentális kéreg átlaga, jól ismert érték).
+5. **Trigonometria-kockázat (ND-27 osztálya kiterjesztve, nem új ND):** a
+   kráter-képlet `Math.Pow`/`Math.Sin`/`Math.Cos`-t használ, ugyanaz a
+   kockázati kategória és M12 előtti lezárási határidő vonatkozik rá,
+   mint a klímára és a lemezmozgásra.
+
+**Indoklás:** ez a minta megegyezik minden korábbi milestone
+hatókör-szűkítésével — kisebb, de fizikailag/matematikailag megalapozott
+MVP, explicit deferrállal, nem csendes leegyszerűsítéssel.
+
 ## Nyitott döntések
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai

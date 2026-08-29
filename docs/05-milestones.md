@@ -16,7 +16,7 @@ enélkül nem derül ki időben, ha valami rossz irányba megy.
 | **M8** | **Features + panelek** | Szegmentálás, névadás, aggregált metrikák | World/Continent/Region panelek élesben | Kontinens/régió-szegmentálás + névgenerálás ✅ **numerikusan kész** (153/153 teszt); a legtöbb panel-mező (Habitability, Coastal complexity stb.) halasztva; vizuális render hátra |
 | M9 | Continent + Region nézet | Magas LOD, displacement, kamera-átmenetek | Referenciakép 1, 3, 4 szintje | Zoom-átmenet folyamatos |
 | **M10** | **Deep time** | Lemezmozgás, erózió, eljegesedés, tengerszint | Az időcsúszka él | Lemezmozgás ✅ **vizuálisan megerősítve** (163/163 teszt, TimestepInvariance egzakt; `deepTimeMyr` Unity idő-csúszka - domborzat ÉS biome egyaránt elmozdul, felhasználó által tesztelve); erózió/eljegesedés/dinamikus tengerszint halasztva |
-| M11 | Események | Becsapódás, vulkán, rift, split/merge | Kráterek, kitörések láthatók | Acceptance A–E zöld |
+| **M11** | **Események** | Becsapódás, vulkán, rift, split/merge | Kráterek, kitörések láthatók | Becsapódás ✅ **numerikusan kész** (173/173 teszt); vulkán/rift/split-merge halasztva (ND-28); domborzat-bekötés + vizuális render hátra |
 | M12 | Perzisztencia + CLI | Checkpoint, .worldpkg, state hash | — | `worldgen verify` reprodukál |
 | M13 | Polish | Volumetrikus felhő, AO, víz-shader, színkalibráció | Végleges látvány | Vizuális acceptance (spec §73) |
 
@@ -497,5 +497,73 @@ egy nagy lépésben vagy sok kis lépés összegeként kérdezzük le `t`-t).
 3. Unity render-kiegészítés (időcsúszka/idő-mező a `PlanetGridMesh`-en,
    hogy lásd a kontinensek elmozdulását) — vizuális ellenőrzésed
    szükséges, ekkor jelentkezem
+
+Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → mérés**.
+
+## M11 — Következő, részletes terv (autonóm folytatás, "csináld magadtól")
+
+### Cél
+
+Az M10-hez hasonlóan a spec-hatókör (becsapódás, vulkán, rift, lemez-
+hasadás/egyesülés) itt is túl széles egyetlen lépéshez — ld. ND-28
+(`docs/04-decisions.md`) a hatókör-szűkítés indoklásáért.
+
+### Hatókör (tudatosan szűkítve — ND-28)
+
+**Benne van:** meteor-/üstökös-becsapódás (spec §22) — epoch-alapú
+determinisztikus eseménygenerálás, hatványtörvény méreteloszlás
+(nehéz-farkú: sok kicsi, kevés nagy), tranziens kráter átmérő+mélység
+(Schmidt & Housen / Collins-Melosh-Marcus skálázás), a magasság-mezőn
+tartósan alkalmazva (§22.4 "a height field tartósan módosul").
+
+**Halasztva** (dokumentált, ND-28 részletezi): vulkán, rift, lemez-
+hasadás/egyesülés (nincs numerikus alapjuk még); kráter `rimHeight` +
+`ejectaRadius` (csak `diameter`+`depth` az MVP-ben).
+
+**Új:** `PlanetConstants.RadiusMeters` (7420 km, a spec kanonikus
+példa-bolygója) — az első valós fizikai bolygóméret-konstans a
+Core-ban, a kráter méterben mért méretének a rács szögtartományára
+váltásához. NEM oldja meg ND-19-et (Unity render-precízió) — az
+M9-re marad.
+
+**ND-27 osztálya kiterjesztve (nem új döntés):** a kráter-képlet
+Math.Pow/Sin/Cos-t használ — ugyanaz a trigonometria-kockázat és M12
+előtti lezárási határidő, mint a klímánál és a lemezmozgásnál.
+
+### 11.1 Becsapódás — kész (numerikusan)
+
+`src/WorldGen.Core/Events/ImpactCratering.cs` — `TryGenerateImpact`
+epoch-index alapján (`EpochYears = 10 000`), forrásból ellenőrzött
+fizikával:
+
+- Gyakoriság: ρ(≥D) = 20·D^-2.4 [1/év], D méterben (NEO-becsapódási
+  hatványtörvény), Bernoulli-közelítésben epochonként.
+- Méret: Pareto-eloszlás (α=2.4), 1 km - 100 km tartomány (felső sapka
+  dokumentáltan, nem újra-mintavétellel).
+- Sebesség: egyenletes 15-25 km/s.
+- Szög: P(θ) ∝ sin(2θ) (geometriai tény, zárt alakban invertálva).
+- Kráter: `TransientCraterDiameter` (Schmidt & Housen / Collins-Melosh-
+  Marcus), mélység = átmérő × 0.2 (1:5 arány).
+
+173/173 teszt zöld (163 korábbi + 10 új): Python-referenciával 20 000
+epoch-os "történelem" tolerancia-egyezés, tisztaság, minden paraméter
+hat a kimenetre (méret/sebesség/szög mind növeli a krátert), plauzibilis
+gyakoriság + nehéz-farkú méreteloszlás, élesetek.
+
+**Hátra van:** a kráter tartós alkalmazása a magasság-mezőn (jelenleg
+`TryGenerateImpact` önmagában áll, nincs bekötve a
+`SeaLevelCalibration`/`ComputeElevationFieldAtTime` láncba) + Unity
+vizuális megjelenítés (kráterek látszanak a domborzaton) — ez a
+következő lépés, és a vizuális rész a te ellenőrzésedet igényli.
+
+### 11.2 Javasolt sorrend
+
+1. ~~`tools/reference/impacts_ref.py` — Python becsapódás-modell +
+   verifikáció~~ ✅
+2. ~~C# port (`ImpactCratering`) + tesztek~~ ✅
+3. A kráterek bekötése a magasság-mezőbe (deep-time-integrált: adott
+   `timeMyr`-ig lezajlott epoch-ok kráterei mind alkalmazva, additív
+   mélyedésként a `ComputeElevationFieldAtTime` eredményén)
+4. Unity render-kiegészítés + vizuális ellenőrzésed — ekkor jelentkezem
 
 Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → mérés**.
