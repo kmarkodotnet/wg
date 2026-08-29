@@ -587,3 +587,326 @@ következő lépés, és a vizuális rész a te ellenőrzésedet igényli.
 4. Unity render-kiegészítés + vizuális ellenőrzésed — ekkor jelentkezem
 
 Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → mérés**.
+
+## M9 — Következő, részletes terv (autonóm folytatás, "csináld magadtól")
+
+### Cél
+
+Kontinens- és régiónézet: a domborzat zoomolással ténylegesen finomodik
+(nem marad a jelenlegi, fix LOD-szintű, pixeles/lépcsős felület), a
+kamera-átmenet folyamatos (a "Zoom-átmenet folyamatos" M9 "Kész, ha"
+kritérium). A felhasználói panasz konkrétan ez: közelítéskor a mostani
+rács durvának látszik, mert egyetlen fix szinten, egyszerre az egész
+gömbre épül, és nem sűrűsödik a kamera közelében.
+
+### Kulcs-megállapítás (ez szűkíti drasztikusan a hatókört)
+
+**A domborzat-mező LOD-FÜGGETLEN, és ezt már a jelenlegi kód is
+kihasználja.** A `CrustElevation.BaseElevation` / `PlateBoundaryEffect.
+ElevationWithBoundaryFromWarped` / `DomainWarp.WarpPosition` tiszta
+függvények a `(worldSeed, x, y, z)` pozícióból — NEM a `level`-től vagy a
+tile-mérettől. Ugyanaz a fizikai pont ugyanazt az elevációt adja, akár
+level 5-ös, akár level 11-es tile részeként kérdezzük le. A viewer
+`ComputeDisplacedRadius(x, y, z, ...)` pontosan ezt a pont-alapú
+kiértékelést valósítja már meg — ez az a primitív, amit egy adaptív
+renderer igényel.
+
+Ebből következik: **az adaptív LOD NEM igényel új szimulációs
+algoritmust, sem Python-referenciát, sem `src/WorldGen.Core` numerikus
+munkát.** Ez a milestone kizárólag arról szól, hogy Unity-oldalon MELYIK
+`(x,y,z)` pontokat és MILYEN SŰRŰN mintavételezzük/jelenítjük meg a
+kamera függvényében. Emiatt a szokásos "referencia → verifikálás → C# →
+mérés" ciklus itt NEM alkalmazandó a domborzatra (nincs új numerika); a
+munka a viewer-ben (`PlanetGridMesh` és környéke) zajlik, és az
+ellenőrzés túlnyomórészt vizuális/manuális (ld. lent), egy vékony,
+unit-tesztelhető kvadfa-kiválasztási logikával kiegészítve.
+
+### Hatókör (tudatosan szűkítve, a §51-52 + a teljes M9 tartalomhoz képest)
+
+**Benne van:** adaptív, kamera-vezérelt kvadfa-LOD a domborzat-
+geometriára; folyamatos zoom geomorphinggal (popping-mentesség); a
+meglévő rétegek (víz-felszín, tile-határ, kráter-marker, folyó-highlight)
+korrekt viselkedése változó LOD mellett.
+
+**Halasztva** (dokumentált, nem hiányosság — mindegyik önálló munka):
+- **Hierarchikus fraktál-részlet a bázisszint alatt (§52).** A jelenlegi
+  mező már ad tetszőleges pontban választ, de a magas-frekvenciás
+  "landolási" mikro-domborzat (§52 `H_L2, H_L3...` tagok, ND-18 erózió
+  cél-LOD 12) új frekvenciasáv hozzáadását jelentené — ez a
+  mező-tartalom bővítése, külön ciklus, nem a megjelenítési LOD dolga. A
+  jelen lépés a MEGLÉVŐ mezőt jeleníti meg finomabban, nem tesz hozzá új
+  frekvenciát.
+- **Normal-map / bake sub-tile részlet.** A geomorphing kiegészíthető
+  bakeolt normal-map réteggel (a LOD-független mezőből finomabb
+  mintákkal sütve), de ez optimalizáció, nem a folytonos zoom feltétele.
+- **Vékony folyó-vonalak (él-topológia).** A `PlanetGridMesh` fejléce
+  maga jelzi, hogy a valódi vékony folyóvonalak "M9-nél indokoltak" — ez
+  igaz, de önálló render-feature (a FlowNetwork él-topológiájából), nem a
+  domborzat-finomodás része; a felhasználói panasz a terepre vonatkozik.
+  A meglévő tile-alapú folyó-highlight a magasabb LOD-on automatikusan
+  finomodik (ld. 9.3), a vékony-vonal upgrade halasztva.
+- **Aszinkron/streaming háttérszálas építés Job System-mel.** Csak akkor,
+  ha a profilozás (9.5) főszál-akadást mutat — ld. ND-40 és a kapcsolat
+  az ND-39 "A" (Burst/Job) opcióval.
+
+Ez ugyanaz a mintázat, mint M4/M5/M7/M10-nél: a milestone saját "Kész,
+ha" kritériumát (folyamatos zoom-átmenet) elégítjük ki, nem a teljes
+spec-tartalmat egyszerre.
+
+### 9.1 Kvadfa-LOD kiválasztás
+
+**Adatszerkezet.** Laponként egy kvadfa, egy durva bázis-csomópontból
+(pl. level 2-3) a max-mélységig (régiónézet: level 11, ld. M2.3
+LOD-tábla) lebontva. Minden csomópont egy `TileId` — a Morton-kódolás
+miatt a szülő/gyerek reláció ingyen adódik (`TileId.Parent()` /
+`TileId.Child(i)`, ld. M2.1), tehát a kvadfa a MEGLÉVŐ rács-sémára ül rá,
+nem kell új koordináta-rendszer. A ténylegesen renderelt csomópontok
+halmaza a fán átvágott "cut" (az aktív levelek), nem a teljes fa.
+
+**Finomítási kritérium (képernyő-hiba / távolság-arány).** Egy csomópontot
+FELBONTUNK (a 4 gyerekére), ha a kamera-középpont távolsága kisebb, mint
+a csomópont befoglaló-sugarának egy konstans-szorosa:
+
+```
+felbontás, ha   d(kamera, tile_közép) < K_split · r_tile
+összevonás, ha  d(kamera, tile_közép) > K_merge · r_tile
+```
+
+ahol `r_tile` a csomópont befoglaló sugara (fél-átló a gömbön) és
+`K_merge = 1.5 · K_split` (hiszterézis — enélkül a küszöb két oldalán a
+csomópont minden frame-ben oda-vissza pattogna: "thrashing"). Kiinduló
+érték: `K_split ≈ 2.5` (a 9.5 profilozásban hangolandó a kívánt
+képernyő-élhosszhoz). Ez ekvivalens egy egyszerű képernyő-tér
+él-szögküszöbbel.
+
+**2:1 kiegyensúlyozott (restricted) kvadfa.** A varratmentességhez
+kikényszerítjük, hogy két él-szomszédos aktív levél között legfeljebb egy
+szint különbség legyen: ha egy finomított csomópont él-szomszédja több
+mint egy szinttel durvább, azt is kényszer-felbontjuk. Ehhez a MÁR
+verifikált `TileNeighbors` táblát (M2.4) használjuk — nem kell új
+szomszédság-matek. A durva/finom találkozásnál keletkező T-csomópontot
+él-illesztéssel (stitching) oldjuk meg: a durva tile érintett élét a
+finomabb szomszéd közös csúcsaihoz igazítjuk (ez a sarok-cache
+koordináta-rendszerét használja újra, ld. 9.4).
+
+**Futásidejű viselkedés — állásfoglalás: INKREMENTÁLIS frissítés, NEM
+teljes rebuild.** A mostani `Build()` a teljes gömböt (6·n² tile)
+egyetlen, a főszálat blokkoló hívásban építi — az ND-39 ezt level 8-ra
+~780 millió Threefry-kiértékelésre mérte. Ehelyett:
+- A kvadfa "cut"-ja állapotként megmarad frame-ek között.
+- Csak akkor futunk (kamera-mozgás-küszöb felett vagy N frame-enként
+  throttle-ölve), amikor a kamera érdemben mozdul; ekkor a jelenlegi
+  cut-tól indulva alkalmazzuk a split/merge-et.
+- **Csak azok a csomópontok épülnek újra (mesh-elődnek), amelyek LOD-ja
+  ténylegesen változott** — sima zoomnál frame-enként néhány, nem a teljes
+  gömb.
+
+Ez a kulcs teljesítmény-nyereség: az adaptív rendszerben az EGYIDEJŰLEG
+kiértékelt pontok száma a kamera látóterétől függ, nem a max-mélységtől —
+nagyságrendekkel kevesebb, mint egy egyenletes magas-LOD gömb (a távoli
+tile-ok durvák maradnak). A régiónézet (level 11, összesen 25M tile) így
+válik egyáltalán megjeleníthetővé anélkül, hogy 25M tile-t egyszerre
+kéne felépíteni.
+
+### 9.2 Geomorphing (popping-mentesség)
+
+**A probléma.** Split/merge pillanatában az újonnan megjelenő csúcsok
+hirtelen a valódi (elevációval eltolt) pozíciójukba ugranának, ami eltér
+attól, ahol a durvább tile lapján interpoláltan "voltak" — ez a látható
+"pattanás" (popping).
+
+**Megoldás — folytonos vertex-morph a kamera-távolságból.** Minden olyan
+csúcsra, amely az L szinten JELENIK MEG (a szülő L-1 quadban nem
+létezett — tehát él-felezőpont vagy a szülő-quad közepe):
+- `p_fine` = a csúcs valódi, eltolt pozíciója (a mező az adott pontban).
+- `p_coarse` = ahol a csúcs a SZÜLŐ quad lapján lenne — a szülő két
+  megfelelő sarok-eltolt pozíciójának lineáris interpolációja (olcsó, 1
+  lerp).
+- `α ∈ [0,1]` morph-faktor a FOLYTONOS kamera-távolságból, a `K_split` és
+  `K_merge` közötti sávra normálva.
+- A megjelenített pozíció: `p = lerp(p_coarse, p_fine, α)`.
+
+Mivel `α` a kamera-távolság folytonos függvénye, és a küszöböket úgy
+választjuk, hogy az átmenet BEFEJEZŐDIK, mielőtt a diszkrét topológia-
+váltás (split/merge) bekövetkezne, a geometria sosem ugrik — átcsúszik.
+Ez a bevált CDLOD-jellegű geomorphing. A szín/normál olcsóbban kezelhető:
+a geometriát morphingoljuk, a material-kategória (biome-szín) a
+split-nél vált — ez elfogadható, mert a biome-színfoltok egy csúcshoz
+képest nagyok; ha vizuálisan zavaró, a normál is ugyanígy blendelhető.
+
+**Elvetett alternatíva:** tisztán képernyő-tér normal-map durva mesh-en
+(új geometria nélkül). Elvetve elsődleges módszerként, mert
+landolási/régió-léptéken a valódi domborzat sziluettje és parallaxisa
+számít — normal-map nem ad egy hegynek sziluettet. Kiegészítőként
+(sub-tile részlet) később bevonható (halasztva, ld. hatókör).
+
+**Reprodukálhatóság (I1 a megjelenítési oldalon).** A morph-faktor
+KIZÁRÓLAG a kamera-távolság és a (fix) küszöbök függvénye — nincs
+frame-rátától függő akkumuláció. A csúcspozíciók a mező tiszta függvényei,
+tehát oda-vissza zoomolás bitre ugyanoda tér vissza (nincs "eldriftelés",
+nincs remegés). A hiszterézis CSAK a topológia-váltás IDŐZÍTÉSÉT
+befolyásolja, a csúcspozíciókat nem. Kikötés: a split/merge döntés a
+kamera-távolság és a tile tiszta függvénye legyen, ne halmozódó állapot —
+így "ugyanaz a kamera-pozíció → ugyanaz a mesh" garantált. (Platformok
+közötti BITPONTOSSÁG itt NEM követelmény: ez nem checkpointolt szimulációs
+állapot, csak render — ugyanaz a besorolás, mint a viewer meglévő
+`WaterDepthBucket` `Math.Exp`-jénél. A CLAUDE.md lebegőpontos-táblázata
+értelmében a display-oldali `float`-aritmetika — távolság-arány, morph-
+lerp, küszöbök — nem tartozik az I1 bitpontosság hatálya alá; a mögöttes
+elevációt továbbra is a meglévő, ND-23/26/27/39 alá tartozó Core-lánc
+adja, új transzcendens függvény a kritikus úton NINCS.)
+
+### 9.3 Adatfolyam
+
+Az adaptív renderer PONTOSAN ugyanazokat a Core-függvényeket hívja, mint
+a mostani `Build()`, csak MÁS (finomabb, kamera-közeli) pontokra:
+- `PlateGeneration.GenerateSeeds` + `PlateMotion.MovedSeeds` (időfüggő,
+  `deepTimeMyr`) — világonként egyszer.
+- Csomópontonként/csúcsonként a MÁR meglévő `ComputeDisplacedRadius`-lánc:
+  `DomainWarp.WarpPosition` → `PlateGeneration.AssignPlate` →
+  `PlateBoundaryEffect.ElevationWithBoundaryFromWarped` (+ `ImpactCratering.
+  ElevationDelta`). Ez már pont-alapú és LOD-független — nincs új hívási
+  minta.
+- A csomópont-KÖZÉP biome-színéhez a meglévő `Temperature.
+  TemperatureKelvin` + `BiomeClassification.Classify` lánc, az adott
+  szinten kiszámolt közép-elevációval.
+
+**Tengerszint-kalibráció — kritikus állásfoglalás.** A
+`SeaLevelCalibration.CalibrateSeaLevel` a TELJES bolygó eleváció-
+eloszlásának percentilisét igényli. Ezt **TILOS** az adaptív (változó-LOD)
+ponthalmazból újraszámolni — akkor a tengerszint attól függne, hova néz a
+kamera, és a partvonal remegne (sérti a §70.5 "a fő partvonal ne
+változzon LOD-váltáskor" előírását ÉS az I1 display-konzisztencia
+szellemét). Ezért: a tengerszint (és az ND-38 térfogat-cache) EGYSZER, a
+FIX referencia-szinten (level 6, az ND-02 szerint) számolódik — ugyanaz a
+`_lastSeaLevel` —, és az adaptív renderer konstans bemenetként kezeli. Ez
+közvetlenül teljesíti a §70.5-öt, és a display-oldali visszhangja az
+ND-02-nek ("a szimuláció bázis-LOD fix level 6, a LOD csak lekérdezésre/
+renderre").
+
+**Kapcsolat a `_lastField`/`_lastIsOcean`/`_lastBiomeOf`/`_lastSeaLevel`
+gyorsítótárhoz (M8 panel-adatok).** Ezek referencia-szintű (level 6)
+szótárak, a `ComputePanelData` ezekre épül — a panelek a világ
+MAKROSTRUKTÚRÁJÁT írják le, nem a pillanatnyi zoomot. Ezért ezek
+VÁLTOZATLANUL a fix referencia-szinten maradnak; az adaptív magas-LOD
+adat egy KÜLÖN, tranziens, csomópont-szintű gyorsítótárban él (ld. 9.4),
+NEM a `_lastField`-ben. Így tisztán szétválik "amit a panelek olvasnak"
+(fix, teljes-világ, level 6) és "amit a kamera renderel" (adaptív,
+részleges, level 11-ig). A `Build()` továbbra is lefuttatja a
+referencia-szintű passzt (tengerszint + panel-cache), az adaptív mesh
+erre a rögzített alapra épül.
+
+### 9.4 Kapcsolódás a meglévő optimalizációkhoz (ND-39 "C")
+
+**Sarok-cache.** Jelenleg `Dictionary<(int Face, uint CornerU, uint
+CornerV), Vector3>`, egyetlen szinten (`n = 1<<level`), a `Build()`
+élettartamára (utána eldobva). Adaptív rendszerben különböző régiók
+különböző szinten vannak, így az egyszintű `(u,v)` kulcs önmagában nem
+elég. Bővítés:
+- A kulcs **`(face, level, cornerU, cornerV)`**-re bővül — egy adott szint
+  lap-lokális egész rácspontjához kötve (bitre azonos bemenetet ad a
+  tiszta `ToDisplacedVector3`-nak, mint ma, csak a szintet is
+  megkülönbözteti). A 2:1 stitching a szomszédos csomópont közös
+  él-csúcsait ezen a kulcson keresztül osztja meg.
+- Az **élettartam** megváltozik: a per-`Build()` lokálisból **perzisztens,
+  méret-korlátos (LRU) mezővé** lép elő, amely frame-ek között megmarad. A
+  cut-on kívülre került, régen nem használt csomópontok kikerülnek
+  (eviction). Ez adja az inkrementális frissítés fő nyereségét: panning/
+  zoom közben a már kiszámolt sarkok újrahasznosulnak, nem számolódnak
+  újra. (A lap-határokon átnyúló sarkok kezelése változatlan: ott a kód ma
+  is laponként, függetlenül számolja ugyanazt a pontot — ez a viselkedés
+  megmarad.)
+
+**Warp-hoisting.** Változatlan — ez a `ComputeDisplacedRadius`/
+`ElevationWithBoundaryFromWarped` belső, pontonkénti optimalizációja,
+LOD-tól független. Csomópontonként/csúcsonként ugyanúgy alkalmazódik, és
+mivel az adaptív LOD egyszerre sokkal kevesebb sarkot értékel ki, az
+abszolút költsége csökken.
+
+### 9.5 Teljesítmény és a meglévő rétegek
+
+**Amortizált frame-költségvetés.** Ha egy nagy új régió gördül a látótérbe
+(pl. gyors zoom level 7-ről 11-re), egyszerre sok csomópont igényelne
+mesh-elést → frame-akadás. Kezelés: **frame-enként korlátozott számú
+(budget) csomópont-finomítás**, a maradék a következő frame-ekre halasztva
+(a durvább szint közben látható marad, geomorphinggal áthidalva). Mivel az
+adaptív ponthalmaz eleve kicsi, ez a főszálon is elég. Aszinkron/Job-
+alapú háttérépítés (a Core-lánc tiszta és szálbiztos, I2) CSAK akkor, ha a
+profilozás akadást mutat — ld. ND-40 és a kapcsolat az ND-39 "A"-hoz.
+
+**Meglévő rétegek változó LOD mellett:**
+- **Tile-határ (`showBorders`).** Aktív-levelenként egy vonal-hurok, tehát
+  automatikusan követi a LOD-ot. Mély zoomnál újra értelmessé válik
+  (kevés, nagy tile tölti ki a képet); a meglévő kapcsoló megmarad.
+- **Víz-felszín (`BuildWaterSurface`).** A víz továbbra is a FIX kalibrált
+  tengerszint sugarán, sík negyszögként épül (9.3 szerint a tengerszint
+  LOD-invariáns) — az adaptív tengerfenék-geometriához a víz-negyszögek is
+  a levél-csomópontok élein illeszkednek, így a LOD-határon sem nyílik rés.
+- **Kráter-markerek (`BuildCraterMarkers`).** Már rácsfelbontástól
+  függetlenek (világ-pozíciós gömbök); a felszínre-ültetésük ugyanazt a
+  `ComputeDisplacedRadius`-t használja, változatlanul. Mély LOD-on a
+  kráter a mezőben (`ElevationDelta`) valódi mélyedésként is megjelenhet,
+  ekkor a marker elhalványítható — jövőbeli finomítás (halasztva).
+- **Folyó-highlight.** A tile-alapú színezés magasabb LOD-on finomabb
+  (keskenyebb) folyó-sávot ad; a vékony él-vonalas upgrade halasztva.
+
+### Kötelező tesztek / ellenőrzési szempontok
+
+Ez Unity-oldali, nem `dotnet test`-elhető numerikus modul — de a **kvadfa
+kiválasztási/kiegyensúlyozási logika TISZTA és unit-tesztelhető** (Unity
+EditMode teszt vagy sima C#, mert csak `TileId`-ket és a `TileNeighbors`
+Core-táblát használja):
+
+| Teszt (automatizálható rész) | Elvárás |
+|---|---|
+| Restricted-balance invariáns | két él-szomszédos aktív levél között ≤ 1 szint különbség — kivétel nélkül, minden kamera-pozícióra |
+| Hiszterézis / nincs oszcilláció | monoton kamera-út mellett egy csomópont nem vált oda-vissza (K_merge > K_split garantálja) |
+| Determinizmus (reprodukálhatóság) | ugyanaz a kamera-pozíció → bitre ugyanaz a cut és ugyanazok a csúcspozíciók (tiszta függvény, nincs halmozott állapot) |
+| Cut lefedettség / nincs rés | az aktív levelek uniója hézag/átfedés nélkül lefedi a gömböt (a NoGaps M2-teszt adaptív analógja) |
+
+Vizuális/manuális ellenőrzés (a te szemeddel, ez a milestone lényege):
+
+1. **Varratmentesség a LOD-határon** — durva/finom találkozásnál nincs
+   repedés/rés (restricted quadtree + stitching működik).
+2. **Nincs pattogás zoom közben** — egy kiszemelt hegyet/csúcsot figyelve
+   a geometria CSÚSZIK, nem ugrik (geomorphing működik).
+3. **Reprodukálhatóság** — beközelítés egy régióra, kizoomolás, majd újra
+   be: ugyanaz a geometria, nincs remegés/drift.
+4. **Teljesítmény** — zoom közben a frame-idő interaktív marad (nincs a
+   mostani level-8 egészgömbös, több másodperces blokkoló build).
+5. **Partvonal-invariancia (§70.5)** — a kontinens fő partvonala NEM
+   tolódik el zoomoláskor (a tengerszint fix referencia-szintű). Bolygó-
+   vs. kontinensnézet: azonos makro-alak.
+6. **Rétegek együttállása** — víz-felszín illeszkedik a LOD-határon;
+   kráter-markerek a felszínen ülnek; határvonalak követik a LOD-ot.
+
+### Javasolt sorrend
+
+1. **Kvadfa-adatszerkezet + kiválasztási logika** (9.1) a `TileId.Parent()/
+   Child()`-re és a `TileNeighbors`-ra építve, restricted-balance-szel —
+   ELŐBB unit-tesztelve (kiválasztás, balance, hiszterézis, reprodukálás),
+   render nélkül.
+2. **Inkrementális mesh-frissítés** — a meglévő fix, egészgömbös
+   `Build()` helyett a cut-alapú, csak-a-változott-csomópont építés; a
+   sarok-cache perzisztens LRU-vá emelése (9.4). A referencia-szintű
+   tengerszint/panel-passz megtartva (9.3).
+3. **Geomorphing** (9.2) — a csúcs-morph a folytonos kamera-távolságból,
+   `p_coarse` a szülő-quad interpolációjából.
+4. **Teljesítmény-finomhangolás/profiling** (9.5) — `K_split` hangolása,
+   frame-költségvetés, és döntés arról, kell-e egyáltalán Job/Burst az
+   interaktivitáshoz (ND-40).
+
+Mivel ez tisztán megjelenítési munka a LOD-független mezőn, itt NEM fut a
+"Python-referencia → C#" ciklus a domborzatra (nincs új numerika); a
+verifikáció a fenti tiszta kvadfa-tesztek + a vizuális ellenőrzésed. A
+vizuális lépéseknél jelentkezem.
+
+### Komplexitás-becslés (durva, nem mért)
+
+Nagyságrendi becslés, NEM idő-naplózott tény: a kvadfa + kiválasztás +
+balance ~8-14 óra, az inkrementális építés + perzisztens sarok-cache
+~10-16 óra, a geomorphing ~6-10 óra, profilozás/hangolás ~6-10 óra —
+összesen **durván 30-50 óra** sávban, kizárólag viewer-oldalon
+(`src/WorldGen.Core` érintetlen). A sáv felső vége akkor, ha a
+profilozás után mégis Job/Burst-alapú aszinkron építés kell (ND-40) — az
+alsó vége, ha a főszálas, amortizált inkrementális frissítés elég.

@@ -875,6 +875,81 @@ Level 8-ra: **393 216 · ~1980 ≈ ~780 millió Threefry-4x64-20 kiértékelés*
 
 **Releváns fájlok:** `unity/WorldGenViewer/Assets/Scripts/Viewer/PlanetGridMesh.cs` (`Build()`, `ComputeDisplacedRadius`), `src/WorldGen.Core/Tectonics/SeaLevelCalibration.cs`, `src/WorldGen.Core/Terrain/FractalNoise.cs`, `src/WorldGen.Core/Terrain/DomainWarp.cs`, `src/WorldGen.Core/Tectonics/CrustElevation.cs`, `src/WorldGen.Core/Tectonics/PlateBoundaryEffect.cs`, `src/WorldGen.Core/Random/DeterministicRandom.cs`, `src/WorldGen.Core/Random/Threefry4x64.cs`.
 
+### ND-40 — A viewer mesh-architektúrája: adaptív kvadfa-LOD a fix egészgömbös build helyett — és viszonya az ND-39 "A" (Burst) opcióhoz
+
+**Kérdés (felhasználói visszajelzés + M9 tervezés).** Zoomoláskor a
+`PlanetGridMesh` domborzata pixeles/durva marad, mert egyetlen fix
+LOD-szinten, egyszerre a TELJES gömbre épül, és nem sűrűsödik a kamera
+közelében. Két, egymással összefüggő döntés kell: (1) a viewer megtartsa-e
+a mostani egészgömbös `Build()`-et (csak magasabb fix szintre emelve),
+vagy váltson perzisztens, kamera-vezérelt adaptív kvadfára inkrementális
+frissítéssel; és (2) hogyan viszonyul ez az ND-39 "A" (CPU Job System +
+Burst) tervéhez — az adaptív LOD feleslegessé/halaszthatóvá teszi-e a
+Burst-öt a viewer interaktivitásához?
+
+**Kontextus (forrásból).** A domborzat-mező LOD-független tiszta függvény
+`(seed, x, y, z)`-ből (`CrustElevation`/`PlateBoundaryEffect`/`DomainWarp`),
+és a viewer `ComputeDisplacedRadius` már pont-alapon értékeli ki — tehát az
+adaptív LOD **nem igényel új Core-numerikát vagy Python-referenciát**. Az
+ND-39 az egészgömbös level 8 buildet ~780M Threefry-kiértékelésre mérte,
+egyetlen főszálon. Az ND-02 rögzíti: a szimuláció bázis-LOD fix level 6, a
+LOD csak lekérdezésre/renderre. A §70.5 megköveteli, hogy a fő partvonal ne
+változzon LOD-váltáskor.
+
+**Opciók:**
+
+| Opció | Előny | Hátrány / kockázat |
+|---|---|---|
+| **A: Marad a fix egészgömbös `Build()`, magasabb szintre emelve, ND-39-A (Burst) gyorsítással** | Legkevesebb új viewer-kód; a meglévő szerkezet marad. | Az idő/memória 6·n²-nel skálázik a kamerától FÜGGETLENÜL. Level 11 (25M tile) egyszerre felépítése Burst-tel is irreális. A felhasználói panaszt (kamera-közeli finomodás) nem oldja meg — a részletesség globális, nem a nézetre koncentrált. |
+| **B: Adaptív, perzisztens kvadfa, inkrementális frissítés + geomorphing (az M9-terv)** | Az egyidejűleg kiértékelt pontszám a látótértől függ, nem a max-mélységtől → nagyságrendekkel kevesebb. Level 11 zoom így válik egyáltalán lehetségessé. Közvetlenül megoldja a panaszt (kamera-közeli finomodás, folyamatos átmenet). | Több új viewer-kód (kvadfa, 2:1 balance, stitching, geomorphing, LRU sarok-cache). Tisztán megjelenítési, de nem triviális. |
+| **C: Hibrid — adaptív kvadfa a geometriára, MEGTARTOTT fix level-6 referencia-passz a tengerszinthez / panel-cache-hez / biome-hoz** | B minden előnye, PLUSZ a §70.5 (partvonal-invariancia) és az ND-02 (fix bázis-LOD) strukturálisan garantált: a tengerszint és a panel-adat a fix referencia-szintről jön, nem a változó-LOD ponthalmazból, tehát a partvonal nem remeg zoomkor. | Két adat-út (referencia-szintű + adaptív) párhuzamos kezelése — de ezek tisztán szétválnak (panel vs. render). |
+
+**JAVASLAT: C opció (adaptív kvadfa-render egy megtartott, fix level-6
+referencia-passz felett).** Ez oldja meg a felhasználói panaszt anélkül,
+hogy a partvonal/tengerszint zoomkor elmozdulna (§70.5, ND-02). A
+`_lastField`/`_lastIsOcean`/`_lastBiomeOf`/`_lastSeaLevel` referencia-cache
+változatlanul level 6-on marad (a panelek makrostruktúrát írnak le), az
+adaptív magas-LOD geometria külön, tranziens, LRU-korlátos csomópont-
+cache-ben él.
+
+**A Burst-kérdés (ND-39-A viszonya) — állásfoglalás:** az adaptív LOD az
+egyidejű ponthalmazt a kamera látóterére korlátozza (nagyságrendileg
+konstans, a max-mélységtől független), így a per-frame inkrementális
+frissítés főszálas, amortizált (frame-költségvetéses) végrehajtással is
+elég gyors az interaktív zoomhoz. Ezért **az ND-39-A (Burst/Job) NEM
+előfeltétele a viewer interaktivitásának** — halasztható, és csak akkor
+aktiválandó, ha a profilozás (M9 9.5) főszál-akadást mutat nagy régió
+belépésekor, VAGY ha egy külön, egészgömbös level-8 "dump" (nem
+interaktív) igényként előjön. A két munka tehát szétcsatolva: az M9
+adaptív LOD önmagában, Burst nélkül szállítja a folyamatos zoomot; az
+ND-39-A opcionális gyorsítás marad a nem-adaptív utakra.
+
+**Determinizmus / lebegőpont.** Ez KIZÁRÓLAG megjelenítési munka, nem
+érint egyetlen Core-numerikát sem, nem változtat semmilyen mezőt, óceán/
+biome-osztályozást, tengerszintet vagy `WorldStateHash`-t. A display-
+oldali aritmetika (kamera-távolság-arány, morph-lerp, LOD-küszöbök) `float`
+és NEM tartozik az I1 platformok-közötti bitpontosság hatálya alá (ugyanaz
+a besorolás, mint a viewer meglévő `WaterDepthBucket` `Math.Exp`-je) —
+követelmény csak a **session-en belüli reprodukálhatóság** (ugyanaz a
+kamera-pozíció → ugyanaz a mesh; oda-vissza zoom → nincs drift/remegés),
+amit a tiszta-függvény kiválasztás + hiszterézis biztosít. Új transzcendens
+függvény a szimulációs kritikus úton NINCS.
+
+**Verziózás: NEM seed-törő.** Az adaptív LOD bitre azonos mezőt jelenít
+meg (a Core-lánc változatlan, csak MÁS pontokon és MÁS sűrűséggel
+mintavételezve) — nem módosít semmilyen seed-hez kötött numerikus
+viselkedést. Verzióemelés nem szükséges.
+
+**Releváns fájlok:** `unity/WorldGenViewer/Assets/Scripts/Viewer/
+PlanetGridMesh.cs` (`Build()`, `ComputeDisplacedRadius`,
+`GetOrComputeCorner`, `ToDisplacedVector3`, cornerCache,
+`_lastField`/`_lastSeaLevel`), `src/WorldGen.Core/Grid/TileId.cs`
+(`Parent()`/`Child()`), `src/WorldGen.Core/Grid/TileNeighbors` (2:1
+balance), `src/WorldGen.Core/Tectonics/SeaLevelCalibration.cs`
+(referencia-szintű tengerszint). Kapcsolódó döntések: ND-02 (fix bázis-
+LOD), ND-39 (Burst/Job és a sarok-cache/warp-hoisting), spec §51-52 és
+§70.5.
+
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai
 
 Az ND-01 miatt aktív. A Burst alapból `FloatMode.Default`-ban fordít, ami
