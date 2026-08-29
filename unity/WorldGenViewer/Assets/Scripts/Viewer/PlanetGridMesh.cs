@@ -747,7 +747,16 @@ namespace WorldGen.Viewer
 
         private static Color CategoryColor(RenderCategory category) => category switch
         {
-            RenderCategory.Ocean => new Color(0.09f, 0.30f, 0.55f),
+            // A tengerfeneket MAR NEM kek szinezzuk - a viz vizualis
+            // jelzeset kizarolag a BuildOceanShell altal epitett, egysegesen
+            // a tengerszint sugaranal ulo hej adja. Korabban a viz-alatti
+            // tile-ok a SAJAT (valodi, tile-onkent nagyon elutero) elevaciojuk
+            // szerinti sugarnal jelentek meg kekre szinezve is - ez ket
+            // fuggetlen, elteru magassagu kek feluletet adott (a valodi
+            // ocean-fenek mely resze ES az elarasztott kontinentalis-self
+            // sekely resze kozott), ami ugy nezett ki, mintha ket kulon
+            // tengerszint lenne. Semleges, "nedves uledek/kozet" tonus.
+            RenderCategory.Ocean => new Color(0.34f, 0.33f, 0.30f),
             RenderCategory.SeaIce => new Color(0.80f, 0.88f, 0.93f),
             RenderCategory.IceSheet => new Color(0.95f, 0.96f, 0.98f),
             RenderCategory.Tundra => new Color(0.52f, 0.52f, 0.42f),
