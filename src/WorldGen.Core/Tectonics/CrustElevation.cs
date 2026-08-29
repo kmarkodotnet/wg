@@ -40,7 +40,23 @@ namespace WorldGen.Core.Tectonics
         // ND-33: tovabb emelve (2000->3000), ridged multifractalra valtva
         // a sima fBm helyett a nagyobb vizualis kontraszt erdekeben.
         public const double NoiseAmplitudeMeters = 3000.0;
-        public const double DefaultOceanicProbability = 0.55;
+
+        // ND-37 (docs/04-decisions.md): SZANDEKOSAN a SeaLevelCalibration
+        // TargetWaterFraction-je (0.65) ALATT, attol decorrelalva. Korabban
+        // 0.55 volt (kb. Fold-szeru arany), de a tile-sulyozott oceani-lemez-
+        // arany (~66.7%) majdnem egybeesett a celzott viz-arannyal, ezert a
+        // percentilis-alapu tengerszint-kalibracio a tengerszintet melyen az
+        // oceani kereg elevaciotartomanyaba (OceanicBaseMeters korul) tuzte
+        // ki - nem egy valodi kontinentalis-peremi atmenetnel. Ez adta a
+        // felhasznaloi panaszt: a part "falszeruen" magasan logott a
+        // tengerszint folott. 0.40-nel merve (level 6, 20 lemez,
+        // world_seed=0xA7C944210000): a tile-sulyozott oceani-arany ~35.1%-ra
+        // esik (messze a 65%-os viz-cel alatt), igy a percentilis-kalibracio
+        // a legalacsonyabb fekvesu KONTINENTALIS tile-okba is belenyul
+        // ("kontinentalis self" hatas) - a parti sav atlagos relativ
+        // magassaga ~4072m-rol ~242.6m-re csokkent (94%). TEST-EARTH-001
+        // valtozatlanul teljesul (65.0% viz, tobb kontinens).
+        public const double DefaultOceanicProbability = 0.40;
 
         // ND-34: az ocean-fenek szelidebb, mint a szarazfold.
         public const double OceanicNoiseFactor = 0.25;

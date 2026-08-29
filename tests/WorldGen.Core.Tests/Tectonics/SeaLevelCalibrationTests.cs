@@ -9,10 +9,13 @@ namespace WorldGen.Core.Tests.Tectonics;
 /// A `TEST-EARTH-001` közvetlen kódbeli kifejezése (docs/05-milestones.md
 /// M4 sora): 50-75% víz, legalább 2 kontinens. A referencia (tools/reference/
 /// sea_level_ref.py) ugyanezekkel a paraméterekkel (world_seed, plateCount=20,
-/// level=6) mérve pontosan 65.00% vizet és 6 kontinenst adott (7462+1053+37+
-/// 30+7+6 tile, ND-36 - domain warping óta: a lemez-hozzárendelés warpolt
-/// pozíción történik, ami a korábbi 2 nagy kontinenst több, kisebb
-/// darabra bontja - ez a warp SZÁNDÉKOLT hatása, nem hiba).
+/// level=6) mérve pontosan 65.00% vizet és 44 kontinenst adott (ND-37 -
+/// `CrustElevation.DefaultOceanicProbability` 0.55→0.40-re csökkentve,
+/// szándékosan a `TargetWaterFraction`=0.65 alá decorrelálva, hogy a
+/// percentilis-kalibráció ne az óceáni-kéreg tartomány tetejére, hanem a
+/// legalacsonyabb fekvésű kontinentális tile-okba is belenyúljon - ez a
+/// parti sáv relatív magasságát ~4072m-ről ~242.6m-re csökkentette, cserébe
+/// a korábbi 6 helyett 44, jellemzően kisebb kontinenst/szigetet ad).
 /// </summary>
 public class TestEarth001Tests
 {
@@ -58,7 +61,11 @@ public class TestEarth001Tests
             sizes.Add(c.Count);
         sizes.Sort((a, b) => b.CompareTo(a));
 
-        Assert.Equal(new List<int> { 7462, 1053, 37, 30, 7, 6 }, sizes);
+        Assert.Equal(new List<int> {
+            3837, 1582, 1321, 603, 307, 57, 55, 50, 50, 43, 42, 38, 31, 30,
+            28, 28, 28, 25, 19, 19, 18, 18, 17, 16, 16, 13, 12, 12, 11, 9,
+            9, 7, 7, 7, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+        }, sizes);
     }
 }
 

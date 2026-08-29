@@ -654,9 +654,7 @@ A `plate_vectors.json` és `crust_elevation_vectors.json` VÁLTOZATLAN
 maradt (a mögöttes `AssignPlate`/`BaseElevation` függvények szignatúrája
 és logikája nem változott — csak a HÍVÓ oldal ad nekik más pozíciót).
 
-## Nyitott döntések
-
-### ND-37 — a kalibrált tengerszint mélyen az óceáni-kéreg elevációtartományba esik, nem egy valódi part-átmenetnél
+### ND-37 — a kalibrált tengerszint mélyen az óceáni-kéreg elevációtartományba esett, nem egy valódi part-átmenetnél — MEGOLDVA (2. irány: decorrelálás)
 
 **Kérdés (ND-36 domain warping vizsgálata közben derült ki, mérve, nem
 találgatva):** a felhasználó eredeti panasza ("a part túl magas a
@@ -688,29 +686,70 @@ csökkentése (pl. -2000m-re) erősen hat (~2460m-re csökkenti az átlagot),
 de irreálisan sekély óceánt eredményezne — fizikailag rosszabb
 kompromisszum, mint a jelenlegi állapot.
 
-**Egyelőre NYITVA HAGYVA, NEM egyetlen konstans átírásával csendben
-"lezárva".** Ez architekturális kérdés — nincs kontinentális-perem/
-átmeneti gradiens a kéreg-típus jelenlegi éles (lemez-szintű bináris)
-lépcsőjében, ami miatt a percentilis-kalibráció strukturálisan hajlamos a
-fenti egybeesésre. Lehetséges jövőbeli irányok (nem eldöntve, csak
-jegyzetként):
+**Eredetileg NYITVA HAGYVA, NEM egyetlen konstans átírásával csendben
+"lezárva".** Három lehetséges jövőbeli irányt jegyeztünk fel:
 1. A kéreg-típus finomítása tile-szintű gradiensre (nem bináris
-   lemezenkénti Bernoulli) a lemezhatárok közelében — ez a domain warping
-   (ND-36) természetes folytatása lenne.
+   lemezenkénti Bernoulli) a lemezhatárok közelében.
 2. A `TargetWaterFraction` és `DefaultOceanicProbability` explicit
-   szétválasztása/decorrelálása, hogy a kalibrált tengerszint ne essen
-   szisztematikusan egybe egy kéreg-típus-arány közeli értékkel.
-3. A "parti magasság" metrika újragondolása — lehet, hogy maga a mérési
-   módszer (nyers eleváció - tengerszint) félrevezető egy percentilis-
-   kalibrált világon, és egy másik metrika (pl. relatív a helyi
-   szomszédság-átlaghoz) informatívabb lenne.
+   szétválasztása/decorrelálása.
+3. A "parti magasság" metrika újragondolása.
 
-**`TEST-EARTH-001` állapota:** VÁLTOZATLANUL teljesül (65.00% víz, ≥2
-kontinens) — ez a nyitott kérdés NEM töri a jelenlegi elfogadási
-kritériumot, csak egy vizuálisan érzékelt, dokumentált hiányosság.
+**MEGOLDVA — a 2. irány (decorrelálás) empirikusan bevált.** Python
+referenciában (`tools/reference/crust_elevation_ref.py`,
+`sea_level_ref.py`) lemértük `OCEANIC_PROBABILITY` ∈
+{0.55, 0.50, 0.45, 0.40, 0.35, 0.30} értékekre (world_seed=0xA7C944210000,
+plateCount=20, level=6; a `TargetWaterFraction` változatlanul 0.65
+maradt). A plate-szintű Bernoulli-döntés miatt lépcsős platókban változik
+az eredmény (0.55≡0.50, 0.45 önálló, 0.40 önálló, 0.35≡0.30):
 
-249/249 teszt zöld — ez az ND nem igényelt kódváltozást, csak mérést és
-dokumentációt.
+| oceanic_prob | tile-súlyozott óceáni-arány | tengerszint | parti sáv átlagos relatív magassága | kontinensek (≥5 tile) | TEST-EARTH-001 |
+|---|---|---|---|---|---|
+| 0.55 (régi alap) | 66.1% | -3220.7 m | **4072.0 m** | 6 | PASS |
+| 0.45 | 36.7% | +1217.1 m | 252.9 m | 41 | PASS |
+| **0.40 (választott)** | **35.1%** | **+1235.1 m** | **242.6 m** | **44** | **PASS** |
+| 0.35 / 0.30 | (level-5 mintán mérve, azonos plató) | — | ~292.9 m (level 5) | — | PASS |
+
+**Választás: `DefaultOceanicProbability` = 0.40.** Indoklás: a 0.45/0.40
+pár közel azonos, drasztikus javulást ad (~93-94%-os csökkenés a parti
+magasságban) — 0.40 mérve minimálisan jobb (242.6 vs 252.9 m) ÉS a
+0.35/0.30 platóhoz képest kevésbé fragmentált világot ad. A hipotézis
+igazolódott: 0.40-nél a tile-súlyozott óceáni-arány (35.1%) messze a
+65%-os víz-cél ALATT van, ezért a percentilis-kalibráció kénytelen a
+legalacsonyabb fekvésű KONTINENTÁLIS tile-okba is belenyúlni ("kontinentális
+self" hatás) ahelyett, hogy az óceáni-kéreg-eloszlás tetejénél állna meg —
+ez adja a drámai javulást, fizikailag is plauzibilis "elárasztott
+kontinentális-perem" értelmezéssel.
+
+**Mellékhatás (tudatosan vállalt kompromisszum):** a kontinensszám 6→44-re
+nő (a 41 kisebb sziget/kontinens mérete 5-617 tile között, a 3 legnagyobb
+[3837, 1582, 1321] adja a szárazföld ~67%-át) — ez a magasabb, kontinentális
+tartományba eső tengerszint természetes következménye: sok alacsony fekvésű
+terület elárasztásra kerül, szigetvilágot hozva létre a korábbi 2 nagy
+kontinens helyén (ND-36 már megkezdte ezt a fragmentációs trendet
+2→6-tal, ND-37 tovább viszi 6→44-re). Ez NEM hiba, dokumentált,
+szándékos kompromisszum a realisztikusabb part-átmenetért cserébe.
+
+**Kódváltozás:** `src/WorldGen.Core/Tectonics/CrustElevation.cs` —
+`DefaultOceanicProbability` 0.55→0.40. Downstream Python
+tesztvektor-fájlok újragenerálva és bitre lemásolva a C# tesztadatokba:
+`crust_elevation_vectors.json`, `plate_boundary_vectors.json`,
+`hydrology_vectors.json`, `features_vectors.json`,
+`state_hash_vectors.json` (mind változott). `volcanism_vectors.json` és
+`plate_vectors.json` VÁLTOZATLAN maradt (ellenőrizve `git diff`-fel) — sem
+a szuper-vulkán pozíció/gyakoriság-mintavétel, sem a lemez-mag-generálás
+nem függ a kéreg-típustól. Hardcode-olt teszt-elvárások frissítve:
+`SeaLevelCalibrationTests.ContinentSizesMatchPythonReferenceExactly`
+(új 44-elemű méretlista), `FeaturesTests.
+MatchesPythonReferenceContinentsAndRegionsExactly` (6→44 kontinens,
+100→398 régió).
+
+**`TEST-EARTH-001` állapota:** VÁLTOZATLANUL teljesül (65.00% víz, 44
+kontinens ≥2).
+
+249/249 teszt zöld (Debug és Release is) — nincs új tesztfájl, a meglévő
+KAT/struktúra-tesztek a frissített vektorokkal és elvárásokkal futnak.
+
+## Nyitott döntések
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai
 

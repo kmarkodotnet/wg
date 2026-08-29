@@ -54,7 +54,19 @@ MOUNTAIN_MASK_FREQUENCY = 2.5  # ND-34: alacsony frekvencia -> nagy, regionalis 
 MOUNTAIN_MASK_OCTAVES = 3
 MOUNTAIN_MASK_GAIN = 1.3  # a maszk fBm nyers tartomanyat [0,1]-hez kozelebb nyujtja
 MOUNTAIN_MASK_BIAS_POWER = 1.5  # >1: tobbnyire sik, ritkabban dramatikusan durva
-OCEANIC_PROBABILITY = 0.55  # kb. Fold-szeru arany a lemezek kozott
+OCEANIC_PROBABILITY = 0.40  # ND-37: SZANDEKOSAN a TARGET_WATER_FRACTION (0.65)
+# ALATT, decorrelalva tole. Korabban 0.55 volt (kb. Fold-szeru arany), de a
+# tile-sulyozott oceani-lemez-arany (~66.7%) majdnem egybeesett a celzott
+# viz-arannyal (65%), ezert a percentilis-kalibraciot tengerszintet melyen
+# az oceani kereg elevaciotartomanyaba tuzte ki, nem egy valodi kontinentalis-
+# peremi atmenetnel (ld. docs/04-decisions.md ND-37 - a felhasznaloi panasz,
+# hogy a part "falszeruen" magas volt a tengerszinthez kepest). 0.40-nel
+# mérve (level 6, 20 lemez, world_seed=0xA7C944210000): a tile-sulyozott
+# oceani-arany ~35.1%-ra esik, ami messze a 65%-os viz-cel ALATT van, igy a
+# percentilis-kalibracionak a legalacsonyabb fekvesu KONTINENTALIS tile-okba
+# (egyfajta "kontinentalis self") is bele kell nyulnia - ez a parti sav
+# atlagos relativ magassagat kb. 4072m-rol ~242.6m-re csokkentette (94%),
+# TEST-EARTH-001 valtozatlanul PASS (65.0% viz, tobb kontinens).
 
 
 def _clamp01(v):
