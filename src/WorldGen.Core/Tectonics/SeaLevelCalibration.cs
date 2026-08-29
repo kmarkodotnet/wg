@@ -16,10 +16,38 @@ namespace WorldGen.Core.Tectonics
     /// </summary>
     public static class SeaLevelCalibration
     {
-        /// <summary>Minden tile elevációja egy adott (worldSeed, plateCount, level) világon.</summary>
+        /// <summary>Minden tile elevációja egy adott (worldSeed, plateCount, level) világon, t=0-nál (M4, statikus).</summary>
         public static Dictionary<TileId, double> ComputeElevationField(ulong worldSeed, int plateCount, int level)
         {
             var seeds = PlateGeneration.GenerateSeeds(worldSeed, plateCount);
+            return ComputeElevationFieldWithSeeds(worldSeed, seeds, level);
+        }
+
+        /// <summary>
+        /// Minden tile elevációja <paramref name="timeMyr"/> deep-time időpontban
+        /// (M10, §14.2) — a lemez-magok <see cref="PlateMotion"/> szerint elmozdulva.
+        /// <paramref name="timeMyr"/>=0 esetén bitre megegyezik a statikus
+        /// <see cref="ComputeElevationField"/> eredményével (a Rodrigues-forgatás
+        /// angle=0-nál egzaktul identitás: cos(0)=1, sin(0)=0 IEEE-754 pontosan).
+        /// </summary>
+        public static Dictionary<TileId, double> ComputeElevationFieldAtTime(
+            ulong worldSeed, int plateCount, int level, double timeMyr)
+        {
+            var seeds0 = PlateGeneration.GenerateSeeds(worldSeed, plateCount);
+            var movedSeeds = new (double X, double Y, double Z)[seeds0.Length];
+            for (int i = 0; i < seeds0.Length; i++)
+            {
+                PlateMotion.PlateSeedAtTime(
+                    worldSeed, i, seeds0[i].X, seeds0[i].Y, seeds0[i].Z, timeMyr,
+                    out double x, out double y, out double z);
+                movedSeeds[i] = (x, y, z);
+            }
+            return ComputeElevationFieldWithSeeds(worldSeed, movedSeeds, level);
+        }
+
+        private static Dictionary<TileId, double> ComputeElevationFieldWithSeeds(
+            ulong worldSeed, (double X, double Y, double Z)[] seeds, int level)
+        {
             uint n = level == 0 ? 1u : (1u << level);
             var field = new Dictionary<TileId, double>();
 
