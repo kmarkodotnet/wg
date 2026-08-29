@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.Rendering;
 using WorldGen.Core.Climate;
 using WorldGen.Core.Events;
+using WorldGen.Core.Features;
 using WorldGen.Core.Grid;
 using WorldGen.Core.Hydrology;
 using WorldGen.Core.Tectonics;
@@ -131,6 +133,21 @@ namespace WorldGen.Viewer
                  "történelmet - egyetlen konzisztens 'ennyi idő telt el' fogalom.")]
         private bool showCraters = true;
 
+        // M8: az utolsó Build() eredményének gyorsítótára - a panel-adatok
+        // (ComputePanelData) ezekre épülnek, hogy ne kelljen a teljes
+        // elevation-/óceán-/biome-számítást megismételni. Csak a render
+        // UTÁN, egy adott Build()-hívásra érvényesek.
+        private ulong _lastSeed;
+        private Dictionary<TileId, double> _lastField;
+        private Dictionary<TileId, bool> _lastIsOcean;
+        private Dictionary<TileId, Biome> _lastBiomeOf;
+        private double _lastSeaLevel;
+
+        [Tooltip("Minden sikeres Build() (Rebuild) végén meghívva - a WorldGenPanelUI " +
+                 "ezt hallgatja, hogy egyetlen Rebuild a panelt is frissítse, ne kelljen " +
+                 "külön Refresh Panels-t is hívni.")]
+        public UnityEvent Built = new UnityEvent();
+
         private void Start() => Build();
 
         [ContextMenu("Rebuild")]
@@ -195,6 +212,10 @@ namespace WorldGen.Viewer
             var borderVerts = new List<Vector3>();
             var borderIndices = new List<int>();
 
+            // M8: a biome-eket is elmentjuk tile-onkent, kesobb a panel-
+            // adatokhoz (kontinens/regio-szegmentalas, domonans biome).
+            var biomeOf = new Dictionary<TileId, Biome>();
+
             int n = 1 << level;
             for (int face = 0; face <= 5; face++)
             {
@@ -212,6 +233,7 @@ namespace WorldGen.Viewer
                             cx, cy, cz, climateDayT, climateOrbitalPeriodDays, climateRotationPeriodDays,
                             axialTiltRad, isOceanic, elevation, seaLevel);
                         Biome biome = BiomeClassification.Classify(temperatureK, isOceanic);
+                        biomeOf[id] = biome;
 
                         // M11: a becsapodas-erintett tile-ok kulon kategoriaba
                         // kerulnek (a folyo-highlight mintajat kovetve), MERT
@@ -276,6 +298,124 @@ namespace WorldGen.Viewer
             BuildMultiMaterialMesh(verticesByCategory, normalsByCategory, trianglesByCategory);
             BuildBorders(borderVerts, borderIndices);
             BuildCraterMarkers(craters, seed, seeds);
+
+            _lastSeed = seed;
+            _lastField = field;
+            _lastIsOcean = isOceanField;
+            _lastBiomeOf = biomeOf;
+            _lastSeaLevel = seaLevel;
+
+            Built.Invoke();
+        }
+
+        /// <summary>
+        /// M8 panel-adatok (docs/01-architecture.md §2) - Build() UTÁN
+        /// hívható. Csak a Core-modulokat hívja (SeaLevelCalibration,
+        /// FlowNetwork, FeatureSegmentation, FeatureMetrics, NameGeneration) -
+        /// nincs duplikált szegmentálási/metrika-logika.
+        /// </summary>
+        public WorldGenPanelData ComputePanelData()
+        {
+            if (_lastField == null)
+                throw new InvalidOperationException("Build() még nem futott le - nincs adat a panelekhez.");
+
+            var data = new WorldGenPanelData();
+
+            double oceanCoverage = FeatureMetrics.OceanCoverageFraction(_lastIsOcean);
+            Biome globalDominant = FeatureSegmentation.DominantBiome(_lastField.Keys, _lastBiomeOf);
+            string worldName = NameGeneration.GenerateName(_lastSeed, PlanetFeatureId, globalDominant.ToString());
+            data.World = new WorldPanelData
+            {
+                Name = worldName,
+                SeedDisplay = worldSeed.ToString("X"),
+                OceanCoveragePercent = oceanCoverage * 100.0,
+            };
+
+            FlowNetwork.FloodResult flood = FlowNetwork.PriorityFlood(_lastField, _lastIsOcean);
+            Dictionary<TileId, long> accumulation = FlowNetwork.FlowAccumulation(_lastField, flood.Parent, flood.FloodOrder);
+            HashSet<TileId> riverTilesForPanels = FlowNetwork.SelectRiverTiles(_lastIsOcean, accumulation, riverTargetFraction);
+
+            Dictionary<TileId, List<TileId>> regions = FeatureSegmentation.FindWatershedRegions(flood.Parent, _lastIsOcean);
+            var sizedRegions = new Dictionary<TileId, List<TileId>>();
+            foreach (KeyValuePair<TileId, List<TileId>> kv in regions)
+                if (kv.Value.Count >= 5) sizedRegions[kv.Key] = kv.Value;
+
+            List<List<TileId>> continents = SeaLevelCalibration.CountContinents(_lastField, _lastSeaLevel, minSize: 5);
+            List<List<TileId>> sortedContinents = new List<List<TileId>>(continents);
+            // Meret szerint csokkeno, majd a komponens legkisebb tile-ja
+            // masodlagos kulcskent - UGYANAZ az explicit, hordozhato
+            // rendezes, mint a C# tesztekben (nem a nyelv gyujtemeny-
+            // bejarasi sorrendjere tamaszkodik, ami platformfuggo lehetne).
+            sortedContinents.Sort((a, b) =>
+            {
+                int bySize = b.Count.CompareTo(a.Count);
+                return bySize != 0 ? bySize : CompareTileByFaceUV(MinTile(a), MinTile(b));
+            });
+
+            for (int i = 0; i < sortedContinents.Count; i++)
+            {
+                List<TileId> comp = sortedContinents[i];
+                Biome dominant = FeatureSegmentation.DominantBiome(comp, _lastBiomeOf);
+                string name = NameGeneration.GenerateName(_lastSeed, (ulong)i, dominant.ToString());
+                var compSet = new HashSet<TileId>(comp);
+                data.Continents.Add(new ContinentPanelData
+                {
+                    Name = name,
+                    AreaTiles = FeatureMetrics.AreaTiles(comp),
+                    BiomeCount = FeatureMetrics.BiomeDiversity(comp, _lastBiomeOf),
+                    DominantBiome = dominant.ToString(),
+                    RiverMouthCount = FeatureMetrics.RiverMouthCount(comp, flood.Parent, _lastIsOcean, riverTilesForPanels),
+                    RiverBasinCount = FeatureMetrics.RiverBasinCount(compSet, sizedRegions),
+                });
+            }
+
+            List<TileId> sortedRegionRoots = new List<TileId>(sizedRegions.Keys);
+            sortedRegionRoots.Sort((a, b) =>
+            {
+                int bySize = sizedRegions[b].Count.CompareTo(sizedRegions[a].Count);
+                return bySize != 0 ? bySize : CompareTileByFaceUV(a, b);
+            });
+
+            int regionLimit = Math.Min(10, sortedRegionRoots.Count);
+            for (int i = 0; i < regionLimit; i++)
+            {
+                List<TileId> tiles = sizedRegions[sortedRegionRoots[i]];
+                Biome dominant = FeatureSegmentation.DominantBiome(tiles, _lastBiomeOf);
+                string name = NameGeneration.GenerateName(_lastSeed, (ulong)(10000 + i), dominant.ToString());
+                data.Regions.Add(new RegionPanelData
+                {
+                    Name = name,
+                    AreaTiles = FeatureMetrics.AreaTiles(tiles),
+                    DominantBiome = dominant.ToString(),
+                    RiverMouthCount = FeatureMetrics.RiverMouthCount(tiles, flood.Parent, _lastIsOcean, riverTilesForPanels),
+                });
+            }
+
+            return data;
+        }
+
+        /// <summary>
+        /// A "bolygó" (World) nevének feature-id-je - egy sosem ütköző
+        /// sentinel (kontinensek 0..N, régiók 10000+ id-t kapnak).
+        /// </summary>
+        public const ulong PlanetFeatureId = 999_999_999UL;
+
+        private static int CompareTileByFaceUV(TileId a, TileId b)
+        {
+            if (a.Face != b.Face) return a.Face.CompareTo(b.Face);
+            a.GetUV(out uint au, out uint av);
+            b.GetUV(out uint bu, out uint bv);
+            if (au != bu) return au.CompareTo(bu);
+            return av.CompareTo(bv);
+        }
+
+        private static TileId MinTile(IEnumerable<TileId> tiles)
+        {
+            TileId min = default;
+            bool first = true;
+            foreach (TileId t in tiles)
+                if (first || CompareTileByFaceUV(t, min) < 0) { min = t; first = false; }
+            return min;
         }
 
         private static readonly RenderCategory[] AllCategories = (RenderCategory[])Enum.GetValues(typeof(RenderCategory));
