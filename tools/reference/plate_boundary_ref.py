@@ -26,11 +26,16 @@ hegyvidek/orogen ovezetek a szarazfold kisebbik reszet teszik ki).
 
 NEM produkcios kod - csak orakulum, a python-reference skill szerint.
 """
-from crust_elevation_ref import base_elevation, is_oceanic
+from crust_elevation_ref import base_elevation, is_oceanic, mountain_mask
 
 GAP_SCALE = 0.04
 UPLIFT_MAX_M = 1500.0
 OCEANIC_OCEANIC_UPLIFT_FACTOR = 0.15  # ND-32: oceani-oceani hataron csokkentett uplift
+# ND-35: felhasznaloi visszajelzes - a parti sav MINDIG maximalis
+# kiemelkedest kapott (az ocean-kontinens hatar is lemezhatar), irrealisan
+# magas "falat" huzva a tengerszint fole szinte minden parton. Az uplift
+# MOST MAR a domborzat fraktal-reszletevel megegyezo regionalis maszkkal
+# van szorozva - sik regioban a parti sav sem kap maximalis kiemelkedest.
 
 
 def two_best_dots(position, seeds):
@@ -68,7 +73,8 @@ def boundary_uplift(world_seed, position, seeds, gap_scale=GAP_SCALE, uplift_max
     """Hatar-kozeli kiemelkedes-bonusz: minel kisebb a gap, annal nagyobb.
     Oceani-oceani hataron oceanic_oceanic_factor-ral csokkentve (ND-32) -
     a valosagban ott vulkani szigetivek epulnek, nem kontinentalis-utkozes
-    lepteku hegylancok."""
+    lepteku hegylancok. A regionalis hegyvidekiseg-maszkkal is szorozva
+    (ND-35) - sik regioban a parti sav sem kap maximalis kiemelkedest."""
     best, second, best_idx, second_idx = two_best_dots_with_indices(position, seeds)
     gap = best - second
     if gap >= gap_scale:
@@ -78,8 +84,10 @@ def boundary_uplift(world_seed, position, seeds, gap_scale=GAP_SCALE, uplift_max
     best_oceanic = is_oceanic(world_seed, best_idx)
     second_oceanic = second_idx >= 0 and is_oceanic(world_seed, second_idx)
     if best_oceanic and second_oceanic:
-        return raw_uplift * oceanic_oceanic_factor
-    return raw_uplift
+        raw_uplift *= oceanic_oceanic_factor
+
+    mask = mountain_mask(world_seed, position)
+    return raw_uplift * mask
 
 
 def elevation_with_boundary(world_seed, plate_id, tile_id_value, position, seeds,
@@ -121,7 +129,10 @@ if __name__ == "__main__":
     print(f"Erintett tile-ok (nemnulla uplift): {100.0*affected/total:.1f}% ({affected}/{total})")
     print(f"Max uplift: {max_uplift:.1f}m, atlag (erintetteken): {sum_uplift/affected:.1f}m")
     assert 0.05 < affected / total < 0.35, "A hatar-hatas zonaja tul szuk vagy tul szeles"
-    assert abs(max_uplift - UPLIFT_MAX_M) < 1.0, "A max uplift-nak kb UPLIFT_MAX_M-nek kell lennie a hataron"
+    # ND-35 ota az uplift a regionalis hegyvidekieseg-maszkkal is szorozva
+    # van, ezert a max ertek NEM feltetlenul eri el UPLIFT_MAX_M-et - csak
+    # azt varjuk el, hogy sose legyen annal nagyobb.
+    assert max_uplift <= UPLIFT_MAX_M + 1.0, "A max uplift nem lehet nagyobb a plafonertekenel"
     print("OK - a lemezhatar-hatas zonaja plauzibilis meretu\n")
 
     # Determinizmus

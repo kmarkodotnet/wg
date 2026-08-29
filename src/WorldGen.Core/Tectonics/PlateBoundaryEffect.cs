@@ -24,6 +24,15 @@ namespace WorldGen.Core.Tectonics
     /// konstrukció, nincs transzcendens függvény, tehát BITPONTOS marad
     /// minden platformon (nem kell ND-kockázatot vállalni, szemben a
     /// csillagászati modullal, ld. ND-26).
+    ///
+    /// ND-35 (docs/04-decisions.md, felhasználói vizuális visszajelzés):
+    /// az uplift MOST MÁR a <see cref="CrustElevation.MountainMask"/>
+    /// ugyanazon regionális maszkjával van szorozva, mint a domborzat
+    /// fraktál-részlete — enélkül a parti sáv MINDIG maximális
+    /// kiemelkedést kapott (hiszen az óceán-kontinens határ is
+    /// lemezhatár), irreálisan magas "falat" húzva a tengerszint fölé
+    /// szinte minden parton, függetlenül attól, hogy ott sík vidéknek
+    /// vagy hegyvidéknek kellene lennie.
     /// </summary>
     public static class PlateBoundaryEffect
     {
@@ -70,7 +79,9 @@ namespace WorldGen.Core.Tectonics
         /// <summary>
         /// Határ-közeli kiemelkedés-bónusz: minél kisebb a gap, annál nagyobb.
         /// Óceáni-óceáni határon <see cref="DefaultOceanicOceanicUpliftFactor"/>
-        /// szorzóval csökkentve (ND-32).
+        /// szorzóval csökkentve (ND-32); a <see cref="CrustElevation.MountainMask"/>
+        /// regionális maszkjával is szorozva (ND-35) - sík régióban a
+        /// parti sáv sem kap maximális kiemelkedést.
         /// </summary>
         public static double BoundaryUplift(
             ulong worldSeed, double x, double y, double z, (double X, double Y, double Z)[] seeds,
@@ -87,9 +98,10 @@ namespace WorldGen.Core.Tectonics
             bool bestOceanic = CrustElevation.IsOceanic(worldSeed, bestIndex);
             bool secondOceanic = secondIndex >= 0 && CrustElevation.IsOceanic(worldSeed, secondIndex);
             if (bestOceanic && secondOceanic)
-                return rawUplift * oceanicOceanicUpliftFactor;
+                rawUplift *= oceanicOceanicUpliftFactor;
 
-            return rawUplift;
+            double mask = CrustElevation.MountainMask(worldSeed, x, y, z);
+            return rawUplift * mask;
         }
 
         /// <summary>Alap-eleváció (§4.2) + határ-közeli uplift-bónusz (§4.3).</summary>

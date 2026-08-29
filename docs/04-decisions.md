@@ -543,6 +543,37 @@ tagoltabb domborzat, mint az ND-31 előtti fehér zaj.
 237/237 teszt zöld, Python-referenciával bitpontos egyezés minden
 érintett láncban.
 
+### ND-35 — Lemezhatár-kiemelkedés is a regionális hegyvidékiség-maszkkal szorozva
+
+**Kérdés:** a vízfelszín-réteg (lásd fentebb, a `PlanetGridMesh`
+`BuildOceanShell`-je) hozzáadása után a felhasználó észrevette: a
+szárazföld PARTI SÁVJA a tengerszinthez képest irreálisan magas maradt.
+
+**Diagnózis:** az óceán-kontinens határ MINDIG lemezhatár is — a
+`PlateBoundaryEffect.BoundaryUplift` viszont az ND-34 `MountainMask`
+bevezetése ELLENÉRE sem volt vele modulálva, csak a domborzat
+fraktál-részlete. Emiatt a parti sáv MINDIG maximális (akár 1500m-es)
+kiemelkedést kapott, függetlenül attól, hogy ott sík vidéknek vagy
+hegyvidéknek "kellene" lennie — irreális "falat" húzva a tengerszint
+fölé szinte minden parton.
+
+**Döntés:** a `BoundaryUplift` mostantól UGYANAZZAL a
+`CrustElevation.MountainMask` regionális maszkkal szorzódik, mint a
+domborzat ridged részlete — sík régióban (a maszk ~6.5%-a) a parti sáv
+sem kap érdemi kiemelkedést, hegyvidéki régióban (a maszk ~20%-a)
+viszont továbbra is a teljes, dramatikus kiemelkedést kapja (mint a
+valóságban pl. az Andok a csendes-óceáni parton — kivétel, nem
+általános szabály).
+
+**Mérve:** az érintett tile-okon az ÁTLAGOS uplift 543.1m-ről
+192.1m-re csökkent (a maximum plafonérték, 1500m, változatlan maradt
+ott, ahol a maszk épp magas). A vízgyűjtő-szám 12→51-re nőtt — a parti
+sáv most sokkal tagoltabb, kevésbé egyenletesen "fal-szerű".
+
+`TEST-EARTH-001` VÁLTOZATLANUL teljesül.
+
+237/237 teszt zöld, Python-referenciával bitpontos egyezés.
+
 ## Nyitott döntések
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai
