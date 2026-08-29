@@ -266,6 +266,62 @@ halasztása):**
 hatókör-szűkítésével — kisebb, de fizikailag/matematikailag megalapozott
 MVP, explicit deferrállal, nem csendes leegyszerűsítéssel.
 
+### ND-29 — M11 vulkánosság: hatókör szuper-vulkáni (VEI8) eseményekre szűkítve
+
+**Kérdés (architekturális felismerés implementáció közben):** a valós
+vulkáni gyakoriság (VEI3-7, forrás: több független cikk, ld. lent)
+NAGYSÁGRENDEKKEL magasabb, mint amit egy becsapódás-stílusú, "epochonként
+legfeljebb egy esemény" Bernoulli-modell kezelni tud. Számpélda: VEI5
+(≥10⁹ m³) gyakorisága kb. 1-2/évtized — 10 000 éves epoch-ra vetítve ez
+~1500 várható esemény EGYETLEN epoch alatt, ami szétfeszíti az
+egy-epoch-egy-Bernoulli-döntés modellt (amit a becsapódásoknál pont az
+tett működővé, hogy ott a ráta valóban `≪ 1`/epoch).
+
+**Döntés (hatókör-szűkítés + a spec saját kategorizálásának követése):**
+csak a **szuper-vulkáni (VEI8) eseményeket** modellezzük ezzel az
+architektúrával. A "háttér" vulkánosság (VEI3-7, gyakori, apránként
+építkező) egy STRUKTURÁLISAN MÁS modellt igényelne (folytonos/perzisztens
+vulkáni központ, nem diszkrét ritka esemény) — ez NEM épül meg most,
+külön, jövőbeli feladat. Ez a szűkítés NEM önkényes: a spec maga is külön
+kategóriaként kezeli a `SuperVolcanicEruption`/`SuperVolcano` fogalmat
+(`docs/00-spec-v1.0.md:418,1225-1228,1807`) a §21 általános
+"Vulkánosság"-tól elkülönítve — a döntés a spec saját szerkezetét követi,
+nem attól idegen egyszerűsítés.
+
+VEI8-nál a gyakoriság (~1-2/millió év) már természetesen illeszkedik a
+10 000 éves epoch-modellbe (várható érték ~0.015-0.03/epoch) — ugyanaz a
+nagyságrend, mint a becsapódásoknál (0.0126/epoch).
+
+**Fizika (forrásból ellenőrzött, WebSearch, több független forrás
+egyezésével):**
+- VEI-skála: minden lépés (VEI8=≥10¹² m³ tefra) a valódi, hivatalos
+  osztályozás alsó határa (Wikipédia/USGS-szintű konszenzus).
+- Méreteloszlás: minden VEI-lépés (10x térfogat) kb. 6-7x ritkább —
+  hatványtörvény `N(≥V) ∝ V^-β`, β = log₁₀(6.5) ≈ 0.8129 (a 6-7
+  tartomány geometriai közepéből).
+- Gyakoriság-kalibráció: VEI8 (~1-2/millió év, több forrás) → ráta
+  ≈ 1.5×10⁻⁶/év a küszöbnél.
+- Felső biztonsági sapka (dokumentált, nem újra-mintavételezett, ld.
+  ImpactCratering ugyanezen mintája): 5×10¹² m³ — a La Garita
+  Caldera/Fish Canyon Tuff kitörés (kb. 28 millió éve), a valaha ismert
+  LEGNAGYOBB vulkánkitörés valódi becsült térfogata.
+- Geometria: pajzsvulkán-kúp, lejtőszög ~6° (idézett tartomány 2-10°
+  ill. 4-8°, a kettő közepéből) — `V = π·h³/(3·tan²θ)` kúp-térfogat
+  azonosságból `h = (3·V·tan²θ/π)^(1/3)`, sugár `r = h/tanθ`. A `tanθ`
+  fix, egyszer kiszámolt konstans (nem futásidejű trigonometria — ld.
+  ND-24 "baked" mintája), a köbgyök `DeterministicMath.Pow(x, 1/3)`.
+- Pozíció: `PlateBoundaryEffect.TwoBestDots` ÚJRAFELHASZNÁLVA (nem
+  duplikálva) — a "gap" (két legközelebbi lemez-mag dot-product
+  különbsége) már bevezetett, bitpontos lemezhatár-közelség proxy.
+  Elutasításos mintavétel: egyenletes gömbi pont, elfogadva
+  `1 - gap/gapScale` valószínűséggel (0, ha `gap ≥ gapScale`) — így a
+  pozíciók a lemezhatárok köré koncentrálódnak, tisztán exakt
+  aritmetikával (nincs új transzcendens-kockázat).
+
+**Trigonometria-kockázat:** nincs — a `DeterministicMath.Pow`
+(köbgyök) és egy fix, konstrukciós idejű `tan(6°)` az egyetlen
+nem-egész-aritmetikai elem, ugyanaz az ND-27 lezárt megoldása.
+
 ## Nyitott döntések
 
 ### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai

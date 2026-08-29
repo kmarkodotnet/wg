@@ -51,6 +51,8 @@ namespace WorldGen.Core.Random
         public const uint ImpactPosition = 23;
         public const uint ImpactVelocity = 24;
         public const uint ImpactAngle = 25;
+        public const uint VolcanicMagnitude = 26;
+        public const uint VolcanicPosition = 27;
 
         // Naming
         public const uint SyllableChoice = 30;
