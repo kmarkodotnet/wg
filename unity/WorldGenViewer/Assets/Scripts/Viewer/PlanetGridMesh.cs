@@ -276,6 +276,23 @@ namespace WorldGen.Viewer
             // adatokhoz (kontinens/regio-szegmentalas, domonans biome).
             var biomeOf = new Dictionary<TileId, Biome>();
 
+            // ND-39 "C" opcio (sarok-dedupliakcio): egy belso sarokpontot
+            // (ugyanazon LAPON belul) akar 4 szomszedos tile is MEGOSZT -
+            // enelkul a ComputeDisplacedRadius (AssignPlate + warp +
+            // ElevationWithBoundaryFromWarped, ld. odalejjebb) minden egyes
+            // sarokra AKAR 4-SZER futna le feleslegesen. A kulcs (face,
+            // cornerU, cornerV) a lap-lokalis EGESZ racsponthoz kotott
+            // (n = 1<<level, cornerU/cornerV in [0,n]) - lapon belul ez
+            // pontosan ugyanazt a folytonos (uc,vc)-t adja, amit a korabbi,
+            // redundans hivas is hasznalt (ld. GetOrComputeCorner), tehat
+            // BITRE AZONOS eredmenyt ad, csak egyszer szamolva. A kulcs NEM
+            // von ossze sarkokat KULONBOZO lapok kozott (a kockale-elek/
+            // sarkok menten) - ott a jelenlegi kod is FUGGETLENUL, lapankent
+            // szamolja ki ugyanazt a geometriai pontot (ld. TileGeometry.
+            // PositionFromFaceUV), es ez a viselkedes VALTOZATLAN marad -
+            // nem tesz hozza es nem vesz el semmit a lap-hatarok kezelesebol.
+            var cornerCache = new Dictionary<(int Face, uint CornerU, uint CornerV), Vector3>();
+
             int n = 1 << level;
             for (int face = 0; face <= 5; face++)
             {
@@ -326,10 +343,10 @@ namespace WorldGen.Viewer
                         // felszin osszeer. Enelkul minden tile a sajat
                         // fuggetlen magassagara "lebeg", rest hagyva a
                         // szomszedok kozott.
-                        Vector3 p00 = ToDisplacedVector3(face, uMin, vMin, seed, seeds, craters);
-                        Vector3 p10 = ToDisplacedVector3(face, uMax, vMin, seed, seeds, craters);
-                        Vector3 p11 = ToDisplacedVector3(face, uMax, vMax, seed, seeds, craters);
-                        Vector3 p01 = ToDisplacedVector3(face, uMin, vMax, seed, seeds, craters);
+                        Vector3 p00 = GetOrComputeCorner(cornerCache, face, u, v, n, seed, seeds, craters);
+                        Vector3 p10 = GetOrComputeCorner(cornerCache, face, u + 1, v, n, seed, seeds, craters);
+                        Vector3 p11 = GetOrComputeCorner(cornerCache, face, u + 1, v + 1, n, seed, seeds, craters);
+                        Vector3 p01 = GetOrComputeCorner(cornerCache, face, u, v + 1, n, seed, seeds, craters);
 
                         GetOrAddLists(verticesByKey, normalsByKey, trianglesByKey, key,
                             out List<Vector3> vertices, out List<Vector3> normals, out List<int> triangles);
@@ -882,6 +899,34 @@ namespace WorldGen.Viewer
             else DestroyImmediate(obj);
         }
 
+        /// <summary>
+        /// ND-39 "C" opcio (sarok-deduplikacio): egy (face, cornerU, cornerV)
+        /// EGESZ lap-lokalis racspontot (ld. Build() cornerCache-doc) CSAK
+        /// EGYSZER szamol ki - a masodik/harmadik/negyedik hivas (a
+        /// szomszedos tile-oktol) a cache-bol olvas. A cornerU/cornerV a
+        /// TileGeometry.GetContinuousBounds ugyanazon kepletevel
+        /// (u/n*2-1) alakul folytonos (uc,vc)-va, mint korabban a
+        /// kozvetlen ToDisplacedVector3(face, uMin/uMax, vMin/vMax, ...)
+        /// hivas hasznalta - tehat BITRE AZONOS bemenetet ad at a tiszta
+        /// ToDisplacedVector3-nak, csak ritkabban hivva.
+        /// </summary>
+        private Vector3 GetOrComputeCorner(
+            Dictionary<(int Face, uint CornerU, uint CornerV), Vector3> cache,
+            int face, uint cornerU, uint cornerV, int n,
+            ulong seed, (double X, double Y, double Z)[] seeds,
+            List<ImpactCratering.CraterRecord> craters)
+        {
+            var key = (face, cornerU, cornerV);
+            if (cache.TryGetValue(key, out Vector3 cached))
+                return cached;
+
+            double uc = (double)cornerU / n * 2.0 - 1.0;
+            double vc = (double)cornerV / n * 2.0 - 1.0;
+            Vector3 p = ToDisplacedVector3(face, uc, vc, seed, seeds, craters);
+            cache[key] = p;
+            return p;
+        }
+
         private Vector3 ToDisplacedVector3(
             int face, double uc, double vc, ulong seed, (double X, double Y, double Z)[] seeds,
             List<ImpactCratering.CraterRecord> craters)
@@ -923,10 +968,18 @@ namespace WorldGen.Viewer
             // SeaLevelCalibration/PlateBoundaryEffect hasznal, kulonben ez
             // a sarok-alapu megjelenites inkonzisztens (nem-warpolt)
             // lemezhatarokat mutatna a tile-kozepu adatokhoz kepest.
+            //
+            // ND-39 "C" opcio (warp-hoisting): a warp CSAK EGYSZER fut le
+            // pontonkent - az AssignPlate ES a BoundaryUplift (az uj
+            // ElevationWithBoundaryFromWarped-en keresztul) UGYANAZT a mar
+            // kiszamitott (wx,wy,wz)-t hasznalja, ahelyett hogy a
+            // BoundaryUplift sajat maga ujraszamolna a WarpPosition-t
+            // ugyanarra a pontra (ld. src/WorldGen.Core/Tectonics/
+            // PlateBoundaryEffect.cs, docs/04-decisions.md ND-39).
             DomainWarp.WarpPosition(seed, x, y, z, out double wx, out double wy, out double wz);
             int plateId = PlateGeneration.AssignPlate(wx, wy, wz, seeds);
-            double elevation = PlateBoundaryEffect.ElevationWithBoundary(
-                seed, plateId, tileIdValue: 0UL, x, y, z, seeds, out _);
+            double elevation = PlateBoundaryEffect.ElevationWithBoundaryFromWarped(
+                seed, plateId, tileIdValue: 0UL, x, y, z, wx, wy, wz, seeds, out _);
 
             // M11: a pont SAJAT pozicioja alapjan szamolt becsapodas-korrekcio -
             // ugyanaz a "tiszta fuggveny a pozicioban, nem a tile-ban" elv,
