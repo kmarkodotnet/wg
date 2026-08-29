@@ -7,13 +7,15 @@
    "name": "Aulight Woods",
    "areaTiles": 7346,
    "biomeCount": 4,
-   "dominantBiome": "Temperate"
+   "dominantBiome": "Temperate",
+   "riverMouthCount": 7
   },
   {
    "name": "Rhacy Barrens",
    "areaTiles": 1221,
    "biomeCount": 4,
-   "dominantBiome": "Tundra"
+   "dominantBiome": "Tundra",
+   "riverMouthCount": 1
   }
  ],
  "regions": [
@@ -25,7 +27,8 @@
     0,
     52,
     42
-   ]
+   ],
+   "riverMouthCount": 1
   },
   {
    "name": "Vermar Tundra",
@@ -35,7 +38,8 @@
     5,
     57,
     34
-   ]
+   ],
+   "riverMouthCount": 1
   },
   {
    "name": "Rinum Glacier",
@@ -45,7 +49,8 @@
     4,
     40,
     34
-   ]
+   ],
+   "riverMouthCount": 1
   },
   {
    "name": "Verhal Glacier",
@@ -55,7 +60,8 @@
     4,
     12,
     48
-   ]
+   ],
+   "riverMouthCount": 1
   },
   {
    "name": "Mirnor Vale",
@@ -65,7 +71,8 @@
     0,
     22,
     17
-   ]
+   ],
+   "riverMouthCount": 1
   },
   {
    "name": "Mirlu Woods",
@@ -75,7 +82,8 @@
     3,
     32,
     20
-   ]
+   ],
+   "riverMouthCount": 1
   },
   {
    "name": "Frosos Waste",
@@ -85,7 +93,8 @@
     0,
     3,
     16
-   ]
+   ],
+   "riverMouthCount": 1
   },
   {
    "name": "Quelau Tundra",
@@ -95,7 +104,8 @@
     1,
     39,
     9
-   ]
+   ],
+   "riverMouthCount": 1
   },
   {
    "name": "Mirrel Frost",
@@ -105,7 +115,8 @@
     5,
     58,
     28
-   ]
+   ],
+   "riverMouthCount": 0
   },
   {
    "name": "Northal Barrens",
@@ -115,7 +126,8 @@
     0,
     19,
     13
-   ]
+   ],
+   "riverMouthCount": 0
   },
   {
    "name": "Lightdel Barrens",
@@ -125,7 +137,8 @@
     1,
     25,
     39
-   ]
+   ],
+   "riverMouthCount": 0
   },
   {
    "name": "Frosrel Tundra",
@@ -135,7 +148,8 @@
     1,
     56,
     11
-   ]
+   ],
+   "riverMouthCount": 0
   },
   {
    "name": "Thalver Glacier",
@@ -145,7 +159,8 @@
     1,
     61,
     36
-   ]
+   ],
+   "riverMouthCount": 0
   },
   {
    "name": "Southsouth Rime",
@@ -155,7 +170,8 @@
     4,
     5,
     55
-   ]
+   ],
+   "riverMouthCount": 0
   },
   {
    "name": "Umka Barrens",
@@ -165,7 +181,8 @@
     0,
     20,
     16
-   ]
+   ],
+   "riverMouthCount": 0
   },
   {
    "name": "Kaum Tundra",
@@ -175,7 +192,8 @@
     1,
     51,
     13
-   ]
+   ],
+   "riverMouthCount": 0
   }
  ],
  "nameVectors": [

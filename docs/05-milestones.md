@@ -13,7 +13,7 @@ enélkül nem derül ki időben, ha valami rossz irányba megy.
 | **M5** | **Klíma** | Hőmérséklet, szél, nedvesség, csapadék | Biome-színek, hó, jégsapkák | ✅ **Vizuálisan megerősítve** (hőmérséklet+biome-sáv, 138/138 teszt); szél/nedvesség/csapadék halasztva (ld. hatókör) |
 | M6 | Atmoszféra-render | Rayleigh-szórás, felhők, ciklonok | Planet nézet lényegében kész | Referenciakép 2 szintjén ~80% |
 | **M7** | **Hidrológia + erózió** | Folyók, tavak, gleccser, A1 eróziós pass | Folyók a kontinensnézeten, mikro-vízrajz | ✅ **Vizuálisan megerősítve** ("folyók hegyből tengerbe futnak" strukturálisan bizonyítva, 146/146 teszt); tavak/jég/erózió halasztva |
-| **M8** | **Features + panelek** | Szegmentálás, névadás, aggregált metrikák | World/Continent/Region panelek élesben | Kontinens/régió-szegmentálás + névgenerálás ✅ **numerikusan kész** (153/153 teszt); a legtöbb panel-mező (Habitability, Coastal complexity stb.) halasztva; vizuális render hátra |
+| **M8** | **Features + panelek** | Szegmentálás, névadás, aggregált metrikák | World/Continent/Region panelek élesben | Kontinens/régió-szegmentálás + névgenerálás + aggregált metrikák (Area, BiomeDiversity, RiverMouthCount) ✅ **numerikusan kész** (190/190 teszt); a legtöbb panel-mező (Habitability, Coastal complexity stb.) halasztva; vizuális render hátra |
 | M9 | Continent + Region nézet | Magas LOD, displacement, kamera-átmenetek | Referenciakép 1, 3, 4 szintje | Zoom-átmenet folyamatos |
 | **M10** | **Deep time** | Lemezmozgás, erózió, eljegesedés, tengerszint | Az időcsúszka él | Lemezmozgás ✅ **vizuálisan megerősítve** (163/163 teszt, TimestepInvariance egzakt; `deepTimeMyr` Unity idő-csúszka - domborzat ÉS biome egyaránt elmozdul, felhasználó által tesztelve); erózió/eljegesedés/dinamikus tengerszint halasztva |
 | **M11** | **Események** | Becsapódás, vulkán, rift, split/merge | Kráterek, kitörések láthatók | Becsapódás ✅ **vizuálisan megerősítve** (181/181 teszt; kráter-markerek a tényleges felszínen, felhasználó által tesztelve); vulkán/rift/split-merge halasztva (ND-28) |
@@ -422,11 +422,22 @@ Naming` doménből (M1-ben már fenntartva) + biome-alapú "hangulati"
 utótag-készlet (§6.3 mintájára: hideg → Frost-/Rime-, vizes → Silver-/
 Tide-).
 
-### 8.3 Aggregált metrikák
+### 8.3 Aggregált metrikák — kész
 
-Kontinensenként/régiónként: terület (Σ tile-terület), biome-diverzitás
-(distinct biome-ok száma), folyó-torkolatok száma (a régióba eső folyó-
-tile-ok, amik óceánba folynak).
+`src/WorldGen.Core/Features/FeatureMetrics.cs`: `AreaTiles` (tile-számlálás,
+dokumentált közelítés — ld. modul-fejléc és ND-24), `BiomeDiversity`
+(distinct biome-ok száma), `RiverMouthCount` (a régióba/kontinensbe eső
+folyó-tile-ok, amik KÖZVETLENÜL óceánba folynak).
+
+A folyó-tile kiválasztás (`FlowNetwork.SelectRiverTiles`) ennek
+melléktermékeként a Core-ba került — korábban ez a logika csak a Unity
+`PlanetGridMesh.cs`-ben (megjelenítési célra) létezett, duplikálva; most
+mindkét hely (metrika-számítás ÉS render) ugyanazt a Core-függvényt hívja.
+
+190/190 teszt zöld (181 korábbi + 9 új): Python-referenciával (18
+kontinens/régió rekord) bitpontos egyezés (nincs transzcendens függvény
+ebben a láncban), tisztaság, minden paraméter hat, élesetek (üres
+tile-halmaz, nincs szárazföld).
 
 **Kötelező teszt:** minden generált panel-mezőre van egyértelmű,
 visszakövethető számítási lánc (I4) — nincs kitalált/placeholder érték.

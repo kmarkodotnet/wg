@@ -25,7 +25,10 @@ from morton_ref import tile_id
 from neighbor_ref import neighbor, DIRECTIONS
 from temperature_ref import temperature_kelvin
 from biome_ref import classify_biome, BIOME_OCEAN, BIOME_SEA_ICE
-from hydrology_ref import compute_elevation_and_ocean_field, priority_flood
+from hydrology_ref import (
+    compute_elevation_and_ocean_field, priority_flood,
+    flow_accumulation, select_river_tiles, river_mouth_count,
+)
 from threefry_ref import threefry4x64
 
 M64 = (1 << 64) - 1
@@ -145,6 +148,12 @@ if __name__ == "__main__":
         biome_of[key] = classify_biome(t_k, is_ocean[key])
     print("Kesz\n")
 
+    print("Folyohalozat (torkolat-szamlalashoz)...")
+    accumulation = flow_accumulation(field, parent, flood_order)
+    river_target_fraction = 0.03  # ugyanaz, mint a Unity riverTargetFraction alapertelmezese
+    river_tiles = select_river_tiles(is_ocean, accumulation, river_target_fraction)
+    print(f"{len(river_tiles)} folyo-tile\n")
+
     print("Kontinens-szegmentalas...")
     continents = find_continents(field, is_ocean, level, min_size=5)
     print(f"{len(continents)} kontinens talalhato\n")
@@ -164,12 +173,14 @@ if __name__ == "__main__":
         biomes_present = {biome_of[t] for t in comp}
         dom = dominant_biome(comp, biome_of)
         name = generate_name(world_seed, feature_id=i, dominant_biome=dom)
+        mouths = river_mouth_count(comp, parent, is_ocean, river_tiles)
         result = {
             "name": name, "areaTiles": len(comp), "biomeCount": len(biomes_present),
-            "dominantBiome": dom,
+            "dominantBiome": dom, "riverMouthCount": mouths,
         }
         continent_results.append(result)
-        print(f"  {name}: {len(comp)} tile, {len(biomes_present)} biome, dominans={dom}")
+        print(f"  {name}: {len(comp)} tile, {len(biomes_present)} biome, "
+              f"dominans={dom}, {mouths} folyo-torkolat")
 
     print("\n--- Regiok (top 10 meret szerint) ---")
     region_results = []
@@ -178,10 +189,14 @@ if __name__ == "__main__":
     for i, (root, tiles) in enumerate(sorted(sized_regions.items(), key=lambda kv: (-len(kv[1]), kv[0]))):
         dom = dominant_biome(tiles, biome_of)
         name = generate_name(world_seed, feature_id=10000 + i, dominant_biome=dom)
-        result = {"name": name, "areaTiles": len(tiles), "dominantBiome": dom, "outlet": root}
+        mouths = river_mouth_count(tiles, parent, is_ocean, river_tiles)
+        result = {
+            "name": name, "areaTiles": len(tiles), "dominantBiome": dom,
+            "outlet": root, "riverMouthCount": mouths,
+        }
         region_results.append(result)
         if i < 10:
-            print(f"  {name}: {len(tiles)} tile, dominans={dom}, kifolyas={root}")
+            print(f"  {name}: {len(tiles)} tile, dominans={dom}, kifolyas={root}, {mouths} torkolat")
 
     # Plauzibilitas
     assert len(continents) >= 2, "Legalabb 2 kontinensnek kell lennie (TEST-EARTH-001 utan varhato)"

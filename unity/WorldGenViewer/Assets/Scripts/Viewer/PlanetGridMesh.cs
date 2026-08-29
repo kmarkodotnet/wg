@@ -170,22 +170,14 @@ namespace WorldGen.Viewer
             double seaLevel = SeaLevelCalibration.CalibrateSeaLevel(field.Values, targetWaterFraction);
             Dictionary<TileId, bool> isOceanField = FlowNetwork.ComputeOceanField(field, seaLevel);
 
-            Dictionary<TileId, long> accumulation = null;
-            long riverThreshold = long.MaxValue;
+            // A folyo-tile kivalasztas logikaja a Core-ban van (FlowNetwork.
+            // SelectRiverTiles) - itt nincs duplikalva szimulacios matek.
+            HashSet<TileId> riverTiles = new HashSet<TileId>();
             if (showRivers)
             {
                 FlowNetwork.FloodResult flood = FlowNetwork.PriorityFlood(field, isOceanField);
-                accumulation = FlowNetwork.FlowAccumulation(field, flood.Parent, flood.FloodOrder);
-
-                var landAcc = new List<long>();
-                foreach (var kv in isOceanField)
-                    if (!kv.Value) landAcc.Add(accumulation[kv.Key]);
-                if (landAcc.Count > 0)
-                {
-                    landAcc.Sort((a, b) => b.CompareTo(a));
-                    int idx = Math.Max(0, Math.Min(landAcc.Count - 1, (int)(riverTargetFraction * landAcc.Count)));
-                    riverThreshold = landAcc[idx];
-                }
+                Dictionary<TileId, long> accumulation = FlowNetwork.FlowAccumulation(field, flood.Parent, flood.FloodOrder);
+                riverTiles = FlowNetwork.SelectRiverTiles(isOceanField, accumulation, riverTargetFraction);
             }
 
             double axialTiltRad = climateAxialTiltDegrees * Math.PI / 180.0;
@@ -230,7 +222,7 @@ namespace WorldGen.Viewer
                         // teszi a ritka talalatokat, fuggetlenul a
                         // felbontas-korlattol (ld. ImpactCratering.ApplyToField).
                         bool isCratered = craters.Count > 0 && ImpactCratering.IsInsideAnyCrater(cx, cy, cz, craters);
-                        bool isRiver = showRivers && !isOceanic && accumulation[id] >= riverThreshold;
+                        bool isRiver = riverTiles.Contains(id);
                         RenderCategory category = isCratered ? RenderCategory.Crater
                             : isRiver ? RenderCategory.River
                             : ToRenderCategory(biome);

@@ -120,6 +120,34 @@ namespace WorldGen.Core.Hydrology
             return accumulation;
         }
 
+        /// <summary>
+        /// A szárazföld ekkora hányada (0..1) legyen folyó-tile - percentilis-
+        /// módszer az accumulation-eloszláson. KÖZÖS hely (M8, docs/04-decisions.md) -
+        /// korábban ez a logika csak a Unity PlanetGridMesh.cs-ben (megjelenítési
+        /// célra) létezett, duplikálva; a folyó-torkolat számláláshoz (M8 panel-
+        /// metrika) is szükség van rá, ezért ide, a Core-ba került.
+        /// </summary>
+        public static HashSet<TileId> SelectRiverTiles(
+            Dictionary<TileId, bool> isOcean, Dictionary<TileId, long> accumulation, double riverTargetFraction)
+        {
+            var landAcc = new List<long>();
+            foreach (KeyValuePair<TileId, bool> kv in isOcean)
+                if (!kv.Value) landAcc.Add(accumulation[kv.Key]);
+
+            var riverTiles = new HashSet<TileId>();
+            if (landAcc.Count == 0)
+                return riverTiles;
+
+            landAcc.Sort((a, b) => b.CompareTo(a));
+            int idx = Math.Max(0, Math.Min(landAcc.Count - 1, (int)(riverTargetFraction * landAcc.Count)));
+            long threshold = landAcc[idx];
+
+            foreach (KeyValuePair<TileId, bool> kv in isOcean)
+                if (!kv.Value && accumulation[kv.Key] >= threshold)
+                    riverTiles.Add(kv.Key);
+            return riverTiles;
+        }
+
         /// <summary>Minden szárazföld-tile-ból a szülő-láncot követve véges lépésben óceánba jutunk-e.</summary>
         public static List<TileId> VerifyAllLandReachesOcean(
             Dictionary<TileId, double> field, Dictionary<TileId, TileId?> parent, Dictionary<TileId, bool> isOcean,

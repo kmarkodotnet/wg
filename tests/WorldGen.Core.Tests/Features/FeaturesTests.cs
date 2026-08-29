@@ -109,6 +109,8 @@ public class FeatureSegmentationStructuralTests
         double seaLevel = SeaLevelCalibration.CalibrateSeaLevel(field.Values, TargetWaterFraction);
         var isOcean = FlowNetwork.ComputeOceanField(field, seaLevel);
         FlowNetwork.FloodResult flood = FlowNetwork.PriorityFlood(field, isOcean);
+        Dictionary<TileId, long> accumulation = FlowNetwork.FlowAccumulation(field, flood.Parent, flood.FloodOrder);
+        HashSet<TileId> riverTiles = FlowNetwork.SelectRiverTiles(isOcean, accumulation, riverTargetFraction: 0.03);
 
         var biomeOf = new Dictionary<TileId, Biome>();
         foreach (TileId id in field.Keys)
@@ -137,10 +139,13 @@ public class FeatureSegmentationStructuralTests
             Biome dominant = FeatureSegmentation.DominantBiome(comp, biomeOf);
             string name = NameGeneration.GenerateName(WorldSeed, (ulong)i, dominant.ToString());
 
+            int mouths = FeatureMetrics.RiverMouthCount(comp, flood.Parent, isOcean, riverTiles);
+
             Assert.Equal(exp.GetProperty("name").GetString(), name);
             Assert.Equal(exp.GetProperty("areaTiles").GetInt32(), comp.Count);
             Assert.Equal(exp.GetProperty("biomeCount").GetInt32(), biomesPresent.Count);
             Assert.Equal(exp.GetProperty("dominantBiome").GetString(), dominant.ToString());
+            Assert.Equal(exp.GetProperty("riverMouthCount").GetInt32(), mouths);
             checkedContinents++;
         }
         Assert.Equal(2, checkedContinents);
@@ -162,9 +167,12 @@ public class FeatureSegmentationStructuralTests
             Biome dominant = FeatureSegmentation.DominantBiome(tiles, biomeOf);
             string name = NameGeneration.GenerateName(WorldSeed, (ulong)(10000 + i), dominant.ToString());
 
+            int mouths = FeatureMetrics.RiverMouthCount(tiles, flood.Parent, isOcean, riverTiles);
+
             Assert.Equal(exp.GetProperty("name").GetString(), name);
             Assert.Equal(exp.GetProperty("areaTiles").GetInt32(), tiles.Count);
             Assert.Equal(exp.GetProperty("dominantBiome").GetString(), dominant.ToString());
+            Assert.Equal(exp.GetProperty("riverMouthCount").GetInt32(), mouths);
             checkedRegions++;
         }
         Assert.Equal(16, checkedRegions);

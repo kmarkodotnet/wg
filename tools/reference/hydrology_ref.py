@@ -116,6 +116,34 @@ def flow_accumulation(field, parent, flood_order):
     return accumulation
 
 
+def select_river_tiles(is_ocean, accumulation, river_target_fraction):
+    """
+    A szarazfold ekkora hanyada (0..1) legyen folyo-tile - percentilis-
+    modszer az accumulation-eloszlason. UGYANAZ az algoritmus, amit
+    eddig csak a Unity PlanetGridMesh.cs hasznalt (megjelenitesi
+    celra) - M8-hoz (folyo-torkolat szamlalashoz) at kellett kerulnie
+    a Core-ba, hogy ne legyen ket fuggetlen implementacio.
+    """
+    land_acc = sorted((accumulation[k] for k in is_ocean if not is_ocean[k]), reverse=True)
+    if not land_acc:
+        return set()
+    idx = max(0, min(len(land_acc) - 1, int(river_target_fraction * len(land_acc))))
+    threshold = land_acc[idx]
+    return {k for k in is_ocean if not is_ocean[k] and accumulation[k] >= threshold}
+
+
+def river_mouth_count(tiles, parent, is_ocean, river_tiles):
+    """Egy tile-halmazban hany folyo-tile folyik KOZVETLENUL oceanba."""
+    count = 0
+    for t in tiles:
+        if t not in river_tiles:
+            continue
+        p = parent[t]
+        if p is not None and is_ocean[p]:
+            count += 1
+    return count
+
+
 def verify_all_land_reaches_ocean(field, parent, is_ocean, level, max_steps=None):
     """Minden szarazfold-tile-bol veges lepesben oceanba kell jutni a parent-lancon."""
     n = 1 << level
