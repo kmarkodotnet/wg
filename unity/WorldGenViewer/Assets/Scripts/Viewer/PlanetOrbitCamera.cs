@@ -64,10 +64,10 @@ namespace WorldGen.Viewer
                  "belul kell lenni egy 100-as sugaru bolygonal) - egy regi, " +
                  "additiv zoom (150 egyseg/kattintas) gyakorlatilag athuzna " +
                  "ezen a savon, sose lehetne belelonni. Nagyobb ertek = gyorsabb " +
-                 "zoom scroll-egysegenkent. Emelve 0.15-rol 0.4-re, hogy a teljes " +
-                 "tavolsag-tartomanyt (100.1-800) kevesebb gorgo-kattintassal " +
-                 "lehessen bejarni.")]
-        private float zoomSensitivity = 0.4f;
+                 "zoom scroll-egysegenkent. Tovabb emelve 0.4-rol 0.8-ra - a " +
+                 "felhasznaloi visszajelzes szerint 0.4 meg mindig lassunak " +
+                 "erzodott a teljes 100.1-800 tavolsag-tartomany bejarasahoz.")]
+        private float zoomSensitivity = 0.8f;
 
         [SerializeField] private float minPitch = -85f;
         [SerializeField] private float maxPitch = 85f;
@@ -97,7 +97,15 @@ namespace WorldGen.Viewer
             {
                 float dx = Input.GetAxis("Mouse X");
                 float dy = Input.GetAxis("Mouse Y");
-                float altitude = Mathf.Max(1f, distance - surfaceRadius);
+                // A padlo 1f-rol 0.001f-re csokkentve: a regi minDistance=120
+                // mellett a magassag sosem ment 20 ala, tehat a Max(1f,...)
+                // padlo sose lepett eletbe. Most (minDistance=100.1) a
+                // magassag akar 0.1-ig is csokkenhet - az 1f-es padlo ott
+                // MESTERSEGESEN MEGALLITOTTA a magassag-aranyos skalazodast
+                // (a forgas sebessege konstans maradt 1 egysegnyi magassag
+                // alatt), ami eppen a legkozelebbi zoom-tartomanyban tunt
+                // "elveszettnek" - ez volt a hiba oka.
+                float altitude = Mathf.Max(0.001f, distance - surfaceRadius);
                 float effectiveRotationSpeed = rotationSpeedPerAltitude * altitude;
                 _yaw += dx * effectiveRotationSpeed * Time.deltaTime;
                 _pitch -= dy * effectiveRotationSpeed * Time.deltaTime;
