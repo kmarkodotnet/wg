@@ -36,23 +36,26 @@ namespace WorldGen.Viewer
         [SerializeField] private float maxDistance = 800f;
 
         [SerializeField]
-        [Tooltip("A bolygó sugara (PlanetGridMesh alapértéke 100) - a forgási " +
-                 "sebesség a FELSZÍNTŐL mért magassággal (distance - surfaceRadius) " +
-                 "skálázódik, nem a középponttól mért nyers távolsággal. Enélkül a " +
-                 "sebesség minDistance-nél (120) is 'csak' 20%-kal csökkenne a " +
-                 "defaulthoz képest, holott a kamera valójában a felszín közvetlen " +
-                 "közelében van (100 sugár + 20 magasság).")]
+        [Tooltip("A bolygó sugara (PlanetGridMesh alapértéke 100) - a zoom " +
+                 "(nem a forgás, ld. lent) a FELSZÍNTŐL mért magassággal " +
+                 "(distance - surfaceRadius) skálázódik.")]
         private float surfaceRadius = 100f;
 
         [SerializeField]
-        [Tooltip("Fok/pixel/másodperc, EGYSÉGNYI felszín-feletti magasságra vetítve - " +
-                 "a tényleges forgási sebesség a jelenlegi magassággal (distance - " +
-                 "surfaceRadius) SZORZÓDIK, úgyhogy a felszín közelében arányosan " +
-                 "sokkal lassabb, mint messziről nézve. Csökkentve 5-ről 1-re - az " +
-                 "5-ös érték tipikus (~200 egységnyi) magasságban ~1000 fok/mp " +
-                 "effektív sebességet adott egyetlen egérmozdulatra, ami " +
-                 "eltúlzottan érzékenynek hatott.")]
-        private float rotationSpeedPerAltitude = 1f;
+        [Tooltip("Fok/pixel/másodperc, ÁLLANDÓ - NEM skálázódik a zoom-" +
+                 "távolsággal/magassággal. KORÁBBAN a magassággal szorzott " +
+                 "('közel lassabb, távol gyorsabb') skálázást próbáltuk, de ez " +
+                 "tobbszori, egymasnak ellentmondo felhasznaloi visszajelzest " +
+                 "adott (eloszor tul erzekeny, utana a skalazas 'elveszett'-nek " +
+                 "tunt egy padlo-hiba miatt, majd - a padlo javitasa utan - " +
+                 "kozelrol tulzottan gyorsnak erzodott). Az orbit-sugar " +
+                 "(distance) a teljes zoom-tartomanyban dontoen a surfaceRadius " +
+                 "(100) kozeleben marad (100.1-tol csak apro tortekben no a " +
+                 "tenyleges magassaghoz kepest), ezert a 'kozel lassabb' " +
+                 "feltetelezes nem allta meg a helyet a gyakorlatban - az " +
+                 "ALLANDO fok/pixel sebesseg (ahogy a legtobb 3D szerkeszto/ " +
+                 "orbit-kamera is mukodik) egyszerubb es kiszamithatobb.")]
+        private float rotationSpeed = 60f;
 
         [SerializeField]
         [Tooltip("M9: aranyos (nem additiv) zoom - minden scroll-egyseg " +
@@ -64,10 +67,12 @@ namespace WorldGen.Viewer
                  "belul kell lenni egy 100-as sugaru bolygonal) - egy regi, " +
                  "additiv zoom (150 egyseg/kattintas) gyakorlatilag athuzna " +
                  "ezen a savon, sose lehetne belelonni. Nagyobb ertek = gyorsabb " +
-                 "zoom scroll-egysegenkent. Tovabb emelve 0.4-rol 0.8-ra - a " +
-                 "felhasznaloi visszajelzes szerint 0.4 meg mindig lassunak " +
-                 "erzodott a teljes 100.1-800 tavolsag-tartomany bejarasahoz.")]
-        private float zoomSensitivity = 0.8f;
+                 "zoom scroll-egysegenkent. Tobbszori emeles utan (0.15->0.4->0.8) " +
+                 "a felhasznaloi visszajelzes szerint MEG MINDIG lassu volt - " +
+                 "most 2.0-ra emelve (kb. 25x az eredeti erzekenyseghez kepest " +
+                 "osszesen), hogy a teljes 100.1-800 tavolsag-tartomanyt " +
+                 "hatarozottan kevesebb gorgo-kattintassal lehessen bejarni.")]
+        private float zoomSensitivity = 2.0f;
 
         [SerializeField] private float minPitch = -85f;
         [SerializeField] private float maxPitch = 85f;
@@ -97,18 +102,8 @@ namespace WorldGen.Viewer
             {
                 float dx = Input.GetAxis("Mouse X");
                 float dy = Input.GetAxis("Mouse Y");
-                // A padlo 1f-rol 0.001f-re csokkentve: a regi minDistance=120
-                // mellett a magassag sosem ment 20 ala, tehat a Max(1f,...)
-                // padlo sose lepett eletbe. Most (minDistance=100.1) a
-                // magassag akar 0.1-ig is csokkenhet - az 1f-es padlo ott
-                // MESTERSEGESEN MEGALLITOTTA a magassag-aranyos skalazodast
-                // (a forgas sebessege konstans maradt 1 egysegnyi magassag
-                // alatt), ami eppen a legkozelebbi zoom-tartomanyban tunt
-                // "elveszettnek" - ez volt a hiba oka.
-                float altitude = Mathf.Max(0.001f, distance - surfaceRadius);
-                float effectiveRotationSpeed = rotationSpeedPerAltitude * altitude;
-                _yaw += dx * effectiveRotationSpeed * Time.deltaTime;
-                _pitch -= dy * effectiveRotationSpeed * Time.deltaTime;
+                _yaw += dx * rotationSpeed * Time.deltaTime;
+                _pitch -= dy * rotationSpeed * Time.deltaTime;
                 _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
             }
 
