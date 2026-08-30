@@ -36,26 +36,29 @@ namespace WorldGen.Viewer
         [SerializeField] private float maxDistance = 800f;
 
         [SerializeField]
-        [Tooltip("A bolygó sugara (PlanetGridMesh alapértéke 100) - a zoom " +
-                 "(nem a forgás, ld. lent) a FELSZÍNTŐL mért magassággal " +
-                 "(distance - surfaceRadius) skálázódik.")]
+        [Tooltip("A bolygó sugara (PlanetGridMesh alapértéke 100) - MIND a " +
+                 "forgás, MIND a zoom a FELSZÍNTŐL mért magassággal " +
+                 "(distance - surfaceRadius) skálázódik, nem a középponttól " +
+                 "mért nyers távolsággal.")]
         private float surfaceRadius = 100f;
 
         [SerializeField]
-        [Tooltip("Fok/pixel/másodperc, ÁLLANDÓ - NEM skálázódik a zoom-" +
-                 "távolsággal/magassággal. KORÁBBAN a magassággal szorzott " +
-                 "('közel lassabb, távol gyorsabb') skálázást próbáltuk, de ez " +
-                 "tobbszori, egymasnak ellentmondo felhasznaloi visszajelzest " +
-                 "adott (eloszor tul erzekeny, utana a skalazas 'elveszett'-nek " +
-                 "tunt egy padlo-hiba miatt, majd - a padlo javitasa utan - " +
-                 "kozelrol tulzottan gyorsnak erzodott). Az orbit-sugar " +
-                 "(distance) a teljes zoom-tartomanyban dontoen a surfaceRadius " +
-                 "(100) kozeleben marad (100.1-tol csak apro tortekben no a " +
-                 "tenyleges magassaghoz kepest), ezert a 'kozel lassabb' " +
-                 "feltetelezes nem allta meg a helyet a gyakorlatban - az " +
-                 "ALLANDO fok/pixel sebesseg (ahogy a legtobb 3D szerkeszto/ " +
-                 "orbit-kamera is mukodik) egyszerubb es kiszamithatobb.")]
-        private float rotationSpeed = 60f;
+        [Tooltip("Fok/pixel/másodperc, EGYSÉGNYI felszín-feletti magasságra " +
+                 "vetítve - a tényleges forgási sebesség a jelenlegi " +
+                 "magassággal (distance - surfaceRadius) SZORZÓDIK, hogy a " +
+                 "felszín közelében a forgás ÉRDEMBEN lassabb legyen, mint " +
+                 "messziről nézve - így a felszín-részletek változása " +
+                 "kamera-mozgás közben is követhető marad. EXPLICIT " +
+                 "FELHASZNALOI KERES: a magassaggal aranyos lassitas a CEL, " +
+                 "nem opcionalis finomhangolas. FONTOS ELOZMENY: egy korabbi " +
+                 "verzioban itt egy `Mathf.Max(1f, magassag)` padlo volt, ami " +
+                 "a regi (nagyobb) minDistance mellett sose lepett eletbe, de " +
+                 "a mostani, felszinhez nagyon kozeli minDistance-nel (100.1) " +
+                 "MESTERSEGESEN MEGALLITOTTA a skalazodast 1 egysegnyi " +
+                 "magassag alatt - ezt a padlot vegleg 0.001-re csokkentettuk " +
+                 "(ld. Update()), hogy a skalazas a legkozelebbi zoomig is " +
+                 "ervenyben maradjon.")]
+        private float rotationSpeedPerAltitude = 0.3f;
 
         [SerializeField]
         [Tooltip("M9: aranyos (nem additiv) zoom - minden scroll-egyseg " +
@@ -102,8 +105,13 @@ namespace WorldGen.Viewer
             {
                 float dx = Input.GetAxis("Mouse X");
                 float dy = Input.GetAxis("Mouse Y");
-                _yaw += dx * rotationSpeed * Time.deltaTime;
-                _pitch -= dy * rotationSpeed * Time.deltaTime;
+                // Padlo 0.001-en (NEM 1f-en, ld. rotationSpeedPerAltitude
+                // doksija) - igy a magassag-aranyos lassitas a legkozelebbi
+                // zoomig (minDistance=100.1, magassag~0.1) is ervenyben marad.
+                float altitude = Mathf.Max(0.001f, distance - surfaceRadius);
+                float effectiveRotationSpeed = rotationSpeedPerAltitude * altitude;
+                _yaw += dx * effectiveRotationSpeed * Time.deltaTime;
+                _pitch -= dy * effectiveRotationSpeed * Time.deltaTime;
                 _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
             }
 
