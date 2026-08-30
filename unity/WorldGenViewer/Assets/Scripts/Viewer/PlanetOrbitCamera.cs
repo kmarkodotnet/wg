@@ -19,7 +19,20 @@ namespace WorldGen.Viewer
         private Transform target;
 
         [SerializeField] private float distance = 300f;
-        [SerializeField] private float minDistance = 120f;
+
+        [SerializeField]
+        [Tooltip("M9: az eredeti 120-as ertek (surfaceRadius=100 mellett csak " +
+                 "~20 egysegnyi magassagot engedett) SOHA nem ert le a kvadfa-LOD " +
+                 "finomabb szintjeihez (level 6-hoz mar ~5 egysegnyi magassag " +
+                 "kell, level 9-hez ~0.6 - ld. docs/05-milestones.md §9, " +
+                 "AdaptiveQuadTree.GetCenterAndBoundingRadius szamitasa alapjan " +
+                 "mert). Enelkul a leszallasi-zoom finomodasa soha nem valt " +
+                 "lathatova, fuggetlenul attol, hogy a mesh-oldal helyes-e. " +
+                 "FONTOS: ha a jelenetben (PlanetView.unity) ez az ertek mar " +
+                 "felul van irva az Inspectorban, a szerkesztett scene-beli ertek " +
+                 "eloz - ott is csokkentsd kezzel, ha meg mindig 120 all.")]
+        private float minDistance = 100.1f;
+
         [SerializeField] private float maxDistance = 800f;
 
         [SerializeField]
@@ -38,7 +51,18 @@ namespace WorldGen.Viewer
                  "sokkal lassabb, mint messziről nézve.")]
         private float rotationSpeedPerAltitude = 5f;
 
-        [SerializeField] private float zoomSpeed = 150f;
+        [SerializeField]
+        [Tooltip("M9: aranyos (nem additiv) zoom - minden scroll-egyseg " +
+                 "UGYANAKKORA RELATIV valtozast okoz a felszin-feletti " +
+                 "magassagban, fuggetlenul attol, hogy tavol vagy kozel vagyunk. " +
+                 "Ez azert kell, mert a melyebb LOD-szintek (ld. PlanetGridMesh " +
+                 "adaptiveMaxLevel) csak a felszin NAGYON keskeny savjaban " +
+                 "aktivalodnak (pl. level 8-hoz mar ~1.25 egysegnyi magassagon " +
+                 "belul kell lenni egy 100-as sugaru bolygonal) - egy regi, " +
+                 "additiv zoom (150 egyseg/kattintas) gyakorlatilag athuzna " +
+                 "ezen a savon, sose lehetne belelonni. Nagyobb ertek = gyorsabb " +
+                 "zoom scroll-egysegenkent.")]
+        private float zoomSensitivity = 0.15f;
 
         [SerializeField] private float minPitch = -85f;
         [SerializeField] private float maxPitch = 85f;
@@ -78,7 +102,13 @@ namespace WorldGen.Viewer
             float scroll = Input.GetAxis("Mouse ScrollWheel");
             if (Mathf.Abs(scroll) > 0.0001f)
             {
-                distance -= scroll * zoomSpeed;
+                // Aranyos zoom a felszin-feletti magassagon (nem a nyers
+                // kozeppont-tavolsagon) - igy a felszin kozeleben (ahol a
+                // finom LOD-savok vannak) is ugyanolyan HASZNALHATO marad a
+                // zoom, mint messziről, csak kisebb abszolut lepesekkel.
+                float altitude = Mathf.Max(0.001f, distance - surfaceRadius);
+                float newAltitude = altitude * Mathf.Exp(-scroll * zoomSensitivity);
+                distance = surfaceRadius + newAltitude;
                 distance = Mathf.Clamp(distance, minDistance, maxDistance);
             }
 

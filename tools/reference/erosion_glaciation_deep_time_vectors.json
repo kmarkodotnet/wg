@@ -1,0 +1,5416 @@
+{
+ "worldSeed": 184482873278464,
+ "plateCount": 20,
+ "level": 6,
+ "orogenicRelaxationTauMyr": 50.0,
+ "equilibriumFraction": 0.35,
+ "glaciationPeriodMyr": 150.0,
+ "glaciationAmplitudeK": 6.0,
+ "iceThresholdK": 273.15,
+ "tEquatorK": 300.0,
+ "latitudeTempGradientKPerRad": 38.2,
+ "erosionVectors": [
+  {
+   "face": 3,
+   "level": 6,
+   "u": 18,
+   "v": 30,
+   "plateId": 1,
+   "timeMyr": 1288.431,
+   "elevation": -3861.3668520444185,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 0,
+   "v": 24,
+   "plateId": 19,
+   "timeMyr": 641.159,
+   "elevation": 858.3441291980673,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 48,
+   "v": 42,
+   "plateId": 3,
+   "timeMyr": 560.843,
+   "elevation": 1787.0897032324842,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 53,
+   "v": 30,
+   "plateId": 5,
+   "timeMyr": 177.238,
+   "elevation": -3851.5491948101967,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 41,
+   "v": 19,
+   "plateId": 5,
+   "timeMyr": 459.709,
+   "elevation": -3839.2530184740604,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 15,
+   "v": 10,
+   "plateId": 9,
+   "timeMyr": 1293.814,
+   "elevation": -3817.182020642499,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 22,
+   "v": 55,
+   "plateId": 1,
+   "timeMyr": 998.285,
+   "elevation": -3931.3256628870463,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 12,
+   "v": 27,
+   "plateId": 2,
+   "timeMyr": 448.583,
+   "elevation": 2207.2830626670093,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 0,
+   "v": 42,
+   "plateId": 19,
+   "timeMyr": 1250.606,
+   "elevation": 1654.1039684811471,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 59,
+   "v": 24,
+   "plateId": 15,
+   "timeMyr": 104.016,
+   "elevation": 1678.0249968399046,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 21,
+   "v": 42,
+   "plateId": 0,
+   "timeMyr": 958.06,
+   "elevation": -3742.4154767632863,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 1,
+   "v": 35,
+   "plateId": 1,
+   "timeMyr": 1098.162,
+   "elevation": -3705.68325216915,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 2,
+   "v": 12,
+   "plateId": 16,
+   "timeMyr": 392.005,
+   "elevation": 946.178485325117,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 41,
+   "v": 36,
+   "plateId": 2,
+   "timeMyr": 1202.964,
+   "elevation": 1307.7125682046358,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 60,
+   "v": 56,
+   "plateId": 14,
+   "timeMyr": 1917.663,
+   "elevation": -3849.3462022035746,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 54,
+   "v": 6,
+   "plateId": 10,
+   "timeMyr": 410.57,
+   "elevation": 1448.9175517751842,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 22,
+   "v": 8,
+   "plateId": 6,
+   "timeMyr": 1746.145,
+   "elevation": 1406.036633784467,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 2,
+   "v": 54,
+   "plateId": 19,
+   "timeMyr": 1286.703,
+   "elevation": 1813.7953215510934,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 37,
+   "v": 58,
+   "plateId": 3,
+   "timeMyr": 281.572,
+   "elevation": 1357.2037473499124,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 25,
+   "v": 44,
+   "plateId": 4,
+   "timeMyr": 1841.205,
+   "elevation": 1062.964457683812,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 0,
+   "v": 12,
+   "plateId": 6,
+   "timeMyr": 1090.357,
+   "elevation": 1092.6889019896862,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 44,
+   "v": 37,
+   "plateId": 2,
+   "timeMyr": 862.322,
+   "elevation": 988.8649778875481,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 20,
+   "v": 59,
+   "plateId": 3,
+   "timeMyr": 1108.941,
+   "elevation": 1098.2666123682623,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 59,
+   "v": 30,
+   "plateId": 15,
+   "timeMyr": 1552.217,
+   "elevation": 1732.6556902911047,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 44,
+   "v": 63,
+   "plateId": 6,
+   "timeMyr": 1179.364,
+   "elevation": 1179.2784874194826,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 62,
+   "v": 37,
+   "plateId": 3,
+   "timeMyr": 738.997,
+   "elevation": 996.4429868995097,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 5,
+   "v": 31,
+   "plateId": 1,
+   "timeMyr": 142.825,
+   "elevation": -3861.2839197389017,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 17,
+   "v": 47,
+   "plateId": 0,
+   "timeMyr": 171.74,
+   "elevation": -3737.7849476984657,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 7,
+   "v": 25,
+   "plateId": 2,
+   "timeMyr": 308.859,
+   "elevation": 2034.0628306344588,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 16,
+   "v": 53,
+   "plateId": 1,
+   "timeMyr": 287.775,
+   "elevation": -3909.9517008525745,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 59,
+   "v": 57,
+   "plateId": 5,
+   "timeMyr": 145.386,
+   "elevation": -3783.779255644353,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 41,
+   "v": 58,
+   "plateId": 0,
+   "timeMyr": 482.423,
+   "elevation": -3822.554676713342,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 53,
+   "v": 43,
+   "plateId": 15,
+   "timeMyr": 288.087,
+   "elevation": 1164.7824373175981,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 7,
+   "v": 42,
+   "plateId": 15,
+   "timeMyr": 1687.597,
+   "elevation": 1921.4696731532908,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 44,
+   "v": 41,
+   "plateId": 4,
+   "timeMyr": 1082.105,
+   "elevation": 2498.5237698308565,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 49,
+   "v": 8,
+   "plateId": 2,
+   "timeMyr": 1311.324,
+   "elevation": 1037.5955431343616,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 22,
+   "v": 36,
+   "plateId": 0,
+   "timeMyr": 1687.304,
+   "elevation": -3434.082840669855,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 11,
+   "v": 40,
+   "plateId": 19,
+   "timeMyr": 154.114,
+   "elevation": 1405.3557932946494,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 20,
+   "v": 52,
+   "plateId": 0,
+   "timeMyr": 744.621,
+   "elevation": -3885.9691715260415,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 46,
+   "v": 17,
+   "plateId": 3,
+   "timeMyr": 1529.036,
+   "elevation": 1540.5234988005473,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 9,
+   "v": 34,
+   "plateId": 11,
+   "timeMyr": 458.991,
+   "elevation": 868.6208475826502,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 6,
+   "v": 36,
+   "plateId": 15,
+   "timeMyr": 502.847,
+   "elevation": 1975.8632866293458,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 63,
+   "v": 3,
+   "plateId": 5,
+   "timeMyr": 488.629,
+   "elevation": -3877.380296055752,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 43,
+   "v": 32,
+   "plateId": 13,
+   "timeMyr": 786.912,
+   "elevation": 955.0033757011089,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 31,
+   "v": 48,
+   "plateId": 19,
+   "timeMyr": 1809.185,
+   "elevation": 880.8814757321263,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 59,
+   "v": 54,
+   "plateId": 6,
+   "timeMyr": 1890.611,
+   "elevation": 1472.0042610767546,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 7,
+   "v": 25,
+   "plateId": 9,
+   "timeMyr": 1210.734,
+   "elevation": -3820.7247624818406,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 41,
+   "v": 50,
+   "plateId": 2,
+   "timeMyr": 1121.067,
+   "elevation": 1264.1951991357378,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 26,
+   "v": 4,
+   "plateId": 1,
+   "timeMyr": 720.566,
+   "elevation": -3921.4292811995606,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 57,
+   "v": 1,
+   "plateId": 10,
+   "timeMyr": 528.835,
+   "elevation": 1796.3107508231383,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 25,
+   "v": 19,
+   "plateId": 4,
+   "timeMyr": 588.86,
+   "elevation": 1340.4846064971393,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 52,
+   "v": 29,
+   "plateId": 3,
+   "timeMyr": 119.33,
+   "elevation": 1500.0519762216363,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 21,
+   "v": 42,
+   "plateId": 2,
+   "timeMyr": 895.617,
+   "elevation": 863.8819370486912,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 10,
+   "v": 21,
+   "plateId": 6,
+   "timeMyr": 603.433,
+   "elevation": 1401.5454067496457,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 33,
+   "v": 63,
+   "plateId": 14,
+   "timeMyr": 1068.449,
+   "elevation": -3843.8606483454437,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 15,
+   "v": 54,
+   "plateId": 2,
+   "timeMyr": 1904.152,
+   "elevation": 1221.168577924497,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 31,
+   "v": 30,
+   "plateId": 2,
+   "timeMyr": 606.607,
+   "elevation": 1393.9006631580542,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 43,
+   "v": 7,
+   "plateId": 7,
+   "timeMyr": 1934.18,
+   "elevation": 952.6639485853314,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 25,
+   "v": 48,
+   "plateId": 2,
+   "timeMyr": 163.99,
+   "elevation": 883.1945899905531,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 20,
+   "v": 18,
+   "plateId": 6,
+   "timeMyr": 1038.027,
+   "elevation": 1482.1750100503193,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 6,
+   "v": 29,
+   "plateId": 6,
+   "timeMyr": 372.08,
+   "elevation": 1602.7376349524948,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 28,
+   "v": 45,
+   "plateId": 4,
+   "timeMyr": 993.85,
+   "elevation": 1289.6352632517705,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 25,
+   "v": 6,
+   "plateId": 2,
+   "timeMyr": 808.216,
+   "elevation": 1131.5487890422364,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 58,
+   "v": 7,
+   "plateId": 10,
+   "timeMyr": 1021.564,
+   "elevation": 1431.4200015415115,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 47,
+   "v": 47,
+   "plateId": 14,
+   "timeMyr": 1864.789,
+   "elevation": -3929.7815788641965,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 45,
+   "v": 50,
+   "plateId": 14,
+   "timeMyr": 1730.373,
+   "elevation": -3944.423982205608,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 13,
+   "v": 42,
+   "plateId": 2,
+   "timeMyr": 167.65,
+   "elevation": 897.1388838485238,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 37,
+   "v": 5,
+   "plateId": 17,
+   "timeMyr": 766.097,
+   "elevation": -3911.869519066598,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 3,
+   "v": 22,
+   "plateId": 9,
+   "timeMyr": 1618.223,
+   "elevation": -3933.9548928698778,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 28,
+   "v": 47,
+   "plateId": 1,
+   "timeMyr": 375.891,
+   "elevation": -3766.8081160973566,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 10,
+   "v": 52,
+   "plateId": 15,
+   "timeMyr": 1806.348,
+   "elevation": 1046.2963901730222,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 31,
+   "v": 49,
+   "plateId": 1,
+   "timeMyr": 564.74,
+   "elevation": -3820.8327313768687,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 31,
+   "v": 34,
+   "plateId": 2,
+   "timeMyr": 401.017,
+   "elevation": 1280.5431523255822,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 9,
+   "v": 52,
+   "plateId": 2,
+   "timeMyr": 1764.105,
+   "elevation": 1405.1093310875463,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 49,
+   "v": 55,
+   "plateId": 18,
+   "timeMyr": 1545.544,
+   "elevation": 958.01289916447,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 3,
+   "v": 38,
+   "plateId": 11,
+   "timeMyr": 568.866,
+   "elevation": 1246.9107508267286,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 33,
+   "v": 60,
+   "plateId": 0,
+   "timeMyr": 880.905,
+   "elevation": -3824.4659442311286,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 61,
+   "v": 20,
+   "plateId": 11,
+   "timeMyr": 979.985,
+   "elevation": 2093.568424515325,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 25,
+   "v": 34,
+   "plateId": 11,
+   "timeMyr": 889.342,
+   "elevation": 1208.412783593682,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 62,
+   "v": 6,
+   "plateId": 11,
+   "timeMyr": 186.656,
+   "elevation": 1442.4805175200986,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 42,
+   "v": 49,
+   "plateId": 0,
+   "timeMyr": 1784.578,
+   "elevation": -3839.3744795207745,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 8,
+   "v": 42,
+   "plateId": 15,
+   "timeMyr": 999.382,
+   "elevation": 1122.710293567989,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 13,
+   "v": 57,
+   "plateId": 1,
+   "timeMyr": 1245.667,
+   "elevation": -3927.459379420853,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 52,
+   "v": 44,
+   "plateId": 5,
+   "timeMyr": 1063.601,
+   "elevation": -3886.132918779249,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 11,
+   "v": 35,
+   "plateId": 4,
+   "timeMyr": 1427.81,
+   "elevation": 1037.4309876453844,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 8,
+   "v": 61,
+   "plateId": 6,
+   "timeMyr": 1781.625,
+   "elevation": 987.2630738923947,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 34,
+   "v": 30,
+   "plateId": 8,
+   "timeMyr": 1467.116,
+   "elevation": -3832.938949266828,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 16,
+   "v": 39,
+   "plateId": 0,
+   "timeMyr": 1857.246,
+   "elevation": -3490.6334385300156,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 11,
+   "v": 36,
+   "plateId": 1,
+   "timeMyr": 537.119,
+   "elevation": -3908.1983869987334,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 30,
+   "v": 44,
+   "plateId": 19,
+   "timeMyr": 704.576,
+   "elevation": 894.932851775689,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 46,
+   "v": 52,
+   "plateId": 3,
+   "timeMyr": 1280.996,
+   "elevation": 1279.2256016376127,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 29,
+   "v": 14,
+   "plateId": 12,
+   "timeMyr": 300.046,
+   "elevation": 1215.256174313081,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 10,
+   "v": 43,
+   "plateId": 19,
+   "timeMyr": 1945.277,
+   "elevation": 1722.249575865199,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 56,
+   "v": 38,
+   "plateId": 13,
+   "timeMyr": 1978.863,
+   "elevation": 1360.0674436394536,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 31,
+   "v": 56,
+   "plateId": 0,
+   "timeMyr": 566.583,
+   "elevation": -3912.119963898317,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 62,
+   "v": 20,
+   "plateId": 5,
+   "timeMyr": 16.759,
+   "elevation": -3876.536686965507,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 11,
+   "v": 33,
+   "plateId": 11,
+   "timeMyr": 1638.342,
+   "elevation": 1286.498733485622,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 46,
+   "v": 5,
+   "plateId": 7,
+   "timeMyr": 560.595,
+   "elevation": 1268.1996332318224,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 13,
+   "v": 24,
+   "plateId": 11,
+   "timeMyr": 887.517,
+   "elevation": 1637.0450982194197,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 32,
+   "v": 42,
+   "plateId": 0,
+   "timeMyr": 897.366,
+   "elevation": -3733.712255987804,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 22,
+   "v": 9,
+   "plateId": 6,
+   "timeMyr": 1822.633,
+   "elevation": 1037.4708854046035,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 14,
+   "v": 57,
+   "plateId": 14,
+   "timeMyr": 906.665,
+   "elevation": -3972.285109229036,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 17,
+   "v": 40,
+   "plateId": 1,
+   "timeMyr": 1758.443,
+   "elevation": -3895.348677343611,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 43,
+   "v": 41,
+   "plateId": 14,
+   "timeMyr": 1057.169,
+   "elevation": -3905.9829142621506,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 6,
+   "v": 53,
+   "plateId": 11,
+   "timeMyr": 673.874,
+   "elevation": 1088.6975320547056,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 36,
+   "v": 57,
+   "plateId": 0,
+   "timeMyr": 1655.168,
+   "elevation": -3831.234065468949,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 7,
+   "v": 18,
+   "plateId": 1,
+   "timeMyr": 1320.76,
+   "elevation": -3928.957307922634,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 5,
+   "v": 63,
+   "plateId": 3,
+   "timeMyr": 113.551,
+   "elevation": 1286.726783770623,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 25,
+   "v": 44,
+   "plateId": 19,
+   "timeMyr": 1469.153,
+   "elevation": 979.6286332717282,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 23,
+   "v": 50,
+   "plateId": 1,
+   "timeMyr": 1288.197,
+   "elevation": -3769.048428090131,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 0,
+   "v": 10,
+   "plateId": 11,
+   "timeMyr": 1399.581,
+   "elevation": 1647.4658704132992,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 30,
+   "v": 20,
+   "plateId": 2,
+   "timeMyr": 1442.615,
+   "elevation": 1129.610658819915,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 43,
+   "v": 50,
+   "plateId": 3,
+   "timeMyr": 1126.955,
+   "elevation": 2250.402563710714,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 54,
+   "v": 62,
+   "plateId": 0,
+   "timeMyr": 646.723,
+   "elevation": -3998.372972778877,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 34,
+   "v": 17,
+   "plateId": 5,
+   "timeMyr": 1842.265,
+   "elevation": -3891.0274734723243,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 20,
+   "v": 37,
+   "plateId": 4,
+   "timeMyr": 1903.942,
+   "elevation": 816.8627154751002,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 32,
+   "v": 12,
+   "plateId": 5,
+   "timeMyr": 1488.963,
+   "elevation": -3901.069547045729,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 13,
+   "v": 28,
+   "plateId": 9,
+   "timeMyr": 20.199,
+   "elevation": -3776.97530804734,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 59,
+   "v": 63,
+   "plateId": 3,
+   "timeMyr": 1828.012,
+   "elevation": 1311.9321486821832,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 1,
+   "v": 35,
+   "plateId": 15,
+   "timeMyr": 1714.003,
+   "elevation": 1509.662376024503,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 5,
+   "v": 5,
+   "plateId": 17,
+   "timeMyr": 147.569,
+   "elevation": -3909.2434158460337,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 33,
+   "v": 0,
+   "plateId": 6,
+   "timeMyr": 1604.787,
+   "elevation": 1330.9454134649027,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 50,
+   "v": 14,
+   "plateId": 13,
+   "timeMyr": 1887.469,
+   "elevation": 1129.5267452190903,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 24,
+   "v": 55,
+   "plateId": 2,
+   "timeMyr": 1250.352,
+   "elevation": 962.1292834805055,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 16,
+   "v": 38,
+   "plateId": 2,
+   "timeMyr": 872.108,
+   "elevation": 856.9458698819726,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 44,
+   "v": 57,
+   "plateId": 5,
+   "timeMyr": 382.585,
+   "elevation": -3861.744890836724,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 45,
+   "v": 57,
+   "plateId": 14,
+   "timeMyr": 187.092,
+   "elevation": -3932.02669865206,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 19,
+   "v": 51,
+   "plateId": 4,
+   "timeMyr": 276.435,
+   "elevation": 912.2616864119229,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 2,
+   "v": 16,
+   "plateId": 6,
+   "timeMyr": 1814.731,
+   "elevation": 1403.8476591403132,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 52,
+   "v": 35,
+   "plateId": 5,
+   "timeMyr": 311.607,
+   "elevation": -3697.3545305921193,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 10,
+   "v": 40,
+   "plateId": 11,
+   "timeMyr": 88.794,
+   "elevation": 845.658298094004,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 23,
+   "v": 12,
+   "plateId": 2,
+   "timeMyr": 809.373,
+   "elevation": 1353.4582412129696,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 27,
+   "v": 31,
+   "plateId": 1,
+   "timeMyr": 1260.996,
+   "elevation": -3865.1215783816574,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 31,
+   "v": 37,
+   "plateId": 2,
+   "timeMyr": 1462.435,
+   "elevation": 1121.8296623200094,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 14,
+   "v": 60,
+   "plateId": 2,
+   "timeMyr": 1646.182,
+   "elevation": 1190.535020514473,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 6,
+   "v": 50,
+   "plateId": 0,
+   "timeMyr": 1086.972,
+   "elevation": -3943.6565877198104,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 36,
+   "v": 36,
+   "plateId": 9,
+   "timeMyr": 1700.178,
+   "elevation": -3912.480640557063,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 62,
+   "v": 14,
+   "plateId": 5,
+   "timeMyr": 1430.434,
+   "elevation": -3750.9395517213793,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 43,
+   "v": 8,
+   "plateId": 13,
+   "timeMyr": 635.306,
+   "elevation": 1476.5701217387323,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 57,
+   "v": 6,
+   "plateId": 2,
+   "timeMyr": 472.017,
+   "elevation": 824.7058573751355,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 50,
+   "v": 29,
+   "plateId": 2,
+   "timeMyr": 841.282,
+   "elevation": 2698.697185104496,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 4,
+   "v": 7,
+   "plateId": 11,
+   "timeMyr": 701.786,
+   "elevation": 1403.0487341890603,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 35,
+   "v": 9,
+   "plateId": 6,
+   "timeMyr": 1060.197,
+   "elevation": 1224.8644323085841,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 12,
+   "v": 7,
+   "plateId": 2,
+   "timeMyr": 724.704,
+   "elevation": 1018.9563553641366,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 28,
+   "v": 2,
+   "plateId": 2,
+   "timeMyr": 248.24,
+   "elevation": 1345.653553436624,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 42,
+   "v": 1,
+   "plateId": 10,
+   "timeMyr": 429.653,
+   "elevation": 1408.7287277487167,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 11,
+   "v": 34,
+   "plateId": 4,
+   "timeMyr": 988.506,
+   "elevation": 1103.562350786397,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 49,
+   "v": 46,
+   "plateId": 18,
+   "timeMyr": 1011.94,
+   "elevation": 1916.1402149372443,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 36,
+   "v": 4,
+   "plateId": 5,
+   "timeMyr": 126.028,
+   "elevation": -3950.9916644333093,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 25,
+   "v": 24,
+   "plateId": 6,
+   "timeMyr": 1525.91,
+   "elevation": 1419.084026662776,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 47,
+   "v": 4,
+   "plateId": 10,
+   "timeMyr": 890.894,
+   "elevation": 1883.8627735032912,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 57,
+   "v": 40,
+   "plateId": 15,
+   "timeMyr": 921.142,
+   "elevation": 1096.4062478214655,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 22,
+   "v": 40,
+   "plateId": 0,
+   "timeMyr": 1058.331,
+   "elevation": -3804.1214505860967,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 47,
+   "v": 51,
+   "plateId": 6,
+   "timeMyr": 1904.013,
+   "elevation": 1088.0616796220238,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 44,
+   "v": 27,
+   "plateId": 2,
+   "timeMyr": 842.582,
+   "elevation": 1286.6986580134778,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 7,
+   "v": 10,
+   "plateId": 16,
+   "timeMyr": 510.615,
+   "elevation": 1382.6529199016652,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 24,
+   "v": 4,
+   "plateId": 6,
+   "timeMyr": 835.768,
+   "elevation": 1104.2966330773247,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 0,
+   "v": 59,
+   "plateId": 14,
+   "timeMyr": 1125.669,
+   "elevation": -3810.94716392786,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 9,
+   "v": 10,
+   "plateId": 16,
+   "timeMyr": 1307.445,
+   "elevation": 924.918944795944,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 19,
+   "v": 32,
+   "plateId": 2,
+   "timeMyr": 1537.574,
+   "elevation": 1128.5472701655185,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 55,
+   "v": 10,
+   "plateId": 5,
+   "timeMyr": 887.308,
+   "elevation": -3836.694754658829,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 38,
+   "v": 21,
+   "plateId": 2,
+   "timeMyr": 246.2,
+   "elevation": 1159.9892695849455,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 45,
+   "v": 58,
+   "plateId": 3,
+   "timeMyr": 121.469,
+   "elevation": 1455.074059326897,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 35,
+   "v": 33,
+   "plateId": 2,
+   "timeMyr": 798.263,
+   "elevation": 1872.4232728476884,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 61,
+   "v": 59,
+   "plateId": 18,
+   "timeMyr": 1503.94,
+   "elevation": 829.6661856123214,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 3,
+   "v": 52,
+   "plateId": 15,
+   "timeMyr": 799.69,
+   "elevation": 1414.141895518825,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 25,
+   "v": 47,
+   "plateId": 19,
+   "timeMyr": 290.628,
+   "elevation": 980.0826656521676,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 57,
+   "v": 57,
+   "plateId": 14,
+   "timeMyr": 475.452,
+   "elevation": -3675.2425806975743,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 14,
+   "v": 53,
+   "plateId": 19,
+   "timeMyr": 1959.411,
+   "elevation": 842.3121983943295,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 34,
+   "v": 34,
+   "plateId": 9,
+   "timeMyr": 450.147,
+   "elevation": -3814.5688449362938,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 7,
+   "v": 10,
+   "plateId": 1,
+   "timeMyr": 1528.858,
+   "elevation": -3906.8575241147905,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 36,
+   "v": 44,
+   "plateId": 0,
+   "timeMyr": 917.291,
+   "elevation": -3854.8471099514795,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 43,
+   "v": 62,
+   "plateId": 14,
+   "timeMyr": 248.13,
+   "elevation": -3895.223392092321,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 51,
+   "v": 61,
+   "plateId": 14,
+   "timeMyr": 1312.774,
+   "elevation": -3832.1550837870855,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 45,
+   "v": 61,
+   "plateId": 14,
+   "timeMyr": 1556.455,
+   "elevation": -3861.693630683623,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 44,
+   "v": 36,
+   "plateId": 2,
+   "timeMyr": 476.974,
+   "elevation": 1097.9229947702652,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 8,
+   "v": 23,
+   "plateId": 9,
+   "timeMyr": 1157.938,
+   "elevation": -3844.065654758659,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 28,
+   "v": 38,
+   "plateId": 0,
+   "timeMyr": 945.605,
+   "elevation": -3776.6551843253897,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 44,
+   "v": 44,
+   "plateId": 2,
+   "timeMyr": 1323.938,
+   "elevation": 1388.5739320561604,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 33,
+   "v": 8,
+   "plateId": 6,
+   "timeMyr": 355.291,
+   "elevation": 1065.2315345038805,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 36,
+   "v": 37,
+   "plateId": 13,
+   "timeMyr": 1670.502,
+   "elevation": 1394.7954334442325,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 63,
+   "v": 9,
+   "plateId": 9,
+   "timeMyr": 473.368,
+   "elevation": -3926.8464932884035,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 4,
+   "v": 50,
+   "plateId": 2,
+   "timeMyr": 1481.127,
+   "elevation": 1715.9144919505866,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 41,
+   "v": 35,
+   "plateId": 13,
+   "timeMyr": 274.929,
+   "elevation": 1192.2122224524633,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 16,
+   "v": 45,
+   "plateId": 1,
+   "timeMyr": 1033.976,
+   "elevation": -3768.3924647064287,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 61,
+   "v": 17,
+   "plateId": 12,
+   "timeMyr": 567.078,
+   "elevation": 1019.5660481176299,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 41,
+   "v": 8,
+   "plateId": 2,
+   "timeMyr": 851.067,
+   "elevation": 1208.47374953095,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 61,
+   "v": 20,
+   "plateId": 3,
+   "timeMyr": 298.489,
+   "elevation": 1799.9283872122487,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 35,
+   "v": 37,
+   "plateId": 9,
+   "timeMyr": 539.444,
+   "elevation": -3699.2987792103977,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 62,
+   "v": 37,
+   "plateId": 5,
+   "timeMyr": 1639.95,
+   "elevation": -3968.911702782116,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 23,
+   "v": 14,
+   "plateId": 12,
+   "timeMyr": 1838.586,
+   "elevation": 1098.2530254814708,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 59,
+   "v": 49,
+   "plateId": 3,
+   "timeMyr": 1906.259,
+   "elevation": 1079.7097191010014,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 61,
+   "v": 17,
+   "plateId": 5,
+   "timeMyr": 1716.59,
+   "elevation": -3883.4733440715404,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 37,
+   "v": 41,
+   "plateId": 9,
+   "timeMyr": 1395.433,
+   "elevation": -3883.0622539017136,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 53,
+   "v": 6,
+   "plateId": 16,
+   "timeMyr": 1173.346,
+   "elevation": 1461.7843623957053,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 63,
+   "v": 35,
+   "plateId": 11,
+   "timeMyr": 767.34,
+   "elevation": 1517.4421189182501,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 14,
+   "v": 10,
+   "plateId": 6,
+   "timeMyr": 928.879,
+   "elevation": 1095.690083580397,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 25,
+   "v": 25,
+   "plateId": 1,
+   "timeMyr": 1381.659,
+   "elevation": -3859.1774226024863,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 42,
+   "v": 18,
+   "plateId": 13,
+   "timeMyr": 1585.176,
+   "elevation": 1480.6340206033642,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 61,
+   "v": 1,
+   "plateId": 3,
+   "timeMyr": 1820.23,
+   "elevation": 1077.6311000465334,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 35,
+   "v": 15,
+   "plateId": 10,
+   "timeMyr": 949.195,
+   "elevation": 965.4566704338704,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 40,
+   "v": 26,
+   "plateId": 5,
+   "timeMyr": 1468.418,
+   "elevation": -3859.9066424638313,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 28,
+   "v": 25,
+   "plateId": 2,
+   "timeMyr": 372.464,
+   "elevation": 1170.7608551303533,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 16,
+   "v": 32,
+   "plateId": 2,
+   "timeMyr": 1411.483,
+   "elevation": 1601.4030195892897,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 14,
+   "v": 2,
+   "plateId": 16,
+   "timeMyr": 1582.871,
+   "elevation": 1296.3307192395685,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 33,
+   "v": 19,
+   "plateId": 5,
+   "timeMyr": 1872.805,
+   "elevation": -3991.936583242123,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 30,
+   "v": 46,
+   "plateId": 4,
+   "timeMyr": 1930.437,
+   "elevation": 768.7671992583681,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 34,
+   "v": 58,
+   "plateId": 0,
+   "timeMyr": 812.806,
+   "elevation": -3850.039456241596,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 10,
+   "v": 46,
+   "plateId": 15,
+   "timeMyr": 90.864,
+   "elevation": 1528.7782227224038,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 14,
+   "v": 10,
+   "plateId": 17,
+   "timeMyr": 1753.073,
+   "elevation": -3927.853696922158,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 52,
+   "v": 9,
+   "plateId": 7,
+   "timeMyr": 1534.621,
+   "elevation": 1628.0236064398973,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 15,
+   "v": 55,
+   "plateId": 2,
+   "timeMyr": 1834.878,
+   "elevation": 1099.094828288869,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 53,
+   "v": 32,
+   "plateId": 13,
+   "timeMyr": 1346.258,
+   "elevation": 2174.6515498145595,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 42,
+   "v": 16,
+   "plateId": 2,
+   "timeMyr": 352.143,
+   "elevation": 1020.585118124346,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 60,
+   "v": 31,
+   "plateId": 19,
+   "timeMyr": 186.846,
+   "elevation": 1660.7654361395676,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 27,
+   "v": 60,
+   "plateId": 0,
+   "timeMyr": 315.911,
+   "elevation": -3863.2529836397352,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 9,
+   "v": 2,
+   "plateId": 5,
+   "timeMyr": 1030.302,
+   "elevation": -3959.3699989174615,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 3,
+   "v": 7,
+   "plateId": 6,
+   "timeMyr": 1681.284,
+   "elevation": 901.6139665640036,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 4,
+   "v": 49,
+   "plateId": 0,
+   "timeMyr": 572.837,
+   "elevation": -3923.7134010381374,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 6,
+   "v": 48,
+   "plateId": 11,
+   "timeMyr": 1342.296,
+   "elevation": 1217.5654491584182,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 24,
+   "v": 2,
+   "plateId": 17,
+   "timeMyr": 1649.214,
+   "elevation": -3821.973777674151,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 57,
+   "v": 0,
+   "plateId": 7,
+   "timeMyr": 1809.85,
+   "elevation": 997.5625622277797,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 60,
+   "v": 60,
+   "plateId": 6,
+   "timeMyr": 1544.599,
+   "elevation": 896.9292464835171,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 8,
+   "v": 13,
+   "plateId": 6,
+   "timeMyr": 1193.047,
+   "elevation": 1525.020201114553,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 10,
+   "v": 7,
+   "plateId": 5,
+   "timeMyr": 720.917,
+   "elevation": -3969.670783514385,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 10,
+   "v": 11,
+   "plateId": 16,
+   "timeMyr": 1095.922,
+   "elevation": 1292.938296289999,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 61,
+   "v": 34,
+   "plateId": 15,
+   "timeMyr": 1736.578,
+   "elevation": 1433.2447452210636,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 47,
+   "v": 9,
+   "plateId": 13,
+   "timeMyr": 1267.992,
+   "elevation": 1810.7269279196641,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 7,
+   "v": 15,
+   "plateId": 2,
+   "timeMyr": 1578.186,
+   "elevation": 1585.2375121471841,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 25,
+   "v": 24,
+   "plateId": 6,
+   "timeMyr": 1477.698,
+   "elevation": 1419.084026662776,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 45,
+   "v": 22,
+   "plateId": 5,
+   "timeMyr": 1878.344,
+   "elevation": -3941.789668564401,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 13,
+   "v": 7,
+   "plateId": 2,
+   "timeMyr": 1702.404,
+   "elevation": 1235.644453497243,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 35,
+   "v": 40,
+   "plateId": 2,
+   "timeMyr": 1090.011,
+   "elevation": 1678.3289929079403,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 43,
+   "v": 62,
+   "plateId": 2,
+   "timeMyr": 1744.035,
+   "elevation": 886.2138545773007,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 44,
+   "v": 3,
+   "plateId": 2,
+   "timeMyr": 1601.187,
+   "elevation": 1214.9517480503528,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 24,
+   "v": 33,
+   "plateId": 0,
+   "timeMyr": 196.196,
+   "elevation": -3804.3240852351223,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 46,
+   "v": 16,
+   "plateId": 8,
+   "timeMyr": 935.985,
+   "elevation": -3858.8958906839903,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 56,
+   "v": 55,
+   "plateId": 14,
+   "timeMyr": 708.139,
+   "elevation": -3792.3918222380544,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 9,
+   "v": 25,
+   "plateId": 4,
+   "timeMyr": 1289.569,
+   "elevation": 1207.5193364137926,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 55,
+   "v": 0,
+   "plateId": 10,
+   "timeMyr": 1913.297,
+   "elevation": 1989.9103143198852,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 37,
+   "v": 36,
+   "plateId": 9,
+   "timeMyr": 328.944,
+   "elevation": -3770.612975350664,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 26,
+   "v": 58,
+   "plateId": 3,
+   "timeMyr": 802.386,
+   "elevation": 940.8465035409304,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 10,
+   "v": 29,
+   "plateId": 2,
+   "timeMyr": 50.943,
+   "elevation": 1682.9883075767762,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 52,
+   "v": 23,
+   "plateId": 2,
+   "timeMyr": 1958.814,
+   "elevation": 1949.7114886046238,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 9,
+   "v": 29,
+   "plateId": 4,
+   "timeMyr": 1817.556,
+   "elevation": 1233.0287272529126,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 31,
+   "v": 57,
+   "plateId": 2,
+   "timeMyr": 396.136,
+   "elevation": 2234.623279375736,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 36,
+   "v": 9,
+   "plateId": 5,
+   "timeMyr": 85.592,
+   "elevation": -3988.8635836978633,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 9,
+   "v": 49,
+   "plateId": 15,
+   "timeMyr": 1818.964,
+   "elevation": 761.3205511137605,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 34,
+   "v": 8,
+   "plateId": 8,
+   "timeMyr": 156.278,
+   "elevation": -3921.8196911819773,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 1,
+   "v": 50,
+   "plateId": 15,
+   "timeMyr": 1581.96,
+   "elevation": 2021.0211507479046,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 24,
+   "v": 23,
+   "plateId": 11,
+   "timeMyr": 482.121,
+   "elevation": 1244.861926053543,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 3,
+   "v": 45,
+   "plateId": 15,
+   "timeMyr": 569.752,
+   "elevation": 1905.196106705962,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 30,
+   "v": 39,
+   "plateId": 1,
+   "timeMyr": 481.063,
+   "elevation": -3914.3049742204307,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 24,
+   "v": 9,
+   "plateId": 17,
+   "timeMyr": 209.338,
+   "elevation": -3809.7260294107386,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 43,
+   "v": 22,
+   "plateId": 2,
+   "timeMyr": 1426.165,
+   "elevation": 1860.6285558754519,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 11,
+   "v": 8,
+   "plateId": 16,
+   "timeMyr": 622.124,
+   "elevation": 2164.2603751974975,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 17,
+   "v": 35,
+   "plateId": 9,
+   "timeMyr": 354.298,
+   "elevation": -3876.3803940331204,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 51,
+   "v": 7,
+   "plateId": 3,
+   "timeMyr": 655.133,
+   "elevation": 1275.3611372258913,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 42,
+   "v": 3,
+   "plateId": 10,
+   "timeMyr": 685.97,
+   "elevation": 1437.0783878193931,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 48,
+   "v": 0,
+   "plateId": 10,
+   "timeMyr": 331.239,
+   "elevation": 1184.3677793246577,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 44,
+   "v": 1,
+   "plateId": 10,
+   "timeMyr": 1799.449,
+   "elevation": 1288.5165793403633,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 26,
+   "v": 41,
+   "plateId": 19,
+   "timeMyr": 311.752,
+   "elevation": 993.0640704992951,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 42,
+   "v": 35,
+   "plateId": 3,
+   "timeMyr": 1469.084,
+   "elevation": 1879.552108224564,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 60,
+   "v": 32,
+   "plateId": 13,
+   "timeMyr": 13.567,
+   "elevation": 1018.7349822942992,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 62,
+   "v": 24,
+   "plateId": 3,
+   "timeMyr": 158.715,
+   "elevation": 1833.1743351072462,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 47,
+   "v": 4,
+   "plateId": 7,
+   "timeMyr": 910.408,
+   "elevation": 1397.8534798842848,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 34,
+   "v": 63,
+   "plateId": 14,
+   "timeMyr": 1816.238,
+   "elevation": -3844.6011446733132,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 39,
+   "v": 19,
+   "plateId": 13,
+   "timeMyr": 1003.512,
+   "elevation": 1480.228330616094,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 38,
+   "v": 45,
+   "plateId": 19,
+   "timeMyr": 1645.379,
+   "elevation": 1146.6808502000242,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 54,
+   "v": 9,
+   "plateId": 10,
+   "timeMyr": 1599.019,
+   "elevation": 2049.72165011542,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 57,
+   "v": 61,
+   "plateId": 14,
+   "timeMyr": 882.173,
+   "elevation": -3690.275195118747,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 37,
+   "v": 63,
+   "plateId": 2,
+   "timeMyr": 613.408,
+   "elevation": 1154.3367423957918,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 33,
+   "v": 63,
+   "plateId": 6,
+   "timeMyr": 1490.727,
+   "elevation": 1785.012115099038,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 9,
+   "v": 11,
+   "plateId": 11,
+   "timeMyr": 861.508,
+   "elevation": 1192.463908603536,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 57,
+   "v": 24,
+   "plateId": 18,
+   "timeMyr": 1281.548,
+   "elevation": 2436.7920323188005,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 19,
+   "v": 19,
+   "plateId": 9,
+   "timeMyr": 1795.191,
+   "elevation": -3896.1134474054456,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 28,
+   "v": 0,
+   "plateId": 2,
+   "timeMyr": 1643.492,
+   "elevation": 1118.3230244919077,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 17,
+   "v": 49,
+   "plateId": 19,
+   "timeMyr": 734.492,
+   "elevation": 895.1399346699312,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 47,
+   "v": 10,
+   "plateId": 2,
+   "timeMyr": 653.91,
+   "elevation": 1032.8589234580963,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 55,
+   "v": 0,
+   "plateId": 5,
+   "timeMyr": 33.44,
+   "elevation": -3810.6313506337583,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 42,
+   "v": 3,
+   "plateId": 10,
+   "timeMyr": 660.207,
+   "elevation": 1437.0783878193931,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 56,
+   "v": 58,
+   "plateId": 3,
+   "timeMyr": 1731.146,
+   "elevation": 1197.8503304953601,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 58,
+   "v": 13,
+   "plateId": 11,
+   "timeMyr": 1257.414,
+   "elevation": 2201.3276431350214,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 30,
+   "v": 17,
+   "plateId": 8,
+   "timeMyr": 1600.164,
+   "elevation": -3985.0157358172437,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 28,
+   "v": 6,
+   "plateId": 6,
+   "timeMyr": 1150.009,
+   "elevation": 977.5692425944947,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 16,
+   "v": 23,
+   "plateId": 2,
+   "timeMyr": 1334.47,
+   "elevation": 1456.1071892531181,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 7,
+   "v": 35,
+   "plateId": 15,
+   "timeMyr": 1142.652,
+   "elevation": 1705.1691421700605,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 18,
+   "v": 3,
+   "plateId": 17,
+   "timeMyr": 1408.348,
+   "elevation": -3909.3028366399562,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 37,
+   "v": 1,
+   "plateId": 2,
+   "timeMyr": 943.676,
+   "elevation": 1376.6673835312831,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 59,
+   "v": 6,
+   "plateId": 3,
+   "timeMyr": 656.604,
+   "elevation": 1274.2098895175168,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 11,
+   "v": 62,
+   "plateId": 0,
+   "timeMyr": 212.172,
+   "elevation": -3992.5402221596682,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 56,
+   "v": 29,
+   "plateId": 13,
+   "timeMyr": 136.31,
+   "elevation": 2597.707664567789,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 4,
+   "v": 27,
+   "plateId": 1,
+   "timeMyr": 1905.441,
+   "elevation": -3821.0238223708757,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 36,
+   "v": 24,
+   "plateId": 8,
+   "timeMyr": 1029.265,
+   "elevation": -3875.1677054021143,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 55,
+   "v": 31,
+   "plateId": 18,
+   "timeMyr": 231.252,
+   "elevation": 1165.1875569988838,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 34,
+   "v": 57,
+   "plateId": 6,
+   "timeMyr": 1014.204,
+   "elevation": 850.8496921398188,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 0,
+   "v": 23,
+   "plateId": 5,
+   "timeMyr": 358.389,
+   "elevation": -3880.4662085408136,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 15,
+   "v": 18,
+   "plateId": 6,
+   "timeMyr": 1753.624,
+   "elevation": 2049.425283372533,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 57,
+   "v": 63,
+   "plateId": 14,
+   "timeMyr": 1820.286,
+   "elevation": -3735.411145304776,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 34,
+   "v": 40,
+   "plateId": 14,
+   "timeMyr": 1551.473,
+   "elevation": -3975.482241259943,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 11,
+   "v": 27,
+   "plateId": 2,
+   "timeMyr": 1291.79,
+   "elevation": 1670.6304469077932,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 18,
+   "v": 23,
+   "plateId": 11,
+   "timeMyr": 426.446,
+   "elevation": 2042.4706651502293,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 19,
+   "v": 20,
+   "plateId": 1,
+   "timeMyr": 1297.049,
+   "elevation": -3705.0637208674198,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 4,
+   "v": 8,
+   "plateId": 6,
+   "timeMyr": 754.522,
+   "elevation": 890.1753000919346,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 14,
+   "v": 13,
+   "plateId": 11,
+   "timeMyr": 201.08,
+   "elevation": 1638.586903362168,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 39,
+   "v": 41,
+   "plateId": 0,
+   "timeMyr": 956.586,
+   "elevation": -3811.4567180017148,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 23,
+   "v": 18,
+   "plateId": 1,
+   "timeMyr": 810.022,
+   "elevation": -3732.655097975149,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 52,
+   "v": 12,
+   "plateId": 10,
+   "timeMyr": 76.502,
+   "elevation": 1390.191113518476,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 11,
+   "v": 52,
+   "plateId": 2,
+   "timeMyr": 1507.21,
+   "elevation": 1604.7375182815751,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 59,
+   "v": 57,
+   "plateId": 6,
+   "timeMyr": 239.935,
+   "elevation": 1262.1697313837847,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 14,
+   "v": 45,
+   "plateId": 19,
+   "timeMyr": 988.442,
+   "elevation": 1787.4668959857727,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 51,
+   "v": 14,
+   "plateId": 2,
+   "timeMyr": 934.635,
+   "elevation": 1521.2978262838405,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 2,
+   "v": 2,
+   "plateId": 16,
+   "timeMyr": 1054.411,
+   "elevation": 1659.8872529671833,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 10,
+   "v": 9,
+   "plateId": 17,
+   "timeMyr": 1759.849,
+   "elevation": -4000.757926395631,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 34,
+   "v": 5,
+   "plateId": 2,
+   "timeMyr": 533.449,
+   "elevation": 1556.0091470758143,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 48,
+   "v": 16,
+   "plateId": 2,
+   "timeMyr": 878.174,
+   "elevation": 1167.1329609624718,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 34,
+   "v": 37,
+   "plateId": 0,
+   "timeMyr": 1582.861,
+   "elevation": -3896.1042108378965,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 59,
+   "v": 57,
+   "plateId": 6,
+   "timeMyr": 1351.048,
+   "elevation": 1262.1697313837847,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 53,
+   "v": 32,
+   "plateId": 18,
+   "timeMyr": 773.353,
+   "elevation": 2157.4674549792885,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 16,
+   "v": 38,
+   "plateId": 0,
+   "timeMyr": 1513.737,
+   "elevation": -3580.476882176517,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 44,
+   "v": 58,
+   "plateId": 5,
+   "timeMyr": 1061.306,
+   "elevation": -3820.358581159815,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 59,
+   "v": 34,
+   "plateId": 5,
+   "timeMyr": 1596.462,
+   "elevation": -3932.463062400048,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 45,
+   "v": 37,
+   "plateId": 18,
+   "timeMyr": 376.86,
+   "elevation": 1482.591068315639,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 29,
+   "v": 1,
+   "plateId": 17,
+   "timeMyr": 1724.782,
+   "elevation": -3820.105371069857,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 2,
+   "v": 42,
+   "plateId": 1,
+   "timeMyr": 898.834,
+   "elevation": -3964.142607664873,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 62,
+   "v": 50,
+   "plateId": 15,
+   "timeMyr": 842.662,
+   "elevation": 1220.7598287269047,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 31,
+   "v": 4,
+   "plateId": 6,
+   "timeMyr": 236.282,
+   "elevation": 1274.1765653616828,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 60,
+   "v": 13,
+   "plateId": 16,
+   "timeMyr": 369.154,
+   "elevation": 1036.7720511891855,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 34,
+   "v": 33,
+   "plateId": 14,
+   "timeMyr": 699.548,
+   "elevation": -3820.7285528960338,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 48,
+   "v": 9,
+   "plateId": 7,
+   "timeMyr": 902.765,
+   "elevation": 1472.0966435152302,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 0,
+   "v": 11,
+   "plateId": 5,
+   "timeMyr": 883.305,
+   "elevation": -3773.2410671186826,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 17,
+   "v": 30,
+   "plateId": 9,
+   "timeMyr": 769.255,
+   "elevation": -3699.6482928341975,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 41,
+   "v": 25,
+   "plateId": 2,
+   "timeMyr": 1059.056,
+   "elevation": 1139.7533384562066,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 54,
+   "v": 9,
+   "plateId": 2,
+   "timeMyr": 240.708,
+   "elevation": 1122.5724467022933,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 37,
+   "v": 17,
+   "plateId": 10,
+   "timeMyr": 279.547,
+   "elevation": 1327.727476621142,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 28,
+   "v": 35,
+   "plateId": 4,
+   "timeMyr": 204.803,
+   "elevation": 1450.8974517496806,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 59,
+   "v": 15,
+   "plateId": 2,
+   "timeMyr": 572.385,
+   "elevation": 1028.6335792754553,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 24,
+   "v": 19,
+   "plateId": 4,
+   "timeMyr": 68.652,
+   "elevation": 1298.3809834895078,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 0,
+   "v": 27,
+   "plateId": 5,
+   "timeMyr": 1492.681,
+   "elevation": -3873.1252218298337,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 21,
+   "v": 8,
+   "plateId": 12,
+   "timeMyr": 400.57,
+   "elevation": 1332.1812194221834,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 1,
+   "v": 28,
+   "plateId": 19,
+   "timeMyr": 965.954,
+   "elevation": 1408.9701208196723,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 45,
+   "v": 58,
+   "plateId": 14,
+   "timeMyr": 1517.367,
+   "elevation": -3894.6230497185697,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 4,
+   "v": 31,
+   "plateId": 15,
+   "timeMyr": 386.711,
+   "elevation": 1861.670623036353,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 24,
+   "v": 1,
+   "plateId": 17,
+   "timeMyr": 767.752,
+   "elevation": -3878.528175799408,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 15,
+   "v": 60,
+   "plateId": 6,
+   "timeMyr": 339.559,
+   "elevation": 805.5552398608996,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 30,
+   "v": 58,
+   "plateId": 19,
+   "timeMyr": 777.568,
+   "elevation": 1743.4022608163598,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 45,
+   "v": 56,
+   "plateId": 5,
+   "timeMyr": 1870.158,
+   "elevation": -3900.331359455267,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 0,
+   "v": 53,
+   "plateId": 18,
+   "timeMyr": 1896.79,
+   "elevation": 1785.0391961566463,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 60,
+   "v": 44,
+   "plateId": 5,
+   "timeMyr": 1529.883,
+   "elevation": -3728.2197747682,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 19,
+   "v": 49,
+   "plateId": 0,
+   "timeMyr": 1974.856,
+   "elevation": -3820.370995275766,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 29,
+   "v": 42,
+   "plateId": 14,
+   "timeMyr": 125.265,
+   "elevation": -3979.669314036432,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 63,
+   "v": 21,
+   "plateId": 9,
+   "timeMyr": 208.788,
+   "elevation": -3950.614044997013,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 62,
+   "v": 26,
+   "plateId": 3,
+   "timeMyr": 609.232,
+   "elevation": 1116.8443758222022,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 9,
+   "v": 62,
+   "plateId": 3,
+   "timeMyr": 185.858,
+   "elevation": 1111.3308829564833,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 21,
+   "v": 19,
+   "plateId": 4,
+   "timeMyr": 482.224,
+   "elevation": 1399.902837740176,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 30,
+   "v": 51,
+   "plateId": 0,
+   "timeMyr": 1428.473,
+   "elevation": -3962.839607972613,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 48,
+   "v": 42,
+   "plateId": 14,
+   "timeMyr": 1609.018,
+   "elevation": -3941.2720859624405,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 14,
+   "v": 62,
+   "plateId": 3,
+   "timeMyr": 1872.469,
+   "elevation": 980.1100236683086,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 62,
+   "v": 60,
+   "plateId": 14,
+   "timeMyr": 1598.792,
+   "elevation": -3848.995611292156,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 60,
+   "v": 29,
+   "plateId": 5,
+   "timeMyr": 678.965,
+   "elevation": -3964.3373278770964,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 7,
+   "v": 17,
+   "plateId": 6,
+   "timeMyr": 1203.45,
+   "elevation": 1427.8409579203292,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 18,
+   "v": 36,
+   "plateId": 4,
+   "timeMyr": 388.369,
+   "elevation": 829.46259426444,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 0,
+   "v": 20,
+   "plateId": 15,
+   "timeMyr": 36.416,
+   "elevation": 1351.7928769314608,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 31,
+   "v": 45,
+   "plateId": 1,
+   "timeMyr": 374.166,
+   "elevation": -3773.065794674937,
+   "isOceanic": true
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 63,
+   "v": 55,
+   "plateId": 5,
+   "timeMyr": 1749.167,
+   "elevation": -3884.541583667048,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 2,
+   "v": 3,
+   "plateId": 5,
+   "timeMyr": 258.606,
+   "elevation": -3935.397912142608,
+   "isOceanic": true
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 4,
+   "v": 22,
+   "plateId": 15,
+   "timeMyr": 138.584,
+   "elevation": 2078.2849521497164,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 32,
+   "v": 30,
+   "plateId": 4,
+   "timeMyr": 725.416,
+   "elevation": 1118.3019890245396,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 37,
+   "v": 19,
+   "plateId": 2,
+   "timeMyr": 1201.035,
+   "elevation": 1324.9894503593046,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 38,
+   "v": 12,
+   "plateId": 13,
+   "timeMyr": 1498.259,
+   "elevation": 1104.8294487626674,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 4,
+   "v": 40,
+   "plateId": 2,
+   "timeMyr": 765.446,
+   "elevation": 1282.0214861071895,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 15,
+   "v": 42,
+   "plateId": 19,
+   "timeMyr": 214.856,
+   "elevation": 1374.2582348728392,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 27,
+   "v": 7,
+   "plateId": 8,
+   "timeMyr": 468.359,
+   "elevation": -3940.1438540027525,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 31,
+   "v": 14,
+   "plateId": 10,
+   "timeMyr": 1922.198,
+   "elevation": 885.5135990549029,
+   "isOceanic": false
+  },
+  {
+   "face": 0,
+   "level": 6,
+   "u": 52,
+   "v": 54,
+   "plateId": 3,
+   "timeMyr": 916.204,
+   "elevation": 1345.482980882477,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 63,
+   "v": 17,
+   "plateId": 12,
+   "timeMyr": 858.708,
+   "elevation": 1104.547953576444,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 43,
+   "v": 23,
+   "plateId": 8,
+   "timeMyr": 67.992,
+   "elevation": -3675.0114963457486,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 62,
+   "v": 11,
+   "plateId": 9,
+   "timeMyr": 789.71,
+   "elevation": -3915.332586241767,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 36,
+   "v": 1,
+   "plateId": 2,
+   "timeMyr": 1386.161,
+   "elevation": 1346.4010593080268,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 49,
+   "v": 8,
+   "plateId": 7,
+   "timeMyr": 822.116,
+   "elevation": 1514.9377272835734,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 9,
+   "v": 51,
+   "plateId": 1,
+   "timeMyr": 1242.511,
+   "elevation": -3654.050098358179,
+   "isOceanic": true
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 14,
+   "v": 58,
+   "plateId": 0,
+   "timeMyr": 341.182,
+   "elevation": -3996.865499915362,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 27,
+   "v": 1,
+   "plateId": 2,
+   "timeMyr": 1481.762,
+   "elevation": 1176.56112024721,
+   "isOceanic": false
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 49,
+   "v": 25,
+   "plateId": 2,
+   "timeMyr": 150.791,
+   "elevation": 1073.7155584570078,
+   "isOceanic": false
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 57,
+   "v": 18,
+   "plateId": 10,
+   "timeMyr": 1154.528,
+   "elevation": 921.4778399016343,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 56,
+   "v": 2,
+   "plateId": 7,
+   "timeMyr": 1.407,
+   "elevation": 1298.687164685756,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 31,
+   "v": 26,
+   "plateId": 8,
+   "timeMyr": 744.721,
+   "elevation": -3756.911879546057,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 18,
+   "v": 29,
+   "plateId": 2,
+   "timeMyr": 735.553,
+   "elevation": 1290.9462610815583,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 60,
+   "v": 6,
+   "plateId": 16,
+   "timeMyr": 1583.137,
+   "elevation": 1117.758886600861,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 61,
+   "v": 63,
+   "plateId": 5,
+   "timeMyr": 1774.442,
+   "elevation": -3772.1697422086563,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 3,
+   "v": 23,
+   "plateId": 9,
+   "timeMyr": 1999.572,
+   "elevation": -3922.978407109264,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 1,
+   "v": 2,
+   "plateId": 9,
+   "timeMyr": 1723.264,
+   "elevation": -3950.5314192154206,
+   "isOceanic": true
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 53,
+   "v": 23,
+   "plateId": 18,
+   "timeMyr": 412.84,
+   "elevation": 2797.1134198136897,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 26,
+   "v": 56,
+   "plateId": 1,
+   "timeMyr": 846.516,
+   "elevation": -3740.50925100095,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 18,
+   "v": 56,
+   "plateId": 14,
+   "timeMyr": 347.109,
+   "elevation": -3833.4567381423985,
+   "isOceanic": true
+  },
+  {
+   "face": 5,
+   "level": 6,
+   "u": 43,
+   "v": 41,
+   "plateId": 2,
+   "timeMyr": 1225.568,
+   "elevation": 1425.7009239834392,
+   "isOceanic": false
+  },
+  {
+   "face": 1,
+   "level": 6,
+   "u": 14,
+   "v": 28,
+   "plateId": 9,
+   "timeMyr": 1096.179,
+   "elevation": -3912.8617289497683,
+   "isOceanic": true
+  },
+  {
+   "face": 4,
+   "level": 6,
+   "u": 23,
+   "v": 29,
+   "plateId": 11,
+   "timeMyr": 880.75,
+   "elevation": 1636.8313170373717,
+   "isOceanic": false
+  },
+  {
+   "face": 3,
+   "level": 6,
+   "u": 59,
+   "v": 4,
+   "plateId": 16,
+   "timeMyr": 86.633,
+   "elevation": 795.8018786487863,
+   "isOceanic": false
+  },
+  {
+   "face": 2,
+   "level": 6,
+   "u": 34,
+   "v": 21,
+   "plateId": 3,
+   "timeMyr": 233.684,
+   "elevation": 1027.5953344514744,
+   "isOceanic": false
+  }
+ ],
+ "glaciationVectors": [
+  {
+   "timeMyr": 631.072,
+   "globalTempOffsetK": 5.7838153695765335,
+   "iceLineAbsLatitudeRad": 0.8542883604601191,
+   "sampleAbsLatitudeRad": 0.0485391772942891,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1254.372,
+   "globalTempOffsetK": 4.562925429867551,
+   "iceLineAbsLatitudeRad": 0.8223278908342299,
+   "sampleAbsLatitudeRad": 0.4144436152505459,
+   "isIced": false
+  },
+  {
+   "timeMyr": 381.407,
+   "globalTempOffsetK": -1.5909943062015461,
+   "iceLineAbsLatitudeRad": 0.6612305155444629,
+   "sampleAbsLatitudeRad": 0.9168486832089524,
+   "isIced": true
+  },
+  {
+   "timeMyr": 112.38,
+   "globalTempOffsetK": -5.9999242015977945,
+   "iceLineAbsLatitudeRad": 0.5458135025759738,
+   "sampleAbsLatitudeRad": 1.3848454576289166,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2674.635,
+   "globalTempOffsetK": -5.241410584186613,
+   "iceLineAbsLatitudeRad": 0.5656698799951154,
+   "sampleAbsLatitudeRad": 1.1449063187109962,
+   "isIced": true
+  },
+  {
+   "timeMyr": 371.684,
+   "globalTempOffsetK": 0.8307244398465596,
+   "iceLineAbsLatitudeRad": 0.7246262942368216,
+   "sampleAbsLatitudeRad": 1.195209500280276,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1189.241,
+   "globalTempOffsetK": -2.6134228837010647,
+   "iceLineAbsLatitudeRad": 0.6344653695366224,
+   "sampleAbsLatitudeRad": 0.14133554109602442,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1596.739,
+   "globalTempOffsetK": -4.739235127268354,
+   "iceLineAbsLatitudeRad": 0.578815834364704,
+   "sampleAbsLatitudeRad": 1.4188327777517777,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2108.435,
+   "globalTempOffsetK": 2.0761128480775324,
+   "iceLineAbsLatitudeRad": 0.7572280850282077,
+   "sampleAbsLatitudeRad": 1.5186333223746915,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1917.947,
+   "globalTempOffsetK": -5.8445007335886086,
+   "iceLineAbsLatitudeRad": 0.5498821797489892,
+   "sampleAbsLatitudeRad": 0.5633346866784538,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1397.379,
+   "globalTempOffsetK": 5.49357140094326,
+   "iceLineAbsLatitudeRad": 0.8466903508100337,
+   "sampleAbsLatitudeRad": 0.6747559825269961,
+   "isIced": false
+  },
+  {
+   "timeMyr": 472.369,
+   "globalTempOffsetK": 4.834676805938379,
+   "iceLineAbsLatitudeRad": 0.829441801202576,
+   "sampleAbsLatitudeRad": 1.4240054100559134,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2865.295,
+   "globalTempOffsetK": 3.586422540890827,
+   "iceLineAbsLatitudeRad": 0.7967649879814365,
+   "sampleAbsLatitudeRad": 1.0537168795515721,
+   "isIced": true
+  },
+  {
+   "timeMyr": 809.404,
+   "globalTempOffsetK": 3.6467835287620307,
+   "iceLineAbsLatitudeRad": 0.798345118553981,
+   "sampleAbsLatitudeRad": 0.8960010743597305,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2614.411,
+   "globalTempOffsetK": 2.574897247794481,
+   "iceLineAbsLatitudeRad": 0.7702852682668714,
+   "sampleAbsLatitudeRad": 0.20922221674744626,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1265.263,
+   "globalTempOffsetK": 2.379888451024513,
+   "iceLineAbsLatitudeRad": 0.7651803259430503,
+   "sampleAbsLatitudeRad": 1.2440911111738064,
+   "isIced": true
+  },
+  {
+   "timeMyr": 411.098,
+   "globalTempOffsetK": -5.989656448544324,
+   "iceLineAbsLatitudeRad": 0.5460822919229237,
+   "sampleAbsLatitudeRad": 1.110498025172554,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2092.877,
+   "globalTempOffsetK": -1.7637615112331786,
+   "iceLineAbsLatitudeRad": 0.6567078138420646,
+   "sampleAbsLatitudeRad": 1.1714731969860783,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2268.366,
+   "globalTempOffsetK": 4.173852119461143,
+   "iceLineAbsLatitudeRad": 0.812142725640344,
+   "sampleAbsLatitudeRad": 1.1439072922471547,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2716.939,
+   "globalTempOffsetK": 3.9089053681992243,
+   "iceLineAbsLatitudeRad": 0.8052069468114983,
+   "sampleAbsLatitudeRad": 1.3622762560055277,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1946.941,
+   "globalTempOffsetK": -0.7667084815131158,
+   "iceLineAbsLatitudeRad": 0.6828086784944222,
+   "sampleAbsLatitudeRad": 0.03570577130437479,
+   "isIced": false
+  },
+  {
+   "timeMyr": 288.581,
+   "globalTempOffsetK": -2.7617193376481373,
+   "iceLineAbsLatitudeRad": 0.6305832634123535,
+   "sampleAbsLatitudeRad": 0.10541142910222512,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2734.25,
+   "globalTempOffsetK": 5.944487042828651,
+   "iceLineAbsLatitudeRad": 0.8584944252049391,
+   "sampleAbsLatitudeRad": 0.6967110027866084,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1979.198,
+   "globalTempOffsetK": 5.640844250909796,
+   "iceLineAbsLatitudeRad": 0.8505456610185823,
+   "sampleAbsLatitudeRad": 0.5463166792739579,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1013.761,
+   "globalTempOffsetK": -5.991631884422005,
+   "iceLineAbsLatitudeRad": 0.5460305789418325,
+   "sampleAbsLatitudeRad": 1.4676641231628507,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1043.946,
+   "globalTempOffsetK": -1.5052807955598078,
+   "iceLineAbsLatitudeRad": 0.6634743247235653,
+   "sampleAbsLatitudeRad": 0.29701559424833984,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2630.944,
+   "globalTempOffsetK": -1.478503066337981,
+   "iceLineAbsLatitudeRad": 0.6641753123995303,
+   "sampleAbsLatitudeRad": 1.0332226998758791,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2902.407,
+   "globalTempOffsetK": 4.867803668645608,
+   "iceLineAbsLatitudeRad": 0.8303089965614034,
+   "sampleAbsLatitudeRad": 1.1509680217360978,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1445.186,
+   "globalTempOffsetK": -4.490013086590176,
+   "iceLineAbsLatitudeRad": 0.5853399715552314,
+   "sampleAbsLatitudeRad": 0.7657396473676101,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1699.562,
+   "globalTempOffsetK": 5.250315527453113,
+   "iceLineAbsLatitudeRad": 0.8403223960066261,
+   "sampleAbsLatitudeRad": 1.0097927018654065,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2027.974,
+   "globalTempOffsetK": -0.7455159705566173,
+   "iceLineAbsLatitudeRad": 0.6833634562681524,
+   "sampleAbsLatitudeRad": 1.1944995003405647,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2944.53,
+   "globalTempOffsetK": -4.378969673328811,
+   "iceLineAbsLatitudeRad": 0.5882468671903458,
+   "sampleAbsLatitudeRad": 1.3425894656418071,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1767.799,
+   "globalTempOffsetK": -5.852801796096158,
+   "iceLineAbsLatitudeRad": 0.5496648744477447,
+   "sampleAbsLatitudeRad": 0.005868495076905734,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2289.016,
+   "globalTempOffsetK": 5.987906530057009,
+   "iceLineAbsLatitudeRad": 0.8596310609962567,
+   "sampleAbsLatitudeRad": 0.5193743806767718,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2758.085,
+   "globalTempOffsetK": 3.904327251258505,
+   "iceLineAbsLatitudeRad": 0.805087100818286,
+   "sampleAbsLatitudeRad": 0.5476848428745962,
+   "isIced": false
+  },
+  {
+   "timeMyr": 712.311,
+   "globalTempOffsetK": -5.999811973174699,
+   "iceLineAbsLatitudeRad": 0.5458164404928094,
+   "sampleAbsLatitudeRad": 0.5685654384466807,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2249.562,
+   "globalTempOffsetK": -0.11007523095778168,
+   "iceLineAbsLatitudeRad": 0.6999980306032005,
+   "sampleAbsLatitudeRad": 0.09499547865924816,
+   "isIced": false
+  },
+  {
+   "timeMyr": 428.392,
+   "globalTempOffsetK": -4.718972608371378,
+   "iceLineAbsLatitudeRad": 0.5793462667965619,
+   "sampleAbsLatitudeRad": 0.48974916195342005,
+   "isIced": false
+  },
+  {
+   "timeMyr": 824.52,
+   "globalTempOffsetK": 0.12062902995275883,
+   "iceLineAbsLatitudeRad": 0.7060374091610669,
+   "sampleAbsLatitudeRad": 0.65487598421508,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2685.73,
+   "globalTempOffsetK": -3.3766564435609063,
+   "iceLineAbsLatitudeRad": 0.6144854334146358,
+   "sampleAbsLatitudeRad": 0.8409336675312818,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2873.483,
+   "globalTempOffsetK": 4.99516177546862,
+   "iceLineAbsLatitudeRad": 0.833642978415409,
+   "sampleAbsLatitudeRad": 1.2256892322054043,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2240.656,
+   "globalTempOffsetK": -2.2889005765917774,
+   "iceLineAbsLatitudeRad": 0.6429607178902675,
+   "sampleAbsLatitudeRad": 1.5068272171825012,
+   "isIced": true
+  },
+  {
+   "timeMyr": 287.929,
+   "globalTempOffsetK": -2.906146270558866,
+   "iceLineAbsLatitudeRad": 0.6268024536502924,
+   "sampleAbsLatitudeRad": 0.5054445588507547,
+   "isIced": false
+  },
+  {
+   "timeMyr": 21.778,
+   "globalTempOffsetK": 4.745239942071067,
+   "iceLineAbsLatitudeRad": 0.8271005220437457,
+   "sampleAbsLatitudeRad": 1.4581765133490097,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1307.417,
+   "globalTempOffsetK": -5.8645130690496625,
+   "iceLineAbsLatitudeRad": 0.5493582966217367,
+   "sampleAbsLatitudeRad": 0.6133771160574856,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1960.511,
+   "globalTempOffsetK": 2.557176964373537,
+   "iceLineAbsLatitudeRad": 0.7698213865019253,
+   "sampleAbsLatitudeRad": 0.515489801360608,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2513.448,
+   "globalTempOffsetK": -5.995270033349399,
+   "iceLineAbsLatitudeRad": 0.5459353394411154,
+   "sampleAbsLatitudeRad": 1.5312656664347761,
+   "isIced": true
+  },
+  {
+   "timeMyr": 337.928,
+   "globalTempOffsetK": 5.999035783899734,
+   "iceLineAbsLatitudeRad": 0.8599224027198887,
+   "sampleAbsLatitudeRad": 0.15603819471482464,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2219.012,
+   "globalTempOffsetK": -5.77816362768519,
+   "iceLineAbsLatitudeRad": 0.5516187532019582,
+   "sampleAbsLatitudeRad": 1.107887361677421,
+   "isIced": true
+  },
+  {
+   "timeMyr": 989.327,
+   "globalTempOffsetK": -3.388488534890917,
+   "iceLineAbsLatitudeRad": 0.6141756928039027,
+   "sampleAbsLatitudeRad": 0.3939117364630098,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2361.2,
+   "globalTempOffsetK": -5.991106394552514,
+   "iceLineAbsLatitudeRad": 0.5460443352211393,
+   "sampleAbsLatitudeRad": 1.2112803174997144,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2082.854,
+   "globalTempOffsetK": -3.9482271621513116,
+   "iceLineAbsLatitudeRad": 0.5995228491583439,
+   "sampleAbsLatitudeRad": 0.18305432073937006,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2525.267,
+   "globalTempOffsetK": -5.162275939766575,
+   "iceLineAbsLatitudeRad": 0.5677414675453782,
+   "sampleAbsLatitudeRad": 1.4524572439231496,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2754.126,
+   "globalTempOffsetK": 4.602829692977563,
+   "iceLineAbsLatitudeRad": 0.8233725050517685,
+   "sampleAbsLatitudeRad": 0.864483046062591,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1601.121,
+   "globalTempOffsetK": -5.331242236269272,
+   "iceLineAbsLatitudeRad": 0.5633182660662506,
+   "sampleAbsLatitudeRad": 0.260084601809065,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1253.144,
+   "globalTempOffsetK": 4.757211564243871,
+   "iceLineAbsLatitudeRad": 0.827413915294342,
+   "sampleAbsLatitudeRad": 0.7086412008886157,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2992.107,
+   "globalTempOffsetK": -1.9477839456833759,
+   "iceLineAbsLatitudeRad": 0.6518904726260896,
+   "sampleAbsLatitudeRad": 0.725962371984183,
+   "isIced": true
+  },
+  {
+   "timeMyr": 784.176,
+   "globalTempOffsetK": 5.941934419845393,
+   "iceLineAbsLatitudeRad": 0.858427602613754,
+   "sampleAbsLatitudeRad": 1.3035740264768756,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1950.843,
+   "globalTempOffsetK": 0.2118249813165602,
+   "iceLineAbsLatitudeRad": 0.7084247377308007,
+   "sampleAbsLatitudeRad": 1.1954749648595044,
+   "isIced": true
+  },
+  {
+   "timeMyr": 156.179,
+   "globalTempOffsetK": 1.5356712100024894,
+   "iceLineAbsLatitudeRad": 0.7430803981676046,
+   "sampleAbsLatitudeRad": 0.25019329733923756,
+   "isIced": false
+  },
+  {
+   "timeMyr": 550.424,
+   "globalTempOffsetK": -5.248611532186377,
+   "iceLineAbsLatitudeRad": 0.5654813735029751,
+   "sampleAbsLatitudeRad": 1.4126972472993171,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1516.746,
+   "globalTempOffsetK": 3.871978220468871,
+   "iceLineAbsLatitudeRad": 0.8042402675515414,
+   "sampleAbsLatitudeRad": 1.0190808205457447,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2946.558,
+   "globalTempOffsetK": -4.711201322819233,
+   "iceLineAbsLatitudeRad": 0.5795497035911197,
+   "sampleAbsLatitudeRad": 0.10029063307687376,
+   "isIced": false
+  },
+  {
+   "timeMyr": 768.297,
+   "globalTempOffsetK": 4.161376701807246,
+   "iceLineAbsLatitudeRad": 0.8118161440263678,
+   "sampleAbsLatitudeRad": 0.7873333844720596,
+   "isIced": false
+  },
+  {
+   "timeMyr": 20.095,
+   "globalTempOffsetK": 4.474809839193318,
+   "iceLineAbsLatitudeRad": 0.8200211999788831,
+   "sampleAbsLatitudeRad": 0.25461823059181876,
+   "isIced": false
+  },
+  {
+   "timeMyr": 785.39,
+   "globalTempOffsetK": 5.976580336382829,
+   "iceLineAbsLatitudeRad": 0.8593345637796556,
+   "sampleAbsLatitudeRad": 0.09781977045482539,
+   "isIced": false
+  },
+  {
+   "timeMyr": 722.175,
+   "globalTempOffsetK": -5.51398662956054,
+   "iceLineAbsLatitudeRad": 0.5585343814251178,
+   "sampleAbsLatitudeRad": 0.2737159723329911,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2226.629,
+   "globalTempOffsetK": -4.9795129341308755,
+   "iceLineAbsLatitudeRad": 0.5725258394206585,
+   "sampleAbsLatitudeRad": 0.6008468737586427,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1427.09,
+   "globalTempOffsetK": -0.5246035763118861,
+   "iceLineAbsLatitudeRad": 0.6891465032379088,
+   "sampleAbsLatitudeRad": 0.5574394880639925,
+   "isIced": false
+  },
+  {
+   "timeMyr": 264.857,
+   "globalTempOffsetK": -5.970781034652249,
+   "iceLineAbsLatitudeRad": 0.5465764127054391,
+   "sampleAbsLatitudeRad": 1.0056159544324588,
+   "isIced": true
+  },
+  {
+   "timeMyr": 423.869,
+   "globalTempOffsetK": -5.332394854766687,
+   "iceLineAbsLatitudeRad": 0.5632880928071556,
+   "sampleAbsLatitudeRad": 1.1993202742674984,
+   "isIced": true
+  },
+  {
+   "timeMyr": 483.159,
+   "globalTempOffsetK": 5.901080688434753,
+   "iceLineAbsLatitudeRad": 0.8573581332050993,
+   "sampleAbsLatitudeRad": 0.07613806875607543,
+   "isIced": false
+  },
+  {
+   "timeMyr": 555.146,
+   "globalTempOffsetK": -5.7175713245636235,
+   "iceLineAbsLatitudeRad": 0.5532049391475501,
+   "sampleAbsLatitudeRad": 0.2514703547529218,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2513.772,
+   "globalTempOffsetK": -5.991485288256253,
+   "iceLineAbsLatitudeRad": 0.5460344165377956,
+   "sampleAbsLatitudeRad": 0.8929710082453431,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2482.817,
+   "globalTempOffsetK": -1.9297077102955953,
+   "iceLineAbsLatitudeRad": 0.6523636725053517,
+   "sampleAbsLatitudeRad": 0.969596023862725,
+   "isIced": true
+  },
+  {
+   "timeMyr": 818.615,
+   "globalTempOffsetK": 1.5856623580239635,
+   "iceLineAbsLatitudeRad": 0.7443890669639788,
+   "sampleAbsLatitudeRad": 0.20917038046866201,
+   "isIced": false
+  },
+  {
+   "timeMyr": 258.465,
+   "globalTempOffsetK": -5.914502890592986,
+   "iceLineAbsLatitudeRad": 0.5480496625499224,
+   "sampleAbsLatitudeRad": 0.9867334117880574,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1167.71,
+   "globalTempOffsetK": -5.857685366431153,
+   "iceLineAbsLatitudeRad": 0.5495370322923787,
+   "sampleAbsLatitudeRad": 1.4433120677085496,
+   "isIced": true
+  },
+  {
+   "timeMyr": 713.965,
+   "globalTempOffsetK": -5.988706269212944,
+   "iceLineAbsLatitudeRad": 0.5461071657274097,
+   "sampleAbsLatitudeRad": 0.2781691799194546,
+   "isIced": false
+  },
+  {
+   "timeMyr": 367.861,
+   "globalTempOffsetK": 1.7676046856301846,
+   "iceLineAbsLatitudeRad": 0.74915195512121,
+   "sampleAbsLatitudeRad": 0.21843964959307868,
+   "isIced": false
+  },
+  {
+   "timeMyr": 627.578,
+   "globalTempOffsetK": 5.48921695280354,
+   "iceLineAbsLatitudeRad": 0.8465763600210354,
+   "sampleAbsLatitudeRad": 1.1334536426923345,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2698.74,
+   "globalTempOffsetK": -0.3165255396037911,
+   "iceLineAbsLatitudeRad": 0.6945935722616815,
+   "sampleAbsLatitudeRad": 0.7188042531229786,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1121.29,
+   "globalTempOffsetK": 0.9286761511952202,
+   "iceLineAbsLatitudeRad": 0.7271904751621798,
+   "sampleAbsLatitudeRad": 1.5603191152951748,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2548.124,
+   "globalTempOffsetK": -0.47100512660786015,
+   "iceLineAbsLatitudeRad": 0.6905496040155019,
+   "sampleAbsLatitudeRad": 1.239653611550611,
+   "isIced": true
+  },
+  {
+   "timeMyr": 137.564,
+   "globalTempOffsetK": -2.986059257334622,
+   "iceLineAbsLatitudeRad": 0.6247104906456916,
+   "sampleAbsLatitudeRad": 0.4004525323677837,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2120.434,
+   "globalTempOffsetK": 4.5311143049101545,
+   "iceLineAbsLatitudeRad": 0.8214951388719939,
+   "sampleAbsLatitudeRad": 1.050041216146872,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2019.371,
+   "globalTempOffsetK": 1.4016496963334162,
+   "iceLineAbsLatitudeRad": 0.7395719815794098,
+   "sampleAbsLatitudeRad": 0.27580984383660867,
+   "isIced": false
+  },
+  {
+   "timeMyr": 13.771,
+   "globalTempOffsetK": 3.272259344207618,
+   "iceLineAbsLatitudeRad": 0.7885408205289957,
+   "sampleAbsLatitudeRad": 0.05649997307848564,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2182.318,
+   "globalTempOffsetK": -1.810545672075867,
+   "iceLineAbsLatitudeRad": 0.6554830975896373,
+   "sampleAbsLatitudeRad": 0.2169631010458915,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1573.139,
+   "globalTempOffsetK": 0.46724675646919445,
+   "iceLineAbsLatitudeRad": 0.7151111716353198,
+   "sampleAbsLatitudeRad": 0.3687114509922393,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2699.749,
+   "globalTempOffsetK": -0.06308201827426801,
+   "iceLineAbsLatitudeRad": 0.7012282194169048,
+   "sampleAbsLatitudeRad": 0.09512742555069895,
+   "isIced": false
+  },
+  {
+   "timeMyr": 356.533,
+   "globalTempOffsetK": 4.1920503375105564,
+   "iceLineAbsLatitudeRad": 0.812619118783,
+   "sampleAbsLatitudeRad": 0.7077081478704995,
+   "isIced": false
+  },
+  {
+   "timeMyr": 929.642,
+   "globalTempOffsetK": 5.6778946721808765,
+   "iceLineAbsLatitudeRad": 0.8515155673345779,
+   "sampleAbsLatitudeRad": 0.5702964559988087,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2820.277,
+   "globalTempOffsetK": -5.684442416764115,
+   "iceLineAbsLatitudeRad": 0.5540721880428248,
+   "sampleAbsLatitudeRad": 0.9935004023638897,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2432.412,
+   "globalTempOffsetK": 5.864247399006922,
+   "iceLineAbsLatitudeRad": 0.8563939109687675,
+   "sampleAbsLatitudeRad": 1.0354579430489084,
+   "isIced": true
+  },
+  {
+   "timeMyr": 842.874,
+   "globalTempOffsetK": -4.084141102059269,
+   "iceLineAbsLatitudeRad": 0.5959648926162499,
+   "sampleAbsLatitudeRad": 1.442917797830524,
+   "isIced": true
+  },
+  {
+   "timeMyr": 797.086,
+   "globalTempOffsetK": 5.522767215743613,
+   "iceLineAbsLatitudeRad": 0.8474546391555925,
+   "sampleAbsLatitudeRad": 0.3752899460088563,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2886.234,
+   "globalTempOffsetK": 5.9915654074927645,
+   "iceLineAbsLatitudeRad": 0.8597268431280836,
+   "sampleAbsLatitudeRad": 0.18681009475673668,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1228.988,
+   "globalTempOffsetK": 5.6226399580215825,
+   "iceLineAbsLatitudeRad": 0.850069108848733,
+   "sampleAbsLatitudeRad": 0.7225537439550381,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2219.106,
+   "globalTempOffsetK": -5.771754245398262,
+   "iceLineAbsLatitudeRad": 0.5517865380785802,
+   "sampleAbsLatitudeRad": 0.029146125843679302,
+   "isIced": false
+  },
+  {
+   "timeMyr": 580.221,
+   "globalTempOffsetK": -4.421512670007749,
+   "iceLineAbsLatitudeRad": 0.5871331761778079,
+   "sampleAbsLatitudeRad": 0.1930194526365569,
+   "isIced": false
+  },
+  {
+   "timeMyr": 817.552,
+   "globalTempOffsetK": 1.8416681959474124,
+   "iceLineAbsLatitudeRad": 0.7510907904698283,
+   "sampleAbsLatitudeRad": 0.6380826006853157,
+   "isIced": false
+  },
+  {
+   "timeMyr": 180.277,
+   "globalTempOffsetK": 5.727467551966068,
+   "iceLineAbsLatitudeRad": 0.852813286700683,
+   "sampleAbsLatitudeRad": 1.3704428261085342,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1209.566,
+   "globalTempOffsetK": 2.3403761195739063,
+   "iceLineAbsLatitudeRad": 0.7641459717165956,
+   "sampleAbsLatitudeRad": 1.3594252606723949,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2971.454,
+   "globalTempOffsetK": -5.582904467079993,
+   "iceLineAbsLatitudeRad": 0.5567302495528809,
+   "sampleAbsLatitudeRad": 1.207540251445616,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1998.729,
+   "globalTempOffsetK": 5.348433181907865,
+   "iceLineAbsLatitudeRad": 0.842890920992353,
+   "sampleAbsLatitudeRad": 1.1158403034799835,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2548.706,
+   "globalTempOffsetK": -0.32505844884524704,
+   "iceLineAbsLatitudeRad": 0.6943701976742085,
+   "sampleAbsLatitudeRad": 0.009941569952284901,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2255.968,
+   "globalTempOffsetK": 1.4843481768705216,
+   "iceLineAbsLatitudeRad": 0.7417368632688625,
+   "sampleAbsLatitudeRad": 0.13537593983216456,
+   "isIced": false
+  },
+  {
+   "timeMyr": 664.419,
+   "globalTempOffsetK": 2.5730810446434424,
+   "iceLineAbsLatitudeRad": 0.7702377236817665,
+   "sampleAbsLatitudeRad": 0.6639708949472224,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1856.027,
+   "globalTempOffsetK": 4.282085533586902,
+   "iceLineAbsLatitudeRad": 0.8149760610886627,
+   "sampleAbsLatitudeRad": 0.07452643172478386,
+   "isIced": false
+  },
+  {
+   "timeMyr": 819.115,
+   "globalTempOffsetK": 1.4641274966495603,
+   "iceLineAbsLatitudeRad": 0.7412075260903029,
+   "sampleAbsLatitudeRad": 0.34359127613413526,
+   "isIced": false
+  },
+  {
+   "timeMyr": 155.725,
+   "globalTempOffsetK": 1.4250981452043354,
+   "iceLineAbsLatitudeRad": 0.740185815319486,
+   "sampleAbsLatitudeRad": 1.397089814996283,
+   "isIced": true
+  },
+  {
+   "timeMyr": 167.828,
+   "globalTempOffsetK": 4.07566422289735,
+   "iceLineAbsLatitudeRad": 0.8095723618559516,
+   "sampleAbsLatitudeRad": 1.440230165315378,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2624.097,
+   "globalTempOffsetK": 0.2268945407439268,
+   "iceLineAbsLatitudeRad": 0.7088192288152858,
+   "sampleAbsLatitudeRad": 0.5185811285317404,
+   "isIced": false
+  },
+  {
+   "timeMyr": 464.949,
+   "globalTempOffsetK": 3.5163337386773637,
+   "iceLineAbsLatitudeRad": 0.7949302025831775,
+   "sampleAbsLatitudeRad": 0.43348637912028043,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1461.087,
+   "globalTempOffsetK": -5.989493549728698,
+   "iceLineAbsLatitudeRad": 0.5460865562898249,
+   "sampleAbsLatitudeRad": 0.5539428954405471,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2620.953,
+   "globalTempOffsetK": 1.0122575017635596,
+   "iceLineAbsLatitudeRad": 0.7293784686325541,
+   "sampleAbsLatitudeRad": 1.2689049807481854,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1964.244,
+   "globalTempOffsetK": 3.3712529524901864,
+   "iceLineAbsLatitudeRad": 0.791132276243199,
+   "sampleAbsLatitudeRad": 1.1202919402701201,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1286.346,
+   "globalTempOffsetK": -2.745418615909447,
+   "iceLineAbsLatitudeRad": 0.6310099838767167,
+   "sampleAbsLatitudeRad": 0.2077283894406643,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1864.119,
+   "globalTempOffsetK": 2.640989129435093,
+   "iceLineAbsLatitudeRad": 0.7720154222365206,
+   "sampleAbsLatitudeRad": 1.5373493606084527,
+   "isIced": true
+  },
+  {
+   "timeMyr": 54.892,
+   "globalTempOffsetK": 4.476985717539076,
+   "iceLineAbsLatitudeRad": 0.820078160145003,
+   "sampleAbsLatitudeRad": 0.7658448907215054,
+   "isIced": false
+  },
+  {
+   "timeMyr": 720.634,
+   "globalTempOffsetK": -5.655093491332611,
+   "iceLineAbsLatitudeRad": 0.5548404845200897,
+   "sampleAbsLatitudeRad": 0.7948951979892502,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1784.887,
+   "globalTempOffsetK": -3.5496480017242376,
+   "iceLineAbsLatitudeRad": 0.6099568585936073,
+   "sampleAbsLatitudeRad": 1.5511079656348492,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2358.294,
+   "globalTempOffsetK": -5.907121892051578,
+   "iceLineAbsLatitudeRad": 0.5482428824070273,
+   "sampleAbsLatitudeRad": 0.5445526749989672,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2613.029,
+   "globalTempOffsetK": 2.884132956713996,
+   "iceLineAbsLatitudeRad": 0.7783804438930367,
+   "sampleAbsLatitudeRad": 0.8758650362465468,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2018.508,
+   "globalTempOffsetK": 1.6115822798892203,
+   "iceLineAbsLatitudeRad": 0.7450675989499798,
+   "sampleAbsLatitudeRad": 1.3026802433669293,
+   "isIced": true
+  },
+  {
+   "timeMyr": 52.445,
+   "globalTempOffsetK": 4.86221403717546,
+   "iceLineAbsLatitudeRad": 0.8301626711302487,
+   "sampleAbsLatitudeRad": 0.2207801361200031,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1183.78,
+   "globalTempOffsetK": -3.770059823988947,
+   "iceLineAbsLatitudeRad": 0.6041869156023838,
+   "sampleAbsLatitudeRad": 1.2178619541089852,
+   "isIced": true
+  },
+  {
+   "timeMyr": 317.054,
+   "globalTempOffsetK": 3.930787280551274,
+   "iceLineAbsLatitudeRad": 0.8057797717421804,
+   "sampleAbsLatitudeRad": 1.269291396644577,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1644.774,
+   "globalTempOffsetK": -1.3029721967479024,
+   "iceLineAbsLatitudeRad": 0.6687703613416778,
+   "sampleAbsLatitudeRad": 0.8126247761297843,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2873.732,
+   "globalTempOffsetK": 5.029558088633097,
+   "iceLineAbsLatitudeRad": 0.8345434054616002,
+   "sampleAbsLatitudeRad": 0.3082232260400214,
+   "isIced": false
+  },
+  {
+   "timeMyr": 912.707,
+   "globalTempOffsetK": 3.0449414383118896,
+   "iceLineAbsLatitudeRad": 0.7825900900081646,
+   "sampleAbsLatitudeRad": 0.13412401515970904,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1014.016,
+   "globalTempOffsetK": -5.987906530057009,
+   "iceLineAbsLatitudeRad": 0.5461281013074092,
+   "sampleAbsLatitudeRad": 0.20609633205712438,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1200.251,
+   "globalTempOffsetK": 0.06308201827410193,
+   "iceLineAbsLatitudeRad": 0.7045309428867568,
+   "sampleAbsLatitudeRad": 0.693206556181529,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2918.612,
+   "globalTempOffsetK": 1.5863895212599637,
+   "iceLineAbsLatitudeRad": 0.7444081026507845,
+   "sampleAbsLatitudeRad": 0.26412940235056187,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1958.903,
+   "globalTempOffsetK": 2.186062349533677,
+   "iceLineAbsLatitudeRad": 0.7601063442286314,
+   "sampleAbsLatitudeRad": 0.7952988926452365,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2969.019,
+   "globalTempOffsetK": -5.777689419163366,
+   "iceLineAbsLatitudeRad": 0.5516311670376084,
+   "sampleAbsLatitudeRad": 0.10991961456012647,
+   "isIced": false
+  },
+  {
+   "timeMyr": 271.787,
+   "globalTempOffsetK": -5.551703253680087,
+   "iceLineAbsLatitudeRad": 0.557547035243977,
+   "sampleAbsLatitudeRad": 0.37396733550169503,
+   "isIced": false
+  },
+  {
+   "timeMyr": 777.847,
+   "globalTempOffsetK": 5.516164246611462,
+   "iceLineAbsLatitudeRad": 0.8472817865605106,
+   "sampleAbsLatitudeRad": 0.3494739083779822,
+   "isIced": false
+  },
+  {
+   "timeMyr": 17.491,
+   "globalTempOffsetK": 4.013102398904343,
+   "iceLineAbsLatitudeRad": 0.807934617772365,
+   "sampleAbsLatitudeRad": 0.7581762630540927,
+   "isIced": false
+  },
+  {
+   "timeMyr": 36.498,
+   "globalTempOffsetK": 5.994715910557108,
+   "iceLineAbsLatitudeRad": 0.8598093170302908,
+   "sampleAbsLatitudeRad": 1.0117247813473642,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2101.315,
+   "globalTempOffsetK": 0.330328446868374,
+   "iceLineAbsLatitudeRad": 0.7115269226928893,
+   "sampleAbsLatitudeRad": 1.5165300260931134,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2768.627,
+   "globalTempOffsetK": 1.5827534547970492,
+   "iceLineAbsLatitudeRad": 0.744312917664845,
+   "sampleAbsLatitudeRad": 1.4995418638188265,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2498.975,
+   "globalTempOffsetK": -5.062598076854699,
+   "iceLineAbsLatitudeRad": 0.5703508356844318,
+   "sampleAbsLatitudeRad": 1.0933480708766072,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1821.084,
+   "globalTempOffsetK": 4.636507789294564,
+   "iceLineAbsLatitudeRad": 0.824254130609806,
+   "sampleAbsLatitudeRad": 0.5844681804591524,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2260.145,
+   "globalTempOffsetK": 2.4736664971862856,
+   "iceLineAbsLatitudeRad": 0.7676352486174426,
+   "sampleAbsLatitudeRad": 0.5703200179437107,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1481.223,
+   "globalTempOffsetK": -4.247436286287473,
+   "iceLineAbsLatitudeRad": 0.5916901495736263,
+   "sampleAbsLatitudeRad": 0.7029926172974612,
+   "isIced": true
+  },
+  {
+   "timeMyr": 64.868,
+   "globalTempOffsetK": 2.4706894698570334,
+   "iceLineAbsLatitudeRad": 0.7675573159648437,
+   "sampleAbsLatitudeRad": 1.4826023962306702,
+   "isIced": true
+  },
+  {
+   "timeMyr": 412.351,
+   "globalTempOffsetK": -5.999883138999451,
+   "iceLineAbsLatitudeRad": 0.5458145775131039,
+   "sampleAbsLatitudeRad": 0.2843832501882553,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2305.378,
+   "globalTempOffsetK": 4.394744106578625,
+   "iceLineAbsLatitudeRad": 0.8179252383921112,
+   "sampleAbsLatitudeRad": 0.048935017968641414,
+   "isIced": false
+  },
+  {
+   "timeMyr": 972.035,
+   "globalTempOffsetK": 0.7432714996257691,
+   "iceLineAbsLatitudeRad": 0.7223369502519846,
+   "sampleAbsLatitudeRad": 0.45170133332579404,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1373.855,
+   "globalTempOffsetK": 5.046347376140325,
+   "iceLineAbsLatitudeRad": 0.834982915605768,
+   "sampleAbsLatitudeRad": 0.43328217559779714,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1752.175,
+   "globalTempOffsetK": -5.447543037736986,
+   "iceLineAbsLatitudeRad": 0.560273742467619,
+   "sampleAbsLatitudeRad": 0.9868936330133904,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2647.654,
+   "globalTempOffsetK": -4.876750702511874,
+   "iceLineAbsLatitudeRad": 0.5752159501960252,
+   "sampleAbsLatitudeRad": 0.6270571812675424,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1215.2,
+   "globalTempOffsetK": 3.567252909238284,
+   "iceLineAbsLatitudeRad": 0.7962631651633062,
+   "sampleAbsLatitudeRad": 0.8441632247791722,
+   "isIced": true
+  },
+  {
+   "timeMyr": 730.063,
+   "globalTempOffsetK": -4.448258674986521,
+   "iceLineAbsLatitudeRad": 0.5864330189794115,
+   "sampleAbsLatitudeRad": 0.9424982164291863,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2635.879,
+   "globalTempOffsetK": -2.640537777866368,
+   "iceLineAbsLatitudeRad": 0.6337555555532369,
+   "sampleAbsLatitudeRad": 1.3560496193661127,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2936.302,
+   "globalTempOffsetK": -2.73558111438651,
+   "iceLineAbsLatitudeRad": 0.631267510094595,
+   "sampleAbsLatitudeRad": 0.8174267005007962,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1672.485,
+   "globalTempOffsetK": 4.851885110037598,
+   "iceLineAbsLatitudeRad": 0.8298922803674766,
+   "sampleAbsLatitudeRad": 0.3281346402784735,
+   "isIced": false
+  },
+  {
+   "timeMyr": 767.653,
+   "globalTempOffsetK": 4.043277210406618,
+   "iceLineAbsLatitudeRad": 0.8087245343038394,
+   "sampleAbsLatitudeRad": 1.0721800195767195,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2572.842,
+   "globalTempOffsetK": 4.904124635010019,
+   "iceLineAbsLatitudeRad": 0.8312598071992158,
+   "sampleAbsLatitudeRad": 1.155760521329149,
+   "isIced": true
+  },
+  {
+   "timeMyr": 65.845,
+   "globalTempOffsetK": 2.2449206471593532,
+   "iceLineAbsLatitudeRad": 0.7616471373601928,
+   "sampleAbsLatitudeRad": 0.41205443403749087,
+   "isIced": false
+  },
+  {
+   "timeMyr": 357.278,
+   "globalTempOffsetK": 4.056072987414243,
+   "iceLineAbsLatitudeRad": 0.8090595022883321,
+   "sampleAbsLatitudeRad": 0.5261759287717936,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1563.454,
+   "globalTempOffsetK": 2.790016497714622,
+   "iceLineAbsLatitudeRad": 0.7759166622438395,
+   "sampleAbsLatitudeRad": 0.8672806343206125,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1893.976,
+   "globalTempOffsetK": -4.282613642423556,
+   "iceLineAbsLatitudeRad": 0.5907692763763477,
+   "sampleAbsLatitudeRad": 1.5358366837457493,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1233.322,
+   "globalTempOffsetK": 5.908351236724656,
+   "iceLineAbsLatitudeRad": 0.8575484616943639,
+   "sampleAbsLatitudeRad": 1.5084467081954267,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2089.998,
+   "globalTempOffsetK": -2.4408790479221687,
+   "iceLineAbsLatitudeRad": 0.6389822238763833,
+   "sampleAbsLatitudeRad": 1.1954356949513345,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2615.781,
+   "globalTempOffsetK": 2.2598292152261616,
+   "iceLineAbsLatitudeRad": 0.7620374140111562,
+   "sampleAbsLatitudeRad": 0.4704220839485357,
+   "isIced": false
+  },
+  {
+   "timeMyr": 384.427,
+   "globalTempOffsetK": -2.308169342915507,
+   "iceLineAbsLatitudeRad": 0.6424562999236785,
+   "sampleAbsLatitudeRad": 0.6132074700541917,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2889.674,
+   "globalTempOffsetK": 5.975139067808362,
+   "iceLineAbsLatitudeRad": 0.8592968342358214,
+   "sampleAbsLatitudeRad": 0.574268999909273,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2120.706,
+   "globalTempOffsetK": 4.575630658980881,
+   "iceLineAbsLatitudeRad": 0.8226604884549967,
+   "sampleAbsLatitudeRad": 0.9376083274638737,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1550.515,
+   "globalTempOffsetK": 5.130231632222341,
+   "iceLineAbsLatitudeRad": 0.8371788385398519,
+   "sampleAbsLatitudeRad": 0.9042681754276521,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1591.85,
+   "globalTempOffsetK": -3.8919083826655267,
+   "iceLineAbsLatitudeRad": 0.6009971627574476,
+   "sampleAbsLatitudeRad": 1.5057135225868035,
+   "isIced": true
+  },
+  {
+   "timeMyr": 141.429,
+   "globalTempOffsetK": -2.108148100653777,
+   "iceLineAbsLatitudeRad": 0.64769245809807,
+   "sampleAbsLatitudeRad": 0.2843816793919285,
+   "isIced": false
+  },
+  {
+   "timeMyr": 929.768,
+   "globalTempOffsetK": 5.688051781453475,
+   "iceLineAbsLatitudeRad": 0.8517814602474731,
+   "sampleAbsLatitudeRad": 0.3067922305863113,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2520.37,
+   "globalTempOffsetK": -5.676919075095034,
+   "iceLineAbsLatitudeRad": 0.5542691341598162,
+   "sampleAbsLatitudeRad": 0.8357044865593817,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1503.502,
+   "globalTempOffsetK": 0.8769954308090262,
+   "iceLineAbsLatitudeRad": 0.7258375767227497,
+   "sampleAbsLatitudeRad": 0.6400586624644237,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1299.425,
+   "globalTempOffsetK": -5.122395671643305,
+   "iceLineAbsLatitudeRad": 0.568785453621904,
+   "sampleAbsLatitudeRad": 0.5047879659861544,
+   "isIced": false
+  },
+  {
+   "timeMyr": 221.037,
+   "globalTempOffsetK": 0.9914423924074035,
+   "iceLineAbsLatitudeRad": 0.7288335704818698,
+   "sampleAbsLatitudeRad": 0.8090543560789794,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1465.367,
+   "globalTempOffsetK": -5.956785266576185,
+   "iceLineAbsLatitudeRad": 0.5469427940686874,
+   "sampleAbsLatitudeRad": 1.2603786982863427,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2732.636,
+   "globalTempOffsetK": 5.875896866093715,
+   "iceLineAbsLatitudeRad": 0.8566988708401508,
+   "sampleAbsLatitudeRad": 0.5753167210592451,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2273.121,
+   "globalTempOffsetK": 4.94418764867103,
+   "iceLineAbsLatitudeRad": 0.832308577190341,
+   "sampleAbsLatitudeRad": 0.11263237981650127,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2322.421,
+   "globalTempOffsetK": 0.6469134082141001,
+   "iceLineAbsLatitudeRad": 0.7198144871260246,
+   "sampleAbsLatitudeRad": 1.104141012438015,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1427.763,
+   "globalTempOffsetK": -0.6928684040369093,
+   "iceLineAbsLatitudeRad": 0.6847416648157881,
+   "sampleAbsLatitudeRad": 0.39556735579145164,
+   "isIced": false
+  },
+  {
+   "timeMyr": 21.001,
+   "globalTempOffsetK": 4.623239654720743,
+   "iceLineAbsLatitudeRad": 0.8239067972439992,
+   "sampleAbsLatitudeRad": 1.4095163847375574,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1442.37,
+   "globalTempOffsetK": -3.990443787180828,
+   "iceLineAbsLatitudeRad": 0.5984177019062618,
+   "sampleAbsLatitudeRad": 0.07376930789526873,
+   "isIced": false
+  },
+  {
+   "timeMyr": 1562.958,
+   "globalTempOffsetK": 2.8997676419920806,
+   "iceLineAbsLatitudeRad": 0.7787897288479605,
+   "sampleAbsLatitudeRad": 0.7920049327479477,
+   "isIced": true
+  },
+  {
+   "timeMyr": 465.549,
+   "globalTempOffsetK": 3.6373963415019985,
+   "iceLineAbsLatitudeRad": 0.7980993806675917,
+   "sampleAbsLatitudeRad": 0.5662877837728282,
+   "isIced": false
+  },
+  {
+   "timeMyr": 859.796,
+   "globalTempOffsetK": -5.961554323825337,
+   "iceLineAbsLatitudeRad": 0.5468179496380807,
+   "sampleAbsLatitudeRad": 0.21853703896534,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2988.253,
+   "globalTempOffsetK": -2.8346400796812237,
+   "iceLineAbsLatitudeRad": 0.6286743434638433,
+   "sampleAbsLatitudeRad": 0.9049122019216379,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1905.489,
+   "globalTempOffsetK": -5.743117317736669,
+   "iceLineAbsLatitudeRad": 0.5525361958707682,
+   "sampleAbsLatitudeRad": 1.5197046054695658,
+   "isIced": true
+  },
+  {
+   "timeMyr": 126.198,
+   "globalTempOffsetK": -5.039129366414889,
+   "iceLineAbsLatitudeRad": 0.5709651998320713,
+   "sampleAbsLatitudeRad": 0.33876578981822136,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2805.281,
+   "globalTempOffsetK": -5.727767015020771,
+   "iceLineAbsLatitudeRad": 0.5529380362560009,
+   "sampleAbsLatitudeRad": 1.3486087571660852,
+   "isIced": true
+  },
+  {
+   "timeMyr": 399.241,
+   "globalTempOffsetK": -5.098163849655046,
+   "iceLineAbsLatitudeRad": 0.569419794511648,
+   "sampleAbsLatitudeRad": 0.04274922203372311,
+   "isIced": false
+  },
+  {
+   "timeMyr": 418.387,
+   "globalTempOffsetK": -5.81849663102432,
+   "iceLineAbsLatitudeRad": 0.5505629154182115,
+   "sampleAbsLatitudeRad": 1.5620658408105705,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2589.379,
+   "globalTempOffsetK": 5.981425042752143,
+   "iceLineAbsLatitudeRad": 0.8594613885537221,
+   "sampleAbsLatitudeRad": 0.9455644108590898,
+   "isIced": true
+  },
+  {
+   "timeMyr": 2527.303,
+   "globalTempOffsetK": -4.883038498633048,
+   "iceLineAbsLatitudeRad": 0.5750513482033245,
+   "sampleAbsLatitudeRad": 1.154068773685191,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1943.611,
+   "globalTempOffsetK": -1.586631903438991,
+   "iceLineAbsLatitudeRad": 0.6613447145696599,
+   "sampleAbsLatitudeRad": 0.514241018280806,
+   "isIced": false
+  },
+  {
+   "timeMyr": 2824.543,
+   "globalTempOffsetK": -5.252625204326698,
+   "iceLineAbsLatitudeRad": 0.5653763035516575,
+   "sampleAbsLatitudeRad": 0.8737381780200665,
+   "isIced": true
+  },
+  {
+   "timeMyr": 1761.409,
+   "globalTempOffsetK": -5.993735702291916,
+   "iceLineAbsLatitudeRad": 0.5459755051756046,
+   "sampleAbsLatitudeRad": 1.1295784881541315,
+   "isIced": true
+  }
+ ]
+}

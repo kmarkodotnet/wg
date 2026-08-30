@@ -14,7 +14,7 @@ enélkül nem derül ki időben, ha valami rossz irányba megy.
 | M6 | Atmoszféra-render | Rayleigh-szórás, felhők, ciklonok | Planet nézet lényegében kész | Referenciakép 2 szintjén ~80% |
 | **M7** | **Hidrológia + erózió** | Folyók, tavak, gleccser, A1 eróziós pass | Folyók a kontinensnézeten, mikro-vízrajz | ✅ **Vizuálisan megerősítve** ("folyók hegyből tengerbe futnak" strukturálisan bizonyítva, 146/146 teszt); tavak/jég/erózió halasztva |
 | **M8** | **Features + panelek** | Szegmentálás, névadás, aggregált metrikák | World/Continent/Region panelek élesben | Kontinens/régió-szegmentálás + névgenerálás + aggregált metrikák (Area, BiomeDiversity, RiverMouthCount) ✅ **numerikusan kész** (190/190 teszt); a legtöbb panel-mező (Habitability, Coastal complexity stb.) halasztva; vizuális render hátra |
-| M9 | Continent + Region nézet | Magas LOD, displacement, kamera-átmenetek | Referenciakép 1, 3, 4 szintje | Zoom-átmenet folyamatos |
+| M9 | Continent + Region nézet | Magas LOD, displacement, kamera-átmenetek | Referenciakép 1, 3, 4 szintje | Adaptív kvadfa-LOD (9.1-9.4 alább) implementálva, felhasználói vizuális ellenőrzés + teljesítmény-hangolás (9.5) hátra; kamera-átmenetek (nézetszint-váltás/fly-to) még nem kezdődtek el |
 | **M10** | **Deep time** | Lemezmozgás, erózió, eljegesedés, tengerszint | Az időcsúszka él | Lemezmozgás ✅ **vizuálisan megerősítve** (163/163 teszt, TimestepInvariance egzakt; `deepTimeMyr` Unity idő-csúszka - domborzat ÉS biome egyaránt elmozdul, felhasználó által tesztelve). Dinamikus (térfogat-megmaradás alapú) tengerszint ✅ **numerikusan kész** (ND-38, 261/261 teszt; a víz-arány mérve `t=0`-nál 65%-ról 50 Myr alatt 41.8%-ra, 250 Myr alatt 93.7%-ra tolódik el, ahelyett hogy örökké pontosan 65% maradna); erózió/eljegesedés halasztva |
 | **M11** | **Események** | Becsapódás, vulkán, rift, split/merge | Kráterek, kitörések láthatók | Becsapódás ✅ **vizuálisan megerősítve**; szuper-vulkán (VEI8) ✅ **numerikusan kész** (220/220 teszt, ND-29); rift/split-merge halasztva — strukturálisan más (folytonos, nem diszkrét esemény-alapú) modellt igényelnek, önálló tervezést érdemelnek |
 | **M12** | **Perzisztencia + CLI** | Checkpoint, .worldpkg, state hash | — | State hash (`WorldStateHash`) ✅ **numerikusan kész** (227/227 teszt, ND-30); checkpoint/.worldpkg/CLI halasztva |
@@ -900,6 +900,82 @@ Mivel ez tisztán megjelenítési munka a LOD-független mezőn, itt NEM fut a
 "Python-referencia → C#" ciklus a domborzatra (nincs új numerika); a
 verifikáció a fenti tiszta kvadfa-tesztek + a vizuális ellenőrzésed. A
 vizuális lépéseknél jelentkezem.
+
+### Állapot: 1-3. lépés implementálva, 4. (élő hangolás) hátra
+
+**1. Kvadfa-adatszerkezet + kiválasztás + restricted-balance — kész.**
+`unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/AdaptiveQuadTree.cs`, önálló
+`WorldGen.Viewer.Lod` assembly (nincs UnityEngine-referenciája — a
+`noEngineReferences=true` asmdef-beállítás kikényszeríti), a `WorldGen.Core`
+`TileId`/`TileNeighbors`/`TileGeometry`-re építve. `SelectCut`/`EnforceRestrictedBalance`
+top-down bejárással, K_split/K_merge hiszterézissel. **A hiszterézis és a
+"ugyanaz a kamera-pozíció → ugyanaz a cut" reprodukálhatósági követelmény
+látszólagos ellentmondását** dokumentáltan úgy oldottuk fel, hogy az előző
+keret cut-ja EXPLICIT, hívó által átadott paraméter (nem rejtett állapot) —
+részletek a modul XML-doksijában. Unit-tesztek:
+`Assets/Tests/EditMode/Lod/AdaptiveQuadTreeTests.cs` (2:1 egyensúly,
+hiszterézis/nincs oszcilláció, determinizmus hideg indítással és
+előzménnyel, teljes gömb-lefedettség/nincs hézag-átfedés kis level-
+tartományon kimerítően ellenőrizve).
+
+**2. Inkrementális (cut-alapú) mesh-építés + perzisztens LRU sarok-cache — kész.**
+A `PlanetGridMesh.Build()` a referencia-szintű (fix `level`) passzt
+VÁLTOZATLANUL futtatja (tengerszint + panel-cache, ld. 9.3), utána — ha
+`useAdaptiveLod` (alapból be) — a kamera pozíciójából számolt cut-ot épít
+mesh-hé (`RebuildAdaptiveMesh`/`EmitAdaptiveTile`), NEM a teljes gömböt egy
+fix, magas szinten. A per-tile elevation/hőmérséklet/biome/óceán pontszerűen,
+a levél saját szintjén számolódik (`ComputeElevationAtPoint`, a régi
+`ComputeDisplacedRadius`-ból kiemelve) — ugyanazok a Core-függvények, mint a
+fix útvonalon. `Update()` csak akkor számol újra cut-ot, ha a kamera egy
+küszöbnél (`adaptiveCameraMoveThreshold`) többet mozdult. A sarok-cache
+kulcsa `(face, level, cornerU, cornerV)`-re bővült és perzisztens LRU-vá vált
+(`cornerCacheMaxSize`-ig), ahogy a §9.4 kéri.
+
+**3. Geomorphing — kész, de a szokásostól ELTÉRŐ ütemezéssel (dokumentált
+kompromisszum).** A §9.2 eredeti elképzelése a SZÜLŐ csomópont saját belső
+felosztásán belüli, FRAME-enkénti (a tényleges split ELŐTT befejeződő)
+morphingot ír le — ez a szülő quad-ját intra-node résztesszelációval kellene
+felruházza, ami jelentősen nagyobb, kockázatosabb átalakítás lett volna élő
+vizuális hangolás nélkül. Ehelyett: a gyerek csomópontok a SPLIT
+PILLANATÁBAN pontosan a szülő bilineárisan interpolált felületén jelennek
+meg (`alpha=0`, pozíció-folytonos, nincs pop), majd a KÖVETKEZŐ
+újraszámolásokkal (ahogy a kamera tovább közelít) fokozatosan morphol a
+valódi, finom pozícióra (`alpha→1`) — tehát az ütemezés az
+`adaptiveCameraMoveThreshold` szerinti újraépítésekhez kötött, NEM
+független, per-frame folytonos. Ez a pop-mentességet valóban biztosítja,
+de a morph simasága a mozgás-küszöb finomságától függ — élő teszttel
+hangolható/finomítható, ha szükséges.
+
+**4. Teljesítmény-finomhangolás (9.5) — HÁTRA, ehhez a te élő Unity-
+munkameneted kell.** Ami MEGVAN: időzítési diagnosztika
+(`adaptiveRebuildWarningMs`, `Debug.LogWarning` ha egy újraépítés túllépi).
+Ami NINCS MEG (szándékosan, ld. a §9.5 saját szövege — "csak akkor, ha a
+profilozás főszál-akadást mutat"): frame-költségvetés-alapú, több frame-re
+elosztott csomópont-finomítás nagy hirtelen cut-ugrásnál, és Job/Burst-alapú
+aszinkron építés. Ezek bevezetése éles profilozási adatot igényelne, amit
+csak a Unity Editorban, a te kezedben lehet megszerezni.
+
+**Kamera-hatótáv korrekció (nem szerepelt az eredeti tervben, de szükséges
+volt).** A `PlanetOrbitCamera.minDistance` régi értéke (120, `surfaceRadius`
+100 mellett) SOHA nem engedte a kamerát elég közel ahhoz, hogy akár csak a
+level 5-6-os LOD aktiválódjon (mért: level 6-hoz ~5 egységnyi magasság kell
+a felszín felett, a régi minimum ~20 volt) — enélkül az egész adaptív
+rendszer hatása láthatatlan maradt volna. Csökkentve 100.1-re. **Ha a
+`PlanetView.unity` jelenetben ez az érték már felül van írva az
+Inspectorban, ott is kézzel csökkentendő** — a script-beli alapérték nem
+írja felül a jelenetbe mentett értéket.
+
+**Verifikációs módszer, amit ez a lépés (élő Unity Editor hiányában)
+használt:** a kvadfa-logikát (UnityEngine-független) egy különálló .NET
+konzolos harness ÉS a hozzá tartozó `AdaptiveQuadTreeTests` NUnit-teszt
+ténylegesen LEFUTTATVA (nem csak lefordítva) igazolta helyesnek; a teljes
+`PlanetGridMesh.cs`/`PlanetOrbitCamera.cs` Unity-integrációt egy offline
+csproj a valódi `UnityEngine.*.dll` referenciákkal fordította hibátlanra,
+ÉS a felhasználó saját, live Unity Editor-munkamenete a szerkesztés közben
+magától újrafordította a teljes projektet hiba nélkül (`Editor.log`
+ellenőrizve, `LogAssemblyErrors (0ms)`, nincs `error CS`). Élő vizuális/
+interaktív ellenőrzés (varratmentesség, pattogásmentesség, tényleges
+frame-idő) NEM történt meg — ez a te következő lépésed.
 
 ### Komplexitás-becslés (durva, nem mért)
 

@@ -988,6 +988,540 @@ bitre azonos platformok között. A `SampleGaussianUnsafe` emiatt `Unsafe` jelö
 **Sürgősség:** M4 (tektonika) előtt kell dönteni. A Gauss-eloszlás a lemez-
 sebességeknél és az esemény-magnitúdóknál jön elő.
 
+### ND-41 — Szél, párolgás/csapadék, időjárás-zaj: egyszerűsített, dokumentált zárt modell zárt formula nélküli spec-szakaszokhoz
+
+**Kérdés:** a spec §30 ("Szél"), §31 ("Nedvesség és csapadék") és §32
+("Időjárás") csak minőségi komponenslistát ad, zárt formula nélkül —
+pl. `Evaporation = f(temperature, wind, surfaceWater)`, "moist air →
+mountain → uplift → precipitation", `W(p,t) = Noise(Warp(p,t), seed)`.
+A `tools/reference/wind_precipitation_ref.py` Python-orákulumhoz
+konkrét, determinisztikus képleteket kellett választani öt olyan
+ponton, ahol a spec nem specifikál egyértelműen.
+
+**Döntés (öt alpont):**
+
+1. **Háromsávos zonális index alakja.** Háromszög-hullám (0 → csúcs → 0)
+   minden 30 fokos sávban, előjellel váltakozva (Hadley: negatív/keleti,
+   Ferrel: pozitív/nyugati, Polar: negatív/keleti), nullátmenettel
+   pontosan 0/30/60/90 foknál. **Indoklás:** ez kvalitatívan megfelel a
+   valódi "csendöveknek" (doldrums ~0°, ló-szélességek ~30°, szubpoláris
+   mélynyomás ~60°) és a köztük váltakozó szélöveknek — nem mérési érték,
+   csak kvalitatív proxy, de nem önkényes: a nullátmenetek a valódi
+   sávhatárokra esnek.
+
+2. **Coriolis-proxy formája.** A hőmérsékleti nyomásgradiensből számolt
+   termikus szélkomponenst egy FIX szögű forgatással térítjük el
+   (`CORIOLIS_DEFLECTION_DEG_DEFAULT = 30°`), előjele `-sign(szélesség)`
+   — jobbra az É-, balra a D-féltekén, a geosztrofikus szél klasszikus
+   kvalitatív viselkedésének megfelelően. **Indoklás:** a szélességi
+   alapcellák már saját sávos előjelváltással rendelkeznek (1. pont), a
+   Coriolis-hatást csak a termikus komponensre alkalmazzuk, hogy a két
+   hatás külön tesztelhető és dokumentálható legyen. A konkrét szögérték
+   (30°) illusztratív, nem mérés — később finomítható.
+
+3. **Hőmérséklet-gradiens számítási módja.** Véges differencia a már
+   verifikált `temperature_kelvin`-ből, a lokális kelet/észak érintő-
+   irányban, `GRADIENT_EPS = 1e-3` radián lépéssel, a szomszéd pontokon
+   is a HÍVÓ tile aktuális `is_oceanic`/`elevation_m` értékét feltételezve
+   (a valódi szomszéd-tile adatok nem elérhetők ebben az orákulumban,
+   mert az nem fér hozzá a tile-rácshoz/szomszédsági táblához).
+   **Indoklás:** ez dokumentált egyszerűsítés, nem hiba — a tényleges
+   motor-integrációkor a hívó könnyen cserélheti valódi szomszéd-
+   lekérdezésre.
+
+4. **Elevációgradiens mint közvetlen bemenet.** A hegyi eltérítéshez és
+   az orografikus csapadékhoz szükséges elevációgradienst (kelet/észak
+   komponens) a modul KÖZVETLEN BEMENETKÉNT várja, nem számolja újra a
+   kéregmodellből. **Indoklás:** ugyanaz a minta, mint ahogy
+   `temperature_ref.py` is közvetlen bemenetként várja az
+   `elevation_m`/`sea_level_m` értéket a kéregmodell újraszámolása
+   helyett — a döntés a moduláris, réteg-független orákulum-tesztelést
+   szolgálja, a motor-integrációkor triviálisan csatolható a valódi
+   szomszéd-elevációhoz.
+
+5. **Weather-deviáció korlátozásának módja (§32.3).** `tanh()`, nem kemény
+   `clamp()`. **Indoklás:** a `noise_ref.fbm` saját plauzibilitás-tesztje
+   szerint az fBm-érték ritkán enyhén túllépheti a [-1,1] tartományt
+   (ld. `noise_ref.py` __main__, "[-1.5,1.5] körüli tartomány"). Kemény
+   `clamp()` esetén ez egy látható, éles "plafont" adna a deviáció-
+   mezőben (mesterségesen lapos foltok ott, ahol a zaj épp túllépte a
+   határt) — a `tanh()` ehelyett simán, aszimptotikusan telítődik, nincs
+   élesség-artefaktum, és `|tanh(x)| < 1` bármely véges x-re, tehát a
+   deviáció szigorúan korlátos marad a klimatikus átlag körül, ahogy a
+   §32.3 kifejezetten megköveteli ("a weather noise nem írhatja felül a
+   klímát").
+
+**Verziózás:** ez egy ÚJ modul (nincs korábbi C#-implementáció, amit
+felülírna), ezért nem seed-törő a meglévő világokra nézve — de a modul
+saját belső konstansai (a fenti 5 pont + a `BASE_WIND_SPEED_DEFAULT`,
+`OROGRAPHIC_COEFF_DEFAULT` stb. numerikus alapértékek) a jövőben
+finomíthatók, amíg a C#-port el nem készül és be nem kerül a
+`testvectors.json`-ba — utána bármely módosításuk verzióemelést igényel.
+
+**Verifikálva:** `tools/reference/wind_precipitation_ref.py` önállóan
+lefut, 7 plauzibilitás-blokk zöld (zonális index, Coriolis-előjel,
+hegyi eltérítés, determinizmus, párolgás-monotonitás, orografikus
+csapadék/rain-shadow, weather-korlátosság), és két egymást követő
+futtatás bitre azonos `wind_precipitation_vectors.json`-t generál
+(SHA-256 egyezés).
+
+**Releváns fájlok:** `tools/reference/wind_precipitation_ref.py` (import:
+`temperature_ref.temperature_kelvin`, `noise_ref.fbm`,
+`domain_warp_ref.warp_position`).
+
+### ND-42 — M5 teljes hőmérséklet-modell: T_greenhouse/T_ocean/T_weather/T_cycle modellezési választásai
+
+**Kérdés.** A backlog "M5 | Teljes hőmérséklet-modell" tétele a spec §28.1
+teljes egyenletét kéri:
+
+```
+T = T_radiative + T_greenhouse + T_ocean - T_altitude + T_weather + T_cycle
+```
+
+A meglévő `tools/reference/temperature_ref.py` addig csak
+`T_radiative + T_greenhouse(fix 33K) - T_altitude`-ot valósította meg. A spec
+sem §28-nál, sem §29-nél (albedo-feedback) nem ad zárt formulát a hiányzó
+három tagra — csak minőségi leírást (`cooling → more ice → higher albedo →
+more cooling`, ill. §32 "advected procedural field", §25 "Milanković-szerű
+komponensek, ne földi periódusokkal"). Ez a döntés rögzíti, milyen konkrét,
+zárt modellt választottunk mind a négy tagra, mert a spec ezt nyitva hagyta.
+
+**Réteg-döntés (nem tárgyalható, csak dokumentált): a régi `temperature_kelvin`
+függvény VÁLTOZATLAN maradt.** A már generált 150 elemű
+`temperature_vectors.json` és a rá épülő C# `Temperature.cs`/
+`TemperatureTests.cs` bitre azonos maradt (ellenőrizve: a fájl `git diff`-je
+üres). A teljes egyenlet egy ÚJ függvényben (`temperature_kelvin_full`)
+készült el, saját, KÜLÖN tesztvektor-fájllal (`temperature_full_vectors.json`)
+— ez még NINCS C#-portolva, az egy külön, későbbi lépés (lásd "Hátralévő" lent).
+
+**1. T_greenhouse — logaritmikus, CO2-szerű koncentráció-proxy.**
+
+| Opció | Előny | Hátrány |
+|---|---|---|
+| A: marad fix 33K konstans | Nincs új kockázat | Nem "modell", nem függ semmilyen bolygóparamétertől — a backlog tétel ezt kifejezetten kéri bővíteni |
+| **B: `T_greenhouse = 33K + sensitivity · log2(ghg_ppm / 280ppm)`** | Fizikailag ismert kvalitatív minta (radiative forcing ~ln(concentráció)); a referencia-koncentráción PONTOSAN visszaadja a régi 33K-t (ln(1)=0 egzaktul) | A `sensitivity_k_per_doubling=3.0` és a `280 ppm` referencia valós Föld-adatok (preindusztriális CO2, IPCC "equilibrium climate sensitivity" középbecslése ~1.5–4.5K sávból), de itt egy szintetikus bolygó PROXY-jaként, nem mérésként használjuk |
+| C: lineáris arányosság a koncentrációval | Nincs új transzcendens kockázat | Fizikailag kevésbé indokolt (a valós üvegházhatás jól ismerten logaritmikus, nem lineáris) |
+
+**JAVASLAT: B.** A `dm.ln`/`dm.exp` (a már lezárt ND-27 `deterministic_math_ref`
+modulja) használatával nem nyit új, nem-dokumentált transzcendens-kockázatot.
+**MEGERŐSÍTÉST IGÉNYEL:** a `280 ppm` és a `3.0 K/duplázódás` valós fizikai
+becslések, nem KAT-szerűen verifikálható algoritmus-konstansok — ha a
+felhasználó más értéket akar, ez paraméterezhető (`ghg_ppm`,
+`sensitivity_k_per_doubling`), a névleges alapértelmezettek csak egy
+kiindulási javaslat.
+
+**2. T_ocean — kontinentalitás/hőtehetetlenség, évi átlaghoz húzás.**
+
+Az óceáni tile pillanatnyi `T_radiative`-ját az évi (12 havi mintás) átlaga
+felé húzzuk egy `buffering_strength` (alapértelmezett 0.3) együtthatóval;
+szárazföldön pontosan 0 (nincs változás a régi viselkedéshez képest).
+Ellenőrizve (`__main__` plauzibilitás-teszt): 45°-on az óceán évszakos
+szórásnégyzete (~500) érdemben kisebb, mint a szárazföldé (~880) ugyanazon a
+szélességen. **MEGERŐSÍTÉST IGÉNYEL:** a `0.3` együttható és a 12 mintás évi
+átlagolás felbontása tisztán modellezési választás, nincs spec-forrás vagy
+mért Föld-adat mögötte.
+
+**3. T_weather — §32.2 stateless időnoise, ÖNÁLLÓ MINIMÁLIS PLACEHOLDER.**
+
+A feladat idején a testvér-feladat (szél/nedvesség/csapadék,
+`wind_precipitation_ref.py`) párhuzamosan, még nem lezártan fut. Emiatt a
+`weather_deviation_k` a spec §32.2 mintáját (`W(p,t) = Noise(Warp(p,t),
+seed)`) a már verifikált `noise_ref.fbm`-mel valósítja meg, ahol a "Warp"
+egy egyszerű, determinisztikus idő-eltolás (`WEATHER_TIME_DRIFT · day_t ·
+WEATHER_TIME_SCALE_PER_DAY`) — NEM a teljes szél/nyomás/nedvesség-alapú
+időjárás-mező. **HATÁRVONAL, NEM TÖRLENDŐ CSENDBEN:** amint a
+`wind_precipitation_ref.py` elkészül, ezt a függvényt át kell nézni/
+egyesíteni azzal (ne maradjon két független időjárás-forrás a rendszerben).
+Az amplitúdó (`WEATHER_AMPLITUDE_K_DEFAULT = 4.0K`, a spec §32.3 saját
+példájából: "-4°C" tipikus deviáció) és a zaj-frekvencia/oktávszám
+modellezési választás. Ellenőrizve: az átlagos/max abszolút deviáció jóval a
+tipikus egyenlítő-pólus klímakülönbség alatt marad (§32.3 "a weather noise
+nem írhatja felül a klímát" — additív, nem domináns).
+
+**4. T_cycle — Milanković-szerű additív kényszerítő oszcilláció, SZŰKÍTETT
+HATÓKÖRREL.**
+
+Három szinuszos komponens (eccentricity/obliquity/precession-szerű, spec
+§25), seedelt periódusokkal "fizikailag ésszerű tartományból"
+(50k–500k / 20k–150k / 10k–50k év — NEM a valódi Föld 100k/41k/23k éves
+Milanković-periódusok, a spec kifejezetten tiltja a földi periódusok
+másolását). **HATÓKÖR-HATÁR A TESTVÉR-FELADATTAL (M10 erózió+eljegesedés-
+ciklusok) SZEMBEN, EXPLICITEN RÖGZÍTVE:** ez a modul KIZÁRÓLAG a
+hőmérséklet-egyenlet additív, időfüggő bemeneti tagját számolja
+(`climate_cycle_temperature_k`). A jégtakaró/eljegesedés TÉNYLEGES
+következménye (jégmennyiség, albedo-visszacsatolás, tengerszint-hatás — §29
+feedback-hurok) NEM ennek a modulnak a hatásköre, azt az M10 (erózió+
+eljegesedés-ciklusok) feladat implementálja majd, ennek a `T_cycle` kimenetét
+mint bemenetet felhasználva. **MEGERŐSÍTÉST IGÉNYEL:** a három periódus-
+tartomány és a három amplitúdó (2.0/3.0/1.0 K) tisztán modellezési választás,
+nincs mögötte spec-adat vagy hivatalos forrás.
+
+**Determinizmus.** Minden új tag tiszta függvény (nincs mutable állapot);
+`dm.sin_cos`/`dm.ln`/`dm.exp` (a lezárt ND-27 polinomiális implementációja)
+használatával, NEM nyers `math.sin/log/exp`-pel — így az új ágak nem nyitnak
+új, dokumentálatlan transzcendens-kockázatot. Megjegyzés: a MEGLÉVŐ
+T_radiative/T_altitude lánc (`astronomy_ref.sun_direction_body_frame`, ill. a
+`raw ** 0.25` negyedik gyök Python beépített `**`-tal) továbbra is nyers
+`math.sin/cos`-t és `**`-ot használ — ez az ND-27 lezárása ELŐTTI állapotot
+tükrözi, és jelen feladat kifejezett kérésére (a meglévő bázisréteg
+érintetlenül hagyása) nem lett javítva; külön nyomon követendő, ha az ND-27
+hatóköre újra napirendre kerül.
+
+**Verziózás: NEM seed-törő (egyelőre).** A `temperature_kelvin` (a jelenleg
+C#-ban is élő, seed-hez kötött függvény) bitre változatlan. A
+`temperature_kelvin_full` egy ÚJ függvény, aminek még nincs C#
+megfelelője — amikor portolásra kerül, AKKOR válik ez a döntés seed-törővé
+(a `Temperature.cs` numerikus viselkedésének módosítása), és akkor kell a
+megfelelő verziószámot emelni, nem most.
+
+**Hátralévő (nem ennek a feladatnak a hatóköre):** (1) a fenti négy
+"MEGERŐSÍTÉST IGÉNYEL" paraméter felhasználói jóváhagyása vagy módosítása;
+(2) `temperature_kelvin_full` C# portolása + `temperature_full_vectors.json`
+KAT-ellenőrzése (`WorldGen.Core.Tests`); (3) `weather_deviation_k` egyesítése
+a testvér-feladat `wind_precipitation_ref.py`-jával, amint az elkészül; (4) a
+`docs/05-milestones.md`/`docs/backlog.md` frissítése (szándékosan NEM ennek a
+feladatnak a része, hogy elkerüljük az ütközést a párhuzamosan futó
+testvér-feladatokkal).
+
+**Releváns fájlok:** `tools/reference/temperature_ref.py`
+(`greenhouse_temperature`, `ocean_buffering_temperature`,
+`weather_deviation_k`, `climate_cycle_temperature_k`,
+`temperature_kelvin_full`), `tools/reference/temperature_full_vectors.json`,
+`tools/reference/deterministic_math_ref.py` (ND-27), `tools/reference/
+noise_ref.py` (`fbm`, ND-31/32/33), `docs/00-spec-v1.0.md` §25, §28, §29,
+§32.
+
+### ND-43 — M7 hátralévő rész (tavak, jég/hó, statikus A1 eróziós pass): modellezési küszöbök és egyszerűsítések
+
+M7 hátralévő tétele (`docs/backlog.md`: "Tavak, jég/hó, eróziós visszahatás")
+a `tools/reference/hydrology_ref.py` már kész priority-flood/flow
+accumulation eredményére épül (`tools/reference/lakes_ice_erosion_ref.py`).
+A spec (§35 Tavak, §36 Jég és hó, §18 Erózió) egyik résznél sem ad zárt
+numerikus küszöböt vagy együtthatót — az alábbi döntések mind ebből a
+hiányból fakadnak, és mind **egyszerű, statikus, egyetlen elevációmezőre
+ható közelítések**, nem az M10 deep-time lánc része.
+
+**1. Tavak (§35) — melyik tile "tó".**
+
+A depresszió-feltöltés (priority-flood) melléktermékeként minden tile-ra
+ismert a feltöltött ("víz-") szint. Egy tile tó, ha `filled > raw_elevation
++ LAKE_MIN_DEPTH_M` és nem óceán. A `LAKE_MIN_DEPTH_M = 0.5` (méter) egy
+numerikus zaj-küszöb, nem fizikai állítás — enélkül a lebegőpontos
+kerekítés miatt szinte minden sík tile "tóként" jelenne meg egy epsilonnyi
+feltöltéssel. A tavakat a már verifikált `neighbor()` függvénnyel BFS-sel
+összefüggő komponensekbe csoportosítjuk. A priority-flood korrektségi
+tulajdonsága miatt egy medence belső tile-jai jellemzően egyetlen közös
+feltöltött szintet (a kifolyási/sill-pont magasságát) kapják — ritka,
+többszintű (teraszos) medencéknél ez nem szigorúan igaz, ezért a
+`surfaceElevation` mezőt a komponens átlagaként adjuk vissza, a min/max
+szórást pedig diagnosztikaként jelentjük (a script kiírja, hány "nem
+egyszikű" tavat talált — a jelenlegi teszt-világon 0-t).
+
+A tavak kialakulásának többi módja (gleccser, kráter, tektonikus medence,
+folyóelzárás — §35 felsorolása) NEM külön logika: ezek már MOST is
+implicit módon topográfiai mélyedésként jelennek meg a domborzatban (pl. a
+becsapódási kráterek már bevésik magukat az elevációba), ezért ez a
+detektor őket is megtalálja, csak nem a keletkezési ok szerint különíti el
+— ez tudatos hatókör-szűkítés, nem hiányzó eset. A "tavak időben"
+alfejezet (feltöltődhet, kiszáradhat, túlfolyhat, tengerrel kapcsolatba
+kerülhet) időfüggő állapot, ezért NEM ennek a statikus passznak a része.
+
+**2. Jég/hó (§36) — statikus osztályozás küszöbei.**
+
+A §36.2 "Accumulation > Melt" feltételt egy éves átlaghőmérséklet-küszöbre
+egyszerűsítjük. A `temperature_ref.temperature_kelvin` egy adott naphoz
+(`day_t`) ad napi átlagot; ezt 12 ponton (`NUM_ANNUAL_SAMPLES`) tovább
+mintavételezzük a keringési periódus mentén — ugyanaz az elv, mint a
+`temperature_ref.py`-ban a napi mintavételezésnél (sűrű mintavétel zárt
+formula helyett, mert az utóbbi szinguláris a pólusoknál).
+
+- **Permanens jég**: éves átlaghőmérséklet `< 258.15 K` (-15 °C).
+- **Szezonális hó**: az éves átlag e fölött van, de a leghidegebb
+  mintavett hónap `< 273.15 K` (0 °C, a víz fagyáspontja — ez fizikai
+  állandó, nem becsült érték).
+- **Nincs**: egyik feltétel sem teljesül.
+
+A -15 °C-os küszöböt **empirikusan illesztettük** a `temperature_ref.py`
+jelenlegi paramétereihez (Föld-szerű napállandó, 23.44°-os tengelydőlés,
+33 K fix üvegházhatás): a modul saját szélesség-táblázata szerint ez kb.
+50-55 fok szélesség fölött ad permanens jeget, ami plauzibilis analógia a
+valódi sarkköri jégsapkákhoz, de **nem hivatkozott klimatológiai
+konstans** — csak ehhez az egyszerűsített hőmérséklet-modellhez illesztett
+heurisztika. Ha a `temperature_ref.py` alapmodellje változik (pl. a
+33 K-es fix üvegházhatás finomodik, ld. `docs/backlog.md` M5 tétele), ezt a
+küszöböt újra kell hangolni.
+
+A 36.3 gleccseráramlás-diffúzió (jégvastagság+lejtő alapú modell, ami
+eróziót/völgyeket/morénákat/tengerszintet is befolyásol) **explicit módon
+HALASZTVA** — ez önálló, nagyobb feladat, nem fér bele ebbe a statikus
+osztályozási passzba.
+
+**3. Statikus (A1) eróziós pass (§18.2) — proxyk és a "k" együttható.**
+
+`ErosionRate = k · Rainfall^α · Slope^β · MaterialFactor` egyetlen additív
+korrekcióként alkalmazva (nem idő-integrált differenciálegyenlet):
+
+- `Rainfall` proxy → normalizált flow accumulation (`[0,1]`) — ugyanaz a
+  proxy, amit a `hydrology_ref.py` már használ a folyó-küszöbölésnél.
+- `Slope` proxy → `|raw_elevation(k) - raw_elevation(parent(k))|`,
+  normalizálva a szárazföldi maximummal. A `parent` a priority-flood
+  folyásirány-célpontja — ez a FELTÖLTÖTT magasság szerint monoton csökken
+  a cél felé, a NYERS elevációkülönbség előjele ezért nem feltétlenül
+  "lefele" mutat, ezért abszolút értékkel dolgozunk (csak a meredekség
+  mértéke érdekel, nem az iránya).
+- `MaterialFactor = 1.0` (konstans) — nincs még külön kőzettípus/litológia
+  mező a specifikációban implementálva; ha lesz, ez lesz a csatlakozási
+  pont.
+- `α = 0.5`, `β = 1.0` — a "stream power law" (`E = K·A^m·S^n`, tipikusan
+  `m≈0.5`, `n≈1`) néven ismert, a folyóvölgy-bevágódás modellezésében
+  általánosan használt **egyenletalak** átvétele. Fontos: ez NEM egy adott
+  publikációból idézett számérték, csak a függvény alakja — a tényleges
+  "k" együtthatót (`EROSION_MAX_DEPTH_M`) önállóan kalibráltuk.
+- `EROSION_MAX_DEPTH_M = 250.0` méter: az elméleti maximális egyszeri-pass
+  bevágódás (amikor a normalizált accumulation ÉS slope is 1.0 — ez a két
+  szélsőség a gyakorlatban ritkán esik egybe, a ténylegesen megfigyelt
+  maximum ez alatt marad). Úgy választottuk, hogy a jelenlegi szárazföldi
+  elevációtartomány (kb. 2500-3800 m, ld. `crust_elevation_ref.py`
+  `OCEANIC_BASE_M`/`CONTINENTAL_BASE_M`/`NOISE_AMPLITUDE_M`) kis törtrészét
+  tegye ki egyetlen statikus passzban — egy valódi folyóvölgy több
+  geológiai kor alatt alakul ki, nem egy lépésben.
+- `DEPOSIT_FRACTION = 0.3`: az eróziós anyag ekkora hányada rakódik le a
+  KÖZVETLEN lefele-szomszédon (a priority-flood `parent`-jén), ha az
+  szárazföld; a maradék 70% "tovább szállítódik" (ebben az egylépéses
+  közelítésben egyszerűen elvész / a tengerbe jut, nem követi tovább a
+  teljes láncot). Ha a parent óceán, az üledék a tengerfenékre kerül, ami
+  NEM része ennek a szárazföldi elevációmezőnek.
+
+**Fontos, verifikációkor felszínre került viselkedés:** a legnagyobb
+flow-accumulationú tile (jellemzően a torkolat/delta közelében) SAJÁT
+bevágódása kicsi lehet (ha ott a lejtő lapos), miközben a VÉGSŐ
+elevációja mégis NŐHET, mert a felvízi (magas erózióhozamú) szomszédai ide
+rakják le az üledék egy részét — ez fizikailag helyes viselkedés
+(deltaképződés, ld. a spec 18.2 utolsó mondata: "Az üledék alacsonyabb
+helyeken lerakódhat"), nem hiba. A `lakes_ice_erosion_ref.py` plauzibilitás-
+assertjei ezért a nyers `erosion[]` szótáron ellenőrzik a formula
+accumulation/lejtő-monotonitását, a végső mezőn pedig csak azt, hogy
+valahol tiszta bevágódás, valahol tiszta feltöltődés történik.
+
+**Ha ez a heurisztika téves iránynak bizonyul** (pl. Unity-vizuális
+ellenőrzésnél irreálisan mély kanyonok vagy irreális tófelszín jönne ki),
+ezt a bekezdést kell frissíteni és a küszöböket/együtthatókat újrahangolni
+— ne csendben, kódban módosítva.
+
+### ND-44 — M10 erózió idővel + eljegesedés-ciklusok: zárt alakú relaxáció numerikus PDE helyett, illusztratív klíma-forcing a T_cycle helyett
+
+**Kérdés.** Az M10 hátralévő fele (`docs/05-milestones.md` M10 sora):
+"Erózió idővel, eljegesedés-ciklusok". A spec §17 `dH/dt = UpliftRate -
+ErosionRate` és §18.2 `ErosionRate = k · Rainfall^α · Slope^β ·
+MaterialFactor` egyenleteket kellene deep-time-ban (`timeMyr`)
+kiértékelhetővé tenni. Két probléma: (1) a §18.2 teljes alakja a `Slope`
+tagon keresztül ÖNMAGA a domborzattól függ, ami idővel maga is változik —
+ez csatolt, nemlineáris PDE, aminek nincs általános zárt megoldása; (2)
+nincs kész `Rainfall` mező (a hidrológia, `hydrology_ref.py`, statikus,
+egyetlen elevációs mezőn dolgozik) és nincs kész klíma-modul `T_cycle`
+tagja (`temperature_ref.py` explicit halasztja).
+
+**Az ND-04 (nyitott, "Timestep-invariancia toleranciái", M10-re
+revideálandó) kontextusa.** Ez a munka pont az az M10 lépés, ami az
+ND-04 revideálását kellene, hogy megalapozza. A tapasztalat: egy naiv
+Euler-lépegetéssel megvalósított `dH/dt = k(H_eq-H)` (ld.
+`_naive_euler_relaxation` a referenciában) UGYANAZON `t=365 Myr`
+végpontra `n_steps=1`-nél `-4623m`-et, `n_steps=2000`-nél `432.6m`-et ad —
+tehát **több ezer méteres eltérés** pusztán a lépésszám miatt, miközben a
+"helyes" (zárt alakú) válasz `432.617069 m`. Ez konkrét, mért bizonyíték
+arra, hogy az I1 determinizmus miért sérülne egy iteratív integrátorral:
+két, egyébként azonos seedű világ MÁS eredményt adna, ha a mérnöki kód
+más `timeMyr` felbontásban kérdezné le a mezőt (pl. a renderelő 50 Myr-es
+lépésekben, egy teszt 1 Myr-esben).
+
+**Döntés — 1. Erózió: lineáris relaxáció, ZÁRT alakban, NEM a teljes
+§18.2 formula.** A hegység-relief (a lemezhatár statikus uplift-bónusza,
+`plate_boundary_ref.boundary_uplift`) exponenciálisan relaxál egy
+egyensúlyi érték felé:
+
+```
+H(t) = H_eq + (H0 - H_eq) * exp(-t / tau)
+H_eq = EQUILIBRIUM_FRACTION * H0      (H0 = boundary_uplift(...), a t=0 M4 érték)
+```
+
+Ez a `dH/dt = (1/tau)(H_eq - H)` lineáris ODE egzakt megoldása — a
+`Rainfall`/`Slope`/`MaterialFactor` szorzat-modell HELYETT egy egyszerűsített,
+"topográfiai relaxációs idő" jellegű közelítés (a geomorfológiában használt
+koncepció: egy reliefzóna karakterisztikus ideje, amíg megközelíti az új
+egyensúlyi állapotát egy tektonikai perturbáció után). **A konkrét
+paraméterek (`OROGENIC_RELAXATION_TAU_MYR = 50`, `EQUILIBRIUM_FRACTION =
+0.35`) ILLUSZTRATÍV MODELLEZÉSI VÁLASZTÁSOK, NEM egy publikált geológiai
+mérésből verifikált szám** — nincs a `tools/reference/kat_vectors`-hoz
+hasonló hivatalos forrás egy "mennyi idő alatt erodálódik egy hegylánc a
+felére" konstansra, ezért ez **explicit megerősítést igényel**, mielőtt
+C#-ba kerülne (a python-reference skill "ha nincs hivatalos forrás,
+jelezd és kérj megerősítést" szabálya szerint). A `t=0` eset bitre
+(mért: `4.55e-13 m` numerikus zaj) visszaadja a meglévő statikus M4
+eredményt (`elevation_with_boundary`) — nincs seed-törő hatás a meglévő
+world-öknél `t=0`-nál.
+
+**A `Rainfall`/`Slope`/`MaterialFactor` teljes csatolt modellje EXPLICIT
+HALASZTVA marad** (nincs `rainfall_ref.py`, nincs iteratív domborzat-
+visszahatás) — ez egy tudatos hatókör-szűkítés, nem hallgatólagos
+egyszerűsítés, mert nincs jelenleg megvalósítható zárt alak rá, és egy
+numerikus PDE-megoldó direktben sértené I1-et (ld. fent).
+
+**Döntés — 2. Eljegesedés: önálló, illusztratív periodikus forcing, NEM a
+valódi T_cycle.** `GlobalTempOffset(t) = A · sin(2π·t/T)`, `A = 6K`, `T =
+150 Myr` — **szintén illusztratív, nem verifikált geológiai/csillagászati
+adatból levezetett szám** (a valódi icehouse/greenhouse szuperkontinens-
+ciklusok időskálája nagyságrendileg hasonló, de ez NEM azt jelenti, hogy a
+150 Myr egy konkrét, forrásból idézett érték — explicit megerősítést
+igényel). Egy idealizált, szélesség-lineáris hőmérséklet-profillal
+(`T_EQUATOR_K`, `LATITUDE_TEMP_GRADIENT_K_PER_RAD` — szintén illusztratív)
+kombinálva a jégvonal szélessége zárt alakban, analitikusan (nem numerikus
+gyökkereséssel) számolható. `t=0`-nál az eltolás 0 (visszamenőlegesen
+kompatibilis a statikus M5 hőmérséklet-modellel, ha valaki hozzáadja az
+eltolást). **Ezt később egyesíteni kell a klíma-modul valódi `T_cycle`
+tagjával**, ha az elkészül (`temperature_ref.py` docstringje explicit
+"T_cycle halasztva"-ként jelzi) — ez a modul nem helyettesíti azt, csak
+egy ideiglenes, önmagában is tesztelhető proxy addig.
+
+**A két alrendszer szándékosan NINCS összekapcsolva** (pl. "jégkorszakban
+gyorsabb a glaciális erózió") — ez egy további, külön dokumentálandó
+modellezési döntés lenne, amit itt nyitva hagyunk.
+
+**Timestep-invariancia bizonyítéka (I1/ND-04).** A `_relax_towards(h0,
+h_eq, t, tau)` függvényt `n_steps` egyenlő részintervallumra láncolva
+(`chain_relaxation`, minden lépésben az előző kimenet az új `h0`, de a
+`h_eq` FIX marad az EREDETI `h0`-ból számolva) az exponenciális relaxáció
+félcsoport-tulajdonsága (`exp(-a(t1+t2)) = exp(-a·t1)·exp(-a·t2)`) miatt
+`n_steps ∈ {1,2,3,5,13,47,101,500}`-ra mérve **max `5.68e-14 m` eltérést**
+adott az egylépéses direkt kiértékeléshez képest (`h0=1234.5`, `t=365
+Myr`, direkt érték `432.6170692017 m`) — ez a dupla lebegőpontos
+kerekítés zajszintje, NEM diszkretizációs hiba. **Fontos implementációs
+csapda, amit menet közben találtunk és javítottunk:** az első próbálkozás
+a `h_eq`-t minden lépésben ÚJRASZÁMOLTA a pillanatnyi (már relaxált)
+`h`-ból (`h_eq = eq_fraction * h_pillanatnyi`) — ez elrontotta a
+félcsoport-tulajdonságot, és a lánc `n_steps`-től függő, akár több száz
+méteres eltérést adott (mért: `n_steps=2`-nél `421.75 m` eltérés az
+egylépéses eredménytől). A javítás: `h_eq` a teljes láncon át FIX, az
+EREDETI `h0`-ból számolva. Ez önmagában egy élő demonstrációja annak,
+milyen könnyű csendben timestep-függő modellt építeni, ha az egyensúlyi
+cél nem marad invariáns a felbontással szemben — pontosan az a hiba-
+osztály, amire a feladatkiírás figyelmeztetett.
+
+**Referencia:** `tools/reference/erosion_glaciation_deep_time_ref.py`.
+Tesztvektorok: `erosion_glaciation_deep_time_vectors.json`
+(`erosionVectors`: 400 minta `(face,level,u,v,plateId,timeMyr) ->
+(elevation,isOceanic)`; `glaciationVectors`: 200 minta `timeMyr ->
+(globalTempOffsetK, iceLineAbsLatitudeRad, isIced)`). A script kétszeri
+futtatása bitre azonos JSON-t ad (ellenőrizve).
+
+**Nyitott, megerősítést igénylő pontok (a C# port ELŐTT eldöntendő):**
+1. `OROGENIC_RELAXATION_TAU_MYR = 50` és `EQUILIBRIUM_FRACTION = 0.35` —
+   illusztratív, nem forrásból verifikált.
+2. `GLACIATION_PERIOD_MYR = 150`, `GLACIATION_AMPLITUDE_K = 6` —
+   illusztratív, nem forrásból verifikált.
+3. Kell-e a glaciális erózió és az orogén relaxáció összekapcsolása
+   (jelenleg szándékosan szétválasztva).
+4. A `Rainfall`/`Slope`/`MaterialFactor` teljes §18.2 modell továbbra is
+   halasztva marad — mikor (melyik milestone) kerüljön napirendre, és
+   milyen zárt-alakú vagy dokumentáltan-elfogadott-kockázatú megoldással.
+
+### ND-45 — Lemez-életciklus (M10+M11 összevonva): split/merge/rift ütemezése timestep-invariáns módon
+
+**Kérdés.** A backlog két tétele ("M10 | Lemez-születés/-halál (§16) | Fix
+plateCount a világ elejétől" és "M11 | Rift-zóna + lemez-hasadás/egyesülés |
+A spec ezt folytonos modellként írja le") ugyanaz a spec-szakasz
+(`docs/00-spec-v1.0.md` §16, 963-980. sor): `PlateSplitEvent`,
+`PlateMergeEvent`, `SubductionTermination`, `RiftActivation`, `HotspotBirth`,
+`HotspotDeath`, "a world seed és a geodinamikai állapot alapján ütemezve". A
+spec **nem ad zárt képletet** ezekhez (szemben pl. a becsapódásokkal, ahol
+Schmidt & Housen (1987) skálázás van, ld. ND-28) — minden időzítési/
+geometriai szabályt itt kellett megtervezni. Referencia:
+`tools/reference/plate_lifecycle_ref.py`.
+
+**A vezérlő korlát: ND-04 (timestep-invariancia).** Egy futásidőben
+akkumulált "stressz-számláló" (pl. "minden Myr-ben +x esély a hasadásra,
+összegezve") **lépésköz-függővé tenné a történelmet** — más dt mellett más
+esemény-idő jönne ki. Ehelyett minden lemez a **saját, zárt-formájú
+"életrajzi sorsát"** egyetlen Threefry-hívásból kapja, kizárólag a saját
+`plateId`-jából és a world seedből (`plate_lifecycle_roll`) — a "születési
+idő" (mikor jött létre egy korábbi split révén) csak egy ADDITÍV ELTOLÁS a
+már rögzített élethosszhoz, nem egy másik állapotfüggő bemenet.
+`PlateTopologyAtTime(seed, t)` (`resolve_topology`) minden hívásnál a
+TELJES leszármazási fát újraépíti a gyökerektől — nincs memoizálás, nincs
+modul-szintű mutable állapot. Ezt konkrét számpéldával is bizonyítottuk: a
+`world_seed=0xA7C944210000, plateCount=10` világban közvetlenül lekérdezve
+`t=725 Myr`-t 11 aktív lemezt kapunk; ha előtte a kód "lépésenként"
+(t=50, 123, 200, 333, 500, 600, 700 Myr) is lekérdezi az állapotot (mintha
+egy step-based szimulátor lenne), a `t=725`-nél kapott lista **bitre
+azonos** marad (pl. lemez 1 pozíciója mindkét esetben pontosan
+`(-0.7312988446535255, 0.3106893665156318, 0.6071854060684712)`).
+
+**Döntések (hatókör-szűkítés, a korábbi milestone-ok mintáját követve):**
+
+1. **RiftActivation + PlateSplitEvent implementálva.** Minden lemez
+   `plate_lifecycle_roll(seed, plateId)` hívásból kap egy `kind`
+   (`split`/`merge`/`none`, valószínűségek `P_SPLIT=0.45`, `P_MERGE=0.25`),
+   egy `lifespanMyr`-t (`[80, 400]` Myr sávból, a Wilson-ciklus
+   nagyságrendje) és egy `riftFractionOfLifespan`-t (`[0.40, 0.85]`) — a
+   `RiftActivation` időpontja `birth + lifespan*riftFraction`, korábbi mint
+   maga a split (`birth + lifespan`). **Ezek a numerikus sávok (P_SPLIT,
+   P_MERGE, lifespan-tartomány, rift-frakció-tartomány) NEM hivatalos
+   geológiai forrásból verifikált értékek, hanem plauzibilitásra hangolt
+   MVP világtervezési konstansok** — a CLAUDE.md "ha nincs elérhető
+   hivatalos forrás, jelezd explicit" szabálya szerint ez itt explicit
+   jelezve van, és **felhasználói megerősítést igényel**, mielőtt a C#
+   portban "véglegesnek" tekintenénk.
+2. **Split geometria: két új mag ± `SPLIT_HALF_ANGLE_RAD` (0.12 rad, ~6.9°)
+   szögeltolással a szülő split-időponti pozíciójától, egy véletlen
+   merőleges tengely körül.** Mivel a Voronoi-hozzárendelés a legközelebbi
+   maghoz köt, ez a régi cellát a két új mag felező-síkja mentén
+   automatikusan kb. felezi — nincs szükség explicit poligon-vágásra. Mérve
+   (world_seed=0xA7C944210000, plate 0 split t≈184 Myr-nél, level 4
+   Voronoi-mintavétel): szülő terület splitkor 0.1003 (a gömb töredéke), a
+   két gyermek együtt 0.0618+0.0553=0.1172 közvetlenül utána — közel a
+   szülőéhez, nagyjából egyenlő arányban osztva.
+3. **PlateMergeEvent és SubductionTermination mechanikailag EGYSÉGESÍTVE**:
+   mindkettő "lemez-eltávolítás" — a lemez magja egyszerűen törlődik, a
+   területe a megmaradt szomszédok között a szokásos Voronoi-szabály révén
+   automatikusan újraoszlik, nincs külön nyilvántartott "győztes" lemez. A
+   spec fogalmilag megkülönbözteti a kettőt (két lemez egyesülése vs. egy
+   lemez teljes elnyelése), de MVP-szinten a mechanika azonos — egy valódi,
+   két lineage-t egyetlen továbbélő azonosítóba olvasztó egyesülés
+   halasztva, mert tömeg-/fluxus-követést igényelne.
+4. **HotspotBirth/HotspotDeath HALASZTVA.** A projektben egyáltalán nincs
+   még hotspot-modell (sem statikus, sem dinamikus) — ez önmagában külön
+   milestone-nyi munka. Csak a `RandomProperty` tartomány (17-19) van
+   fenntartva a jövőre.
+5. **Leszármazási fa mélysége `MAX_GENERATION=3`-nál levágva.** Ez véges
+   korlát egy véges teszt-horizonton (elkerüli a korlátlan elágazást), NEM
+   fizikai állítás arról, hogy a lemezek 3 hasadás után mindig
+   stabilizálódnak.
+6. **Új `PlateId` séma: gyökér-lemezek megtartják a kis szekvenciális int
+   azonosítót (0..N-1, visszamenőleg kompatibilis az M4 statikus listával);
+   gyermek-lemezek nyers 64-bites Threefry-hash-t kapnak azonosítóként**
+   (`_block(...)` kimenetének első szava, nem [0,1)-be skálázva). Ez azt
+   jelenti, hogy a `PlateId` típusának a C# portban `ulong`-gá kell válnia
+   (feltehetően jelenleg `int`) — ez FÜGGETLEN a `TileId` bit-layout
+   invariánstól, jelzés a core-dev felé a porthoz. Ütközés-valószínűség a
+   szimuláció léptékén (≪10^6 csomópont) elhanyagolható.
+7. **Új `RandomProperty` azonosítók a Tectonics doménben: 14 =
+   LifecycleRoll, 15 = SplitAxisHint, 16 = ChildPlateId** (a meglévő 10-13
+   után a következő szabad sorszámok) — MÉG NINCSENEK felvéve a
+   `src/WorldGen.Core/Random/RandomDomain.cs`-be, ez a C# port feladata.
+8. **Terület `estimate_areas`-ben a gömb felületének törtrészeként (0..1),
+   nem abszolút km²-ben** — nincs még elfogadott bolygó-sugár-konstans
+   ehhez a modulhoz (a `PlanetConstants.RadiusMeters`, ld. ND-28, csak a
+   becsapódás-modulban létezik eddig).
+
+**Indoklás:** ez a minta megegyezik minden korábbi milestone
+hatókör-szűkítésével (ND-28, ND-29, ND-30 stb.) — kisebb, de tesztelhető,
+timestep-invariáns MVP, explicit deferrállal és explicit jelzett,
+megerősítést igénylő tervezési konstansokkal, nem csendes leegyszerűsítéssel.
+
+**Verziózás:** ha ez a C# portba kerül, a `RandomDomain`/`RandomProperty`
+bővítés (7. pont) és a `PlateId` típusváltás (6. pont) **seed-törő**
+változás — verzióemelést igényel, ld. CLAUDE.md "Verziózás és
+seed-kompatibilitás".
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

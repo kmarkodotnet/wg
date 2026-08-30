@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Rendering;
@@ -10,6 +11,8 @@ using WorldGen.Core.Grid;
 using WorldGen.Core.Hydrology;
 using WorldGen.Core.Tectonics;
 using WorldGen.Core.Terrain;
+using WorldGen.Viewer.Lod;
+using Debug = UnityEngine.Debug;
 
 namespace WorldGen.Viewer
 {
@@ -54,7 +57,15 @@ namespace WorldGen.Viewer
     public class PlanetGridMesh : MonoBehaviour
     {
         [SerializeField, Range(0, 8)]
-        [Tooltip("LOD-szint. Level 5-6 ajánlott első nézetre (6144-24576 tile).")]
+        [Tooltip("REFERENCIA-szint (M2-M8): a tengerszint-kalibráció és a " +
+                 "panel-adatok (ComputePanelData) mindig EZEN a fix szinten " +
+                 "számolódnak, FÜGGETLENÜL a kamerától. " +
+                 "FONTOS - GYAKORI TÉVESZTÉS: ha `useAdaptiveLod` be van " +
+                 "kapcsolva (alapból igen), ez a mező NEM szabályozza a " +
+                 "ténylegesen renderelt felszín részletességét - ahhoz az " +
+                 "'M9: Adaptiv kvadfa-LOD' szakasz `adaptiveMaxLevel` mezője " +
+                 "tartozik, lent. Level 5-6 ajánlott ennek a referencia-" +
+                 "passznak (6144-24576 tile).")]
         private int level = 5;
 
         [SerializeField]
@@ -150,6 +161,130 @@ namespace WorldGen.Viewer
                  "oceanban a fenyelnyeles miatt latszo egyszinu sotetseg kozelitese.")]
         private Color deepWaterColor = new Color(0.05f, 0.14f, 0.26f);
 
+        [Header("M9: Adaptiv kvadfa-LOD (docs/05-milestones.md §9)")]
+        [SerializeField]
+        [Tooltip("Ha be van kapcsolva, a fix `level`-es Build() UTAN egy kamera-" +
+                 "vezerelt, valtozo-szintu adaptiv mesh valtja fel a renderelt " +
+                 "geometriat (a referencia-szintu field/seaLevel/panel-adatok " +
+                 "valtozatlanul a fix `level`-en szamolodnak, ld. §9.3). " +
+                 "Kikapcsolva a viselkedes BITRE ugyanaz, mint M9 elott.")]
+        private bool useAdaptiveLod = true;
+
+        [SerializeField, Range(0, 6)]
+        [Tooltip("A kvadfa gyoker-szintje - EZ A MINDIG GARANTALT, zoomolas " +
+                 "nelkul is lathato minimum-reszletesseg (a finomodas ezen " +
+                 "FELUL, a kamera latokupjaban tortenik). 4-re levezetve " +
+                 "(ld. adaptiveSplitFactor doksija) - kis levelen kezdunk, " +
+                 "mert a splitFactor mar TAVOLROL (300 egysegnel is) elkezd " +
+                 "finomitani, tehat a bazisnak nem kell olyan magasnak lennie, " +
+                 "mint amikor meg nem volt latokup-fuggo finomodas.")]
+        private int adaptiveBaseLevel = 4;
+
+        [SerializeField, Range(0, 18)]
+        [Tooltip("A kvadfa max melysege (nem bomlik finomabbra ennel). " +
+                 "MERT PONT 16: a `minDistance` (kb. a felszin) kozeleben, " +
+                 "`adaptiveSplitFactor`=32.5 mellett a rendszer MAGATOL, " +
+                 "termeszetes hatarkent all meg kb. level 16-on - ennel " +
+                 "magasabbra allitani nem ad tobb reszletet, csak feleslegesen " +
+                 "tagabb Inspector-tartomanyt.")]
+        private int adaptiveMaxLevel = 16;
+
+        [SerializeField]
+        [Tooltip("K_split - felbontasi kuszob (tavolsag/befoglalo-sugar arany). " +
+                 "K_merge = 1.5x ennek (hiszterezis), ld. AdaptiveQuadTree. " +
+                 "LEVEZETVE (nem probalgatva): egy tile kb. theta=2*rTile/d " +
+                 "szog alatt latszik `d` tavolsagbol - ha azt akarjuk, hogy a " +
+                 "lathato mezoben (FOV) legalabb T tile ferjen el egy iranyban, " +
+                 "a celzott szogmeret theta_target=FOV/sqrt(T), amibol " +
+                 "splitFactor=2/theta_target=2*sqrt(T)/FOV_rad. T=17 " +
+                 "(kb. 289 tile-cel a lathato mezoben - a felhasznaloval " +
+                 "egyeztetett, teljesitmenyileg meg biro celszam, ld. " +
+                 "docs/05-milestones.md §9) es FOV=60deg mellett ez ~32.5. " +
+                 "FONTOS ELOFELTETEL: ez a kepzet CSAK a latokup-szuressel " +
+                 "(ld. forwardX/Y/Z + halfFovRadians a RecomputeCutAndRebuildAdaptiveMesh-ben) " +
+                 "egyutt mukodik jol - szures nelkul a kamera KORULI teljes " +
+                 "korlapot probalna ennyire finomitani, ami tobbszaz-ezres, " +
+                 "hasznalhatatlan tile-szamot adott korabban.")]
+        private double adaptiveSplitFactor = 32.5;
+
+        [SerializeField]
+        [Tooltip("Biztonsagi szorzo a kamera FOV/aspect-jabol szamolt " +
+                 "latokup-felszoghoz (ld. RecomputeCutAndRebuildAdaptiveMesh) - " +
+                 "1-nel nagyobb erdemes, hogy a kup SZELEN levo, meg reszben " +
+                 "lathato csomopontok se essenek ki tul korán.")]
+        private double fovSafetyMargin = 1.3;
+
+        [SerializeField]
+        [Tooltip("Unity-egyseg: mennyit kell mozdulnia a kameranak (a bolygo " +
+                 "kozeppontjahoz kepest) ket kvadfa-ujraszamolas kozott. Enelkul " +
+                 "minden egyes frame-ben ujraszamolna a cut-ot es ujraepitene a " +
+                 "mesh-t, feleslegesen (ld. §9.1 'csak amikor a kamera erdemben " +
+                 "mozdul').")]
+        private float adaptiveCameraMoveThreshold = 0.5f;
+
+        [SerializeField]
+        [Tooltip("Geomorphing (§9.2): a split utan megjeleno csucsok ekkora " +
+                 "hanyada (a K_split-tavolsaghoz kepesti tortresz) alatt erik el " +
+                 "a teljes (nem-morpholt) veglegeset pozíciójukat. Minel nagyobb, " +
+                 "annal fokozatosabb az atmenet.")]
+        private double geomorphRangeFraction = 0.6;
+
+        [SerializeField]
+        [Tooltip("Ha ures, a Camera.main-t hasznalja - explicit beallithato, ha " +
+                 "tobb kamera van a jelenetben (pl. UI-kamera is).")]
+        private Camera adaptiveCameraOverride;
+
+        [SerializeField]
+        [Tooltip("A perzisztens sarok-cache (ND-39 'C' + §9.4) maximalis meret " +
+                 "elemszamban - efole LRU-eviction tortenik, hogy a memoria ne " +
+                 "nojon korlatlanul hosszan tarto kamera-mozgas soran.")]
+        private int cornerCacheMaxSize = 300_000;
+
+        [SerializeField]
+        [Tooltip("A per-tile klasszifikacios cache (elevacio/homerseklet/biome/ " +
+                 "ocean, ld. AdaptiveTileClassification) maximalis meret " +
+                 "elemszamban - ez a LEGDRAGABB szamitas gyorsitotara " +
+                 "(Temperature.TemperatureKelvin napi 24 mintaveteles " +
+                 "inszolacio-atlaggal), enelkul minden kamera-mozgas-kivaltotta " +
+                 "ujraepites a TELJES cutot ujraszamolna - ez okozta a sulyos " +
+                 "lefagyast nagy adaptiveBaseLevel mellett.")]
+        private int tileClassificationCacheMaxSize = 300_000;
+
+        [SerializeField]
+        [Tooltip("Minimum ido (masodperc) ket adaptiv ujraepites kozott, " +
+                 "MEG AKKOR IS, ha a kamera kozben tobbszor is atlepte a " +
+                 "mozgas-kuszobot - enelkul folyamatos egerhuzas/zoom kozben " +
+                 "MINDEN frame-ben ujraepitene, ami meg a per-tile cache " +
+                 "mellett is felesleges terhelest jelentene nagy cut-meretnel.")]
+        private float minSecondsBetweenAdaptiveRebuilds = 0.1f;
+
+        [SerializeField]
+        [Tooltip("Diagnosztikai kuszob (ms): ha egy adaptiv mesh-ujraepites " +
+                 "ennel tovabb tart, figyelmezteto uzenet - ld. §9.5. NEM allit " +
+                 "meg semmit, csak jelez (a tenyleges frame-koltsegvetes-alapu " +
+                 "amortizacio/Job-System aszinkron epites halasztott munka, ld. " +
+                 "docs/04-decisions.md ND-40).")]
+        private double adaptiveRebuildWarningMs = 50.0;
+
+        private HashSet<TileId> _currentCut;
+        private readonly Dictionary<(int Face, int Level, uint CornerU, uint CornerV), Vector3> _persistentCornerCache = new();
+        private readonly LinkedList<(int Face, int Level, uint CornerU, uint CornerV)> _cornerCacheLru = new();
+        private readonly Dictionary<(int Face, int Level, uint CornerU, uint CornerV), LinkedListNode<(int Face, int Level, uint CornerU, uint CornerV)>> _cornerCacheLruNodes = new();
+
+        private bool _hasLastCutCameraPosition;
+        private Vector3 _lastCutCameraPosition;
+        private double _lastCutCameraCoreX, _lastCutCameraCoreY, _lastCutCameraCoreZ;
+
+        // Az adaptiv ujraepiteshez szukseges "vilag-kontextus", amit a Build()
+        // egyszer szamol ki (referencia-szinten) - az Update()-ben futo
+        // ujraszamolasok ezt hasznaljak ujra, nem szamoljak ujra minden frame-ben.
+        private ulong _adaptiveSeed;
+        private (double X, double Y, double Z)[] _adaptiveSeeds;
+        private List<ImpactCratering.CraterRecord> _adaptiveCraters;
+        private double _adaptiveSeaLevel;
+        private HashSet<TileId> _adaptiveRiverTiles;
+        private double _adaptiveAxialTiltRad;
+
         // M8: az utolsó Build() eredményének gyorsítótára - a panel-adatok
         // (ComputePanelData) ezekre épülnek, hogy ne kelljen a teljes
         // elevation-/óceán-/biome-számítást megismételni. Csak a render
@@ -180,6 +315,72 @@ namespace WorldGen.Viewer
         public UnityEvent Built = new UnityEvent();
 
         private void Start() => Build();
+
+        /// <summary>
+        /// M9: amig a jatek fut, a kamera-vezerelt kvadfa-cut ujraszamolasa -
+        /// CSAK akkor, ha a kamera erdemben mozdult (ld. adaptiveCameraMoveThreshold
+        /// dokumentacioja) VAGY az adaptiv beallitasok (base/max level, split
+        /// faktor stb.) valtoztak az Inspectorban (ld. OnValidate) - kulonben
+        /// a beallitasok Play kozbeni modositasa NEM latszana, amig a kamera
+        /// nem mozdul (a felhasznalo eppen ezt eszlelte hibakent). Nem fut
+        /// Edit modeban (a MonoBehaviour.Update() alapertelmezesen csak Play
+        /// modeban hivodik, az osztalynak nincs [ExecuteAlways]-e) - ugyanaz a
+        /// viselkedes, mint a PlanetOrbitCamera egerhuzas-figyeleset.
+        /// </summary>
+        private void Update()
+        {
+            if (!useAdaptiveLod || _lastField == null)
+                return;
+
+            Camera cam = GetAdaptiveCamera();
+            if (cam == null)
+                return;
+
+            BodyFrameConversion.ToCore(transform.InverseTransformPoint(cam.transform.position), out double camX, out double camY, out double camZ);
+            var camPos = new Vector3((float)camX, (float)camY, (float)camZ);
+
+            bool movedEnough = !_hasLastCutCameraPosition || Vector3.Distance(camPos, _lastCutCameraPosition) >= adaptiveCameraMoveThreshold;
+            if (!movedEnough && !_adaptiveConfigDirty)
+                return;
+
+            // Ido-alapu fekezes: folyamatos egerhuzas/zoom kozben a mozgas-
+            // kuszob magaban meg mindig FRAME-enkent atlepheto lenne - ez a
+            // masodik korlat biztositja, hogy nagy cut-meretnel (magas
+            // adaptiveBaseLevel) se probaljon tobbszor ujraepiteni
+            // masodpercenkent, mint amennyit minSecondsBetweenAdaptiveRebuilds
+            // enged. A camPos/dirty-allapotot NEM valtoztatjuk itt - a
+            // KOVETKEZO Update()-ben ujra megprobalja, amint a kuszob lejart
+            // (tehat a valtozas nem vesz el, csak kesik).
+            if (Time.unscaledTime - _lastAdaptiveRebuildRealtime < minSecondsBetweenAdaptiveRebuilds)
+                return;
+
+            _adaptiveConfigDirty = false;
+            _lastAdaptiveRebuildRealtime = Time.unscaledTime;
+            RecomputeCutAndRebuildAdaptiveMesh(cam, camX, camY, camZ);
+        }
+
+        private float _lastAdaptiveRebuildRealtime = float.NegativeInfinity;
+
+        private Camera GetAdaptiveCamera() => adaptiveCameraOverride != null ? adaptiveCameraOverride : Camera.main;
+
+        // M9: igaz, ha az Inspectorban valtozott valamelyik adaptiv-LOD mezo
+        // (ld. OnValidate) - az Update() ezt is figyeli a kamera-mozgas
+        // kuszobe mellett, kulonben Play kozbeni Inspector-modositas csak a
+        // KOVETKEZO kamera-mozgaskor latszana, ami felreveznto ("nem tortent
+        // semmi" - pedig csak nem volt ujraszamolasi ok).
+        private bool _adaptiveConfigDirty;
+
+        /// <summary>
+        /// Unity minden Inspector-mezo-modositas UTAN meghivja (Edit ES Play
+        /// modeban is) - itt csak egy dirty-flaget allitunk, a tenyleges
+        /// ujraszamolas az Update()-ben tortenik (OnValidate-bol NEM biztonsagos
+        /// kozvetlenul Mesh-t epiteni/GameObject-et letrehozni, ld. Unity-
+        /// dokumentacio).
+        /// </summary>
+        private void OnValidate()
+        {
+            _adaptiveConfigDirty = true;
+        }
 
         [ContextMenu("Rebuild")]
         public void Build()
@@ -400,7 +601,460 @@ namespace WorldGen.Viewer
             _lastBiomeOf = biomeOf;
             _lastSeaLevel = seaLevel;
 
+            // M9: a tovabbi (Update()-ben futo) adaptiv ujraepitesek ezt a
+            // referencia-szinten mar kiszamolt kontextust hasznaljak ujra -
+            // ld. §9.3 "a tengerszint EGYSZER, a FIX referencia-szinten
+            // szamolodik, es az adaptiv renderer konstans bemenetkent kezeli".
+            _adaptiveSeed = seed;
+            _adaptiveSeeds = seeds;
+            _adaptiveCraters = craters;
+            _adaptiveSeaLevel = seaLevel;
+            _adaptiveRiverTiles = riverTiles;
+            _adaptiveAxialTiltRad = axialTiltRad;
+
+            // Uj referencia-allapot -> a per-tile cache-ek (sarok +
+            // klasszifikacio) ervenytelenek, mert regi vilagallapotra
+            // (elozo seed/deepTimeMyr/craterek/seaLevel) vonatkoznanak.
+            InvalidateAdaptiveCaches();
+
+            if (useAdaptiveLod)
+            {
+                Camera cam = GetAdaptiveCamera();
+                if (cam != null)
+                {
+                    BodyFrameConversion.ToCore(transform.InverseTransformPoint(cam.transform.position), out double camX, out double camY, out double camZ);
+                    RecomputeCutAndRebuildAdaptiveMesh(cam, camX, camY, camZ);
+                }
+            }
+
             Built.Invoke();
+        }
+
+        /// <summary>
+        /// M9 kozponti belepesi pontja: uj cut szamolasa a MEGLEVO cut-bol
+        /// (hiszterezis, ld. AdaptiveQuadTree), majd a mesh teljes ujraepitese
+        /// a cut-bol. A `Built.Invoke()`-ot NEM hivja ujra - az csak a Build()
+        /// (referencia-szintu passz) vegen tuzel, a panel-adatok szempontjabol
+        /// ez az esemeny releváns, nem az egyes adaptiv ujraepitesek.
+        /// </summary>
+        private void RecomputeCutAndRebuildAdaptiveMesh(Camera cam, double camX, double camY, double camZ)
+        {
+            // Vedelmi korlat Inspector-hiba ellen (pl. base > max eseten az
+            // AdaptiveQuadTree kivetelt dobna minden Update()-ben) - a [Range]
+            // attributumok kulon-kulon mar korlatoznak, de az egymashoz
+            // kepesti sorrendet nem.
+            int effectiveBaseLevel = Math.Min(adaptiveBaseLevel, adaptiveMaxLevel);
+            double effectiveSplitFactor = Math.Max(adaptiveSplitFactor, 0.01);
+
+            // Latokup-szures (kritikus a teljesitmenyhez, ld. AdaptiveQuadTree
+            // doksija): iranyvektor (Unity vilag -> Core-keret, IRANY, tehat
+            // InverseTransformDirection, NEM InverseTransformPoint - nincs
+            // eltolas) + a kamera TENYLEGES FOV/aspect-jabol szamolt felszog,
+            // biztonsagi margoval. Enelkul a rendszer a kamera KORULI teljes
+            // korlapot finomitana, fuggetlenul attol, mi latszik a kepernyon -
+            // ez okozott korabban tobbszaz-ezres, hasznalhatatlan tile-szamot.
+            Vector3 localForward = transform.InverseTransformDirection(cam.transform.forward);
+            BodyFrameConversion.ToCore(localForward, out double fwdX, out double fwdY, out double fwdZ);
+
+            double verticalFovRad = cam.fieldOfView * Mathf.Deg2Rad;
+            double horizontalFovRad = 2.0 * Math.Atan(Math.Tan(verticalFovRad / 2.0) * Math.Max(0.01f, cam.aspect));
+            double halfFovRadians = Math.Max(verticalFovRad, horizontalFovRad) / 2.0 * fovSafetyMargin;
+
+            _currentCut = AdaptiveQuadTree.BuildCut(
+                camX, camY, camZ, radius, _currentCut,
+                effectiveBaseLevel, adaptiveMaxLevel, effectiveSplitFactor, effectiveSplitFactor * 1.5,
+                fwdX, fwdY, fwdZ, halfFovRadians);
+
+            _lastCutCameraCoreX = camX;
+            _lastCutCameraCoreY = camY;
+            _lastCutCameraCoreZ = camZ;
+            _lastCutCameraPosition = new Vector3((float)camX, (float)camY, (float)camZ);
+            _hasLastCutCameraPosition = true;
+
+            var stopwatch = Stopwatch.StartNew();
+            RebuildAdaptiveMesh();
+            stopwatch.Stop();
+            if (stopwatch.Elapsed.TotalMilliseconds > adaptiveRebuildWarningMs)
+            {
+                Debug.LogWarning(
+                    $"PlanetGridMesh: adaptiv ujraepites {stopwatch.Elapsed.TotalMilliseconds:F1}ms " +
+                    $"(kuszob {adaptiveRebuildWarningMs}ms, cut merete {_currentCut.Count}) - " +
+                    "ha ez rendszeres, csokkentsd az adaptiveMaxLevel-t vagy noveld az " +
+                    "adaptiveCameraMoveThreshold-ot (ld. docs/05-milestones.md §9.5).");
+            }
+        }
+
+        /// <summary>
+        /// A jelenlegi `_currentCut` (valtozo-szintu aktiv level-ek) mesh-be
+        /// epitese - ugyanazokat a megjelenitesi segedfuggvenyeket hasznalja,
+        /// mint a fix-szintu Build() (BuildMultiMaterialMesh/BuildBorders/
+        /// BuildWaterSurface/BuildCraterMarkers), csak a bemeneti tile-halmaz
+        /// valtozo szintu es a per-tile adatok (eleváció/biome/ocean) PONTSZERUEN,
+        /// az adott level-en szamolodnak (ld. EmitAdaptiveTile), nem egy elore
+        /// kiszamolt, egyetlen-szintu dictionary-bol.
+        /// </summary>
+        private void RebuildAdaptiveMesh()
+        {
+            if (_currentCut == null)
+                return;
+
+            var verticesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
+            var normalsByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
+            var trianglesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<int>>();
+            var waterVerticesByBucket = new Dictionary<int, List<Vector3>>();
+            var waterNormalsByBucket = new Dictionary<int, List<Vector3>>();
+            var waterTrianglesByBucket = new Dictionary<int, List<int>>();
+            var borderVerts = new List<Vector3>();
+            var borderIndices = new List<int>();
+            float waterSurfaceRadius = radius + (float)(_adaptiveSeaLevel * elevationScale);
+
+            foreach (TileId leaf in _currentCut)
+            {
+                EmitAdaptiveTile(
+                    leaf, verticesByKey, normalsByKey, trianglesByKey,
+                    waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket,
+                    borderVerts, borderIndices, waterSurfaceRadius);
+            }
+
+            BuildMultiMaterialMesh(verticesByKey, normalsByKey, trianglesByKey);
+            BuildBorders(borderVerts, borderIndices);
+            // MEGJEGYZES: BuildCraterMarkers() SZANDEKOSAN NINCS itt - a
+            // krater-markerek GameObject.CreatePrimitive()-mel dolgoznak,
+            // ami Unity-ben soronkent DRAGA (nem csak egy Mesh-adat-frissites).
+            // A krater-lista (_adaptiveCraters) a kamera-kivaltotta adaptiv
+            // ujraepitesek kozott NEM valtozik (csak a Build() valtoztatja,
+            // ott mar meghivodik lent) - ide betenni azt jelentette, hogy
+            // MOZGAS KOZBEN, masodpercenkent akar 10-szer ujra le- es
+            // felepitette az OSSZES kratert, ami a felhasznalo altal eszlelt
+            // "teljesen halott" egerkezeles fo oka volt.
+            BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket);
+
+            EvictCornerCacheIfNeeded();
+            EvictTileClassificationCacheIfNeeded();
+        }
+
+        /// <summary>
+        /// Egyetlen aktiv level (a cut egy eleme) hozzaadasa a mesh-epito
+        /// listakhoz. A per-tile adatok (elevacio/hőmérséklet/biome/ocean)
+        /// PONTSZERUEN, a tile KOZEPPONTJABAN szamolodnak (ugyanazok a Core-
+        /// fuggvenyek, mint a fix-szintu Build()-ben, ld. ComputeElevationAtPoint),
+        /// FUGGETLENUL attol, hogy a level 6 (referencia) vagy annal melyebb/
+        /// sekelyebb.
+        /// </summary>
+        private void EmitAdaptiveTile(
+            TileId id,
+            Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> verticesByKey,
+            Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> normalsByKey,
+            Dictionary<(RenderCategory Category, int Bucket), List<int>> trianglesByKey,
+            Dictionary<int, List<Vector3>> waterVerticesByBucket,
+            Dictionary<int, List<Vector3>> waterNormalsByBucket,
+            Dictionary<int, List<int>> waterTrianglesByBucket,
+            List<Vector3> borderVerts, List<int> borderIndices,
+            float waterSurfaceRadius)
+        {
+            AdaptiveTileClassification classification = GetOrComputeTileClassification(id);
+            double elevation = classification.Elevation;
+            bool isOceanic = classification.IsOceanic;
+            Biome biome = classification.Biome;
+            RenderCategory category = classification.Category;
+            int bucket = classification.Bucket;
+            var key = (category, bucket);
+
+            GetOrAddLists(verticesByKey, normalsByKey, trianglesByKey, key,
+                out List<Vector3> vertices, out List<Vector3> normals, out List<int> triangles);
+
+            GetAdaptiveCorners(id, out Vector3 p00, out Vector3 p10, out Vector3 p11, out Vector3 p01);
+            AddQuad(vertices, normals, triangles, p00, p10, p11, p01);
+
+            if (isOceanic && biome == Biome.Ocean)
+            {
+                TileGeometry.GetContinuousBounds(id, out double uMin, out double uMax, out double vMin, out double vMax);
+                Vector3 wp00 = ToWaterVector3(id.Face, uMin, vMin, waterSurfaceRadius);
+                Vector3 wp10 = ToWaterVector3(id.Face, uMax, vMin, waterSurfaceRadius);
+                Vector3 wp11 = ToWaterVector3(id.Face, uMax, vMax, waterSurfaceRadius);
+                Vector3 wp01 = ToWaterVector3(id.Face, uMin, vMax, waterSurfaceRadius);
+
+                double depth = _adaptiveSeaLevel - elevation;
+                int waterBucket = WaterDepthBucket(depth);
+                if (!waterVerticesByBucket.TryGetValue(waterBucket, out List<Vector3> waterVerts))
+                {
+                    waterVerts = new List<Vector3>();
+                    waterVerticesByBucket[waterBucket] = waterVerts;
+                    waterNormalsByBucket[waterBucket] = new List<Vector3>();
+                    waterTrianglesByBucket[waterBucket] = new List<int>();
+                }
+                AddQuad(waterVerts, waterNormalsByBucket[waterBucket], waterTrianglesByBucket[waterBucket],
+                    wp00, wp10, wp11, wp01);
+            }
+
+            int b = borderVerts.Count;
+            borderVerts.Add(p00); borderVerts.Add(p10); borderVerts.Add(p11); borderVerts.Add(p01);
+            borderIndices.Add(b + 0); borderIndices.Add(b + 1);
+            borderIndices.Add(b + 1); borderIndices.Add(b + 2);
+            borderIndices.Add(b + 2); borderIndices.Add(b + 3);
+            borderIndices.Add(b + 3); borderIndices.Add(b + 0);
+        }
+
+        /// <summary>
+        /// Egy level-6(-referencia) folyo-tile-e - a leaf a level fole (finomabb)
+        /// eseten a level-referencia osere visszasetalva (a Morton-hierarchia
+        /// miatt olcso bitmuvelet), level ALATTI (durvabb) leaf eseten NEM
+        /// (egy durva leaf tobb referencia-tile-ot fedne le, nincs egyertelmu
+        /// egyezes - dokumentalt egyszerusites, ld. a feladat osszefoglaloja).
+        /// </summary>
+        private bool IsAdaptiveRiverTile(TileId id)
+        {
+            if (id.Level < level || _adaptiveRiverTiles == null)
+                return false;
+            TileId current = id;
+            while (current.Level > level)
+                current = current.Parent();
+            return _adaptiveRiverTiles.Contains(current);
+        }
+
+        /// <summary>
+        /// Egy aktiv level 4 sarka - a "fine" (valodi, eltolt) pozicio a
+        /// perzisztens sarok-cache-bol, geomorphing-gal (§9.2) a szulo-quad
+        /// bilinearis interpolaciojabol szarmazo "coarse" pozicio fele
+        /// blendelve, amig a level a base level folott van.
+        /// </summary>
+        private void GetAdaptiveCorners(TileId id, out Vector3 p00, out Vector3 p10, out Vector3 p11, out Vector3 p01)
+        {
+            id.GetUV(out uint u, out uint v);
+            int lvl = id.Level;
+
+            Vector3 fine00 = GetOrComputePersistentCorner(id.Face, lvl, u, v);
+            Vector3 fine10 = GetOrComputePersistentCorner(id.Face, lvl, u + 1, v);
+            Vector3 fine11 = GetOrComputePersistentCorner(id.Face, lvl, u + 1, v + 1);
+            Vector3 fine01 = GetOrComputePersistentCorner(id.Face, lvl, u, v + 1);
+
+            if (lvl <= adaptiveBaseLevel)
+            {
+                p00 = fine00; p10 = fine10; p11 = fine11; p01 = fine01;
+                return;
+            }
+
+            double alpha = ComputeGeomorphAlpha(id);
+            if (alpha >= 1.0)
+            {
+                p00 = fine00; p10 = fine10; p11 = fine11; p01 = fine01;
+                return;
+            }
+
+            TileId parent = id.Parent();
+            parent.GetUV(out uint pu, out uint pv);
+            Vector3 parent00 = GetOrComputePersistentCorner(parent.Face, parent.Level, pu, pv);
+            Vector3 parent10 = GetOrComputePersistentCorner(parent.Face, parent.Level, pu + 1, pv);
+            Vector3 parent11 = GetOrComputePersistentCorner(parent.Face, parent.Level, pu + 1, pv + 1);
+            Vector3 parent01 = GetOrComputePersistentCorner(parent.Face, parent.Level, pu, pv + 1);
+
+            // A gyerek 4 sarka a szulo [0,1]x[0,1] lap-lokalis tereben pontosan
+            // {0, 0.5, 1} relativ koordinatakra esik (a gyerek cornerU/cornerV
+            // a szulo cornerU/cornerV * 2 + {0,1,2}) - ezert nincs szukseg
+            // altalanos interpolaciora, csak erre a harom esetre.
+            double relU0 = (u - pu * 2) / 2.0;
+            double relV0 = (v - pv * 2) / 2.0;
+            double relU1 = (u + 1 - pu * 2) / 2.0;
+            double relV1 = (v + 1 - pv * 2) / 2.0;
+
+            Vector3 coarse00 = BilinearOnQuad(parent00, parent10, parent11, parent01, relU0, relV0);
+            Vector3 coarse10 = BilinearOnQuad(parent00, parent10, parent11, parent01, relU1, relV0);
+            Vector3 coarse11 = BilinearOnQuad(parent00, parent10, parent11, parent01, relU1, relV1);
+            Vector3 coarse01 = BilinearOnQuad(parent00, parent10, parent11, parent01, relU0, relV1);
+
+            float a = (float)alpha;
+            p00 = Vector3.Lerp(coarse00, fine00, a);
+            p10 = Vector3.Lerp(coarse10, fine10, a);
+            p11 = Vector3.Lerp(coarse11, fine11, a);
+            p01 = Vector3.Lerp(coarse01, fine01, a);
+        }
+
+        private static Vector3 BilinearOnQuad(Vector3 c00, Vector3 c10, Vector3 c11, Vector3 c01, double u, double v)
+        {
+            Vector3 top = Vector3.Lerp(c00, c10, (float)u);
+            Vector3 bottom = Vector3.Lerp(c01, c11, (float)u);
+            return Vector3.Lerp(top, bottom, (float)v);
+        }
+
+        /// <summary>
+        /// Geomorph-faktor (§9.2): 0 = a szulo (coarse) feluletet mutatja, ami
+        /// FOLYTONOSAN illeszkedik ahhoz, amit a szulo meg aktiv leaf-kent
+        /// mutatott - tehat a split PILLANATABAN (amikor a tavolsag eppen
+        /// eleri a splitFactor*rParent hatart) nincs pozicio-ugras (I3/vizualis
+        /// folytonossag). Ahogy a kamera tovabb kozelit, alpha 1-hez tart (a
+        /// valodi, finom feluletre). A hiszterezis-savban (splitFactor..
+        /// mergeFactor*rParent) a formula 0-ra vagodik - ez azt jelenti, hogy a
+        /// mar felbontott, de a kameratol tavolabb kerult gyerekek egyszeruen
+        /// visszamutatjak a szulo feluletet (nincs artefaktum, csak felesleges,
+        /// de vizualisan a szuloevel azonos geometria).
+        /// </summary>
+        private double ComputeGeomorphAlpha(TileId childId)
+        {
+            TileId parent = childId.Parent();
+            AdaptiveQuadTree.GetCenterAndBoundingRadius(parent, radius, out double pcx, out double pcy, out double pcz, out double rParent);
+            double dx = _lastCutCameraCoreX - pcx, dy = _lastCutCameraCoreY - pcy, dz = _lastCutCameraCoreZ - pcz;
+            double distance = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+
+            double splitDistance = adaptiveSplitFactor * rParent;
+            double morphRange = geomorphRangeFraction * splitDistance;
+            if (morphRange <= 0.0)
+                return 1.0;
+
+            double alpha = (splitDistance - distance) / morphRange;
+            return alpha < 0.0 ? 0.0 : (alpha > 1.0 ? 1.0 : alpha);
+        }
+
+        /// <summary>
+        /// Perzisztens (frame-eken/ujraepiteseken at megmarado) sarok-cache -
+        /// az ND-39 "C" opciobeli, per-Build() eldobott cache §9.4 szerinti
+        /// LRU-va emelt valtozata. A kulcs (face, level, cornerU, cornerV)
+        /// - a level EXPLICIT resze a kulcsnak (szemben a regi, egyetlen-
+        /// szintu cache-szel), mert kulonbozo aktiv csomopontok kulonbozo
+        /// szinten kernek sarkokat.
+        /// </summary>
+        private Vector3 GetOrComputePersistentCorner(int face, int lvl, uint cornerU, uint cornerV)
+        {
+            var key = (face, lvl, cornerU, cornerV);
+            if (_persistentCornerCache.TryGetValue(key, out Vector3 cached))
+            {
+                TouchLru(key);
+                return cached;
+            }
+
+            int n = 1 << lvl;
+            double uc = (double)cornerU / n * 2.0 - 1.0;
+            double vc = (double)cornerV / n * 2.0 - 1.0;
+            Vector3 p = ToDisplacedVector3(face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters);
+
+            _persistentCornerCache[key] = p;
+            _cornerCacheLruNodes[key] = _cornerCacheLru.AddLast(key);
+            return p;
+        }
+
+        private void TouchLru((int Face, int Level, uint CornerU, uint CornerV) key)
+        {
+            if (!_cornerCacheLruNodes.TryGetValue(key, out var node))
+                return;
+            _cornerCacheLru.Remove(node);
+            _cornerCacheLruNodes[key] = _cornerCacheLru.AddLast(key);
+        }
+
+        private void EvictCornerCacheIfNeeded()
+        {
+            while (_persistentCornerCache.Count > cornerCacheMaxSize && _cornerCacheLru.Count > 0)
+            {
+                var oldest = _cornerCacheLru.First.Value;
+                _cornerCacheLru.RemoveFirst();
+                _cornerCacheLruNodes.Remove(oldest);
+                _persistentCornerCache.Remove(oldest);
+            }
+        }
+
+        /// <summary>
+        /// Egy tile TELJES (elevacio/ocean/homerseklet/biome/krater/folyo/
+        /// kategoria) besorolasa - a legdragabb resze a lancnak a
+        /// `Temperature.TemperatureKelvin` (napi 24 mintaveteles inszolacio-
+        /// atlag, ld. temperature_ref.py mintaja), ami tile-onkent tobb tucat
+        /// trigonometriai kiertekelest jelent. EGY ADOTT TileId-re ez a
+        /// besorolas NEM valtozik, amig a Build() ota nem futott ujra
+        /// referencia-szintu passz (a vilagot meghatarozo parameterek -
+        /// seed/deepTimeMyr/craterek/seaLevel - fixek addig) - ezert
+        /// PERZISZTENSEN gyorsitotarazzuk, kulonben MINDEN egyes kamera-
+        /// mozgas-kivaltotta ujraepites a TELJES cut osszes tile-jara
+        /// (tobb tizezerre `adaptiveBaseLevel`=6-nal) ujraszamolna ezt -
+        /// pontosan ez okozta a felhasznalo altal eszlelt teljes lefagyast.
+        /// A cache-t a Build() (uj referencia-passz) tortli, ld. ott.
+        /// </summary>
+        private readonly struct AdaptiveTileClassification
+        {
+            public readonly double Elevation;
+            public readonly bool IsOceanic;
+            public readonly Biome Biome;
+            public readonly RenderCategory Category;
+            public readonly int Bucket;
+
+            public AdaptiveTileClassification(double elevation, bool isOceanic, Biome biome, RenderCategory category, int bucket)
+            {
+                Elevation = elevation;
+                IsOceanic = isOceanic;
+                Biome = biome;
+                Category = category;
+                Bucket = bucket;
+            }
+        }
+
+        private readonly Dictionary<TileId, AdaptiveTileClassification> _tileClassificationCache = new();
+        private readonly LinkedList<TileId> _tileClassificationLru = new();
+        private readonly Dictionary<TileId, LinkedListNode<TileId>> _tileClassificationLruNodes = new();
+
+        private AdaptiveTileClassification GetOrComputeTileClassification(TileId id)
+        {
+            if (_tileClassificationCache.TryGetValue(id, out AdaptiveTileClassification cached))
+            {
+                if (_tileClassificationLruNodes.TryGetValue(id, out var node))
+                {
+                    _tileClassificationLru.Remove(node);
+                    _tileClassificationLruNodes[id] = _tileClassificationLru.AddLast(id);
+                }
+                return cached;
+            }
+
+            TileGeometry.ToPosition(id, out double cx, out double cy, out double cz);
+            double elevation = ComputeElevationAtPoint(cx, cy, cz, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters);
+
+            // Az oceani besorolas itt KOZVETLENUL a pontszeru elevaciobol jon
+            // (elevation < referencia-szintu seaLevel), NEM a level-fuggo
+            // FlowNetwork.ComputeOceanField-bol (az csak egyetlen, fix szinten
+            // ertelmezett) - ez a ket forras a t=0, fix-szintu esetben
+            // ugyanazt adja (mindketto ugyanabbol az elevation-bol es
+            // seaLevel-bol szarmazik), csak itt pontszeruen, tetszoleges
+            // level-re altalanositva.
+            bool isOceanic = elevation < _adaptiveSeaLevel;
+
+            double temperatureK = Temperature.TemperatureKelvin(
+                cx, cy, cz, climateDayT, climateOrbitalPeriodDays, climateRotationPeriodDays,
+                _adaptiveAxialTiltRad, isOceanic, elevation, _adaptiveSeaLevel);
+            Biome biome = BiomeClassification.Classify(temperatureK, isOceanic);
+
+            bool isCratered = _adaptiveCraters.Count > 0 && ImpactCratering.IsInsideAnyCrater(cx, cy, cz, _adaptiveCraters);
+            bool isRiver = showRivers && IsAdaptiveRiverTile(id);
+            RenderCategory category = isCratered ? RenderCategory.Crater
+                : isRiver ? RenderCategory.River
+                : ToRenderCategory(biome);
+
+            int bucket = category == RenderCategory.Ocean ? OceanRockBucket(elevation) : 0;
+
+            var data = new AdaptiveTileClassification(elevation, isOceanic, biome, category, bucket);
+            _tileClassificationCache[id] = data;
+            _tileClassificationLruNodes[id] = _tileClassificationLru.AddLast(id);
+            return data;
+        }
+
+        private void EvictTileClassificationCacheIfNeeded()
+        {
+            while (_tileClassificationCache.Count > tileClassificationCacheMaxSize && _tileClassificationLru.Count > 0)
+            {
+                TileId oldest = _tileClassificationLru.First.Value;
+                _tileClassificationLru.RemoveFirst();
+                _tileClassificationLruNodes.Remove(oldest);
+                _tileClassificationCache.Remove(oldest);
+            }
+        }
+
+        /// <summary>
+        /// A vilagot meghatarozo referencia-allapot (seed/deepTimeMyr/craterek/
+        /// seaLevel) megvaltozasakor (uj Build()) a per-tile cache-ek (sarok +
+        /// klasszifikacio) ERVENYTELENEK - kulonben regi, mar nem ervenyes
+        /// eleváció/hőmérséklet ertekeket adnanak vissza uj vilagallapotra.
+        /// </summary>
+        private void InvalidateAdaptiveCaches()
+        {
+            _persistentCornerCache.Clear();
+            _cornerCacheLru.Clear();
+            _cornerCacheLruNodes.Clear();
+            _tileClassificationCache.Clear();
+            _tileClassificationLru.Clear();
+            _tileClassificationLruNodes.Clear();
         }
 
         /// <summary>
@@ -948,34 +1602,49 @@ namespace WorldGen.Viewer
             double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
             List<ImpactCratering.CraterRecord> craters)
         {
-            // Ugyanaz a szamitas, amit a sea-level kalibraciohoz is
-            // hasznaltunk (AssignPlate + ElevationWithBoundary), csak most
-            // egy tetszoleges pontban kiertekelve. Tiszta fuggveny -> ket
-            // szomszedos tile, ami ugyanazt a fizikai sarkot osztja, bitre
-            // ugyanezt az erteket szamolja ki, tehat a felszin varrat
-            // nelkul osszeer.
-            //
-            // MEGJEGYZES: a tileIdValue parametert (a CrustElevation-beli
-            // finom "jitter" zajhoz) itt fix 0-val hivjuk, mert egy
-            // sarokpontnak/kraternek nincs egyetlen "sajat" tile-ja. Ez azt
-            // jelenti, hogy ez a szamitas a finom jittert NEM kapja meg
-            // (csak a plate-szintu bazis + hatarhatas latszik) - a
-            // hivatalos, TEST-EARTH-001-hez hasznalt tile-kozepu
-            // elevation-t (amiben BENNE van a jitter) ez nem erinti, csak a
-            // vizualis corner-interpolacio es a marker-magassag egyszerusodik.
-            // ND-36 (domain warping): a lemez-hozzarendeles a WARPOLT
-            // poziciot kapja - UGYANAZ a szabaly, mint amit a Core-oldali
-            // SeaLevelCalibration/PlateBoundaryEffect hasznal, kulonben ez
-            // a sarok-alapu megjelenites inkonzisztens (nem-warpolt)
-            // lemezhatarokat mutatna a tile-kozepu adatokhoz kepest.
-            //
-            // ND-39 "C" opcio (warp-hoisting): a warp CSAK EGYSZER fut le
-            // pontonkent - az AssignPlate ES a BoundaryUplift (az uj
-            // ElevationWithBoundaryFromWarped-en keresztul) UGYANAZT a mar
-            // kiszamitott (wx,wy,wz)-t hasznalja, ahelyett hogy a
-            // BoundaryUplift sajat maga ujraszamolna a WarpPosition-t
-            // ugyanarra a pontra (ld. src/WorldGen.Core/Tectonics/
-            // PlateBoundaryEffect.cs, docs/04-decisions.md ND-39).
+            double elevation = ComputeElevationAtPoint(x, y, z, seed, seeds, craters);
+            return radius + (float)(elevation * elevationScale);
+        }
+
+        /// <summary>
+        /// A nyers eleváció (méter) egy tetszőleges ponton - a
+        /// <see cref="ComputeDisplacedRadius"/>-ból kiemelve (M9), hogy az
+        /// adaptív renderer (EmitAdaptiveTile) is felhasználhassa a
+        /// tile-KÖZÉPPONT ocean/biome/hőmérséklet besorolásához, ugyanazzal a
+        /// számítási lánccal, amit a sarok-alapú megjelenítés is használ.
+        ///
+        /// Ugyanaz a szamitas, amit a sea-level kalibraciohoz is hasznaltunk
+        /// (AssignPlate + ElevationWithBoundary), csak most egy tetszoleges
+        /// pontban kiertekelve. Tiszta fuggveny -&gt; ket szomszedos tile, ami
+        /// ugyanazt a fizikai sarkot osztja, bitre ugyanezt az erteket
+        /// szamolja ki, tehat a felszin varrat nelkul osszeer.
+        ///
+        /// MEGJEGYZES: a tileIdValue parametert (a CrustElevation-beli
+        /// finom "jitter" zajhoz) itt fix 0-val hivjuk, mert egy
+        /// sarokpontnak/kraternek nincs egyetlen "sajat" tile-ja. Ez azt
+        /// jelenti, hogy ez a szamitas a finom jittert NEM kapja meg
+        /// (csak a plate-szintu bazis + hatarhatas latszik) - a
+        /// hivatalos, TEST-EARTH-001-hez hasznalt tile-kozepu
+        /// elevation-t (amiben BENNE van a jitter) ez nem erinti, csak a
+        /// vizualis corner-interpolacio es a marker-magassag egyszerusodik.
+        /// ND-36 (domain warping): a lemez-hozzarendeles a WARPOLT
+        /// poziciot kapja - UGYANAZ a szabaly, mint amit a Core-oldali
+        /// SeaLevelCalibration/PlateBoundaryEffect hasznal, kulonben ez
+        /// a sarok-alapu megjelenites inkonzisztens (nem-warpolt)
+        /// lemezhatarokat mutatna a tile-kozepu adatokhoz kepest.
+        ///
+        /// ND-39 "C" opcio (warp-hoisting): a warp CSAK EGYSZER fut le
+        /// pontonkent - az AssignPlate ES a BoundaryUplift (az uj
+        /// ElevationWithBoundaryFromWarped-en keresztul) UGYANAZT a mar
+        /// kiszamitott (wx,wy,wz)-t hasznalja, ahelyett hogy a
+        /// BoundaryUplift sajat maga ujraszamolna a WarpPosition-t
+        /// ugyanarra a pontra (ld. src/WorldGen.Core/Tectonics/
+        /// PlateBoundaryEffect.cs, docs/04-decisions.md ND-39).
+        /// </summary>
+        private static double ComputeElevationAtPoint(
+            double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
+            List<ImpactCratering.CraterRecord> craters)
+        {
             DomainWarp.WarpPosition(seed, x, y, z, out double wx, out double wy, out double wz);
             int plateId = PlateGeneration.AssignPlate(wx, wy, wz, seeds);
             double elevation = PlateBoundaryEffect.ElevationWithBoundaryFromWarped(
@@ -988,7 +1657,7 @@ namespace WorldGen.Viewer
             if (craters.Count > 0)
                 elevation += ImpactCratering.ElevationDelta(x, y, z, craters);
 
-            return radius + (float)(elevation * elevationScale);
+            return elevation;
         }
 
         // ND-34-nel mar bevezetett referencia-amplitudo (CrustElevation):

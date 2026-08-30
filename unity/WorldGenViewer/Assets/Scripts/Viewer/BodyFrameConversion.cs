@@ -27,5 +27,22 @@ namespace WorldGen.Viewer
         {
             return new Vector3((float)x, (float)z, (float)y);
         }
+
+        /// <summary>
+        /// A <see cref="ToUnity"/> inverze - Unity-terbeli (mar tengely-
+        /// cserelt) koordinatabol vissza a Core "test-keret" konvenciojaba.
+        /// A tengelycsere onmaga inverze (csak y/z felcsereles), tehat ez
+        /// UGYANAZ a keplet, csak elnevezesben explicit az irany - az M9
+        /// adaptiv LOD (WorldGen.Viewer.Lod.AdaptiveQuadTree) ezt hasznalja
+        /// a kamera Unity-vilagpoziciojanak a Core-keretbe valo
+        /// visszaalakitasahoz, mert az a modul motorfuggetlen es semmit
+        /// nem tud a Unity-tengelykonvenciorol.
+        /// </summary>
+        public static void ToCore(Vector3 unityPosition, out double x, out double y, out double z)
+        {
+            x = unityPosition.x;
+            y = unityPosition.z;
+            z = unityPosition.y;
+        }
     }
 }
