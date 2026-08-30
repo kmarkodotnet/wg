@@ -187,7 +187,7 @@ namespace WorldGen.Viewer
                  "termeszetes hatarkent all meg kb. level 16-on - ennel " +
                  "magasabbra allitani nem ad tobb reszletet, csak feleslegesen " +
                  "tagabb Inspector-tartomanyt.")]
-        private int adaptiveMaxLevel = 16;
+        private int adaptiveMaxLevel = 18;
 
         [SerializeField]
         [Tooltip("K_split - felbontasi kuszob (tavolsag/befoglalo-sugar arany). " +
@@ -205,7 +205,7 @@ namespace WorldGen.Viewer
                  "egyutt mukodik jol - szures nelkul a kamera KORULI teljes " +
                  "korlapot probalna ennyire finomitani, ami tobbszaz-ezres, " +
                  "hasznalhatatlan tile-szamot adott korabban.")]
-        private double adaptiveSplitFactor = 32.5;
+        private double adaptiveSplitFactor = 61.0;
 
         [SerializeField]
         [Tooltip("Biztonsagi szorzo a kamera FOV/aspect-jabol szamolt " +
@@ -698,6 +698,23 @@ namespace WorldGen.Viewer
             if (_currentCut == null)
                 return;
 
+            // GPU-CALC / teljesitmeny: a DRAGA per-tile Core-kiertekeleseket
+            // (klasszifikacio: eleváció+homerseklet+biome; sarkak: eleváció a
+            // sarokpontokban) TOBB SZALON, elore kiszamoljuk es a cache-be
+            // toltjuk - a WorldGen.Core lanc igazoltan tiszta fuggvenyekbol
+            // all (nincs megosztott mutable allapot, nincs heap-allokacio
+            // hivasonkent), tehat Parallel.For-ral biztonsagosan
+            // parhuzamosithato. A CACHE-BE IRAS maga NEM parhuzamos (a
+            // Dictionary/LinkedList LRU nem szalbiztos) - ezert ket fazisu:
+            // (1) parhuzamosan szamoljuk a hianyzo ertekeket kulon
+            // tombbe, (2) egyszalon irjuk be a cache-be. Az ezutani
+            // EmitAdaptiveTile-hivasok mar csupa cache-talalatot csak
+            // olvasnak, tehat gyorsak maradnak.
+            TileId[] leaves = new TileId[_currentCut.Count];
+            _currentCut.CopyTo(leaves);
+            PrecomputeClassificationsInParallel(leaves);
+            PrecomputeCornersInParallel(leaves);
+
             var verticesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
             var normalsByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
             var trianglesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<int>>();
@@ -921,14 +938,72 @@ namespace WorldGen.Viewer
                 return cached;
             }
 
-            int n = 1 << lvl;
-            double uc = (double)cornerU / n * 2.0 - 1.0;
-            double vc = (double)cornerV / n * 2.0 - 1.0;
-            Vector3 p = ToDisplacedVector3(face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters);
-
+            Vector3 p = ComputeCorner(face, lvl, cornerU, cornerV);
             _persistentCornerCache[key] = p;
             _cornerCacheLruNodes[key] = _cornerCacheLru.AddLast(key);
             return p;
+        }
+
+        /// <summary>Cache-tol fuggetlen, szalbiztos sarok-szamitas - ld. PrecomputeCornersInParallel.</summary>
+        private Vector3 ComputeCorner(int face, int lvl, uint cornerU, uint cornerV)
+        {
+            int n = 1 << lvl;
+            double uc = (double)cornerU / n * 2.0 - 1.0;
+            double vc = (double)cornerV / n * 2.0 - 1.0;
+            return ToDisplacedVector3(face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters);
+        }
+
+        /// <summary>
+        /// Az osszes, a `leaves` altal (SAJAT + geomorphing-hoz szukseges
+        /// SZULO) igenyelt sarok osszegyujtese, majd a MEG NEM cache-elt
+        /// sarkak tobb szalon (Parallel.For) valo elore-kiszamitasa -
+        /// ugyanaz a ket-fazisu minta, mint PrecomputeClassificationsInParallel.
+        /// </summary>
+        private void PrecomputeCornersInParallel(TileId[] leaves)
+        {
+            var needed = new HashSet<(int Face, int Level, uint CornerU, uint CornerV)>();
+            foreach (TileId id in leaves)
+            {
+                id.GetUV(out uint u, out uint v);
+                int lvl = id.Level;
+                AddCornerKeys(needed, id.Face, lvl, u, v);
+
+                if (lvl > adaptiveBaseLevel)
+                {
+                    TileId parent = id.Parent();
+                    parent.GetUV(out uint pu, out uint pv);
+                    AddCornerKeys(needed, parent.Face, parent.Level, pu, pv);
+                }
+            }
+
+            var missing = new List<(int Face, int Level, uint CornerU, uint CornerV)>(needed.Count);
+            foreach (var key in needed)
+                if (!_persistentCornerCache.ContainsKey(key))
+                    missing.Add(key);
+            if (missing.Count == 0)
+                return;
+
+            var results = new Vector3[missing.Count];
+            System.Threading.Tasks.Parallel.For(0, missing.Count, i =>
+            {
+                var k = missing[i];
+                results[i] = ComputeCorner(k.Face, k.Level, k.CornerU, k.CornerV);
+            });
+
+            for (int i = 0; i < missing.Count; i++)
+            {
+                var key = missing[i];
+                _persistentCornerCache[key] = results[i];
+                _cornerCacheLruNodes[key] = _cornerCacheLru.AddLast(key);
+            }
+        }
+
+        private static void AddCornerKeys(HashSet<(int Face, int Level, uint CornerU, uint CornerV)> set, int face, int lvl, uint u, uint v)
+        {
+            set.Add((face, lvl, u, v));
+            set.Add((face, lvl, u + 1, v));
+            set.Add((face, lvl, u + 1, v + 1));
+            set.Add((face, lvl, u, v + 1));
         }
 
         private void TouchLru((int Face, int Level, uint CornerU, uint CornerV) key)
@@ -999,6 +1074,22 @@ namespace WorldGen.Viewer
                 return cached;
             }
 
+            AdaptiveTileClassification data = ComputeTileClassification(id);
+            _tileClassificationCache[id] = data;
+            _tileClassificationLruNodes[id] = _tileClassificationLru.AddLast(id);
+            return data;
+        }
+
+        /// <summary>
+        /// A TENYLEGES (drága) szamitas, cache-tol FUGGETLENUL - csak a
+        /// (kizarolag olvasott, Build() ota valtozatlan) `_adaptive*` mezoket
+        /// es a bemeneti `id`-t hasznalja, tehat SZALBIZTOS: tobb szalrol
+        /// egyszerre, kulonbozo `id`-kre biztonsagosan hivhato (ld.
+        /// PrecomputeClassificationsInParallel). NEM ir a cache-be - azt a
+        /// hivo vegzi, EGYSZALON (ld. ott).
+        /// </summary>
+        private AdaptiveTileClassification ComputeTileClassification(TileId id)
+        {
             TileGeometry.ToPosition(id, out double cx, out double cy, out double cz);
             double elevation = ComputeElevationAtPoint(cx, cy, cz, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters);
 
@@ -1024,10 +1115,40 @@ namespace WorldGen.Viewer
 
             int bucket = category == RenderCategory.Ocean ? OceanRockBucket(elevation) : 0;
 
-            var data = new AdaptiveTileClassification(elevation, isOceanic, biome, category, bucket);
-            _tileClassificationCache[id] = data;
-            _tileClassificationLruNodes[id] = _tileClassificationLru.AddLast(id);
-            return data;
+            return new AdaptiveTileClassification(elevation, isOceanic, biome, category, bucket);
+        }
+
+        /// <summary>
+        /// A `leaves` altal igenyelt, MEG NEM cache-elt klasszifikaciok
+        /// tobb szalon (`Parallel.For`) valo elore-kiszamitasa, majd
+        /// EGYSZALU beirasa a cache-be. A WorldGen.Core lanc (DomainWarp,
+        /// PlateGeneration, PlateBoundaryEffect, ImpactCratering,
+        /// Temperature, BiomeClassification) igazoltan tiszta fuggvenyekbol
+        /// all (nincs megosztott mutable allapot, nincs hivasonkenti heap-
+        /// allokacio) - ld. a GPU-CALC teljesitmeny-vizsgalat jegyzokonyvet -
+        /// ezert `Parallel.For`-ral biztonsagosan parhuzamosithato.
+        /// </summary>
+        private void PrecomputeClassificationsInParallel(TileId[] leaves)
+        {
+            var missing = new List<TileId>(leaves.Length);
+            foreach (TileId id in leaves)
+                if (!_tileClassificationCache.ContainsKey(id))
+                    missing.Add(id);
+            if (missing.Count == 0)
+                return;
+
+            var results = new AdaptiveTileClassification[missing.Count];
+            System.Threading.Tasks.Parallel.For(0, missing.Count, i =>
+            {
+                results[i] = ComputeTileClassification(missing[i]);
+            });
+
+            for (int i = 0; i < missing.Count; i++)
+            {
+                TileId id = missing[i];
+                _tileClassificationCache[id] = results[i];
+                _tileClassificationLruNodes[id] = _tileClassificationLru.AddLast(id);
+            }
         }
 
         private void EvictTileClassificationCacheIfNeeded()
