@@ -82,7 +82,7 @@ namespace WorldGen.Viewer.Lod
                 cameraX, cameraY, cameraZ, planetRadius, previousCut,
                 baseLevel, maxLevel, splitFactor, mergeFactor,
                 forwardX, forwardY, forwardZ, halfFovRadians);
-            EnforceRestrictedBalance(cut);
+            EnforceRestrictedBalance(cut, baseLevel);
             return cut;
         }
 
@@ -145,6 +145,31 @@ namespace WorldGen.Viewer.Lod
             int totalRoots = 6 * rootsPerFace;
             var bag = new System.Collections.Concurrent.ConcurrentBag<TileId>();
 
+            // OLCSO ELOSZURES (kritikus nagy baseLevel-nel, pl. 8 = 393216
+            // gyoker): a `Visit()` MAGA draga (GetCenterAndBoundingRadius 4
+            // tan/atan-hasznalo TileGeometry-hivassal + latokup-teszt), es
+            // baseLevel=8-nal ezt mind a 393216 gyokerre lefuttatni akkor
+            // is, ha a VEGEREDMENY "marad alap szinten" - mert 80-320ms-et
+            // vett igenybe MINDEN egyes ujraepitesnel (merve), fuggetlenul
+            // attol, hogy a mesh-epites mar csak a finomitott reszt erinti.
+            // A javitas: egy OLCSO also-becsles (csak TileGeometry.ToPosition,
+            // NEM a teljes befoglalo-sugar-szamitas) kiszamitja, hogy egy
+            // adott base-level gyoker LEHETSEGES-e egyaltalan hogy finomodjon
+            // (a tavolsaga a kamera-tol < mergeFactor * a legnagyobb
+            // lehetseges rTile ezen a szinten) - ha nem, a DRAGA Visit()
+            // teljesen kihagyhato, a gyoker egyszeruen "marad alap" (a bag-be
+            // kerul modositas nelkul). A hatarertek KONZERVATIV (a tenyleges
+            // max/min terulet-arany felulrol korlatos ND-24 szerint, itt egy
+            // biztonsagos 2x szorzoval), tehat SOSEM zar ki egy olyan
+            // gyokeret, aminek ténylegesen finomodnia kellene - csak a
+            // egyertelmuen tavoli, semmikepp nem finomodo gyokereknel sporol.
+            GetCenterAndBoundingRadius(
+                TileId.FromFaceLevelUV(0, baseLevel, 0, 0), planetRadius,
+                out _, out _, out _, out double sampleRTile);
+            double conservativeMaxRTile = sampleRTile * 2.0;
+            double maxRelevantDistance = mergeFactor * conservativeMaxRTile;
+            double maxRelevantDistanceSq = maxRelevantDistance * maxRelevantDistance;
+
             System.Threading.Tasks.Parallel.For(0, totalRoots, rootIndex =>
             {
                 int face = rootIndex / rootsPerFace;
@@ -153,6 +178,18 @@ namespace WorldGen.Viewer.Lod
                 uint v = (uint)(withinFace % (int)baseN);
 
                 TileId root = TileId.FromFaceLevelUV(face, baseLevel, u, v);
+
+                TileGeometry.ToPosition(root, out double rx, out double ry, out double rz);
+                double ccx = rx * planetRadius, ccy = ry * planetRadius, ccz = rz * planetRadius;
+                double ddx = cameraX - ccx, ddy = cameraY - ccy, ddz = cameraZ - ccz;
+                double distSq = ddx * ddx + ddy * ddy + ddz * ddz;
+
+                if (distSq > maxRelevantDistanceSq)
+                {
+                    bag.Add(root); // garantaltan tul messze van barmilyen finomodashoz
+                    return;
+                }
+
                 Visit(root, cameraX, cameraY, cameraZ, planetRadius,
                     previousExpanded, maxLevel, splitFactor, mergeFactor,
                     forwardX, forwardY, forwardZ, halfFovRadians, bag);
@@ -314,13 +351,38 @@ namespace WorldGen.Viewer.Lod
         /// szama felulrol korlatos: minden csomopont legfeljebb maxLevel-ig
         /// bonthato).
         /// </summary>
-        internal static void EnforceRestrictedBalance(HashSet<TileId> cut)
+        internal static void EnforceRestrictedBalance(HashSet<TileId> cut, int baseLevel)
         {
             bool changed;
             do
             {
                 changed = false;
-                var snapshot = new List<TileId>(cut);
+
+                // OLCSO ELOSZURES (kritikus nagy baseLevel-nel, pl. 8-nal a
+                // cut 393k+ elemet is tartalmazhat, de a finomitott resz
+                // csak nehany ezer): a TAVOLI, tisztan base-szintu tile-ok
+                // MINDIG egyensulyban vannak egymassal (0 a level-kulonbseg),
+                // tehat csak a level>baseLevel (finomitott) tile-okat ES az
+                // O SAME-LEVEL SZOMSZEDJAIKAT (a hatar, ahol egyensulytalansag
+                // egyaltalan felmerulhet) erdemes a draga TileNeighbors.
+                // Neighbor (tan/atan) hivasokkal ellenorizni. A `cut`
+                // teljes bejarasa itt megmarad (kell a level-szures miatt),
+                // de EZ csak egy OLCSO level-osszehasonlitas HashSet-be
+                // gyujtessel - a DRAGA resz (szomszed-keresés) mar csak a
+                // sokkal kisebb jelolt-halmazon fut.
+                var candidates = new HashSet<TileId>();
+                foreach (TileId t in cut)
+                {
+                    if (t.Level <= baseLevel)
+                        continue;
+                    candidates.Add(t);
+                    for (int d = 0; d < 4; d++)
+                    {
+                        TileId neighbor = TileNeighbors.Neighbor(t, (TileDirection)d);
+                        if (TryFindCoveringAncestor(neighbor, cut, out TileId covering))
+                            candidates.Add(covering);
+                    }
+                }
 
                 // Parhuzamositas (gpu-calc): a SZOMSZED-KERESES (TileNeighbors.
                 // Neighbor, ami a ND-24 szerint dokumentaltan draga tan/atan
@@ -332,7 +394,7 @@ namespace WorldGen.Viewer.Lod
                 // volt a legdragabb resz (akar 80+ ms egy nagy cut-nal),
                 // dominalva a teljes adaptiv ujraepites koltseget.
                 var toSplit = new System.Collections.Concurrent.ConcurrentDictionary<TileId, byte>();
-                System.Threading.Tasks.Parallel.ForEach(snapshot, leaf =>
+                System.Threading.Tasks.Parallel.ForEach(candidates, leaf =>
                 {
                     if (!cut.Contains(leaf))
                         return; // korabbi iteracios lepesben mar kicserelodott (a szulo felbomlott)

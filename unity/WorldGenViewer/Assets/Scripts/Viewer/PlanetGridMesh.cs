@@ -170,24 +170,24 @@ namespace WorldGen.Viewer
                  "Kikapcsolva a viselkedes BITRE ugyanaz, mint M9 elott.")]
         private bool useAdaptiveLod = true;
 
-        [SerializeField, Range(0, 6)]
+        [SerializeField, Range(0, 10)]
         [Tooltip("A kvadfa gyoker-szintje - EZ A MINDIG GARANTALT, zoomolas " +
                  "nelkul is lathato minimum-reszletesseg (a finomodas ezen " +
-                 "FELUL, a kamera latokupjaban tortenik). 4-re levezetve " +
-                 "(ld. adaptiveSplitFactor doksija) - kis levelen kezdunk, " +
-                 "mert a splitFactor mar TAVOLROL (300 egysegnel is) elkezd " +
-                 "finomitani, tehat a bazisnak nem kell olyan magasnak lennie, " +
-                 "mint amikor meg nem volt latokup-fuggo finomodas.")]
-        private int adaptiveBaseLevel = 4;
+                 "FELUL, a kamera latokupjaban tortenik). INCREMENTAL-MESH-" +
+                 "BUFFERS OTA: ez a szint EGYSZER epul fel (BuildStaticBaseLayer), " +
+                 "es a kamera-mozgas TOBBET NEM erinti - ezert 8 (393216 tile) " +
+                 "is biztonsagosan hasznalhato alapertek, nem csak a korabbi, " +
+                 "'minden ujraepitesnel ujraszamolodik' architekturahoz " +
+                 "igazitott kisebb ertek (4).")]
+        private int adaptiveBaseLevel = 8;
 
-        [SerializeField, Range(0, 18)]
-        [Tooltip("A kvadfa max melysege (nem bomlik finomabbra ennel). " +
-                 "MERT PONT 16: a `minDistance` (kb. a felszin) kozeleben, " +
-                 "`adaptiveSplitFactor`=32.5 mellett a rendszer MAGATOL, " +
-                 "termeszetes hatarkent all meg kb. level 16-on - ennel " +
-                 "magasabbra allitani nem ad tobb reszletet, csak feleslegesen " +
-                 "tagabb Inspector-tartomanyt.")]
-        private int adaptiveMaxLevel = 18;
+        [SerializeField, Range(0, 20)]
+        [Tooltip("A kvadfa max melysege (nem bomlik finomabbra ennel). A " +
+                 "`minDistance` (kb. a felszin) kozeleben, `adaptiveSplitFactor`= " +
+                 "61 mellett a rendszer MAGATOL, termeszetes hatarkent all meg " +
+                 "valahol eddig - ennel magasabbra allitani nem ad tobb " +
+                 "reszletet, csak feleslegesen tagabb Inspector-tartomanyt.")]
+        private int adaptiveMaxLevel = 20;
 
         [SerializeField]
         [Tooltip("K_split - felbontasi kuszob (tavolsag/befoglalo-sugar arany). " +
@@ -249,6 +249,20 @@ namespace WorldGen.Viewer
                  "ujraepites a TELJES cutot ujraszamolna - ez okozta a sulyos " +
                  "lefagyast nagy adaptiveBaseLevel mellett.")]
         private int tileClassificationCacheMaxSize = 300_000;
+
+        [SerializeField]
+        [Tooltip("INCREMENTAL-MESH-BUFFERS: a base-level tile-ok EGYSZER, " +
+                 "'StaticBase' retegkent epulnek fel (this.gameObject + " +
+                 "'WaterSurface'/'Borders'), es TOBBET NEM erintve maradnak - " +
+                 "a mozgas-kivaltotta ujraepites CSAK a finomitott (level > " +
+                 "adaptiveBaseLevel) reteget erinti, KULON GameObject-eken " +
+                 "('DynamicRefined'/'DynamicWater'/'DynamicBorders'). Mivel a " +
+                 "finomitott tile-ok geomorphing miatt POZICIO-FOLYTONOSAN " +
+                 "illeszkednek a statikus szulo-tile felszinehez, a ket reteg " +
+                 "UGYANAZON a fizikai helyen atfedne (Z-fighting) - ez a mezo " +
+                 "egy PICI, sajat-iranyu kifele-tolast ad a dinamikus reteg " +
+                 "csucsainak, hogy egyertelmuen a statikus reteg ELE keruljon.")]
+        private float dynamicLayerRadialBias = 0.002f;
 
         [SerializeField]
         [Tooltip("Minimum ido (masodperc) ket adaptiv ujraepites kozott, " +
@@ -590,10 +604,15 @@ namespace WorldGen.Viewer
                 }
             }
 
-            BuildMultiMaterialMesh(verticesByKey, normalsByKey, trianglesByKey);
-            BuildBorders(borderVerts, borderIndices);
+            // MEGJEGYZES: ha useAdaptiveLod be van kapcsolva, ezt a fix-
+            // szintu (`level`) mesh-et LENT a BuildStaticBaseLayer() rogton
+            // felulirja `this.gameObject`-en (adaptiveBaseLevel-en epul ujra) -
+            // ez a hivas csak akkor marad a vegso eredmeny, ha useAdaptiveLod
+            // KI van kapcsolva (M9 elotti viselkedes, valtozatlanul).
+            BuildMultiMaterialMesh(verticesByKey, normalsByKey, trianglesByKey, gameObject);
+            BuildBorders(borderVerts, borderIndices, "Borders");
             BuildCraterMarkers(craters, seed, seeds);
-            BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket);
+            BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, "WaterSurface");
 
             _lastSeed = seed;
             _lastField = field;
@@ -619,6 +638,14 @@ namespace WorldGen.Viewer
 
             if (useAdaptiveLod)
             {
+                // INCREMENTAL-MESH-BUFFERS: a statikus alap-reteg (MINDEN
+                // base-level tile, egyszer) elobb epul fel - ez felulirja a
+                // fent (a fix `level`-en) mar felepult mesh-t `this.gameObject`-
+                // en a HELYES adaptiveBaseLevel-en. Utana a dinamikus
+                // (finomitott) reteg mar CSAK a kamera koruli, level feletti
+                // resz-t epiti fel, kulon GameObject-eken.
+                BuildStaticBaseLayer();
+
                 Camera cam = GetAdaptiveCamera();
                 if (cam != null)
                 {
@@ -628,6 +655,57 @@ namespace WorldGen.Viewer
             }
 
             Built.Invoke();
+        }
+
+        /// <summary>
+        /// INCREMENTAL-MESH-BUFFERS: a TELJES bolygo `adaptiveBaseLevel`-en,
+        /// EGYSZER felepitve - ez a mindig-lathato "padlo", amit a kamera
+        /// mozgasa SOHA nem erint tobbet (ld. RecomputeCutAndRebuildAdaptiveMesh/
+        /// RebuildAdaptiveMesh, ami mar csak a level feletti, finomitott
+        /// reszt dolgozza fel). Ez teszi lehetove, hogy `adaptiveBaseLevel`
+        /// akar 8 (393216 tile) is lehessen anelkul, hogy minden egyes
+        /// kameramozgas ujra kiertekelne/ujraepitene mind a 393k tile-t -
+        /// az egyszeri epitesi koltseg (par szaz ms, parhuzamositva) ELKULONUL
+        /// a folyamatos mozgas-kivaltotta koltsegtol (ami mostantol csak a
+        /// kis, finomitott reszre vonatkozik).
+        /// </summary>
+        private void BuildStaticBaseLayer()
+        {
+            int n = 1 << adaptiveBaseLevel;
+            var baseTiles = new List<TileId>(6 * n * n);
+            for (int face = 0; face <= 5; face++)
+                for (uint u = 0; u < (uint)n; u++)
+                    for (uint v = 0; v < (uint)n; v++)
+                        baseTiles.Add(TileId.FromFaceLevelUV(face, adaptiveBaseLevel, u, v));
+
+            TileId[] leaves = baseTiles.ToArray();
+            PrecomputeClassificationsInParallel(leaves);
+            PrecomputeCornersInParallel(leaves);
+
+            var verticesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
+            var normalsByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
+            var trianglesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<int>>();
+            var waterVerticesByBucket = new Dictionary<int, List<Vector3>>();
+            var waterNormalsByBucket = new Dictionary<int, List<Vector3>>();
+            var waterTrianglesByBucket = new Dictionary<int, List<int>>();
+            var borderVerts = new List<Vector3>();
+            var borderIndices = new List<int>();
+            float waterSurfaceRadius = radius + (float)(_adaptiveSeaLevel * elevationScale);
+
+            foreach (TileId leaf in leaves)
+            {
+                EmitAdaptiveTile(
+                    leaf, verticesByKey, normalsByKey, trianglesByKey,
+                    waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket,
+                    borderVerts, borderIndices, waterSurfaceRadius, radialBias: 0f);
+            }
+
+            BuildMultiMaterialMesh(verticesByKey, normalsByKey, trianglesByKey, gameObject);
+            BuildBorders(borderVerts, borderIndices, "Borders");
+            BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, "WaterSurface");
+
+            EvictCornerCacheIfNeeded();
+            EvictTileClassificationCacheIfNeeded();
         }
 
         /// <summary>
@@ -710,8 +788,20 @@ namespace WorldGen.Viewer
             // tombbe, (2) egyszalon irjuk be a cache-be. Az ezutani
             // EmitAdaptiveTile-hivasok mar csupa cache-talalatot csak
             // olvasnak, tehat gyorsak maradnak.
-            TileId[] leaves = new TileId[_currentCut.Count];
-            _currentCut.CopyTo(leaves);
+            // INKREMENTALIS RETEG-SZETVALASZTAS (ld. BuildStaticBaseLayer):
+            // a base-level (<=adaptiveBaseLevel) tile-ok MAR a statikus
+            // reteg reszei (egyszer epulnek fel, sosem erintve tobbet) -
+            // ez a DINAMIKUS ujraepites CSAK a ténylegesen finomitott
+            // (level > adaptiveBaseLevel) leveleket dolgozza fel, tehat a
+            // koltsege FUGGETLEN adaptiveBaseLevel nagysagatol (pl. 8-nal
+            // 393216 helyett csak a nehany ezres, kamera koruli finomitott
+            // reszt kell ujraepiteni minden mozgasnal).
+            var dynamicLeaves = new List<TileId>();
+            foreach (TileId t in _currentCut)
+                if (t.Level > adaptiveBaseLevel)
+                    dynamicLeaves.Add(t);
+
+            TileId[] leaves = dynamicLeaves.ToArray();
             PrecomputeClassificationsInParallel(leaves);
             PrecomputeCornersInParallel(leaves);
 
@@ -725,16 +815,20 @@ namespace WorldGen.Viewer
             var borderIndices = new List<int>();
             float waterSurfaceRadius = radius + (float)(_adaptiveSeaLevel * elevationScale);
 
-            foreach (TileId leaf in _currentCut)
+            foreach (TileId leaf in leaves)
             {
                 EmitAdaptiveTile(
                     leaf, verticesByKey, normalsByKey, trianglesByKey,
                     waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket,
-                    borderVerts, borderIndices, waterSurfaceRadius);
+                    borderVerts, borderIndices, waterSurfaceRadius, dynamicLayerRadialBias);
             }
 
-            BuildMultiMaterialMesh(verticesByKey, normalsByKey, trianglesByKey);
-            BuildBorders(borderVerts, borderIndices);
+            // A dinamikus (finomitott) reteg KULON GameObject-eken el, hogy
+            // ne irja felul a statikus alap-reteget (`this.gameObject` +
+            // "WaterSurface"/"Borders") - ld. BuildStaticBaseLayer.
+            GameObject dynamicTerrainGo = GetOrCreateChildRenderTarget("DynamicRefined");
+            BuildMultiMaterialMesh(verticesByKey, normalsByKey, trianglesByKey, dynamicTerrainGo);
+            BuildBorders(borderVerts, borderIndices, "DynamicBorders");
             // MEGJEGYZES: BuildCraterMarkers() SZANDEKOSAN NINCS itt - a
             // krater-markerek GameObject.CreatePrimitive()-mel dolgoznak,
             // ami Unity-ben soronkent DRAGA (nem csak egy Mesh-adat-frissites).
@@ -744,7 +838,7 @@ namespace WorldGen.Viewer
             // MOZGAS KOZBEN, masodpercenkent akar 10-szer ujra le- es
             // felepitette az OSSZES kratert, ami a felhasznalo altal eszlelt
             // "teljesen halott" egerkezeles fo oka volt.
-            BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket);
+            BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, "DynamicWater");
 
             EvictCornerCacheIfNeeded();
             EvictTileClassificationCacheIfNeeded();
@@ -767,7 +861,7 @@ namespace WorldGen.Viewer
             Dictionary<int, List<Vector3>> waterNormalsByBucket,
             Dictionary<int, List<int>> waterTrianglesByBucket,
             List<Vector3> borderVerts, List<int> borderIndices,
-            float waterSurfaceRadius)
+            float waterSurfaceRadius, float radialBias)
         {
             AdaptiveTileClassification classification = GetOrComputeTileClassification(id);
             double elevation = classification.Elevation;
@@ -781,6 +875,13 @@ namespace WorldGen.Viewer
                 out List<Vector3> vertices, out List<Vector3> normals, out List<int> triangles);
 
             GetAdaptiveCorners(id, out Vector3 p00, out Vector3 p10, out Vector3 p11, out Vector3 p01);
+            if (radialBias != 0f)
+            {
+                p00 += p00.normalized * radialBias;
+                p10 += p10.normalized * radialBias;
+                p11 += p11.normalized * radialBias;
+                p01 += p01.normalized * radialBias;
+            }
             AddQuad(vertices, normals, triangles, p00, p10, p11, p01);
 
             if (isOceanic && biome == Biome.Ocean)
@@ -790,6 +891,13 @@ namespace WorldGen.Viewer
                 Vector3 wp10 = ToWaterVector3(id.Face, uMax, vMin, waterSurfaceRadius);
                 Vector3 wp11 = ToWaterVector3(id.Face, uMax, vMax, waterSurfaceRadius);
                 Vector3 wp01 = ToWaterVector3(id.Face, uMin, vMax, waterSurfaceRadius);
+                if (radialBias != 0f)
+                {
+                    wp00 += wp00.normalized * radialBias;
+                    wp10 += wp10.normalized * radialBias;
+                    wp11 += wp11.normalized * radialBias;
+                    wp01 += wp01.normalized * radialBias;
+                }
 
                 double depth = _adaptiveSeaLevel - elevation;
                 int waterBucket = WaterDepthBucket(depth);
@@ -1387,7 +1495,8 @@ namespace WorldGen.Viewer
         private void BuildMultiMaterialMesh(
             Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> verticesByKey,
             Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> normalsByKey,
-            Dictionary<(RenderCategory Category, int Bucket), List<int>> trianglesByKey)
+            Dictionary<(RenderCategory Category, int Bucket), List<int>> trianglesByKey,
+            GameObject targetGo)
         {
             var allVertices = new List<Vector3>();
             var allNormals = new List<Vector3>();
@@ -1424,13 +1533,32 @@ namespace WorldGen.Viewer
                 mesh.SetTriangles(submeshTriangleLists[i], i);
             mesh.RecalculateBounds();
 
-            GetComponent<MeshFilter>().sharedMesh = mesh;
-            GetComponent<MeshRenderer>().sharedMaterials = materials.ToArray();
+            targetGo.GetComponent<MeshFilter>().sharedMesh = mesh;
+            targetGo.GetComponent<MeshRenderer>().sharedMaterials = materials.ToArray();
         }
 
-        private void BuildBorders(List<Vector3> borderVerts, List<int> borderIndices)
+        /// <summary>
+        /// Get-or-create egy `this` alatti gyerek GameObject-et MeshFilter+
+        /// MeshRenderer-rel - a statikus alap- es dinamikus finomitott
+        /// reteg kulon-kulon GameObject-en el (mindketto sajat Mesh-t es
+        /// draw call-t kap), hogy egyik se irja felul a masikat.
+        /// </summary>
+        private GameObject GetOrCreateChildRenderTarget(string name)
         {
-            Transform borderChild = transform.Find("Borders");
+            Transform child = transform.Find(name);
+            if (child != null)
+                return child.gameObject;
+
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            go.AddComponent<MeshFilter>();
+            go.AddComponent<MeshRenderer>();
+            return go;
+        }
+
+        private void BuildBorders(List<Vector3> borderVerts, List<int> borderIndices, string childName)
+        {
+            Transform borderChild = transform.Find(childName);
 
             if (!showBorders)
             {
@@ -1446,7 +1574,7 @@ namespace WorldGen.Viewer
             GameObject borderGo;
             if (borderChild == null)
             {
-                borderGo = new GameObject("Borders");
+                borderGo = new GameObject(childName);
                 borderGo.transform.SetParent(transform, false);
                 borderGo.AddComponent<MeshFilter>();
                 MeshRenderer mr = borderGo.AddComponent<MeshRenderer>();
@@ -1543,13 +1671,14 @@ namespace WorldGen.Viewer
         private void BuildWaterSurface(
             Dictionary<int, List<Vector3>> verticesByBucket,
             Dictionary<int, List<Vector3>> normalsByBucket,
-            Dictionary<int, List<int>> trianglesByBucket)
+            Dictionary<int, List<int>> trianglesByBucket,
+            string childName)
         {
-            Transform waterChild = transform.Find("WaterSurface");
+            Transform waterChild = transform.Find(childName);
             GameObject waterGo;
             if (waterChild == null)
             {
-                waterGo = new GameObject("WaterSurface");
+                waterGo = new GameObject(childName);
                 waterGo.transform.SetParent(transform, false);
                 waterGo.AddComponent<MeshFilter>();
                 waterGo.AddComponent<MeshRenderer>();

@@ -252,6 +252,44 @@ namespace WorldGen.Viewer.Lod.Tests
         }
 
         /// <summary>
+        [Test]
+        public void BuildCut_HighBaseLevel_AllRootsPresentAndBalanced()
+        {
+            // INCREMENTAL-MESH-BUFFERS: adaptiveBaseLevel=8 (393216 gyoker)
+            // tamogatasahoz az AdaptiveQuadTree.SelectCut/EnforceRestrictedBalance
+            // egy OLCSO elozetes tavolsag-szures utan kihagyja a draga
+            // GetCenterAndBoundingRadius/TileNeighbors kiertekelest a
+            // egyertelmuen tavoli, nem finomodo gyokerekre - ez a teszt azt
+            // ellenorzi, hogy ez az eloszures NEM hagy ki egyetlen base-
+            // level gyokeret sem a vegso cut-bol, es a 2:1 egyensuly
+            // tovabbra is sertetlen marad ezen a leptéken.
+            const int baseLevel = 8;
+            HashSet<TileId> cut = AdaptiveQuadTree.BuildCut(
+                100.3, 30.1, 95.0, PlanetRadius, previousCut: null,
+                baseLevel: baseLevel, maxLevel: 16, splitFactor: 61.0, mergeFactor: 91.5);
+
+            long expectedBaseCount = 6L * (1L << baseLevel) * (1L << baseLevel);
+            int atLeastBase = 0;
+            foreach (TileId leaf in cut)
+                if (leaf.Level >= baseLevel) atLeastBase++;
+            Assert.AreEqual(cut.Count, atLeastBase, "Minden cut-elemnek legalabb baseLevel szintunek kell lennie.");
+            Assert.GreaterOrEqual(cut.Count, expectedBaseCount,
+                "Az olcso eloszures nem hagyhat ki egyetlen base-level gyokeret sem a vegso cut-bol.");
+
+            foreach (TileId leaf in cut)
+            {
+                for (int dirIndex = 0; dirIndex < 4; dirIndex++)
+                {
+                    TileId sameLevelNeighbor = TileNeighbors.Neighbor(leaf, (TileDirection)dirIndex);
+                    int? neighborCoveringLevel = FindCoveringLevelIndependently(sameLevelNeighbor, cut);
+                    if (neighborCoveringLevel.HasValue)
+                        Assert.LessOrEqual(leaf.Level - neighborCoveringLevel.Value, 1,
+                            $"Level-kulonbseg {leaf} es a szomszedos fedo csomopont (level {neighborCoveringLevel}) kozott.");
+                }
+            }
+        }
+
+        /// <summary>
         /// A cut-ban levo, a megadott (barmilyen szintu) TileId-t lefedo
         /// csomopont szintje - FUGGETLEN ujraimplementacio (nem hivja az
         /// AdaptiveQuadTree belso EnforceRestrictedBalance-et), hogy a
