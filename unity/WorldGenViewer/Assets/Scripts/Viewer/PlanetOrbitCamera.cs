@@ -48,8 +48,11 @@ namespace WorldGen.Viewer
         [Tooltip("Fok/pixel/másodperc, EGYSÉGNYI felszín-feletti magasságra vetítve - " +
                  "a tényleges forgási sebesség a jelenlegi magassággal (distance - " +
                  "surfaceRadius) SZORZÓDIK, úgyhogy a felszín közelében arányosan " +
-                 "sokkal lassabb, mint messziről nézve.")]
-        private float rotationSpeedPerAltitude = 5f;
+                 "sokkal lassabb, mint messziről nézve. Csökkentve 5-ről 1-re - az " +
+                 "5-ös érték tipikus (~200 egységnyi) magasságban ~1000 fok/mp " +
+                 "effektív sebességet adott egyetlen egérmozdulatra, ami " +
+                 "eltúlzottan érzékenynek hatott.")]
+        private float rotationSpeedPerAltitude = 1f;
 
         [SerializeField]
         [Tooltip("M9: aranyos (nem additiv) zoom - minden scroll-egyseg " +
@@ -61,8 +64,10 @@ namespace WorldGen.Viewer
                  "belul kell lenni egy 100-as sugaru bolygonal) - egy regi, " +
                  "additiv zoom (150 egyseg/kattintas) gyakorlatilag athuzna " +
                  "ezen a savon, sose lehetne belelonni. Nagyobb ertek = gyorsabb " +
-                 "zoom scroll-egysegenkent.")]
-        private float zoomSensitivity = 0.15f;
+                 "zoom scroll-egysegenkent. Emelve 0.15-rol 0.4-re, hogy a teljes " +
+                 "tavolsag-tartomanyt (100.1-800) kevesebb gorgo-kattintassal " +
+                 "lehessen bejarni.")]
+        private float zoomSensitivity = 0.4f;
 
         [SerializeField] private float minPitch = -85f;
         [SerializeField] private float maxPitch = 85f;

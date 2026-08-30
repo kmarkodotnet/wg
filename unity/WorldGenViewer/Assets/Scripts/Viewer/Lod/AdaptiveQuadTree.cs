@@ -129,24 +129,36 @@ namespace WorldGen.Viewer.Lod
             forwardX /= fwdLen; forwardY /= fwdLen; forwardZ /= fwdLen;
 
             HashSet<TileId> previousExpanded = BuildExpandedAncestorSet(previousCut, baseLevel);
-            var cut = new HashSet<TileId>();
 
+            // Parhuzamositas (gpu-calc): a base-level gyokerek EGYMASTOL
+            // FUGGETLENUL bejarhatok (a Visit() rekurzio csak OLVASSA a
+            // `previousExpanded`-et, es csak HOZZAAD a kimenethez - nincs
+            // megosztott mutable allapot, amit at kellene rendezni). Egy
+            // ConcurrentBag-be gyujtunk (szalbiztos Add), a vegen egyszer
+            // alakitjuk HashSet-te. Mert szukseges: nagy `splitFactor`
+            // mellett a SelectCut onmagaban is tobb-tíz-milliszekundumos
+            // koltseg lehet (merve), es a base-level gyokerek szama
+            // (6*4^baseLevel) tobbnyire jocskan meghaladja a magok szamat,
+            // tehat joul skalazodik.
             uint baseN = baseLevel == 0 ? 1u : (1u << baseLevel);
-            for (int face = 0; face <= 5; face++)
-            {
-                for (uint u = 0; u < baseN; u++)
-                {
-                    for (uint v = 0; v < baseN; v++)
-                    {
-                        TileId root = TileId.FromFaceLevelUV(face, baseLevel, u, v);
-                        Visit(root, cameraX, cameraY, cameraZ, planetRadius,
-                            previousExpanded, maxLevel, splitFactor, mergeFactor,
-                            forwardX, forwardY, forwardZ, halfFovRadians, cut);
-                    }
-                }
-            }
+            int rootsPerFace = (int)(baseN * baseN);
+            int totalRoots = 6 * rootsPerFace;
+            var bag = new System.Collections.Concurrent.ConcurrentBag<TileId>();
 
-            return cut;
+            System.Threading.Tasks.Parallel.For(0, totalRoots, rootIndex =>
+            {
+                int face = rootIndex / rootsPerFace;
+                int withinFace = rootIndex % rootsPerFace;
+                uint u = (uint)(withinFace / (int)baseN);
+                uint v = (uint)(withinFace % (int)baseN);
+
+                TileId root = TileId.FromFaceLevelUV(face, baseLevel, u, v);
+                Visit(root, cameraX, cameraY, cameraZ, planetRadius,
+                    previousExpanded, maxLevel, splitFactor, mergeFactor,
+                    forwardX, forwardY, forwardZ, halfFovRadians, bag);
+            });
+
+            return new HashSet<TileId>(bag);
         }
 
         private static void Visit(
@@ -154,7 +166,7 @@ namespace WorldGen.Viewer.Lod
             double cameraX, double cameraY, double cameraZ, double planetRadius,
             HashSet<TileId> previousExpanded, int maxLevel, double splitFactor, double mergeFactor,
             double forwardX, double forwardY, double forwardZ, double halfFovRadians,
-            HashSet<TileId> cut)
+            System.Collections.Concurrent.ConcurrentBag<TileId> cut)
         {
             if (node.Level >= maxLevel)
             {
@@ -309,10 +321,21 @@ namespace WorldGen.Viewer.Lod
             {
                 changed = false;
                 var snapshot = new List<TileId>(cut);
-                foreach (TileId leaf in snapshot)
+
+                // Parhuzamositas (gpu-calc): a SZOMSZED-KERESES (TileNeighbors.
+                // Neighbor, ami a ND-24 szerint dokumentaltan draga tan/atan
+                // hivasokat hasznal) es a fedo-os keresese TISZTAN OLVASSA a
+                // `cut`-ot ebben a fazisban (nincs meg mutacio) - ezert
+                // biztonsagosan parhuzamosithato. Csak a TENYLEGES felbontast
+                // (SplitOnce, ami ir a `cut`-ba) vegezzuk egyszalon, utana,
+                // mert a HashSet<T> nem szalbiztos irasra. Merve: ez a fazis
+                // volt a legdragabb resz (akar 80+ ms egy nagy cut-nal),
+                // dominalva a teljes adaptiv ujraepites koltseget.
+                var toSplit = new System.Collections.Concurrent.ConcurrentDictionary<TileId, byte>();
+                System.Threading.Tasks.Parallel.ForEach(snapshot, leaf =>
                 {
                     if (!cut.Contains(leaf))
-                        continue; // korabbi iteracios lepesben mar kicserelodott (a szulo felbomlott)
+                        return; // korabbi iteracios lepesben mar kicserelodott (a szulo felbomlott)
 
                     for (int dirIndex = 0; dirIndex < 4; dirIndex++)
                     {
@@ -320,9 +343,17 @@ namespace WorldGen.Viewer.Lod
                         if (TryFindCoveringAncestor(sameLevelNeighbor, cut, out TileId coveringAncestor)
                             && leaf.Level - coveringAncestor.Level > 1)
                         {
-                            SplitOnce(cut, coveringAncestor);
-                            changed = true;
+                            toSplit.TryAdd(coveringAncestor, 0);
                         }
+                    }
+                });
+
+                foreach (TileId ancestor in toSplit.Keys)
+                {
+                    if (cut.Contains(ancestor))
+                    {
+                        SplitOnce(cut, ancestor);
+                        changed = true;
                     }
                 }
             } while (changed);
