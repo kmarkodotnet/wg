@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Ez a CLI/checkpoint-eszköz a `src/`-en KÍVÜL él, mert System.Text.Json-t
+    használ (a CLAUDE.md ezt a src/-ben tiltja - ld. "A src/ motorfüggetlensége
+    nem tárgyalható"). Motorfüggetlenségi korlát sem vonatkozik rá (nem a
+    szimulációs mag, hanem egy fogyasztó CLI), ezért szabadon net8.0/LangVersion
+    latest.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>WorldGen.Cli</RootNamespace>
+    <AssemblyName>worldgen</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/WorldGen.Core/WorldGen.Core.csproj" />
+  </ItemGroup>
+
+</Project>

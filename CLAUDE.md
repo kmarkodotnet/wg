@@ -98,6 +98,13 @@ KAT-vektorokhoz van mérve.
 Python orákulum → verifikálás ismert vektorokhoz → tesztvektorok generálása →
 C# implementáció → C# a vektorokhoz mérve.
 
+**Haladás-jelentés minden lépésnél.** A záró-összefoglalóhoz tartozik egy
+mérföldkő-alapú % becslés (`docs/05-milestones.md` M0-M13 táblázatából,
+tartalmi súlyozással, NE puszta darabszám-arány) és egy munkaóra-becslés
+(eddig ráment / hátralévő). A munkaóra-szám **mindig jelezve legyen durva
+becslésként**, nem mért tényként — nincs valós idő-naplózás a projektben,
+ne állíts hamis pontosságot.
+
 ## Tesztelési elvárások
 
 Minden új modulhoz kötelező:
@@ -130,13 +137,27 @@ Ha ilyet csinálsz, emeld a megfelelő verziószámot és írd le a döntésekbe
 
 ## Állapot
 
-**Kész:** M1 — determinisztikus random réteg (`src/WorldGen.Core/Random/`).
-**Következő:** M2 — `Core.Grid`: cubed sphere, Morton-`TileId`, LOD, szomszédság.
+**Kész:** M1 — determinisztikus random réteg. M2 rács-matek — `TileId`,
+Morton-kódolás, koordináta-konverzió, szomszédsági tábla
+(`src/WorldGen.Core/Grid/`), mind tesztelve. M2 render-lépése —
+`unity/WorldGenViewer/` (`unity-viewer` ágon): a `PlanetGridMesh` rács →
+Unity mesh híd Game módban vizuálisan megerősítve — szürke gömb,
+tile-határokkal, hézagok nélkül level 2/5/6-nál (level 7-nél a sűrű
+határvonalak optikai aliasingot adnak, ami nem geometriai hiba). Az M2
+"Kész, ha" kritériuma (szürke gömb, tile-határokkal) teljesült.
+**Következő:** M3 — csillagászat + világítás (megvilágított gömb,
+terminátorral). Az ND-19 (floating origin) NEM blokkolja: a HDRP
+`Directional Light` csak irányt igényel, nem pozíciót, tehát M3-nak nem
+kell valós léptékű koordináta — ND-19 implementációja M9-re halasztva.
 
 Részletek: `docs/05-milestones.md`.
 
-**A legfontosabb nyitott döntés: ND-01 (stack).** Amíg nyitott, a mag
-motorfüggetlen marad. Ne hozz olyan döntést, ami ezt előre eldönti.
+**ND-01 lezárva: Unity 6 + HDRP.** A `src/` motorfüggetlensége (netstandard2.1,
+nulla Unity-referencia) ettől függetlenül megmarad — a Unity-projekt a
+`src/WorldGen.Core`-t helyi package-ként, forrás szerint hivatkozza, nem
+másolja. Aktív nyitott döntések a választás miatt: **ND-20** (Burst
+`FloatMode.Strict` CI-kikényszerítés), **ND-21**
+(HDRP felhő űrből — prototípussal ellenőrizendő).
 
 ## Nyelv
 

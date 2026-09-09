@@ -1,0 +1,8 @@
+{
+  "name": "com.worldgen.core",
+  "version": "0.1.0",
+  "displayName": "WorldGen Core",
+  "description": "Determinisztikus, motorfüggetlen szimulációs mag (netstandard2.1, C# 9). A Unity ezt a package.json-t forrás szerint hivatkozza (file: dependency) - nem másolt DLL. Nulla UnityEngine/UnityEditor referencia (ND-22).",
+  "unity": "6000.0",
+  "keywords": ["worldgen", "simulation", "deterministic"]
+}

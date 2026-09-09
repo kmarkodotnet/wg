@@ -8,3 +8,25 @@ artifacts/
 TestResults/
 __pycache__/
 *.pyc
+
+# Unity (unity/WorldGenViewer/) - a *.meta fájlokat SOHA ne ignoráld,
+# azok stabil GUID-eket hordoznak és tracked kell maradjanak.
+unity/WorldGenViewer/Library/
+unity/WorldGenViewer/Temp/
+unity/WorldGenViewer/Logs/
+unity/WorldGenViewer/UserSettings/
+unity/WorldGenViewer/MemoryCaptures/
+unity/WorldGenViewer/Build/
+unity/WorldGenViewer/Builds/
+unity/WorldGenViewer/*.csproj
+unity/WorldGenViewer/*.sln
+unity/WorldGenViewer/*.csproj.meta
+*.unitypackage
+crashlytics-build.txt
+sysinfo.txt
+
+# felhasználó <-> Claude kommunikációs csatorna (képernyőképek), nem projekt-tartalom
+pics/
+
+# Claude Code helyi (gépspecifikus) beállítások - nem projekt-tartalom
+.claude/settings.local.json

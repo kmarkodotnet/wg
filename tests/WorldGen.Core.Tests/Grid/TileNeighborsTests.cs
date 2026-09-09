@@ -141,6 +141,125 @@ public class TileNeighborsExhaustiveTests
     }
 }
 
+/// <summary>
+/// `DiagonalNeighbor` (ld. osztály-doksi a Grid/TileNeighbors.cs-ben) - a
+/// PlanetGridMesh felhő-sarok-átlagolás varrat-javítása közben (2026-09-06)
+/// felmerült, majd MÉRÉSSEL elvetett kísérlet egy pontos átlós-szomszéd
+/// képletre. A tesztek itt NEM azt bizonyítják, hogy a metódus mindig
+/// helyes - éppen ellenkezőleg, RÖGZÍTIK a mért korlátozást (a lap éle/
+/// csúcsa közelében az oda-vissza kör nem zárul), hogy ha valaki a
+/// jövőben megpróbálja "kijavítani" vagy újrafelhasználni ezt a
+/// segédfüggvényt, tudja, mire számítson, és ne lepődjön meg, ha a hívó
+/// (`PlanetGridMesh.PrecipAndOceanFractionAtCorner`) nem ezt használja.
+/// </summary>
+public class TileNeighborsDiagonalTests
+{
+    private static TileDirection Opposite(TileDirection d) => d switch
+    {
+        TileDirection.Right => TileDirection.Left,
+        TileDirection.Left => TileDirection.Right,
+        TileDirection.Up => TileDirection.Down,
+        TileDirection.Down => TileDirection.Up,
+        _ => throw new ArgumentOutOfRangeException(nameof(d)),
+    };
+
+    [Fact]
+    public void AlwaysReturnsAValidTile()
+    {
+        const int level = 5;
+        uint n = 1u << level;
+        for (int face = 0; face <= 5; face++)
+        {
+            for (uint u = 0; u < n; u += 3)
+            {
+                for (uint v = 0; v < n; v += 3)
+                {
+                    TileId t = TileId.FromFaceLevelUV(face, level, u, v);
+                    foreach (var (h, vd) in new[]
+                    {
+                        (TileDirection.Right, TileDirection.Up), (TileDirection.Right, TileDirection.Down),
+                        (TileDirection.Left, TileDirection.Up), (TileDirection.Left, TileDirection.Down),
+                    })
+                    {
+                        TileId diag = TileNeighbors.DiagonalNeighbor(t, h, vd);
+                        Assert.InRange((int)diag.Face, 0, 5);
+                        Assert.Equal(level, diag.Level);
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void IsPure()
+    {
+        TileId t = TileId.FromFaceLevelUV(2, 6, 10, 20);
+        TileId a = TileNeighbors.DiagonalNeighbor(t, TileDirection.Right, TileDirection.Up);
+        TileId b = TileNeighbors.DiagonalNeighbor(t, TileDirection.Right, TileDirection.Up);
+        Assert.Equal(a, b);
+    }
+
+    [Fact]
+    public void MatchesBothTwoStepOrdersAwayFromFaceBoundaries()
+    {
+        // A lap belsejeben (nem a szelen) NINCS kozbeni keret-valtas, tehat
+        // a ket ket-lepeses sorrendnek (Right->Up es Up->Right) es az
+        // egy-lepeses DiagonalNeighbor-nak MINDHARMNAK egyeznie kell.
+        const int level = 5;
+        uint n = 1u << level;
+        TileId t = TileId.FromFaceLevelUV(0, level, n / 2, n / 2); // biztosan belso tile
+        TileId rightUp = TileNeighbors.Neighbor(TileNeighbors.Neighbor(t, TileDirection.Right), TileDirection.Up);
+        TileId upRight = TileNeighbors.Neighbor(TileNeighbors.Neighbor(t, TileDirection.Up), TileDirection.Right);
+        TileId diag = TileNeighbors.DiagonalNeighbor(t, TileDirection.Right, TileDirection.Up);
+
+        Assert.Equal(rightUp.Value, upRight.Value);
+        Assert.Equal(rightUp.Value, diag.Value);
+    }
+
+    /// <summary>
+    /// DOKUMENTÁLT, MÉRT KORLÁTOZÁS (NEM regresszió-védelem a "helyes"
+    /// viselkedésre - ELLENKEZŐLEG, ez rögzíti, hogy a kör NEM zárul a
+    /// lap éle/csúcsa közelében). Ha ez az arány jelentősen megváltozna
+    /// egy jövőbeli refaktornál, az azt jelezné, hogy a `TileGeometry`
+    /// vetítés-logika módosult - érdemes újra megmérni, VAJON a hívó
+    /// (`PlanetGridMesh.PrecipAndOceanFractionAtCorner`) `crossedFace`
+    /// kihagyás-logikája még mindig szükséges-e.
+    /// </summary>
+    [Fact]
+    public void RoundTripFailsOnlyNearFaceBoundaries_KnownLimitation()
+    {
+        const int level = 5;
+        uint n = 1u << level;
+        int checkedCount = 0;
+        int roundTripFailures = 0;
+
+        for (int face = 0; face <= 5; face++)
+        {
+            for (uint u = 0; u < n; u++)
+            {
+                for (uint v = 0; v < n; v++)
+                {
+                    TileId t = TileId.FromFaceLevelUV(face, level, u, v);
+                    foreach (var (h, vd) in new[]
+                    {
+                        (TileDirection.Right, TileDirection.Up), (TileDirection.Right, TileDirection.Down),
+                        (TileDirection.Left, TileDirection.Up), (TileDirection.Left, TileDirection.Down),
+                    })
+                    {
+                        checkedCount++;
+                        TileId diag = TileNeighbors.DiagonalNeighbor(t, h, vd);
+                        TileId back = TileNeighbors.DiagonalNeighbor(diag, Opposite(h), Opposite(vd));
+                        if (back.Value != t.Value) roundTripFailures++;
+                    }
+                }
+            }
+        }
+
+        Assert.Equal(24576, checkedCount);
+        Assert.Equal(768, roundTripFailures); // ~3.125% - a lap ele/csucsa kozeleben, ld. doksi
+    }
+}
+
 public class TileNeighborsCoverageTests
 {
     /// <summary>

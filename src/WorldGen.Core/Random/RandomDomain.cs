@@ -20,7 +20,20 @@ namespace WorldGen.Core.Random
         public const uint NeuralTexture = 8;
 
         // 9-31: fenntartva a core szimulációnak
-        // 32+ : bővítéseknek
+
+        /// <summary>
+        /// NEM a világmodell része (docs/backlog.md "Csillagos háttér",
+        /// docs/04-decisions.md ND-51) - a Naprendszeren kívüli, tisztán
+        /// dekoratív renderelési tartalom (pl. háttér-csillagmező) ide
+        /// tartozik. Külön van választva a világmodell-domainektől (1-8),
+        /// mert ide NEM vonatkoznak ugyanazok a seed-kompatibilitási
+        /// garanciák (I1 a VILÁGOT védi, nem a Naprendszeren kívüli
+        /// díszletet) - de a felhasználói kérésre MÉGIS determinisztikus
+        /// marad (ugyanaz a seed -> ugyanaz a csillagkép).
+        /// </summary>
+        public const uint Decorative = 32;
+
+        // 33+ : további bővítéseknek
 
         /// <summary>Tesztekhez fenntartott domain. Produkciós kód nem használhatja.</summary>
         public const uint Test = 999;
@@ -42,14 +55,29 @@ namespace WorldGen.Core.Random
         public const uint PlateSeedPoint = 10;
         public const uint EulerPole = 11;
         public const uint PlateVelocity = 12;
+        public const uint CrustType = 13;
+        // ND-45 (lemez-eletciklus, M10+M11): 14-16. A 17-19 fenntartva a
+        // halasztott HotspotBirth/HotspotDeath-nek.
+        public const uint PlateLifecycleRoll = 14;
+        public const uint PlateSplitAxisHint = 15;
+        public const uint PlateChildId = 16;
 
         // Events
         public const uint ImpactTrigger = 20;
         public const uint ImpactMagnitude = 21;
         public const uint VolcanicTrigger = 22;
+        public const uint ImpactPosition = 23;
+        public const uint ImpactVelocity = 24;
+        public const uint ImpactAngle = 25;
+        public const uint VolcanicMagnitude = 26;
+        public const uint VolcanicPosition = 27;
 
         // Naming
         public const uint SyllableChoice = 30;
         public const uint SuffixChoice = 31;
+
+        // Decorative (ld. RandomDomain.Decorative doksi - NEM a világmodell része)
+        public const uint StarPosition = 40;
+        public const uint StarBrightness = 41;
     }
 }
