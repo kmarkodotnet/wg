@@ -675,6 +675,12 @@ static const float TEMPERATE_THRESHOLD_K = 293.15;
 // alapertelmezetten KI van kapcsolva a scene-ben, es a GpuQuadResult nem is
 // ad vissza temperatureK-t a hivo oldalnak (csak elevation/isOceanic/biome) -
 // a jitter hozzaadasahoz ez is bovitendo lenne.
+//
+// 2026-09-10 (ND-59): ugyanez a hianyossag most mar a SZARAZFOLDI
+// jeg/tundra hataron is dokumentalt, azonos okbol (a CPU-oldali
+// JitteredRenderBiome jitterelt biome-fallback-et hasznal, a GPU-s
+// ClassifyBiomeF nem) - ugyanaz az elfogadott, useGpuGeometry-hez kotott
+// korlat, ld. PlanetGridMesh.JitteredRenderBiome doksi.
 uint ClassifyBiomeF(float temperatureK, bool isOceanic)
 {
     if (isOceanic) return temperatureK < OCEAN_FREEZING_K ? 1u : 0u;

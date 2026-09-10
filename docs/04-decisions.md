@@ -2852,6 +2852,160 @@ lenne, külön feladat.
 Core `biome`/`temperatureK`/statisztikák változatlanok). **Élő
 Unity-ellenőrzés hátra.**
 
+### ND-58 — SeaIce is a "folytonos" (nem lapos HDRP/Lit) terep-kategóriák közé került
+
+**Kontextus:** az ND-57 jitter hozzáadása UTÁN a felhasználó jelezte,
+hogy a kör alakúság problémája fennmaradt, DE egy screenshot alapján
+kiderült, hogy a valódi, elsődleges probléma NEM a határvonal
+szabálytalansága volt - a nyílt óceán fölött (nincs alatta kontinens)
+egy ÉLES, SOKSZÖGLETES (jól látható háromszög-facettákkal), és
+ÉJSZAKA is világosszürke maradó folt jelent meg.
+
+**Gyökérok:** a `RenderCategory.SeaIce` a `GetOrCreateCategoryMaterial`
+és `IsContinuousTerrainCategory` szerint a `River`/`Crater`
+kategóriákkal egy csoportba tartozott - "kis terület/jelölő jellegű",
+ezért a RÉGI, lapos `CategoryColor` + `CreateFlatColorMaterial` (Unity
+beépített HDRP/Lit) útvonalat kapta, NEM a folytonos
+`VertexColorUnlit`-et. Ez a feltételezés az ND-57 ELŐTT ésszerű volt
+(a tengeri jég ritkán/kis foltokban fordult elő), de az ND-57 (jitterelt
+SeaIce/Ocean határ) óta a `SeaIce` EGÉSZ SARKI JÉGSAPKÁNYI, nagy,
+összefüggő területet fedhet le. A HDRP/Lit anyag két, egymástól
+független problémát okozott: (1) NEM használja a `surfaceAmbient`-et
+(saját HDRP sky-ambient-jét kapja), ezért éjszaka sem sötétedett el
+rendesen; (2) quadonként EGYETLEN, egységes színt ad (nincs
+sarkonkénti interpoláció a szomszédokkal, szemben a folytonos
+kategóriákkal), ami az éles, sokszögletes határvonalat okozta - ez
+volt a "kör alakúság" észlelt oka is, mert a durva, egyenlő szélességű
+kvadrátrács quad-hataraí adták a látszólagos geometrikus mintázatot,
+nem maga a fagyási-küszöb.
+
+**Javítás**: `RenderCategory.SeaIce` felvéve az
+`IsContinuousTerrainCategory`/`ContinuousSurfaceColor` közé, az
+`Ocean`-nal azonos módon (`ContinuousOceanRockColor` - mivel a
+`ContinuousCornerColor` már eddig is PURE `isOceanic`-alapon döntött,
+nem kategórián, ez a hívó-oldali útvonal-döntés módosítása volt
+elegendő, a szín-számítás logikája változatlan). A tényleges
+jég-vs-víz szín továbbra is a KÜLÖN vízfelszín-rétegből jön
+(`ContinuousWaterCornerColor`/ND-57 `isSeaIceRendered`), ami MÁR
+eddig is a folytonos, ambient-helyes `_waterSurfaceMaterial`-t
+használta - ez a javítás a TEREP/óceánfenék-réteg (a víz alatt, illetve
+egy esetleges rés/Z-fighting esetén átcsúszó) SeaIce-kategóriájú
+quad-jait érinti.
+
+**Verziózás:** nem seed-törő (tisztán Viewer-oldali render-útvonal
+döntés). **Élő Unity-ellenőrzés hátra.**
+
+### ND-59 — A szárazföldi jég/tundra biome-fallback is szabályos kört adott (a Core biome, nem a jitterelt réteg, volt a valódi ok)
+
+**Kontextus:** az ND-57/ND-58 UTÁN a felhasználó egy ÚJ screenshottal
+jelezte, hogy a probléma továbbra sem a színről/anyagról szól: a
+pólusoknál egy szabályos KÖR alakú, világosszürke RÉTEG látszik a
+domborzat "alatt", amit a valódi terep (hegy, tó, kráter) itt-ott
+felülír. Közvetlen Hierarchy-kiválasztással kizárta: `WaterSurface`,
+egy "DynamicRefined"-szerű objektum, `Rivers`, `LakeSurface` - a
+gyanú a `Planet` (fő terep-) objektumra esett.
+
+**Gyökérok:** a render-kategória ternárius minden classification
+helyen (`PlanetGridMesh.cs` statikus alapréteg + CPU-adaptív ág, ill.
+a két GPU-táplált adaptív ág) `ToRenderCategory(biome)`-ra esik
+vissza, ha a tile nem kráter/tó/óceán és a jitterelt `isIce`
+(évi-átlag alapú, `IsAdaptiveIceTile`) hamis. Ez a `biome` viszont a
+Core `BiomeClassification.Classify(temperatureK, isOceanic)`
+PILLANATNYI, ZAJ/JITTER NÉLKÜLI hőmérsékletéből jön
+(`BiomeClassification.cs`: `if (temperatureK < IceSheetThresholdK)
+return Biome.IceSheet;`). Két, egymástól FÜGGETLEN jégréteg létezett
+tehát: (1) a jitterelt, évi-átlag `isIce`, és (2) a nyers `biome` saját
+IceSheet-besorolása. Mivel `isIce` csak HOZZÁAD jeget, sosem vesz el,
+a nyers, jitter nélküli réteg mindig "átsejlik", ahol `isIce` épp
+hamis - és mivel a szárazföldi pillanatnyi hőmérséklet a pólusoknál
+(sík, alacsony domborzatú területeken) közel tisztán
+szélesség/évszak-függő, ez a réteg geometriailag majdnem tökéletes
+kör. Ugyanaz a hibaosztály, mint az ND-57 (tengeri jég), csak a
+SZÁRAZFÖLDI biome-eldöntésnél, és korábban rejtve maradt, mert a
+domborzat/hegy/tó véletlenszerűen gyakran felülírta.
+
+**Javítás:** új `JitteredRenderBiome(x,y,z,temperatureK,isOceanic,seed)`
+helper (`PlanetGridMesh.cs`) - ugyanazt az `IceBoundaryJitterAmplitudeK`/
+`Frequency`/`Octaves` zajt alkalmazza a hőmérsékletre, mint az
+ND-57/`IsAdaptiveIceTile`, MIELŐTT a `BiomeClassification.Classify`-t
+hívja. Bekötve a két CPU-oldali fallback-ágba (statikus alapréteg és a
+CPU-adaptív `ComputeTileClassification`) - ez érinti azt, ami a
+"Bolygó" nézetben (mindig CPU, ez volt a screenshoten látható). A két
+GPU-táplált adaptív ág (`useGpuClassification: 1` a scene-ben) NEM
+kapta meg ezt a javítást, mert a `GpuQuadResult`/`GpuClassificationResult`
+csak a már kész, diszkrét `biome`-ot adja vissza a CPU-nak, nem a
+nyers `temperatureK`-t - ugyanaz az elfogadott, dokumentált korlát,
+mint az ND-57 GPU-oldali hiánya (ld. `TileClassification.compute`
+kommentje `ClassifyBiomeF` fölött). A Core `biomeOf[id]`/statisztikák
+(kontinens-osztályozás, névgenerálás stb.) ÉRINTETLENEK - kizárólag a
+Viewer render-kategória döntése változott.
+
+**Verziózás:** nem seed-törő (tisztán Viewer-oldali render-útvonal
+döntés). **Élő Unity-ellenőrzés hátra.**
+
+### ND-60 — A "kör alakú pólusi jég" végleges oka: az óceán SOSEM finomodik adaptívan, és a víz FEHÉR jég-színe volt a látott réteg
+
+**Kontextus:** az ND-59 UTÁN a felhasználó megerősítette: közelről zoomolva
+IS tökéletes kör maradt a pólusi "jég", és ha a `WaterSurface` réteget
+kikapcsolta, ELTŰNT vele együtt ez a zavaró félkörös folt is. Saját
+hipotézise: "nem lehet, hogy egy adott magassági foktól a víz/óceán
+kirajzolása nem kék hanem fehér/halványszürkével történik?"
+
+**Gyökérok (kódból igazolva, KÉT rétegben):**
+
+1. **Az adaptív (finomodó) réteg explicit módon kizárja az óceáni
+   tile-okat a finomodásból** (`IsBaseAncestorOceanic`, egy 2026-09-02-i
+   szándékos teljesítmény-döntés): ha egy tile durva-szintű őse óceáni
+   (`elevation < seaLevel`), SOSEM kerül finomítandó listába -
+   FÜGGETLENÜL a kameratávolságtól. A tengeri jég geometriailag óceán
+   (fagyott víz), tehát ez a szabály rá is érvényes - a pólusi
+   víz/jég-felszín emiatt MINDIG a durva statikus alaphálón (level=5)
+   renderelődik, közelről is. Egy önálló, offline C# próbaszkripttel
+   (a valós seeddel/paraméterekkel, Unity nélkül) számszerűen igazolva:
+   a pólus közelében a szomszédos tile-ok hőmérséklete 20-26K-t ugrik,
+   amit sem K-alapú jitter (tesztelve 4→50K), sem pozíció-alapú
+   szélesség-jitter (2°→35°) nem tud megtörni - a burkoló forma minden
+   tesztelt amplitúdónál lényegében változatlan kör maradt.
+2. **A víz-quad SZÍNE korábban bináris kapcsolóval dőlt el**:
+   `isSeaIceRendered`/`category==SeaIce` esetén a TELJES quad egyetlen,
+   lapos, fehér "jég" színt kapott (`CategoryColor(RenderCategory.
+   SeaIce, 0)`) a normál, mélység-alapú kék óceánszín
+   (`ContinuousWaterCornerColor`) helyett. Mivel (1) miatt ez a
+   kapcsoló mindig a durva racson dőlt el, a fehér folt éles, szabályos
+   kör alakú lett - ÉS mivel ez a `WaterSurface` mesh-en (nem a terep-
+   meshen) történt, a `WaterSurface` kikapcsolása vele együtt eltüntette.
+
+**Felhasználói döntés a javítás irányáról:** a finomodási architektúra
+(1. pont) MÓDOSÍTÁSA ELUTASÍTVA ("nagyon nem jó irány... a tile bontás
+most nem érdekel") - a felhasználó kifejezetten azt kérte, hogy az
+óceán SZÍNÉT ne befolyásolja a pólusközelség, a tile-felbontás
+kérdésétől függetlenül.
+
+**Javítás (kizárólag a 2. pont, a víz SZÍNE):** mindhárom vízépítő
+helyen (statikus alapréteg, `EmitAdaptiveTile` CPU-adaptív ág,
+`EmitAdaptiveTilesGpu` GPU-adaptív ág) törölve a fehér jég-szín ág - a
+víz MOSTANTÓL MINDIG `ContinuousWaterCornerColor`-t (valódi mélység-
+alapú kék) kap, hőmérséklettől/szélességtől függetlenül. Emellett az
+`EmitAdaptiveTilesGpu` víz-LÉTEZÉSI feltétele (`biome == Biome.Ocean`)
+ki lett egészítve `|| biome == Biome.SeaIce`-szel - ez a GPU-s ág
+korábban EGYÁLTALÁN nem épített vízfelszínt SeaIce-tile-okra (a
+CPU-s `EmitAdaptiveTile` már korábban helyesen tartalmazta mindkét
+esetet), ami a mély óceánfenék-terepet hagyta volna fedetlenül azokon
+a tile-okon - ez NEM a tile-felbontásról szól, csak arról, hogy a víz
+egyáltalán megépüljön-e (a látvány konzisztenciájához kellett, a
+felhasználó kérésén nem változtat).
+
+A `RenderCategory.SeaIce`/`isSeaIceRendered` kategória-eldöntés
+(ND-57/ND-59 jitter) VÁLTOZATLANUL megmaradt - ez mostantól csak a
+TEREP (óceánfenék) kategória-besorolásán él tovább, ami ND-58 óta
+ugyanazt a színt adja, mint `Ocean` (`ContinuousOceanRockColor`),
+tehát vizuálisan nincs hatása. Nem törölve, mert a `bucket`/
+statisztikai célú megkülönböztetés máshol még hasznos lehet, és a
+törlése nagyobb, itt nem kért átalakítás lenne.
+
+**Verziózás:** nem seed-törő (tisztán Viewer-oldali render-útvonal
+döntés). **Élő Unity-ellenőrzés hátra.**
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

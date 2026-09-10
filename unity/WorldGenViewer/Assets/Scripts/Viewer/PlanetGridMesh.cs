@@ -1712,11 +1712,15 @@ namespace WorldGen.Viewer
                             + IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
                                 seed, cx, cy, cz, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves)
                             < BiomeClassification.OceanFreezingK);
+                        // ND-59: a nyers `biome`-fallback helyett jitterelt
+                        // valtozatot hasznalunk - ld. JitteredRenderBiome doksi
+                        // (kulonben a szarazfoldi jeg/tundra hatar is
+                        // szabalyos, latitude-szimmetrikus kor lenne a polusnal).
                         RenderCategory category = isCratered ? RenderCategory.Crater
                             : isIce ? RenderCategory.IceSheet
                             : isLake ? RenderCategory.Lake
                             : isOceanic ? (isSeaIceRendered ? RenderCategory.SeaIce : RenderCategory.Ocean)
-                            : ToRenderCategory(biome);
+                            : ToRenderCategory(JitteredRenderBiome(cx, cy, cz, temperatureK, isOceanic, seed));
 
                         // A tengerfenek (RenderCategory.Ocean) MEGLEVO
                         // elevation-erteket (a mar kiszamolt fraktal-zajjal
@@ -1785,19 +1789,19 @@ namespace WorldGen.Viewer
                                 waterTrianglesByBucket[waterBucket] = new List<int>();
                                 waterColorsByBucket[waterBucket] = new List<Color>();
                             }
-                            Color wc00, wc10, wc11, wc01;
-                            if (isSeaIceRendered)
-                            {
-                                Color ice = CategoryColor(RenderCategory.SeaIce, 0);
-                                wc00 = wc10 = wc11 = wc01 = ice;
-                            }
-                            else
-                            {
-                                wc00 = ContinuousWaterCornerColor(p00, seaLevel);
-                                wc10 = ContinuousWaterCornerColor(p10, seaLevel);
-                                wc11 = ContinuousWaterCornerColor(p11, seaLevel);
-                                wc01 = ContinuousWaterCornerColor(p01, seaLevel);
-                            }
+                            // ND-60 (felhasznaloi visszajelzes: "az ocean szinet ne
+                            // befolyasolja, hogy milyen kozel van a polushoz"): a
+                            // korabbi isSeaIceRendered ? feher : kek valasztas a
+                            // DURVA (level=5) statikus racson egy latitude-tisztan
+                            // kor alaku, eles hatart adott (bizonyitottan: sem K-
+                            // jitter, sem pozicio-warp nem tudta megtorni, ld.
+                            // docs/04-decisions.md ND-60 reszletei). A viz szine
+                            // mostantol MINDIG a valodi melysegbol jon, fuggetlenul
+                            // a homerseklettol/szelessegtol.
+                            Color wc00 = ContinuousWaterCornerColor(p00, seaLevel);
+                            Color wc10 = ContinuousWaterCornerColor(p10, seaLevel);
+                            Color wc11 = ContinuousWaterCornerColor(p11, seaLevel);
+                            Color wc01 = ContinuousWaterCornerColor(p01, seaLevel);
                             AddQuad(waterVerts, waterNormalsByBucket[waterBucket], waterTrianglesByBucket[waterBucket],
                                 waterColorsByBucket[waterBucket], wc00, wc10, wc11, wc01, wp00, wp10, wp11, wp01);
                         }
@@ -2777,22 +2781,14 @@ namespace WorldGen.Viewer
                     waterTrianglesByBucket[waterBucket] = new List<int>();
                     waterColorsByBucket[waterBucket] = new List<Color>();
                 }
-                Color wc00, wc10, wc11, wc01;
-                // ND-57: category-alapu (nem raw biome-alapu) dontes - a
-                // classification.Category MAR a jitterelt SeaIce/Ocean
-                // hatart hasznalja (ld. ComputeTileClassification).
-                if (category == RenderCategory.SeaIce)
-                {
-                    Color ice = CategoryColor(RenderCategory.SeaIce, 0);
-                    wc00 = wc10 = wc11 = wc01 = ice;
-                }
-                else
-                {
-                    wc00 = ContinuousWaterCornerColor(p00, _adaptiveSeaLevel);
-                    wc10 = ContinuousWaterCornerColor(p10, _adaptiveSeaLevel);
-                    wc11 = ContinuousWaterCornerColor(p11, _adaptiveSeaLevel);
-                    wc01 = ContinuousWaterCornerColor(p01, _adaptiveSeaLevel);
-                }
+                // ND-60: ld. a statikus alapreteg azonos javitasa - a viz szine
+                // MINDIG a valodi melysegbol jon, fuggetlenul a homerseklettol/
+                // szelessegtol (a korabbi isSeaIceRendered-fehér kapcsolo a
+                // durva racson egy latitude-tisztan kor alaku, eles hatart adott).
+                Color wc00 = ContinuousWaterCornerColor(p00, _adaptiveSeaLevel);
+                Color wc10 = ContinuousWaterCornerColor(p10, _adaptiveSeaLevel);
+                Color wc11 = ContinuousWaterCornerColor(p11, _adaptiveSeaLevel);
+                Color wc01 = ContinuousWaterCornerColor(p01, _adaptiveSeaLevel);
                 AddQuad(waterVerts, waterNormalsByBucket[waterBucket], waterTrianglesByBucket[waterBucket],
                     waterColorsByBucket[waterBucket], wc00, wc10, wc11, wc01, wp00, wp10, wp11, wp01);
             }
@@ -2901,7 +2897,12 @@ namespace WorldGen.Viewer
                     AddQuad(vertices, normals, triangles, colors, cUniform, cUniform, cUniform, cUniform, gpn00, gpn10, gpn11, gpn01, p00, p10, p11, p01);
                 }
 
-                if (r.CenterIsOceanic && biome == Biome.Ocean)
+                // ND-60: SeaIce is beleertve (nem csak Ocean) - kulonben ezeken
+                // a tile-okon EGYALTALAN nem epul vizfelszin, es a mely
+                // oceanfenek-terep latszik (ld. EmitAdaptiveTile azonos, mar
+                // korabban helyes feltetele - ez a GPU-s "port" korabban
+                // lemaradt errol).
+                if (r.CenterIsOceanic && (biome == Biome.Ocean || biome == Biome.SeaIce))
                 {
                     TileGeometry.GetContinuousBounds(id, out double uMin, out double uMax, out double vMin, out double vMax);
                     Vector3 wp00 = ToWaterVector3(id.Face, uMin, vMin, waterSurfaceRadius);
@@ -3005,6 +3006,36 @@ namespace WorldGen.Viewer
             double jitterK = IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
                 _adaptiveSeed, x, y, z, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves);
             return temperatureK + jitterK < BiomeClassification.OceanFreezingK;
+        }
+
+        /// <summary>
+        /// FELHASZNALOI VISSZAJELZES (2026-09-10): a polusoknal egy szabalyos
+        /// KOR alaku, szurke folt latszik a domborzat "alatt", amit itt-ott
+        /// felulir a valodi terep (hegy, to, krater). Gyokerok: a render-
+        /// kategoria ternariusban, ha a tile NEM krater/tavas es a jitterelt
+        /// `isIce` (evi-atlag alapu, ld. IsAdaptiveIceTile) hamis, a kod a
+        /// nyers `ToRenderCategory(biome)`-ra esik vissza - de ez a `biome`
+        /// a Core BiomeClassification.Classify(temperatureK, isOceanic)
+        /// PILLANATNYI, JITTER NELKULI homersekletebol jon
+        /// (BiomeClassification.cs: `temperatureK &lt; IceSheetThresholdK`).
+        /// A szarazfoldi pillanatnyi homerseklet a polusoknal kozel tisztan
+        /// szelesseg/evszak-fuggo (sik, alacsony domborzatu teruleteken
+        /// szinte semmi nem torzitja) - ez ugyanaz a hibaosztaly, mint az
+        /// ND-57 (tengeri jeg), csak a SZARAZFOLDI biome-eldontesnel: KET
+        /// fuggetlen jegreteg van (a jitterelt `isIce` ES a nyers `biome`
+        /// sajat IceSheet-besorolasa), es mivel `isIce` csak HOZZAAD jeget,
+        /// sose vesz el, a nyers, jitter nelkuli kor mindig "atsejlik", ahol
+        /// az `isIce` epp hamis. Javitas: a RENDER-kategoria fallback-agan
+        /// (nem a Core `biomeOf[id]`/statisztikakon!) ugyanazt a jitter-t
+        /// alkalmazzuk a homersekletre, mint az ND-57/IsAdaptiveIceTile mar
+        /// hasznalja - igy a szarazfoldi biome-hatarok (jeg/tundra/mersekelt/
+        /// tropusi) is szervesen szabalytalanok lesznek, nem csak a tengeri.
+        /// </summary>
+        private static Biome JitteredRenderBiome(double x, double y, double z, double temperatureK, bool isOceanic, ulong seed)
+        {
+            double jitterK = IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
+                seed, x, y, z, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves);
+            return BiomeClassification.Classify(temperatureK + jitterK, isOceanic);
         }
 
         /// <summary>Ld. IsInReferenceLevelSet doksi - ugyanaz a minta, de erteket (nem csak tagsagot) ad vissza.</summary>
@@ -3439,11 +3470,13 @@ namespace WorldGen.Viewer
             // csak render-kategoria dontesnel, a Core `biome`-ot (es az abbol
             // szamolt statisztikakat) NEM erinti.
             bool isSeaIceRendered = showLakesIce && isOceanic && IsAdaptiveSeaIce(cx, cy, cz, temperatureK);
+            // ND-59: ld. JitteredRenderBiome doksi - a nyers biome-fallback
+            // jitter nelkul szabalyos kort adna a polusi jeg/tundra hataran.
             RenderCategory category = isCratered ? RenderCategory.Crater
                 : isIce ? RenderCategory.IceSheet
                 : isLake ? RenderCategory.Lake
                 : isOceanic ? (isSeaIceRendered ? RenderCategory.SeaIce : RenderCategory.Ocean)
-                : ToRenderCategory(biome); // folyok: kulon vonal-reteg (BuildRiverNetwork)
+                : ToRenderCategory(JitteredRenderBiome(cx, cy, cz, temperatureK, isOceanic, _adaptiveSeed)); // folyok: kulon vonal-reteg (BuildRiverNetwork)
 
             int bucket = category == RenderCategory.Ocean ? OceanRockBucket(elevation) : 0;
 
@@ -5488,27 +5521,42 @@ namespace WorldGen.Viewer
 
         /// <summary>
         /// A tenylegesen kirajzolt VERTEX-szin egy (kategoria,eleváció,
-        /// homerseklet) harmasra - a SeaIce/River/Crater kategoriak
-        /// tudatosan a REGI, lapos CategoryColor-t kapjak (kis terulet/
-        /// jelolo jellegu, a folytonossag itt kevesbe kritikus, es igy a
-        /// meglevo flat-color anyaguk is valtozatlan maradhat) - csak az
-        /// Ocean/IceSheet/Tundra/Temperate/Tropical (a felszin dontő
-        /// tobbsege) kapja a folytonos szinezest.
+        /// homerseklet) harmasra - a River/Crater kategoriak tudatosan a
+        /// REGI, lapos CategoryColor-t kapjak (kis terulet/jelolo jellegu,
+        /// a folytonossag itt kevesbe kritikus) - az Ocean/SeaIce/IceSheet/
+        /// Tundra/Temperate/Tropical (a felszin dontő tobbsege) kapja a
+        /// folytonos szinezest.
+        ///
+        /// ND-58 (2026-09-09, felhasznaloi visszajelzes: a polusi tengeri
+        /// jeg felett a felszin EJSZAKA is vilagosszurke maradt, ELES
+        /// sokszogletes hatarokkal): a SeaIce KORABBAN a River/Crater-hez
+        /// hasonloan "kis terulet/jelolo jellegunek" volt minositve, DE az
+        /// ND-57 (jitterelt SeaIce/Ocean hatar) ota egesz sarki
+        /// jegsapkanyi, NAGY, osszefuggo teruletet fedhet le - a regi
+        /// feltetelezes mar nem all. A lapos CategoryColor+HDRP/Lit
+        /// anyag (1) NEM hasznalja a surfaceAmbient-et (sajat HDRP
+        /// sky-ambient lattat, ezert maradt vilagos ejszaka is), es (2)
+        /// quadonkent EGYETLEN, azonos szint ad (nincs sarkonkenti
+        /// interpolacio a szomszedokkal), ami az eles, sokszogletes
+        /// hatarvonalat okozta. A folytonos utvonalra valtas mindkettot
+        /// javitja: a VertexColorUnlit (ambient-helyes sotetedes) es a
+        /// mar meglevo sarok-szin-cache (sima atmenet) automatikusan
+        /// vonatkozik ra.
         /// </summary>
         private static Color ContinuousSurfaceColor(RenderCategory category, int bucket, bool isOceanic, double elevation, double temperatureK)
         {
-            if (category == RenderCategory.Ocean) return ContinuousOceanRockColor(elevation);
+            if (category == RenderCategory.Ocean || category == RenderCategory.SeaIce) return ContinuousOceanRockColor(elevation);
             if (category == RenderCategory.IceSheet || category == RenderCategory.Tundra
                 || category == RenderCategory.Temperate || category == RenderCategory.Tropical)
                 return ContinuousLandBiomeColor(temperatureK);
             return CategoryColor(category, bucket);
         }
 
-        /// <summary>Ocean/IceSheet/Tundra/Temperate/Tropical - a folytonos vertex-szint kapo, vertex-szin-anyagos kategoriak.</summary>
+        /// <summary>Ocean/SeaIce/IceSheet/Tundra/Temperate/Tropical - a folytonos vertex-szint kapo, vertex-szin-anyagos kategoriak (ND-58).</summary>
         private static bool IsContinuousTerrainCategory(RenderCategory category) =>
-            category == RenderCategory.Ocean || category == RenderCategory.IceSheet
-            || category == RenderCategory.Tundra || category == RenderCategory.Temperate
-            || category == RenderCategory.Tropical;
+            category == RenderCategory.Ocean || category == RenderCategory.SeaIce
+            || category == RenderCategory.IceSheet || category == RenderCategory.Tundra
+            || category == RenderCategory.Temperate || category == RenderCategory.Tropical;
 
         /// <summary>
         /// A folytonos felszín-szín EGY SAROKPONTRA, a mar KISZAMOLT
@@ -5721,13 +5769,14 @@ namespace WorldGen.Viewer
             if (_categoryMaterials.TryGetValue(key, out Material existing) && existing != null)
                 return existing;
 
-            // Ocean/IceSheet/Tundra/Temperate/Tropical (a felszin dontő
-            // tobbsege) MOSTANTOL folytonos vertex-szint kap
-            // (ContinuousSurfaceColor, AddQuad-ban allitva) - az anyagnak
-            // ezert NEM szabad felulirnia egy sajat lapos _BaseColor-ral,
-            // csak at kell engednie a vertex-szint (CreateVertexColorMaterial).
-            // A SeaIce/River/Crater (kis terulet/jelolo jellegu) tovabbra is
-            // a regi, lapos CategoryColor-t hasznalja.
+            // Ocean/SeaIce/IceSheet/Tundra/Temperate/Tropical (a felszin
+            // dontő tobbsege - ND-58 ota a SeaIce is ide tartozik) MOSTANTOL
+            // folytonos vertex-szint kap (ContinuousSurfaceColor, AddQuad-ban
+            // allitva) - az anyagnak ezert NEM szabad felulirnia egy sajat
+            // lapos _BaseColor-ral, csak at kell engednie a vertex-szint
+            // (CreateVertexColorMaterial). A River/Crater (kis terulet/
+            // jelolo jellegu) tovabbra is a regi, lapos CategoryColor-t
+            // hasznalja.
             Material mat = IsContinuousTerrainCategory(key.Category)
                 ? CreateVertexColorMaterial()
                 : CreateFlatColorMaterial(CategoryColor(key.Category, key.Bucket));

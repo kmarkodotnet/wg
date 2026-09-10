@@ -232,6 +232,90 @@ mindkét pólus tengeri jég-határát.
 
 **Elvárt eredmény:** a tengeri jég határa most szabálytalan/organikus,
 nem tökéletes kör.
+
+**❌ "ez továbbra se oldotta meg a problémát"** - friss screenshot
+(kékkel bejelölve) mutatta: a nyílt óceán fölött (nincs alatta
+kontinens) egy ÉLES, SOKSZÖGLETES (háromszög-facettákkal), ÉJSZAKA is
+világosszürke folt volt látható - ez NEM elsősorban a határ-szabálytalanság
+kérdése, hanem hogy a `RenderCategory.SeaIce` a `River`/`Crater`-hez
+hasonlóan a RÉGI, lapos HDRP/Lit anyagot használta (nem a folytonos
+`VertexColorUnlit`-et) - ez adta az éjszakai világosságot (nem
+`surfaceAmbient`-et követi) ÉS az éles, sokszögletes határt (nincs
+sarkonkénti szín-interpoláció).
+
+**✅ ND-58 (2026-09-09)**: `RenderCategory.SeaIce` felvéve a folytonos
+kategóriák közé (`Ocean`-nal azonos módon kezelve) - most már a
+`VertexColorUnlit`-en (ambient-helyes éjszakai sötétedés) és a meglévő
+sarok-szín-cache-en (sima átmenet a szomszédokkal) megy át. Ld.
+`docs/04-decisions.md` ND-58.
+
+**Hogyan teszteld:** Play mód TELJES újraindítással, nézd meg mindkét
+pólust ÉJSZAKAI oldalról is (forgasd a Napot úgy, hogy a pólus árnyékba
+kerüljön), és közelről is a tengeri jég határát.
+
+**❌ "félreértés van, nem a szürke színnel van a gond"** - új
+screenshot: a pólusoknál egy szabályos KÖR alakú RÉTEG látszik a
+domborzat "alatt", amit a valódi terep (hegy, tó, kráter) itt-ott
+felülír - NEM szín/anyag kérdés, hanem hogy MI rajzolja ki azt a kört.
+Hierarchy-kiválasztással kizárva: `WaterSurface`, "DynamicRefined"-
+szerű objektum, `Rivers`, `LakeSurface`.
+
+**✅ ND-59 (2026-09-10)**: a valódi ok a SZÁRAZFÖLDI biome-fallback
+volt, nem a víz-/jégréteg. A render-kategória ternárius `isIce` (jitterelt,
+évi-átlag) hamis esetén a nyers `ToRenderCategory(biome)`-ra esett vissza -
+ez a `biome` viszont a Core `BiomeClassification.Classify` PILLANATNYI,
+zaj NÉLKÜLI hőmérsékletéből jön, ami a pólusoknál (sík terepen) közel
+tökéletes kört ad. Javítva: `JitteredRenderBiome` - ugyanazt a jitter-t
+alkalmazza a hőmérsékletre, mint az ND-57, a `Classify` hívás ELŐTT.
+Csak a két CPU-oldali ágat érinti (statikus alapréteg + CPU-adaptív
+fallback) - a GPU-táplált adaptív ág (`useGpuClassification: 1`) NEM
+kapta meg, dokumentált, elfogadott korlát (ld. ND-57 mintájára). Ld.
+`docs/04-decisions.md` ND-59.
+
+**Hogyan teszteld:** Play mód TELJES újraindítással, "Bolygó" nézetben
+(távoli, teljes-bolygó zoom, ez a statikus alapréteg) nézd meg mindkét
+pólust - a szabályos kör alakú szürke folt eltűnt-e, marad-e a
+domborzat/jég organikus, szabálytalan határa. Ha közelebbi (adaptív)
+zoomnál még visszatér: az a GPU-klasszifikáció dokumentált, jelenleg
+javítatlan ága (kapcsold ki ideiglenesen `useGpuClassification`-t a
+scene-ben, ha ezt is ellenőrizni akarod).
+
+**❌ "közelről is kör marad... ha a watersurface-t kikapcsolom, eltűnik
+az óceán és ez a zavaró félkörös réteg is"** - kemény bizonyíték
+(Frame Debugger + Unity-n kívüli, önálló C#-próbaszkript a valós
+seeddel): az ND-59 valódi, de ELÉGTELEN javítás volt erre a konkrét
+tünetre - a szárazföldi biome-fallbacket javította, miközben a látott
+réteg a VÍZFELSZÍN volt. Kiderült: (1) az óceán/tengeri jég SOSEM
+finomodik adaptívan (`IsBaseAncestorOceanic`, szándékos 2026-09-02-i
+teljesítmény-döntés) - a pólusi víz mindig a durva (level=5) statikus
+hálón renderelődik, közelről is; (2) ott a szomszédos tile-ok
+hőmérséklete 20-26K-t ugrik, amit semmilyen jitter-erősség nem tud
+megtörni (számszerűen tesztelve 4→50K és 2°→35° között - ld.
+`docs/04-decisions.md` ND-60). A felhasználó explicit kérésére a
+tile-felbontási architektúra ("kör" ok #1) NEM változott - a javítás
+kizárólag a víz SZÍNÉRE ("kör" ok #2) irányult.
+
+**✅ ND-60 (2026-09-10)**: a víz-quad színe korábban bináris kapcsolóval
+dőlt el (`isSeaIceRendered` esetén EGÉSZ quad = lapos fehér "jég" szín,
+egyébként mélység-alapú kék) - ez adta az éles, kör alakú fehér foltot.
+Ez a kapcsoló törölve mindhárom vízépítő helyen (statikus alapréteg,
+CPU-adaptív, GPU-adaptív) - a víz MOSTANTÓL MINDIG a valódi
+mélység-alapú kék színt kapja, hőmérséklettől/szélességtől
+függetlenül. Emellett a GPU-adaptív ág víz-LÉTEZÉSI feltétele is
+javítva (korábban `SeaIce`-tile-okra egyáltalán nem épített
+vízfelszínt - ez nem a felbontásról szól, csak arról, hogy a víz
+megépüljön-e).
+
+**Hogyan teszteld:** Play mód TELJES újraindítással, nézd meg mindkét
+pólust távolról ÉS közelről is - az óceán/víz mindenhol egységesen
+kék (mélység szerint sötétedő/világosodó) legyen, sehol ne legyen
+éles, kör alakú fehér/szürke folt a vízen. A szárazföldi jégsapka
+(hegyeken, ND-59) továbbra is fehér maradhat - az csak a VÍZ színét
+érinti.
+
+**Elvárt eredmény:** az éjszakai oldalon a tengeri jég/óceán is
+ténylegesen sötét (nem világosszürke), és nincs éles, sokszögletes
+folt/határvonal.
 ---
 
 ## 8. Felhő-mozgás sebessége
