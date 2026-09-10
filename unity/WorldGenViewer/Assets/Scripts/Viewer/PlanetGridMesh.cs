@@ -1708,7 +1708,6 @@ namespace WorldGen.Viewer
                     for (uint v = 0; v < n; v++)
                     {
                         TileId id = TileId.FromFaceLevelUV(face, level, u, v);
-                        TileGeometry.GetContinuousBounds(id, out double uMin, out double uMax, out double vMin, out double vMax);
                         TileGeometry.ToPosition(id, out double cx, out double cy, out double cz);
 
                         double elevation = field[id];
@@ -1716,6 +1715,22 @@ namespace WorldGen.Viewer
                         double temperatureK = TemperatureKelvinAt(cx, cy, cz, axialTiltRad, isOceanic, elevation, seaLevel);
                         Biome biome = BiomeClassification.Classify(temperatureK, isOceanic);
                         biomeOf[id] = biome;
+
+                        // TELJESITMENY (2026-09-10, felhasznaloi keres, cel <1s
+                        // teljes Build()-re): ha useAdaptiveLod be van kapcsolva,
+                        // az EGESZ lenti geometria-epites (sarkok, AddQuad, viz-
+                        // felszin, hatarok) ELDOBODIK, mert a BuildStaticBaseLayer()
+                        // RONGTON felulirja a gameObject mesh-et (ld. lejjebb a
+                        // "MEGJEGYZES" kommentet) - a PerfLog korabban mert 24s-os
+                        // Build()-bol ~1.5s (a legdragabb fix, kockazatmentes
+                        // resze) volt ez a PAZAROLT munka. Csak a fenti biomeOf[id]
+                        // (M8 panel-statisztikahoz kell) marad KOTELEZO - a tobbi
+                        // (kraterek/tavak/jeg-kategoria, sarok-pozicio/normal/szin,
+                        // AddQuad, vizfelszin, hatarvonal) at van ugorva.
+                        if (useAdaptiveLod)
+                            continue;
+
+                        TileGeometry.GetContinuousBounds(id, out double uMin, out double uMax, out double vMin, out double vMax);
 
                         // M11: a becsapodas-erintett tile-ok kulon kategoriaba
                         // kerulnek (a folyo-highlight mintajat kovetve), MERT
