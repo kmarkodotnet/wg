@@ -203,7 +203,7 @@ MonoBehaviour:
   adaptiveMaxLevel: 20
   targetTilePixelSize: 12
   adaptiveTraversalRootLevel: 3
-  adaptiveRenderBudget: 120000
+  adaptiveRenderBudget: 200000
   useAsyncMeshRebuild: 1
   useChunkedDynamicMesh: 1
   dynamicChunkLevel: 6
@@ -286,7 +286,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 283293245}
   m_Mesh: {fileID: 0}
-
 --- !u!4 &283293249
 Transform:
   m_ObjectHideFlags: 0
@@ -396,7 +395,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 363842434}
   m_Mesh: {fileID: 0}
-
 --- !u!21 &556077899
 Material:
   serializedVersion: 8
@@ -737,7 +735,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 925968649}
   m_Mesh: {fileID: 0}
-
 --- !u!21 &985301194
 Material:
   serializedVersion: 8
@@ -1447,7 +1444,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1073210731}
   m_Mesh: {fileID: 0}
-
 --- !u!21 &1119441908
 Material:
   serializedVersion: 8
@@ -1682,7 +1678,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1398042505}
   m_Mesh: {fileID: 0}
-
 --- !u!21 &1547859454
 Material:
   serializedVersion: 8
@@ -2040,7 +2035,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1577716638}
   m_Mesh: {fileID: 0}
-
 --- !u!1 &1685863981
 GameObject:
   m_ObjectHideFlags: 0
@@ -2522,7 +2516,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1899293999}
   m_Mesh: {fileID: 0}
-
 --- !u!1 &2056601215
 GameObject:
   m_ObjectHideFlags: 0

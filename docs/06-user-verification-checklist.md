@@ -216,6 +216,22 @@ KAOTIKUS: `IceBoundaryJitterAmplitudeK`(4.0)/`Frequency`(24.0)/
 `Octaves`(3) a `PlanetGridMesh` konstansai (kódban hangolhatók, nincs
 Inspector-mező rájuk).
 nok, a sarkvidéki kontinens ok, a konstans fehér sapka még mindig ott van.
+
+**✅ ND-57 (2026-09-09, felhasznaloi visszajelzes: "fix, adott magassagi
+foknal levo jeg kirajzolas, kor alaku")**: a KONSTANS (tengeri) jégsapka
+kör alakú határának oka megtalálva - a `Biome.SeaIce`/`Ocean` határ a
+Core-ban tiszta hőmérséklet-küszöb, zaj nélkül (ellentétben a
+szárazföldi jégsapkával, amit már korábban zajosítottunk). Javítva:
+`IsAdaptiveSeaIce` - ugyanaz a jitter-minta, csak a render-kategória
+döntésénél (a Core `biome`/statisztikák változatlanok). Mindhárom
+érintett hely frissítve (statikus alapréteg, adaptív klasszifikáció,
+vízfelszín-szín mindkét helye). Ld. `docs/04-decisions.md` ND-57.
+
+**Hogyan teszteld:** Play mód TELJES újraindítással, nézd meg közelről
+mindkét pólus tengeri jég-határát.
+
+**Elvárt eredmény:** a tengeri jég határa most szabálytalan/organikus,
+nem tökéletes kör.
 ---
 
 ## 8. Felhő-mozgás sebessége
@@ -1284,13 +1300,46 @@ elég, ha a scene már be van töltve a memóriába.
 
 ---
 
+## 13. M9 felszín-részletesség — bizonyos területek nem finomodnak
+
+**Felhasználói visszajelzés (2026-09-09)**: "van változás a
+színátmenettel, foltos lett a felszín. de így is bizonyos helyek nem
+hajlandóak részletesebbek lenni" - screenshot alapján megerősítve:
+konkrét, nagy tile-élek látszanak közelről egyes (szárazföldi)
+területeken, míg a szomszédos területek finoman részletesek. Kizárva:
+óceán-kihagyás (a felhasználó szárazföldön látta), grazing-angle
+küszöb (a jelenség helyfüggetlennek tűnt).
+
+**Valószínű ok**: a `adaptiveRenderBudget` (a finomítható tile-ok
+száma egy adott képkockán) kimerülése - a rendszer a legnagyobb
+képernyő-hibájú (kamerához közeli/központi) tile-eket finomítja ELŐSZÖR,
+és a költségvetés elérésekor megáll; a "kimaradó" terület a prioritási
+sorrend miatt látszólag esetlegesnek tűnhet. A scene-ben már 120000 volt
+(nem az alapértelmezett 25000) - ez gyengíti, de nem zárja ki teljesen
+az elméletet egy nagyon nagy kontinens-nézetnél.
+
+**Javítva (teszt gyanánt)**: `adaptiveRenderBudget` 120000→**200000**
+(kód + scene, mindkét helyen).
+
+**Hogyan teszteld:** Play mód TELJES újraindítással (VAGY a scene
+újranyitásával, ha már nyitva volt Unityben - ld. korábbi hibaosztály),
+ellenőrizd Edit módban, hogy az `Adaptive Render Budget` mező
+200000-et mutat, majd ugyanaz a kontinens-nézet, amiről a screenshotot
+küldted.
+
+**Elvárt eredmény:** ha ez volt az ok, a piros (nagy tile-es) foltok
+eltűnnek/lecsökkennek. Figyelj a teljesítményre is (FPS/akadás) - ha
+jelentősen lassabb lett, szólj, és keresünk kompromisszumot. Ha a
+foltok NEM tűnnek el, a költségvetés kizárva, tovább kell keresni (pl.
+a prioritás-számítás vagy a chunk-rendszer más része).
+
+---
+
 ## Régebbi, még nyitott tételek (korábbi munkamenetekből)
 
 Ezekhez korábban készült kód, de élő megerősítés még nem történt -
 részletek a `docs/backlog.md`-ben:
 
-- **M9 felszín-részletesség (chunkolt LOD)** — nagy, "pixeles" tile-ok
-  javítása; nézd meg, hogy a részletesség finomabb-e zoomolva.
 - **Morfológiai típusfelismerés** — a régió-nevek utótagja (pl.
   "... Range", "... Basin") illeszkedjen a terep alakjához.
 - **Habitability/Coastal complexity panel-mezők** — nézd meg, hogy a

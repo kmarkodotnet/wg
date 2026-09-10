@@ -666,6 +666,15 @@ static const float ICE_SHEET_THRESHOLD_K = 263.15;
 static const float TUNDRA_THRESHOLD_K = 278.15;
 static const float TEMPERATE_THRESHOLD_K = 293.15;
 
+// 2026-09-09 (ND-57): a CPU-oldal (PlanetGridMesh.ComputeTileClassification/
+// a statikus alapreteg) az Ocean/SeaIce RENDER-kategoria hataranal mar
+// zaj-jittert alkalmaz (IsAdaptiveSeaIce), mert a nyers OCEAN_FREEZING_K
+// kuszob szelesseg-szimmetrikus oceani homerseklet miatt geometriailag
+// tokeletes kort adott mindket polusnal. Ez a GPU-port (`ClassifyBiomeF`)
+// NEM kapta meg ugyanezt - jelenleg elfogadott korlat, mert `useGpuGeometry`
+// alapertelmezetten KI van kapcsolva a scene-ben, es a GpuQuadResult nem is
+// ad vissza temperatureK-t a hivo oldalnak (csak elevation/isOceanic/biome) -
+// a jitter hozzaadasahoz ez is bovitendo lenne.
 uint ClassifyBiomeF(float temperatureK, bool isOceanic)
 {
     if (isOceanic) return temperatureK < OCEAN_FREEZING_K ? 1u : 0u;

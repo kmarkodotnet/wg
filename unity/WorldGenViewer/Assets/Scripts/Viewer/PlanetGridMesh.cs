@@ -496,7 +496,7 @@ namespace WorldGen.Viewer
                  "= reszletesebb, de lassabb ujraepites. MEGJEGYZES: a valoban SIMA " +
                  "(60fps) mukodeshez a Fazis 3 (inkrementalis/aszinkron mesh) kell - " +
                  "ez a koltsegvetes csak a hitch NAGYSAGAT csokkenti, nem szunteti meg.")]
-        private int adaptiveRenderBudget = 25000;
+        private int adaptiveRenderBudget = 200000;
 
         [SerializeField]
         [Tooltip("FAZIS 3 (ND-47): a BuildCut (kvadfa-kivalasztas) egy WORKER " +
@@ -1706,9 +1706,16 @@ namespace WorldGen.Viewer
                             && iceRefMeanK + IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
                                 seed, cx, cy, cz, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves)
                                 < LakesIceErosion.PermanentIceMeanThresholdK;
+                        // ND-57: ugyanaz a jitter-minta, mint a fenti isIce-nal,
+                        // a tengeri jeg (Ocean/SeaIce) hataranak - ld. IsAdaptiveSeaIce doksija.
+                        bool isSeaIceRendered = isOceanic && (temperatureK
+                            + IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
+                                seed, cx, cy, cz, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves)
+                            < BiomeClassification.OceanFreezingK);
                         RenderCategory category = isCratered ? RenderCategory.Crater
                             : isIce ? RenderCategory.IceSheet
                             : isLake ? RenderCategory.Lake
+                            : isOceanic ? (isSeaIceRendered ? RenderCategory.SeaIce : RenderCategory.Ocean)
                             : ToRenderCategory(biome);
 
                         // A tengerfenek (RenderCategory.Ocean) MEGLEVO
@@ -1779,7 +1786,7 @@ namespace WorldGen.Viewer
                                 waterColorsByBucket[waterBucket] = new List<Color>();
                             }
                             Color wc00, wc10, wc11, wc01;
-                            if (biome == Biome.SeaIce)
+                            if (isSeaIceRendered)
                             {
                                 Color ice = CategoryColor(RenderCategory.SeaIce, 0);
                                 wc00 = wc10 = wc11 = wc01 = ice;
@@ -2771,7 +2778,10 @@ namespace WorldGen.Viewer
                     waterColorsByBucket[waterBucket] = new List<Color>();
                 }
                 Color wc00, wc10, wc11, wc01;
-                if (biome == Biome.SeaIce)
+                // ND-57: category-alapu (nem raw biome-alapu) dontes - a
+                // classification.Category MAR a jitterelt SeaIce/Ocean
+                // hatart hasznalja (ld. ComputeTileClassification).
+                if (category == RenderCategory.SeaIce)
                 {
                     Color ice = CategoryColor(RenderCategory.SeaIce, 0);
                     wc00 = wc10 = wc11 = wc01 = ice;
@@ -2979,6 +2989,22 @@ namespace WorldGen.Viewer
             double jitterK = IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
                 _adaptiveSeed, x, y, z, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves);
             return referenceMeanK + jitterK < LakesIceErosion.PermanentIceMeanThresholdK;
+        }
+
+        /// <summary>
+        /// ND-57: ugyanaz a jitter-minta, mint IsAdaptiveIceTile, de a
+        /// tengeri jeg (Ocean/SeaIce) hatarara - a Core BiomeClassification
+        /// ezt zaj nelkul dontene el (tisztan OceanFreezingK kuszob), ami a
+        /// szelesseg-szimmetrikus oceani homerseklet miatt geometriailag
+        /// tokeletes kort adna mindket polusnal. Csak a RENDER kategoria
+        /// dontesenel hasznaljuk - a temperatureK/biome ertekek (es az abbol
+        /// szamolt statisztikak) valtozatlanok maradnak.
+        /// </summary>
+        private bool IsAdaptiveSeaIce(double x, double y, double z, double temperatureK)
+        {
+            double jitterK = IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
+                _adaptiveSeed, x, y, z, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves);
+            return temperatureK + jitterK < BiomeClassification.OceanFreezingK;
         }
 
         /// <summary>Ld. IsInReferenceLevelSet doksi - ugyanaz a minta, de erteket (nem csak tagsagot) ad vissza.</summary>
@@ -3403,9 +3429,20 @@ namespace WorldGen.Viewer
 
             bool isLake = showLakesIce && IsAdaptiveLakeTile(id);
             bool isIce = showLakesIce && IsAdaptiveIceTile(id);
+            // ND-57 (felhasznaloi visszajelzes: "fix, adott magassagi foknal
+            // levo jeg kirajzolas, kor alaku"): a Biome.SeaIce/Ocean hatar a
+            // Core-ban TISZTA homerseklet-kuszob (BiomeClassification.
+            // OceanFreezingK), zaj/jitter NELKUL - mivel az oceani homerseklet
+            // majdnem tokeletesen szelesseg-szimmetrikus, ez egy geometriailag
+            // tokeletes kort ad mindket polusnal. Ugyanaz a mintazat, mint a
+            // szarazfoldi jegsapka-hataron (IsAdaptiveIceTile) mar korabban -
+            // csak render-kategoria dontesnel, a Core `biome`-ot (es az abbol
+            // szamolt statisztikakat) NEM erinti.
+            bool isSeaIceRendered = showLakesIce && isOceanic && IsAdaptiveSeaIce(cx, cy, cz, temperatureK);
             RenderCategory category = isCratered ? RenderCategory.Crater
                 : isIce ? RenderCategory.IceSheet
                 : isLake ? RenderCategory.Lake
+                : isOceanic ? (isSeaIceRendered ? RenderCategory.SeaIce : RenderCategory.Ocean)
                 : ToRenderCategory(biome); // folyok: kulon vonal-reteg (BuildRiverNetwork)
 
             int bucket = category == RenderCategory.Ocean ? OceanRockBucket(elevation) : 0;

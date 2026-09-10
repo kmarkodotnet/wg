@@ -2789,6 +2789,48 @@ VIZUÁLIS, élő Unity-vissza csatolással vezérelt iterációt igényelne
 (pl. egyenesen Unityben, a tényleges renderelt eredményt figyelve), nem
 tisztán referencia-szintű (Python/C# plauzibilitás-teszt) tervezést.
 
+### ND-57 — Tengeri jég (SeaIce/Ocean) határ zaj-jitterrel, a szárazföldi jégsapka-mintát követve
+
+**Kontextus:** felhasználói visszajelzés (2026-09-09): "van az északi és
+déli póluson is egy fix, adott magassági foknál lévő jég kirajzolás, kör
+alakú, a pólus a r sugarú körben, belül van a jég" - kapcsolódik a
+korábbi #7-es checklist-tételhez ("Pólusi jég — zajos partvonal"), ahol
+a felhasználó jelezte: "a sarkvidéki kontinens ok, a konstans fehér
+sapka még mindig ott van".
+
+**Gyökérok:** a `Biome.SeaIce`/`Biome.Ocean` határ a Core-ban
+(`BiomeClassification.Classify`) TISZTA hőmérséklet-küszöb
+(`OceanFreezingK`=271.15K), zaj/jitter NÉLKÜL - ellentétben a
+szárazföldi jégsapka-határral, amit a Viewer korábban (ND-nem-számozott,
+`IsAdaptiveIceTile`) már zajjal perturbált. Mivel az óceáni hőmérséklet
+(a jelenlegi egyszerű, inszolláció-alapú modellben) majdnem tökéletesen
+szélesség-szimmetrikus, ez egy geometriailag tökéletes kört adott a
+tengeri jég határának mindkét pólusnál.
+
+**Javítás** (`PlanetGridMesh.cs`): új `IsAdaptiveSeaIce(x,y,z,
+temperatureK)` - UGYANAZ a jitter-minta (`IceBoundaryJitterAmplitudeK`/
+`Frequency`/`Octaves`, `FractalNoise.Fbm`), mint a szárazföldi
+`IsAdaptiveIceTile`, csak az `OceanFreezingK` küszöbre alkalmazva. FONTOS:
+ez KIZÁRÓLAG a RENDER-kategória (`RenderCategory.SeaIce` vs `.Ocean`)
+döntését módosítja - a Core `biome`/`temperatureK` (és az ezekből
+számolt statisztikák, pl. panel-adatok) VÁLTOZATLANOK maradnak,
+ugyanazon elv szerint, mint a szárazföldi jég jitterje. Mindhárom
+érintett hely frissítve: a statikus alapréteg, az adaptív
+`ComputeTileClassification`, és MINDKÉT vízfelszín-szín-döntés (korábban
+`biome == Biome.SeaIce`-t néztek, most a már jitterelt kategóriát/
+`isSeaIceRendered`-et).
+
+**Dokumentált, el nem hárított korlát**: a GPU compute shader port
+(`TileClassification.compute`, `ClassifyBiomeF`) NEM kapott jittert -
+`useGpuGeometry` alapértelmezetten ki van kapcsolva, és a
+`GpuQuadResult` nem is ad vissza `temperatureK`-t a hívó oldalnak (csak
+elevation/isOceanic/biome-ot) - a jitter hozzáadásához ez is bővítendő
+lenne, külön feladat.
+
+**Verziózás:** nem seed-törő (tisztán Viewer-oldali render-döntés, a
+Core `biome`/`temperatureK`/statisztikák változatlanok). **Élő
+Unity-ellenőrzés hátra.**
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |
