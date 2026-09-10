@@ -1298,6 +1298,32 @@ tartja a scene-t, kérni kell a scene ÚJRANYITÁSÁT (vagy kézi Inspector-
 szerkesztést + mentést) - a puszta fájl-szerkesztés ÖNMAGÁBAN NEM
 elég, ha a scene már be van töltve a memóriába.
 
+**⚠️ A JELENSÉG ÚJRA ELŐKERÜLT (2026-09-09, "a kör alakú tengeri jég
+problémája továbbra is akut")**: a pólusoknál ismét erősen túlexponált,
+"villódzó" fehér folt jelent meg (screenshot alapján). DÖNTŐ TESZT: a
+felhasználó kikapcsolta élőben a "Tavak+jég"-et - a túlexponálás EMIATT
+ERŐSEBB lett (nem gyengült), ami azt bizonyította, hogy a NYÍLT
+VÍZFELSZÍN (nem a jég) az erősebb forrás - ugyanaz a mintázat, mint a
+7. kör "Tavak+jég kikapcsolva → MÉG FÉNYESEBB" felismerése volt, csak a
+korábbi javítások (specular-csökkentés, Bloom threshold-emelés) ellenére
+is fennmaradt. Számolással kizárva, hogy ez a rendes diffúz+specular
+lánc eredménye lenne (a vízfelszín specular ereje 0.02, alapszíne sötét
+- matematikailag messze a Bloom-küszöb alatt kellene maradjon).
+
+**✅✅✅✅✅✅✅✅✅✅✅ VÉGLEGESEN MEGOLDVA - BLOOM TELJES KIKAPCSOLÁSA**:
+mivel a szokásos (fényezés-alapú) magyarázatok nem álltak össze a
+megfigyelt viselkedéssel, egy tiszta, bináris diagnosztikai lépés
+következett: a Bloom `intensity` 0.2→**0**-ra állítva (a `threshold`/
+`scatter` hangolás helyett a teljes effekt kikapcsolva). Felhasználói
+visszajelzés: **"tök jó, végre nem csillognak a pólusok! megoldottad"**.
+A pólusi/vízfelszíni "villódzás" ezzel a 2026-09-06 óta tartó, 20+ körös
+vizsgálat után VÉGLEGESEN LEZÁRVA - a valódi gyökérok a HDRP Bloom
+post-processing volt (nem a terep/víz anyagok, nem NaN, nem a
+normálvektor-számítás), amit korábban csak TOMPÍTANI (threshold-
+emeléssel) próbáltunk, de a hatás mértéke minden korábbi hangolásnál
+erősebbnek bizonyult, mint amit egy emelt küszöb kezelni tudott -
+csak a teljes kikapcsolás oldotta meg végérvényesen.
+
 ---
 
 ## 13. M9 felszín-részletesség — bizonyos területek nem finomodnak

@@ -2539,6 +2539,27 @@ felhasználói screenshot volt, nem egy Debug.Log.
 **Verziózás:** nem seed-törő (tisztán Viewer-oldali render-beállítás,
 a Core-t nem érinti). Élő Unity-ellenőrzés hátra.
 
+**✅✅✅✅✅✅✅✅✅✅✅ VÉGLEGES LEZÁRÁS (2026-09-09), TELJES BLOOM-
+KIKAPCSOLÁS:** a jelenség UGYANEBBEN a formában (pólusi/vízfelszíni
+túlexponálás) többször is visszatért a threshold-emelés (1.05→1.4)
+ELLENÉRE - a döntő diagnosztikai adat: a "Tavak+jég" kikapcsolása a
+nyílt vízfelszínt tárta fel, ami MÉG ERŐSEBB túlexponálást adott, noha
+számolással a vízfelszín-shader kimenete (specular=0.02, sötét
+alapszín) messze a Bloom-küszöb alatt kellene maradjon - ez kizárta,
+hogy a rendes diffúz+specular lánc lenne a magyarázat. Végső, döntő
+lépés: `Bloom.intensity` 0.2→**0** (a teljes effekt kikapcsolva, nem
+csak a küszöb hangolva). Felhasználói visszaigazolás: **"tök jó, végre
+nem csillognak a pólusok! megoldottad"**. A 2026-09-06 óta tartó,
+20+ körös "csillogás" vizsgálat ezzel VÉGLEGESEN LEZÁRVA - retrospektíve
+a Bloom hatása minden korábbi hangolásnál (threshold/scatter emelés)
+erősebbnek bizonyult, mint amit egy csökkentett, de aktív Bloom
+kezelni tudott; csak a teljes kikapcsolás oldotta meg. **Nyitott
+kérdés a jövőre**: ha valaha legitim HDR fényforrás (pl. a látható
+Napkorong) Bloom-glóriáját vissza szeretnénk kapni, azt a Bloom
+UJRA bekapcsolásával, de a terep/víz shaderek kimenetének SZIGORÚBB
+[0,1] tartományra clamp-elésével kellene megoldani, nem a jelenlegi
+(bizonyítottan elégtelen) küszöb-hangolással.
+
 ### ND-54 — Folytonos felszín-színezés a "Full" hőmodellt használja, NEM a "Simple"-t; GPU-klasszifikáció kikapcsolva
 
 **Kontextus:** a 13-16. körös "folyó/jég villódzás" vizsgálat során
