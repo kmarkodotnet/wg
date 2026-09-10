@@ -1445,6 +1445,35 @@ a prioritás-számítás vagy a chunk-rendszer más része).
 
 ---
 
+## 14. Kameramód-kapcsoló — "Tengelyforgás megfigyelése" (ND-62)
+
+**Mit módosítottam:** `PlanetGridMesh.cs` (új `CameraViewMode` enum +
+panel-kapcsoló: "Szabad kamera"/"Tengelyforgás"/"Pálya mentén"),
+`SunController.cs` (mód-elágazás `ApplySunDirection()`-ben + új
+`planetGridMesh` mező).
+
+**Szükséges Unity-Editor lépés a teszt előtt:** a `SunController`
+komponens Inspectorában kösd be a `Planet Grid Mesh` mezőt (a `Planet`
+GameObjectre, ahol a `PlanetGridMesh` komponens van) - enélkül a
+kapcsoló nem hat semmire (a kód csendben a `Free` viselkedést tartja).
+
+**Hogyan teszteld:** Play módban a panelen kattints "Tengelyforgás"-ra.
+Jegyezz meg egy `currentTimeDays` értéket (SunController Inspector),
+nézd meg melyik kontinensek vannak megvilágítva "Szabad kamera" módban
+UGYANENNÉL az időnél, majd váltás UTÁN "Tengelyforgás" módban.
+
+**Elvárt eredmény:** (1) a bolygó mesh VIZUÁLISAN forog (nem csak a
+terminátor mozog egy álló gömbön); (2) a megvilágított kontinensek
+UGYANAZOK, mint "Szabad kamera" módban, ugyanannál az időnél.
+
+**Ha a megvilágított oldal tükrözöttnek/eltoltnak tűnik:** ez egy
+előre jelzett, dokumentált kockázat (ld. `docs/04-decisions.md` ND-62)
+- a `SunController.ApplySunDirection()`-ben a dőlés-komponens előjele
+(`Quaternion.AngleAxis((float)axialTiltDegrees, Vector3.right)`)
+valószínűleg fordított - szólj, és egy előjelváltással javítjuk.
+
+---
+
 ## Régebbi, még nyitott tételek (korábbi munkamenetekből)
 
 Ezekhez korábban készült kód, de élő megerősítés még nem történt -

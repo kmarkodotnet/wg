@@ -379,6 +379,28 @@ namespace WorldGen.Viewer
                  "generált idő-koherens mező, nem dekoratív UV-csúsztatás).")]
         private bool cloudDriftEnabled = false;
 
+        /// <summary>
+        /// Melyik kameramód aktív - a `SunController` (és később a pálya
+        /// menti mód `PlanetOrbitCamera`-kiegészítése) ezt olvassa, hogy
+        /// eldöntse, hogyan forgassa a bolygót/fényt/csillagmezőt. `Free`:
+        /// jelenlegi viselkedés (a Planet mindig identitáson marad, a fény
+        /// forog a test-keretben). `AxialRotation`: a Planet TÉNYLEGESEN
+        /// forog (a Nap/csillagok fixek) - ld. SunController.ApplySunDirection.
+        /// `OrbitalFollow`: MÉG NEM implementálva, egyelőre a Free-vel
+        /// megegyező viselkedést kap.
+        /// </summary>
+        public enum CameraViewMode { Free, AxialRotation, OrbitalFollow }
+
+        [Header("Kamera-mód (felhasználói kérés, 2026-09-10)")]
+        [SerializeField]
+        [Tooltip("Szabad kamera: a jelenlegi viselkedés (a bolygó mesh sosem forog, " +
+                 "csak a fény/nap/csillagok). Tengelyforgás: a bolygó TÉNYLEGESEN forog, " +
+                 "a Nap/csillagok fixek - a tengelyforgás vizuálisan láthatóvá válik. " +
+                 "Pálya mentén: MÉG NEM implementálva (egyelőre Szabad kamera-ként viselkedik).")]
+        private CameraViewMode cameraViewMode = CameraViewMode.Free;
+
+        public CameraViewMode CurrentCameraViewMode => cameraViewMode;
+
         [SerializeField]
         [Tooltip("A felhő-sodródási 'idő' (a WeatherPrecipitationMultiplier `t` paramétere) " +
                  "ennyivel nő másodpercenként - a WindPrecipitation.WeatherTimeSpeed " +
@@ -1393,6 +1415,19 @@ namespace WorldGen.Viewer
             y += rowH;
             cloudDriftEnabled = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), cloudDriftEnabled, " Felhő-sodródás");
             y += rowH;
+
+            // Kamera-mód: 3 kölcsönösen kizáró váltógomb (ugyanaz a minta,
+            // mint a windSpeedOverlay/precipitationOverlay kizárásnál) -
+            // csak az AKTIVÁLÓDÓ (false->true) váltásra reagálunk, hogy
+            // sose lehessen mindet egyszerre kikapcsolni kattintással.
+            bool freeToggle = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), cameraViewMode == CameraViewMode.Free, " Szabad kamera");
+            bool axialToggle = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), cameraViewMode == CameraViewMode.AxialRotation, " Tengelyforgás");
+            y += rowH;
+            bool orbitalToggle = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), cameraViewMode == CameraViewMode.OrbitalFollow, " Pálya mentén");
+            y += rowH;
+            if (freeToggle && cameraViewMode != CameraViewMode.Free) cameraViewMode = CameraViewMode.Free;
+            else if (axialToggle && cameraViewMode != CameraViewMode.AxialRotation) cameraViewMode = CameraViewMode.AxialRotation;
+            else if (orbitalToggle && cameraViewMode != CameraViewMode.OrbitalFollow) cameraViewMode = CameraViewMode.OrbitalFollow;
         }
 
         [ContextMenu("Rebuild")]

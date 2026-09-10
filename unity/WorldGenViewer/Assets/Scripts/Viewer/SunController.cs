@@ -10,11 +10,19 @@ namespace WorldGen.Viewer
     /// OrbitalMechanics kimenetét (nap-irány a bolygó TEST-KERETÉBEN)
     /// fordítja a Directional Light forgatására.
     ///
-    /// FONTOS KONVENCIÓ: a Planet GameObject transform.rotation-ját
-    /// IDENTITÁSON kell tartani (a PlanetGridMesh nem forgatja a mesh-et) -
-    /// a nap-irány már a test-keretben van kiszámolva, tehát a mesh-nek
-    /// NEM kell forognia a nap/éj ciklushoz, elég a fényt forgatni. Ha a
-    /// Planet objektum elforog, a megvilágítás hibás lesz.
+    /// FONTOS KONVENCIÓ (a `Free`/alapértelmezett kameramódban): a Planet
+    /// GameObject transform.rotation-ját IDENTITÁSON kell tartani (a
+    /// PlanetGridMesh nem forgatja a mesh-et) - a nap-irány már a test-
+    /// keretben van kiszámolva, tehát a mesh-nek NEM kell forognia a
+    /// nap/éj ciklushoz, elég a fényt forgatni.
+    ///
+    /// KIVÉTEL (2026-09-10, felhasználói kérés): `AxialRotation`
+    /// kameramódban EZ a komponens SZÁNDÉKOSAN elforgatja a Planet
+    /// mesh-et (`PlanetGridMesh.CurrentCameraViewMode`-ból olvasva), hogy
+    /// a bolygó saját tengely körüli forgása vizuálisan láthatóvá váljon
+    /// (a Nap/csillagok ilyenkor a világtérben FIXEK maradnak - ld.
+    /// ApplySunDirection). Ez az EGYETLEN hely, ahol a Planet-rotáció
+    /// szándékosan eltér az identitástól.
     ///
     /// Ezt a komponenst a Directional Light GameObjectre kell tenni - a
     /// saját transform.rotation-ját írja át minden képkockán.
@@ -74,6 +82,13 @@ namespace WorldGen.Viewer
                  "miatt a csillagok is láthatóan mozogjanak. Üresen hagyva nincs csillag-hatás.")]
         private StarField starField;
 
+        [SerializeField]
+        [Tooltip("A PlanetGridMesh.CurrentCameraViewMode-ot olvassuk innen - AxialRotation " +
+                 "módban ez a komponens forgatja el TÉNYLEGESEN a Planet transform-ot " +
+                 "(ld. ApplySunDirection). Üresen hagyva a mód-váltás nincs hatással " +
+                 "(mindig a jelenlegi, 'Free' viselkedés fut).")]
+        private PlanetGridMesh planetGridMesh;
+
         private void OnEnable() => ApplySunDirection();
         private void OnValidate() => ApplySunDirection();
 
@@ -91,12 +106,53 @@ namespace WorldGen.Viewer
                 return; // érvénytelen bemenet (pl. Inspectorban 0-ra állítva) - ne törjön el
 
             double axialTiltRad = axialTiltDegrees * Math.PI / 180.0;
-            OrbitalMechanics.SunDirectionBodyFrame(
-                currentTimeDays, orbitalPeriodDays, rotationPeriodDays, axialTiltRad,
-                orbitalPhase0, rotationPhase0,
-                out double x, out double y, out double z);
+            double rotationAngle = rotationPhase0 + 2.0 * Math.PI * (currentTimeDays / rotationPeriodDays);
 
-            Vector3 sunDirection = BodyFrameConversion.ToUnity(x, y, z);
+            // KAMERA-MÓD (felhasználói kérés, 2026-09-10): AxialRotation
+            // módban a bolygó mesh-nek TÉNYLEGESEN kell forognia (a Nap/
+            // csillagok maradjanak fixek), a Free (alapértelmezett) mód
+            // VÁLTOZATLANUL a régi, "Planet mindig identitáson, csak a
+            // fény forog a test-keretben" viselkedést adja. Ld.
+            // docs/04-decisions.md a levezetésért (tengelycsere-konvenció,
+            // a forgás-előjel a StarField MÁR élesben helyesnek bizonyult
+            // ellentétes-forgatásából levezetve).
+            bool axialRotationMode = planetGridMesh != null
+                && planetGridMesh.CurrentCameraViewMode == PlanetGridMesh.CameraViewMode.AxialRotation;
+
+            Vector3 sunDirection;
+            if (axialRotationMode)
+            {
+                // Pálya-keret: a Nap iránya CSAK az évszaktól függ, a
+                // bolygó saját forgásától NEM - ez marad fix a világtérben.
+                OrbitalMechanics.SunDirectionOrbitalFrame(
+                    currentTimeDays, orbitalPeriodDays, orbitalPhase0,
+                    out double ox, out double oy, out double oz);
+                sunDirection = BodyFrameConversion.ToUnity(ox, oy, oz);
+
+                if (planetGridMesh != null)
+                {
+                    // Test -> pálya forgatás (ld. OrbitalMechanics.
+                    // BodyOrientationMatrix "Test -> pálya = R_tilt * R_spin"
+                    // kommentje) Unity-megfelelője. A spin-előjel a
+                    // StarField.SetRotationAngleRadians MÁR bevált,
+                    // ELLENTÉTES forgatásából levezetve (ld. ott).
+                    planetGridMesh.transform.rotation =
+                        Quaternion.AngleAxis((float)axialTiltDegrees, Vector3.right) *
+                        Quaternion.AngleAxis((float)(rotationAngle * Mathf.Rad2Deg), Vector3.up);
+                }
+            }
+            else
+            {
+                if (planetGridMesh != null)
+                    planetGridMesh.transform.rotation = Quaternion.identity;
+
+                OrbitalMechanics.SunDirectionBodyFrame(
+                    currentTimeDays, orbitalPeriodDays, rotationPeriodDays, axialTiltRad,
+                    orbitalPhase0, rotationPhase0,
+                    out double x, out double y, out double z);
+                sunDirection = BodyFrameConversion.ToUnity(x, y, z);
+            }
+
             // A fény a csillagtol a bolygo fele halad - a nap-irannyal
             // ELLENTETES iranyba "nez" (a Directional Light a sajat
             // +Z tengelye menten sugaroz).
@@ -115,8 +171,10 @@ namespace WorldGen.Viewer
             if (starField != null)
             {
                 starField.EnsureBuilt();
-                double rotationAngle = rotationPhase0 + 2.0 * Math.PI * (currentTimeDays / rotationPeriodDays);
-                starField.SetRotationAngleRadians(rotationAngle);
+                // AxialRotation modban a csillagmezo FIX marad (0 szog) -
+                // a bolygo forog helyette, ld. fent. Mas modokban a regi,
+                // ellentetes-iranyu forgatas szimulalja a bolygo forgasat.
+                starField.SetRotationAngleRadians(axialRotationMode ? 0.0 : rotationAngle);
             }
         }
 

@@ -3006,6 +3006,66 @@ törlése nagyobb, itt nem kért átalakítás lenne.
 **Verziózás:** nem seed-törő (tisztán Viewer-oldali render-útvonal
 döntés). **Élő Unity-ellenőrzés hátra.**
 
+### ND-62 — Kameramód-kapcsoló + "Tengelyforgás megfigyelése" (a Planet mesh tényleges forgatása)
+
+**Kontextus:** felhasználói kérés (2026-09-10) - a backlog két kamera-
+mód tételét (pálya menti mozgás követése; tengelyforgás megfigyelése)
+egy közös panel-kapcsolóval szeretné, ebben a sorrendben: (1) kapcsoló-
+infrastruktúra, (2) tengelyforgás-mód, (3) pálya menti mód (ez utóbbi
+KÖVETKEZŐ kör, a backlog saját nyitott kérdése miatt - fusson-e a
+tengelyforgás egyidejűleg -, amit csak akkor kell eldönteni).
+
+**Architekturális ütközés (a backlog is jelezte)**: a `SunController`
+eddig SZÁNDÉKOSAN és DOKUMENTÁLTAN a `Planet` GameObject rotációját
+mindig identitáson tartotta - a nap/éj ciklust a Directional Light
+forgatása szimulálta, a bolygó SAJÁT (forgó) test-keretében számolt
+Nap-irány (`OrbitalMechanics.SunDirectionBodyFrame`) alapján. A
+"tengelyforgás megfigyelése" mód ezt PONT megfordítja: a bolygónak
+TÉNYLEGESEN forognia kell, a Nap/csillagok maradjanak fixek.
+
+**Megoldás**: mivel a `PlanetGridMesh` a mesh-csúcsokat mindig LOKÁLIS
+(test-keret) koordinátában építi, a `Planet.transform.rotation`
+beállítása Unity-szinten automatikusan elforgatja a KÉSZ mesh-et - a
+geometria-számítás egyáltalán nem módosult. Új `PlanetGridMesh.
+CameraViewMode` enum (`Free`/`AxialRotation`/`OrbitalFollow`) + panel-
+kapcsoló (3 kölcsönösen kizáró `GUI.Toggle`, a `windSpeedOverlay`/
+`precipitationOverlay` kizárás mintáján). `SunController.
+ApplySunDirection()` mód-elágazása:
+- **`Free`** (alapértelmezett): változatlan - `SunDirectionBodyFrame`,
+  Planet identitáson, csillagmező ellentétes irányban forog.
+- **`AxialRotation`**: `OrbitalMechanics.SunDirectionOrbitalFrame`
+  (a MÁR publikus, "nem forgó pálya-keret" függvény) közvetlenül, test-
+  keret-transzformáció NÉLKÜL, mint világtér-irány (fény/nap-korong/
+  csillagmező ezt kapja, forgatás nélkül - a csillagmező `SetRotationAngleRadians(0)`-t
+  kap, fixen áll). A `Planet.transform.rotation` a Core `R_tilt * R_spin`
+  (test→pálya) mátrix Unity-megfelelőjét kapja: `Quaternion.AngleAxis(
+  axialTiltDegrees, Vector3.right) * Quaternion.AngleAxis(rotationAngle
+  *Rad2Deg, Vector3.up)`. A SPIN előjele a `StarField.
+  SetRotationAngleRadians` MÁR élesben bevált, ELLENTÉTES irányú
+  forgatásából levezetve (nagy bizonyossággal helyes) - a DŐLÉS előjele
+  viszont a tengelycsere-konvenció (`BodyFrameConversion`: Core (x,y,z)
+  → Unity (x,z,y), ami egy páratlan permutáció/tükrözés) miatt csak
+  ELMÉLETBEN levezetett, **élő Unity-vizuális teszttel ellenőrizendő**
+  - pontosan ugyanaz a kockázati osztály, mint a MÁR MEGLÉVŐ, dokumentált
+  `PlanetOrbitCamera.FlyToDirection` bizonytalansága.
+- **`OrbitalFollow`**: egyelőre a `Free`-vel azonos (nincs még
+  implementálva - 2. kör).
+
+**`PlanetOrbitCamera`-t NEM kellett módosítani**: a `target.position`
+körül forog, a `target.rotation`-t sosem olvassa - a Planet forgása
+ortogonális a szabad egérrel-nézegetéshez.
+
+**Ellenőrzési kritérium**: ugyanannál a `currentTimeDays`-nál a
+megvilágított kontinensek/terep `AxialRotation` és `Free` módban
+UGYANAZOK legyenek. Ha tükrözöttnek/eltoltnak tűnik, a legvalószínűbb
+javítás a dőlés-komponens előjelváltása vagy a szorzási sorrend
+felcserélése.
+
+**Verziózás:** nem seed-törő (tisztán Viewer-oldali render-útvonal
+döntés, Core-t nem érinti - csak egy MÁR publikus függvényt hívunk
+újonnan). **Élő Unity-ellenőrzés hátra** - a `SunController`
+Inspectorában be kell kötni az új `planetGridMesh` mezőt.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |
