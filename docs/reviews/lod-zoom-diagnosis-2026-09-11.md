@@ -2,6 +2,10 @@
 
 Dátum: 2026-09-11. Hatókör: a jelenlegi működés vizsgálata, javítási javaslatok és várható hatásuk. **A viewer és a Core működésén nem változtattam.**
 
+Utókövetés: ez a dokumentum a javítás előtti állapotot rögzíti. A később
+elkészült [ND-69 első javítási csomag és mérési eredményei](lod-zoom-fixes-2026-09-11.md)
+külön dokumentumban találhatók; az alábbi diagnózis történeti bizonyíték.
+
 ## 1. Megállapítás
 
 A felhasználó által leírt jelenségnek több, egymást erősítő, a kódban azonosítható oka van. Nem indokolt újabb általános budget-/maxLevel-emeléssel kezdeni.

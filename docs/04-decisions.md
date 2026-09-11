@@ -3273,6 +3273,458 @@ elfogadta; a `<1 s` cél nyitott backlog marad. A következő kör előtt a nagy
 13,4–243,2 ms `bucketPrepare`, 97,0–309,2 ms mesh és 25,9–283,7 ms víz-
 szórás miatt Unity Profiler/GC-allokációs mérés szükséges.
 
+### ND-69 — Zoom-LOD javítás, 1. csomag: hiteles besorolás, nézetfrissítés és megőrzött frontier
+
+**Kontextus (2026-09-11):** a külön zoom-diagnózis után a felhasználó kérte a
+javítások megkezdését. Kiindulás: `195875e`; az ND-63–68 exact gyorsításai
+megmaradnak. A t=0 GPU-klasszifikáció továbbra is kihagyja a secondary detail
+zajt, miközben a CPU-s geometria tartalmazza. A kamerakapu csak abszolút
+elmozdulást figyel; a prioritásos cut pedig budgetnél eldobja a még függő leveleket.
+
+**Döntés:** az adaptív CPU-geometria statikus és dinamikus klasszifikációja
+egyaránt a teljes CPU-modellt használja. Az óceáni ős középpontja önmagában
+nem tilthatja a már az alapmesh sarkain is látható szárazföld finomítását:
+a szűréshez a négy saroknak is víz alatt kell lennie. A sarokteszt cache-elt,
+világváltáskor ürül; ez mintavételes védelem, **nem** bizonyított felső korlát
+a tile teljes belsejére (apró szigetek konzervatív korlátja külön feladat).
+
+A nézet aláírása testkoordinátás pozíciót/irányt, FOV-t, képarányt és
+pixelméretet tartalmaz. Kis mozgás sem veszhet el végleg: legfeljebb 0,25 s
+indítási késleltetés után új kérés kell, a meglévő időkapu és single-flight
+megtartásával. A kész mesh a **kéréskori**, nem az alkalmazáskori nézetet igazolja.
+A pixelküszöb a perspektivikus fókusztávolságból számolódik.
+
+A prioritásos kiválasztó a függő dinamikus leveleknek előre fenntartja a
+budgetet. Split csak négy gyermek számára elegendő hellyel indulhat; telített
+budgetnél a már létrejött frontier durvább levelei megmaradnak, nem dobódnak el.
+A külön 2:1 balance-passz korábbi pótköltségkerete egyelőre megmarad.
+
+**Határ:** nincs Core-/seed-/világverzió-változás. Ez az első csomag, nem a teljes
+M9 lezárása: statikus/dinamikus fedéscsere, beragadt chunk-geomorph, varratok,
+eltolt domborzatot követő kiválasztási korlátok és upload-időkeret még külön
+javítást igényelnek. Elfogadási kapu: linkelt LOD-regressziók, solution-tesztek,
+Unity C# fordítás, majd élő zoom/PerfLog. Automata teszt nem igazol látványt/FPS-t.
+
+### ND-70 — Teljes base-tile fedéscsere és geometriaérzékeny chunk-frissítés
+
+**Kontextus (2026-09-11):** a felhasználó engedélyezte az ND-69 utáni lépést.
+A mindig megmaradó statikus háromszögek eltakarhatják a finom völgyeket;
+a levélhalmazra épülő chunk-diff pedig nem követi a kamerafüggő geomorphot.
+
+**Döntés:** a CPU-s dinamikus út minden érintett base-tile alatt teljes
+kvadfa-partíciót készít: a kiválasztó által kihagyott ágakat durva pótló
+levelek fedik. Ezek nem új világadatok, ugyanazt a Core-mezőt mintázzák.
+Csak az így teljesen kiváltott base-tile statikus terrain-indexei kapcsolhatók
+ki, és csak a dinamikus mesh-ek sikeres feltöltése után. A base vertex-,
+normal-, color- és submesh-adatok megmaradnak; az érintett indexintervallumok
+degenerált háromszögekre cserélődnek, visszazoomnál az eredeti indexek állnak
+vissza. Nincs shader/discard-maszk, globális mélységi bias vagy teljes base-remesh.
+
+A renderelt közös sarok gazdája a legdurvább érintkező renderlevél, azonos
+szintnél a legkisebb TileId. Finom–durva élen a finom pont a durva él két
+feloldott végpontjából interpolálódik; a rekurzió csak csökkenő LOD-szinteken
+haladhat. A morph coarse-felülete az `AddQuad` valódi 00–11 átlójú
+háromszögpárja, nem bilineáris nyeregfelület. A statikus szomszéd ugyanennek
+a közösél-szabálynak a base-szintű esete. A terrain radiális bias ezen az
+úton megszűnik; a külön vízréteg meglévő viselkedése megmarad.
+
+A chunkon belüli emit-sorrend stabil. A topológia-diff mellett az elkészült
+csúcspozíciókat is összevetjük az utolsó sikeres feltöltéssel. Változatlan
+topológiánál pozíció és bounds frissül, nem index/szín/material. Az async és
+szinkron CPU-út közös előállítás/alkalmazás kódot használ. A kísérleti GPU-
+geometria nem kap csendben részleges fedéscserét.
+
+**Határ és kockázat:** a fedéspótlás és a közösél-feloldás többletmunka;
+a feltöltési időkeret és a teljesen inkrementális emisszió még nincs lezárva.
+A kamerafüggő morph továbbra is LOD-kérésenként, nem shaderben frame-enként
+frissül. A víz/alap-border külön rétege nem része a terrain-indexcserének.
+Nincs Core-/seed-változás. Kötelező a partíció-, index-visszaállítási,
+közösél-/kockalapél- és morph-regresszió, Unity C# fordítás, majd élő kép/PerfLog.
+
+### ND-71 — Mintavételezett domborzatot követő LOD-metrika
+
+**2026-09-11, élő teszt UTÁNI státusz: aktív viewer-integráció visszavonva
+az ND-72-ben.** A felhasználó nem látott érdemi élességnövekedést, viszont
+súlyos lassulást mért. Az alábbi döntés a kísérlet történeti leírása.
+
+**Kontextus (2026-09-11):** az ND-70 után a felhasználó a zoom/visszazoom
+működését megerősítette, de kb. 13 görgetés után nem lát további élesedést.
+A friss `PerfLog_20260911_144159.txt` szerint a kamera 114,855 után egészen
+103,663 egységig közeledik és új cutok készülnek; nem igazolt hard zoom-stop.
+A kiválasztó és a morph ugyanakkor még a 100 sugarú alapgömböt méri, nem
+a megjelenített terepet. A pontos km-lépték külön backlog, a gyorsítás halasztva.
+
+**Döntés:** a prioritásos CPU-út opcionális, testkoordinátás bounds-lekérdezést
+kap. A viewer a négy tényleges, morph nélküli terepsarkot és a középpontot
+mintázza a meglévő Core-mezőből, azonos tengerszint/relief skálával; ebből
+számol középpontot és befoglaló sugarat. A láthatóság a teljes befoglaló gömböt
+használja; a mintasűrűség és a morph az érintősíkbeli sarokkiterjedést méri,
+az eltolt középponttól vett kameratávolsággal. A radiális magasságugrás nem
+lehet szintfüggetlen tesszellációs hiba: a teljes 3D kiterjedést hibának véve
+a valós mezős próba már 0,5 egység távolságnál L20 ágakra költötte a budgetet.
+Ez mintasűrűségi cél, nem garantált háromszög-képernyőátmérő meredek falakon.
+A kiválasztás és a geomorph ugyanazt a metrikát használja.
+Az alapgömb horizont-/radiális backface-tiltása ezen az
+úton nem alkalmazható: nem bizonyítja egy eltolt, lejtős patch láthatatlanságát.
+A nézetkúp, pixelküszöb, hiszterézis, maxLevel és budget megmarad.
+A mintapontok a meglévő sarok-cache-t használják, a bounds kérésenként cache-elt.
+
+**Korlát:** ez a megjelenítés mintavételezett geometriai metrikája, nem a teljes
+folytonos mező matematikailag bizonyított intervallumbecslése. Az öt pont
+között rejlő, még nem mintázott csúcsot nem garantálja; szigorú hierarchikus
+terrain-error bound későbbi munka. Nincs új zaj, Core-/seed-változás vagy
+budgetemelés. A kamera alapgömbhöz kötött minimuma/felszínkövetése külön nyitott
+lépés; az új metrika önmagában nem collision-megoldás. A PerfLog kapjon tényleges
+legmélyebb LOD-szintet, hogy a hard limit és a látható modellrészlet elkülönüljön.
+Kötelező: eltolt gömbös közelítési regresszió, ismételhetőség/budget,
+morph-metrika egyezés, solution és Unity-fordítás, majd élő zoom-ellenőrzés.
+
+### ND-72 — Az ND-71 regresszió visszavonása és renderoldali diagnosztika
+
+**Bizonyíték (2026-09-11):** `PerfLog_20260911_172850.txt`, aktív ND-71:
+122,161 / 118,144 / 106,675 kameratávolságnál a cut rendre 6820 / 6712 /
+9584 ms; a teljes requestAge 8010 / 8738 / 11767 ms. Kérésenként 191 620 /
+241 408 / 239 172 bounds, nadir L10 / L10 / L12. A magasságkiértékelés a
+kiválasztás belső ciklusába került, még az óceáni szűrés és renderdöntés előtt.
+A horizont-/backface-szűrés elhagyása tovább növelte a vizsgált tartományt.
+Az ND-71 külön L14–L17 próbája nem a felhasználó kameráit mérte és nem
+igazolta az elvárt látványjavulást. Az élő visszajelzés alapján a tradeoff hibás.
+
+**Döntés, implementáció előtt:** az aktív CPU-kiválasztóból és morphból
+eltávolítjuk az ND-71 domborzati callback/bounds-cache integrációját. Visszaáll
+az ND-70 gömbös metrikája és korábbi cullingja. A fedéscsere, közösél-feloldás,
+pozícióérzékeny upload, CPU-besorolás és budget-frontier marad. A tiszta
+`SurfaceLodBounds` és opcionális API csak explicit offline kísérletként marad;
+nem kerül alapértelmezett vagy Inspector-kapcsolós útra.
+
+Az élesség további munkája előtt kérésenként **egyetlen nadír-diagnosztika**
+készül: cut és tényleges terrain-renderlevél szintje, óceáni finomítás-tiltás,
+helyi víz/land állapot, modellfelszíntől vett radiális távolság, morph-alfa,
+a feloldott terrain-quad négy sarkának kéréskori vetített pixelátmérője.
+Ez nem raycast és nem takarásvizsgálat: víz alatt a terrain-quad nem a látható
+vízfelszín. Clip/near-plane keresztezésnél a pixelmérés érvénytelen, nem hamis
+szám. A mátrix/viewport a kérés elején rögzített, Unity API nem fut workerben.
+A diagnosztika külön időzített; legfeljebb egy új modellpontot értékel, nem
+áganként terepet. A km-lépték továbbra is külön backlog.
+
+**Következő lehetséges lépések:** (1) élő idő és kép ellenőrzése a helyreállított
+úton; (2) renderhiba vs. modellrészlet vs. kamera/morph szétválasztása a
+diagnosztikából; (3) indokolt domborzati finomítás esetén Build-kori hierarchikus
+proxy/error-adatok, olcsó konzervatív előszűrés, majd csak érintett látható
+ágak frissítése, azonos kamerás költség- és képi elfogadási kapuval.
+Nem cseréljük a regressziót új, mérés nélkül aktivált heurisztikára.
+Nincs új zaj, Core-/seed-változás vagy budgetemelés. A felbontási plafon
+ettől még nem tekinthető megoldottnak; most a bizonyított regresszió javul.
+
+### ND-73 — Korábbi első felosztás, rövidebb geomorph-átmenet
+
+**Kontextus (2026-09-11):** az ND-72 után a felhasználó szerint valamivel jobb,
+de későn indul a látható finomodás. A `PerfLog_20260911_182258.txt` szárazföldi
+nadírja 149,319 távolságnál még L8 / 11,17 px; 140,379-nél már L9, de a morph
+alfája csak 0,105. 133,060-nál az alfa még 0,388; a kész finom geometria
+nagy része a durva felületre van visszahúzva. A diagnosztika olcsó (jellemzően
+0,06–0,10 ms), a cut ismét tizedmásodperces, nem az ND-71 többmásodperces útja.
+
+**Vizsgált, nem aktivált változat:** minden szinten 12→10 px csökkentés.
+Azonos be-/visszazoom-próbában a csúcslevélszám 107 739→195 118 lett;
+ezt a közel kétszeres többletet nem vállaljuk fel a korábbi regresszió után.
+
+**Szűkített döntés, implementáció előtt:** csak a statikus base csomópont
+első felosztásának célja legyen 10 px a scene jelenlegi 12 px-éhez képest.
+A mélyebb szintek küszöbe 12 px marad, a budget 200 000. A merge-küszöb
+változatlan (12/1,5=8 px), így a base tényleges hiszterézise 10/8=1,25;
+visszazoomnál nem hosszabbítjuk meg az előre létrehozott levelek megőrzését.
+Az első split-küszöbnek a merge-küszöb felett kell maradnia.
+Az opcionális base-küszöb nélkül a LOD API bitre a korábbi viselkedést adja.
+A base szülő morphja ugyanazt az új base-küszöböt használja, mint az osztás;
+nem változhat csak a kiválasztó vagy csak a morph távolsága.
+A geomorph tartománya 0,6→0,35: a teljes finom pozíció a split-távolság
+65%-ánál elérhető a korábbi 40% helyett, születéskor továbbra is alfa=0.
+Ez hangolási paraméter, nem fizikai konstans vagy új szimulációs algoritmus.
+
+A scene szerializált mezői és a komponens alapértékei együtt frissüljenek.
+Nincs új domborzati mintavétel/culling, zaj, Core-/seed-változás vagy nagyobb
+budget. Aktiválás előtt azonos kamerás be-/visszazoom levélszám-ellenőrzés kell;
+ha az elsőszintű előrehozás is aránytalanul drága, nem maradhat bekapcsolva.
+A rövidebb morph snapshotok között észrevehetőbb átmenetet adhat: élő kép,
+visszazoom és PerfLog-ellenőrzés nélkül nem vizuálisan kész.
+
+### ND-74 — Build-kori radiális terep-proxy a LOD távolságához
+
+**Állapot, implementáció előtt (2026-09-11):** a felhasználó a hátralévő
+zoomfeladatokat sorrendben kéri, minden átadás után saját ellenőrzéssel.
+Az ND-73 eredményét elutasította; a 18:39:49-es logban ugyanakkor 0,600 a
+morph-range, a fájlban 0,35: az élő beállításeltérést külön ellenőrizni kell.
+
+**Első, korlátozott lépés:** a már előállított statikus terepsarkok sugarából
+immutábilis, sűrű `TerrainLodProxy` épül. A base alatti keresés a minták
+maximumát összegző hierarchiát használja; base-től a helyi négy sugár bilineáris
+interpolációja adja a tile-középpont becsült sugarát. A vízszint alatti proxy
+a tenger sugarára korlátozott. A LOD és a morph ugyanazzal az eltolt
+középponttal és sugararányosan skálázott patch-mérettel számol.
+Ez mintasűrűségi/távolsági proxy, NEM új elevációmező, NEM bizonyított
+képernyőhiba vagy a minták között rejlő terepcsúcs felső korlátja.
+
+**Költség és élettartam:** level 8-on kb. 7 MiB állandó sugaradat; Buildkor
+lineáris tömbfeldolgozás, nulla új Core-mintavétel. Zoomkor csak tömbolvasás
+és interpoláció; nincs az ND-71-féle per-node magasságkiértékelés. Build és
+cache-invalidálás cseréli/törli a proxyt. A worker kéréskori referenciát kap.
+Base > 8 és GPU-geometria esetén explicit gömbös fallback, nem nagyobb rejtett
+cache. A funkció külön kapcsolható összehasonlításhoz, a kapcsolóváltás
+új cutot kér. Pixelcél, budget, kamera és világmodell változatlan.
+
+**Határ:** az alapgömbös culling most megmarad; a láthatósági/parti garancia
+a következő külön feladat. A proxy csak ezen az előszűrésen átjutó patch-ek
+prioritását és osztását javítja. Az új út először offline, azonos kamerás
+összehasonlítást kap (cut, levélszám, valódi modellhez mért proxyeltérés),
+majd feltételes élő próba következik. Nem állítunk FPS- vagy képi sikert
+Unity-visszajelzés nélkül. A teljes első tétel elfogadása ehhez kötött;
+szigorú terrain-error bound továbbra is nyitott.
+
+### ND-75 — A ténylegesen feltöltött tile-ok képernyőméretének naplózása
+
+**Felhasználói kérés, 2026-09-11:** az ND-74 után a közepes zoom mintha
+nem reagálna, mélyebben ismét finomodik, de a kép nem megfelelő. Most
+kizárólag diagnosztika készül, nincs új LOD-, morph-, kamera- vagy budgethangolás.
+
+**Mérési szerződés, implementáció előtt:** a sikeres Unity mesh-feltöltéshez
+tartozó végleges vertex-/indexlisták megőrzött snapshotja a forrás, nem a
+kért cut, a proxy vagy egy újonnan kiszámolt modellfelszín. A position-only
+feltöltés és a statikus indexmaszk is követett. Csak aktív, engedélyezett,
+a mérőkamerának szánt terrain/water rendererek kerülnek a snapshotba.
+Az aktuális kamera és objektummátrixokkal, legfeljebb másodpercenként egy
+háttérfeladatban mérünk, a LOD-worker állapotától függetlenül.
+
+17×9 képernyőpontban a tényleges indexelt háromszögek CPU-s vetítése,
+frustum-clippingje, winding-szűrése és mélységtesztje választja ki az
+elöl levő tile-t. A tile a mesh négycsúcsos, kétháromszöges quadja.
+Log: képernyőre vágott szélesség/magasság/átmérő pixelben; teljes vetített
+quad-átmérő külön, ha érvényes; statikus/dinamikus terep és víz forrása;
+mintaponttérkép, mintázott p50/p90/max. Ezek NEM minden tile-ra kiterjedő
+statisztikák vagy globális maximumok. A középpont külön pontos mérete szerepel.
+Zoom: tényleges középponttávolság, alapgömb feletti magasság, `R/(d-R)`
+arány és a kamera meglévő nézetosztálya, FOV és viewport. Nincs kitalált
+görgetésszám vagy LOD-célból visszakövetkeztetett tile-méret.
+
+A kamera/mesh állapotának frame-je, ideje, mesh-revíziója, a LOD-kérés
+folyamatban léte/kora és a diagnosztika saját ideje is logolt. Futó
+háttérmérés snapshotja nem keveredhet frissebb indexekkel vagy vertexekkel.
+Near-plane metszésnél clipping történik; a teljes, nem vágott quadméret
+érvénytelen lehet, ezt külön jelöljük. A CPU-mérés nem GPU-pixel-visszaolvasás:
+UI, felhő, marker, folyóvonal, transzparens blend, TAA és shaderbeli
+vertex-mozgatás nincs modellezve. Nem adaptív/GPU-geometriai út explicit
+nem támogatott, nem ad hamis érvényes mérést. Az aktuális felszínshaderek
+nem mozgatják a vertexpozíciót. A teszt célja a feltöltött felszíni
+geometria nagyságának és frissítési késésének elválasztása.
+
+### ND-76 — Nézethez kötött, adagolt finomítás és valódi inkrementális emisszió
+
+**Döntés implementáció előtt, 2026-09-11:** az ND-75 élő logban 180 px-es
+középső tile és 2,5–10,6 s-os régi nézetű kérések látszanak. Álló kameránál
+105,51 px-es statikus terep is marad. A felhasználó engedélyezte a javítást.
+
+- A CPU/proxy út terepkiterjedést is tartalmazó boundsot és a tényleges
+  kamera téglalap alakú perspektivikus frustumát használja. A régi alapgömbös
+  horizont/backface-elutasítás ezen az úton nem előzheti meg a tereptesztet.
+  A bounds kész base-sugarakból származik, nem új Core-mintákból; az ismert
+  base-mintákat fedi, a finomabb valódi mezőre továbbra sem szigorú korlát.
+  A bounds csak láthatóságra szolgál; az osztási méret a négy proxy-sarok
+  tényleges perspektivikus vetülete. Az első offline próba elvetette a teljes
+  befoglaló gömb pixelsugarát mint osztási hibát: súroló lapoknál túlosztott
+  (159,34 távolságnál 109 319 levél a quad-metrika 7 045 levele helyett).
+- Kérésenként korlátos számú új osztás, az előző felosztások megőrzésével.
+  Kezdeti keret 1024 új osztás/kérés; a korábbi 256-os offline próbának túl
+  sok hullám kellett. Ez nem milliszekundumos határ: balance és cache-miss
+  további munkát okozhat. A főszálas upload továbbra is atomikus, nem streaming.
+  A halasztott finomítás álló kameránál is folytatódik. A tile-budget és a
+  maximális LOD nem nő. Az egyes publikált állapotok teljes fedést adnak.
+- A változatlan topológiájú chunk teljes emitje csak akkor hagyható ki,
+  ha a végleges, közösélekkel feloldott csúcspozíciói is egzaktul azonosak.
+  A víz/border adatai is a cache részei; Build és konfigurációváltás invalidál.
+- A lényegesen elavult kérés kooperatívan megszakítható. Egy sikeres
+  alkalmazás előtt legfeljebb egy ilyen megszakítás engedett, hogy folyamatos
+  mozgatás se éheztesse ki a megjelenítést. Cache-hez továbbra is egy worker fér.
+- ND-75 megmarad összehasonlításra; a saját költségét ritkább mintavétel
+  mérsékli. Új napló: feldolgozott/újrahasznált levelek, halasztott osztások,
+  megszakítás és az új nézetmetrika aktív állapota.
+
+Ez viewer-változás, nincs Core-, seed- vagy modellváltozás. A pixelcél
+egységes hangolása és további optimalizáció csak a friss élő próba alapján;
+a tesztek/Unity-fordítás nem helyettesítik a vizuális elfogadást.
+
+### ND-77 — Tereptile-azonosság és kiválasztási megállás összekötése
+
+**Döntés implementáció előtt, 2026-09-11:** az ND-76 élő próbában
+(`PerfLog_20260911_205525.txt`, 20:56:23) befejezett finomítás mellett is
+88,64 px-es dinamikus tereptile szerepel. Az ND-75 nem őrizte meg a tile
+azonosságát és a konkrét kiválasztási megállást; a proxy/morph/szomszéd
+hibaforrások között ebből nem lehet bizonyítékkal választani.
+
+- A CPU terep konkatenált quadjai explicit TileId-t kapnak, az emissziós
+  bucketek sorrendjében. A hozzárendelés nem vertex-pozícióból visszabecsült.
+  Pozíciófrissítés és cache-újrahasználat megőrzi a hozzárendelést.
+- A kiválasztás opcionálisan rögzíti a tényleges megállási okot, hibát és
+  küszöböt. Csak sikeresen alkalmazott kérés trace-e kerül a snapshotba;
+  a worker nem olvas Unity objektumot vagy változó cache-t a mérés során.
+- A ritka ND-75 mélységtesztelt minták legnagyobb tereptalálataihoz
+  mesh-azonosság, TileId, request-metrika, megállási ok és feltöltött
+  sarokpozíciók kerülnek. A balance/fedés által létrehozott levél nem
+  kaphat hamisan saját kiválasztási döntést: az őst külön jelöljük.
+- A `lodPending=False` önmagában nem kész állapot: a napló a halasztott
+  finomítás folytatását is jelzi. Mérési költség továbbra is külön látható.
+
+Ez az engedélyezett 1. lépés bizonyítékgyűjtő része. A finomítás, morph,
+víz, budget és Core változatlan; javítást csak az azonosított okra végzünk.
+Új élő próba szükséges, ez önmagában nem felbontásjavítás.
+
+### ND-78 — Későn eldobott tengerfenék-finomítás előzetes kizárása
+
+**Döntés és méréssel korrigált terv, 2026-09-11.** Az ND-77 élő logban
+(`PerfLog_20260911_212059.txt`, 21:21:17 és 21:21:53) álló kameránál,
+befejezett kéréslánc mellett két statikus tereptile 28,816 / 31,678 px.
+Becslésük 9,194 / 7,176 px, megállásuk `below-threshold`. A feltöltött
+sarkok újravetítése mindkét értékpárt reprodukálja: a kis érték oka a mély
+sarkok `max(seaRadius, cornerRadius)` helyettesítése. Ez méretdefiníciós
+eltérés is: az ND-75 a teljes clipped quadot méri, a víz által takart
+részeket nem vágja le a tile méretéből.
+
+**Elvetett kezdeti változat:** a teljes nyers mélység használata a proxy
+quadjában/boundsában. A mérés már 300-as távolságnál 17 ezer, közepesen
+60–67 ezer tereplevelet adott, a régi 0 / ~1 ezer helyett, a későbbi
+óceáni kizárást előrehozva is. A mély, részben víz alá nyúló partfalak
+tömeges felosztása így nem arányos javítás. A kísérleti runtime-módosítás
+visszavonva; a proxy, morph és távolságmetrika az ND-76 állapot marad.
+A kísérlet a diagnosztikai próbában reprodukálható, nem éles feature.
+
+**Átadásra választott részjavítás:** a renderer meglévő
+`IsBaseAncestorOceanic` kizárása már a statikus alapszint kiválasztásánál
+lefut, mielőtt leszármazottak vagy új osztási kvóta fogyna. Pontosan a
+meglévő feltétel: víz alatti középpont és mind a négy base-sarok víz alatt.
+Vegyes parti tile-t nem zárunk ki. A későbbi renderoldali szűrő megmarad.
+A callback csak a base-szinten és csak a CPU/perspektivikus proxy-úton
+aktív, a kész statikus besorolást/sarkakat olvassa, új Core-minta nélkül.
+
+Az 1024-es munkakeret így a valóban megjeleníthető terepet szolgálja.
+Új trace-ok: `renderer-base-exclusion`, `skippedSelectionBases`,
+`earlyOceanExclusion=ND78`. A vízréteg, budget, pixelcél és seed változatlan.
+
+Az offline, két nézetirányos, 14 állásos próbában az érdemben renderelt
+terep TileId-halmaza azonos maradt. Egy közepes állásnál 11→8, mélyebben
+14→13 hullám kellett. Ezek kiválasztási adatok, nem Unity frame-idők.
+Az ND-77-ben állandó `split-quota` miatt váró levelek késésére célzott
+részjavítás; nem oldja meg a 28–32 px-es teljes-quad eltérést, a statikus
+víz durvaságát vagy a teljes látható-terep hibakorlátját. Élő próba kell.
+
+### ND-79 — Korai zoom minőségi küszöbének költségvizsgálata
+
+**2026-09-11, mérési döntés; nem runtime-javítás.** Az ND-78 utáni
+`PerfLog_20260911_214108.txt` álló, befejezett közepes nézetében a
+9,939 és 9,705 pixeles statikus tereptile proxyja pontosan ugyanekkora.
+A `below-threshold` megállás 10 pixeles célt használ. A korai finomodás
+hiánya itt igazolt minőségi küszöbkérdés, nem proxyhiba vagy workerkésés.
+
+Az offline `--quality` próba kisebb, egységes céljai korábbi finomítást
+hoznak, de a 6/5 pixeles cél egyik közepes állásában 2 930→96 969
+dinamikus levelet és 728→23 640 L8-chunkot adnak. A globális küszöb
+csökkentését ezért **nem aktiváljuk teljesítményelfogadás nélkül**.
+Ez nem a 6/5 cél végleges elvetése: a jelenlegi feldolgozási/renderer
+szerkezettel túl nagy regressziós kockázatot jelent.
+
+Javaslat a következő implementációra: korlátos méretű hierarchikus
+chunk-csomagolás, majd építési/upload-költségkorlát és a kisebb pixelcél
+együttes validációja. A fix L6-chunk nem elegendő, mélyen ismét több
+tízezer levelet vonna egyetlen újraépítésbe. A felhasználótól a megjelenítés
+előzetes átalakítása és az azonnali, lassabb minőség között irányt kértünk.
+A pontos algoritmus implementáció előtt külön döntést igényel.
+
+[Logelemzés, összehasonlítás és korlátok](reviews/lod-onset-cost-analysis-nd79-2026-09-11.md).
+A runtime, scene, seed és világmodell ebben a lépésben változatlan.
+
+### ND-80 — Levélszámmal korlátozott hierarchikus renderchunkok
+
+**Döntés implementáció előtt, 2026-09-11.** A felhasználó az ND-79
+költségvizsgálat után előbb a megjelenítés átalakítását választotta.
+Az első, külön átadandó lépés a CPU-terep csomagolása; a LOD-kiválasztás,
+pixelcél, világmodell, morph és vízgeometria változatlan marad.
+
+- A teljes fedés/közösél-feloldás után a leveleket a megadott legdurvább
+  chunkszint ősei alá gyűjtjük (kezdőérték L6). Az ennél durvább bemeneti
+  levél önálló marad. A 256 levélnél nagyobb csoport négy gyermekterületre
+  oszlik rekurzívan; nem bontjuk magukat a terepleveleket.
+- Stabil kulcs a chunk területének TileId-ja. Az előző sikeresen feltöltött
+  partíció osztásait megtartjuk 128 levél felett; 128 vagy kevesebb levélnél
+  engedünk összevonást. A 256 kemény korlát, a 128 hiszterézis, nem pixelcél.
+  Üres csoport nincs; minden bemeneti levél pontosan egy csoportba kerül.
+- A már működő topológia/pozíció-diff és emit-cache változatlanul a teljes
+  csoportot kezeli. Split/merge esetén az új kulcsok felépülnek, a régiek
+  kikapcsolódnak ugyanabban a főszálas alkalmazásban. Megszakított munka
+  nem módosítja a publikált partíciót. A régi fix csoportosítás kapcsolóval
+  elérhető összehasonlításhoz, a scene meglévő értékeit nem írjuk felül.
+- Naplózzuk a csoportosítás idejét, a tényleges csoportméret-maximumot,
+  a használt korlátot és a módot. A csoportszám nem GPU draw-call mérés.
+
+A korlát egy chunk emissziójának/feltöltésének méretét fogja meg, nem egy
+teljes kérés milliszekundumos költségét. Több kis chunk összevonása több
+változatlan levél újraemisszióját is okozhatja; ezt az élő logból külön
+ellenőrizzük. A főszálas upload több frame-re bontása, objektumpool és a
+minőségi küszöb csökkentése nem része ennek az első lépésnek.
+
+### ND-81 — Pontos vetület-cache az álló kamerás finomítási hullámokhoz (2026-09-11)
+
+Az ND-80 második élő próbájában 31 946 levélből csak 64 igényelt új
+emissziót, mégis 323,68 ms volt a teljes cut és 188,82 ms az emit szakasz.
+Első, korlátozott lépésként a változatlan vetület ismételt kiértékelését
+hagyjuk el; nem vezetünk be korábbi döntéseket megőrző kiválasztási frontot.
+
+- Egyetlen workerhez tartozó cache tárolja a `(látható, szöghiba)` eredményt
+  TileId-nként. A kamera pozíciója, normalizált tengelyei, vetítési és vágási
+  paraméterei pontosan egyezzenek; a terep-proxy objektumazonossága kötelező.
+  Kameraváltás, proxycsere, Build és nem perspektivikus mód érvénytelenít.
+- Legfeljebb 262 144 bejegyzés; telítettségnél a hiányzó értéket továbbra is
+  kiszámoljuk, csak nem tároljuk. A korlát nem változtathatja meg a cutot.
+- A hiszterézis, prioritási sor, splitkvóta, óceánkizárás, trace és 2:1 balance
+  továbbra is minden kérésben lefut. Nem tárolunk split/merge döntéseket.
+  A geomorph ugyanebből a pontos metrikából olvashat a geometria workerében;
+  a párhuzamos képernyődiagnosztika kizárólag az immutábilis view-t olvassa.
+- Külön mérjük a selection/balance és geometria-feloldás/aux-másolás idejét,
+  valamint a cache találatait és a valódi metrikaszámításokat.
+
+A 12/10 px cél, az ND-80 chunkcsomagolás, a terepgeometria, a víz és a Core
+változatlan. Ez az ismételt munka első csökkentése, nem a teljes késleltetés
+megoldása. Azonos bemenetsorozatra azonos cutot és trace-t kell igazolni;
+az élő gyorsulás és a vizuális eredmény külön felhasználói próbát igényel.
+
+### ND-82 — Önálló vízfelszín-LOD, külön kiválasztási és renderkapu
+
+**2026-09-11, döntés implementáció előtt.** A felhasználó az első zoomok
+akadásának javítását backlogra halasztotta, és a következő tervezett tile-
+feladatot kérte. A vízfelszín jelenleg a terep emissziójához kötött, miközben
+a mély óceáni terep finomítását szándékosan kihagyjuk (ND-78).
+
+1. Első, külön átadandó kapu: motorfüggetlen viewer-modul a víz saját cutjához.
+   Bemenet a ténylegesen emittált statikus víz-base-tile-ok halmaza, a modellből
+   származó, rendererrel azonos tengerszintsugár és a kamera. Nem a tengerfenék
+   kihagyási maszkja, és nem új, közelítő óceán-/jég-besorolás.
+2. Újrahasználjuk a tesztelt prioritásos kvadfát, pontos perspektivikus
+   quad-metrikát, hiszterézist, splitkvótát, teljes fedést és közösél-resolvert.
+   A vízhez külön állapot és külön levél-/munkakeret tartozik. A víz-proxy
+   minden sugarán a megadott tengerszint áll; nem hívunk elevációt, klímát,
+   hydrologyt vagy terep-emissziót. Új Core-algoritmus/seedváltozás nincs.
+3. A part/alap vízmaszkja ebben a kapuban változatlan. Csak létező víz-base
+   alatt keletkezhet gyermek. Minden lecserélhető base teljesen fedett;
+   nincs részleges base-elrejtés. A fel nem osztott alap marad helyettesítő.
+   A geometriai terv a finom és durva vízszéleket közös élre illeszti.
+4. A következő kapu kötelező a runtime aktiváláshoz: víz-attribútumok hiteles
+   forrása, vízre külön indexmaszk, a régi/dinamikus víz kettős rajzolásának
+   megszüntetése, atomikus csere és visszaállítás. Ezt nem kapcsoljuk be
+   egy pusztán tesztelt kiválasztó alapján. A GPU-kísérleti út és tavak saját
+   vízszintje külön kompatibilitási ellenőrzést igényel.
+
+Az első kapu önállóan tesztelhető, a futó viewernek nem ad új munkát és nem
+változtat képet. A teljes vízfinomítás csak a második kapu és élő Unity-próba
+után tekinthető késznek. A korai zoomküszöb és a halasztott ND-81 panasz
+ebben a feladatban nem módosul.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

@@ -11,7 +11,14 @@
   <ItemGroup>
     <ProjectReference Include="../../src/WorldGen.Core/WorldGen.Core.csproj" />
     <Compile Include="lod-zoom-probe.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/ProjectedLodView.cs" Link="ProjectedLodView.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/RenderedTileDiagnostics.cs" Link="RenderedTileDiagnostics.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/TerrainLodProxy.cs" Link="TerrainLodProxy.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/AdaptiveViewState.cs" Link="AdaptiveViewState.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/SurfaceLodBounds.cs" Link="SurfaceLodBounds.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/LodCornerResolver.cs" Link="LodCornerResolver.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/AdaptiveQuadTree.cs" Link="AdaptiveQuadTree.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/DynamicMeshChunking.cs" Link="DynamicMeshChunking.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/LodCoverage.cs" Link="LodCoverage.cs" />
   </ItemGroup>
 </Project>

@@ -1,11 +1,131 @@
 # Backlog — hátralévő feladatok mérföldkövenként
 
+## Aktív sorrend — felhasználói döntés, 2026-09-11
+
+- **Halasztva, nem megoldva:** az első zoomok beragadása, a mozgókamerás
+  selection gyorsítása, a korai élesedés küszöbe és a sima időbeli átmenet.
+  Az ND-81 élő log és a geometria/proxy eltérés bizonyítékai megmaradnak.
+- **Következő önálló feladat: vízfelszín saját LOD-ja (ND-82).** Első kapu
+  [implementált, 24 célzott tesztesettel](reviews/water-lod-selection-nd82-2026-09-11.md):
+  a ténylegesen létező víz-base-tile-okból külön, korlátos tile-kiválasztás
+  és teljes fedés, tengerfenék-/klíma-mintavétel nélkül. Második kapu:
+  vízszínek, statikus vízmaszk és dinamikus vízmesh atomikus bekötése,
+  majd élő part-/víz-/visszazoom-próba. Az első kapu nem renderaktiválás.
+- Ezután külön lépések: több frame-es upload; felszínkövető kamerakorlát;
+  precíz km-lépték. Az általános teljesítmény- és minőségi hibák nem zárulnak
+  le attól, hogy most másik feladatra lépünk.
+
+**ND-81 élő eredmény (2026-09-11):** az [új logelemzés](reviews/lod-work-cache-live-2026-09-11.md)
+szerint az állókamerás cache működik, de az első mozgások selectionje
+285–374 ms, nulla cache-találattal. A felzárkózás 3–4,2 s; a kész állapotú
+9,881 px-es statikus tile küszöb miatt nem osztódik. Következő javasolt
+teljesítményfókusz a kameramozgás közbeni kiválasztás, majd balance/feloldás.
+Külön reprodukálandó a visszazoomkor mért 34,969 px geometria / 6,931 px
+proxy eltérés. A felhasználó az átmenetet továbbra sem fogadta el.
+
+**ND-81 átadva próbára (2026-09-11):** az ismételt háttérmunka első
+csökkentése a [pontos vetület-cache](reviews/lod-work-cache-nd81-2026-09-11.md).
+Azonos kamera és proxy mellett nincs ismételt tile-metrika számítás; a
+geomorph is újrahasználja. Offline 40 páros cut/trace ellenőrzés egyezik,
+a teljes kiválasztási lánc ideje 27–37%-kal csökkent ebben a próbában.
+Ez nem Unity/FPS-mérés. A 12/10 px cél változatlan, nincs élességjavítás.
+Élő ellenőrzés következik: `workCache=ND81`, selection/balance, metricHits/
+metricComputed, resolveCheck/auxiliaryCopy/tileEmit. A teljes sarok-előkészítés,
+coverage-függő geometriaellenőrzés és balance további optimalizálása nyitott;
+ezek után lehet biztonságosan visszatérni a kisebb pixelcélra.
+
+**ND-80 élő visszamérés (2026-09-11):** [a friss log](reviews/lod-bounded-chunks-live-2026-09-11.md)
+szerint aktív az új csomagolás, maximum 256 levél/chunk. A feltöltés p90
+25,44→5,29 ms, maximum 27,77→6,63 ms a két eltérő kameraút próbájában;
+nem kontrollált FPS-benchmark. A teljes kérés mediánja továbbra is ~0,54 s,
+állókamerás lánc 4–5 s. Következő javasolt prioritás az ismételt cut- és
+geometria-előkészítési munka csökkentése, nem az upload további bontása.
+A pixelcél és a vizuális minőség nyitott; ebben a körben nincs kódváltozás.
+
+**ND-80, aktuális átadás (2026-09-11):** a felhasználó a megjelenítés
+előzetes átalakítását választotta. Az első [korlátos chunk-csomagolás](reviews/lod-bounded-chunks-nd80-2026-09-11.md)
+implementált: maximum 256 levél, összevonás 128-nál, változatlan terep-LOD.
+Offline 104 állásban azonos tile-fedés; közepes példában 728→215 chunk.
+LOD 190/190 Debug/Release, Unity-forrásfordítás 0 hiba. **Élő vizuális és
+teljesítmény-ellenőrzés következik**; nincs még elfogadott gyorsulás.
+Inkrementális emisszió továbbfejlesztése, upload-időkeret, objektumpool,
+kisebb pixelcél és vízfinomítás továbbra is nyitott.
+
+**ND-79, aktuális mérés (2026-09-11):** az ND-78 utáni próba igazolja,
+hogy a 10 px-es első és 12 px-es mély cél nem őrzi a távoli ~3 px-es
+rács élességét. Kisebb célokra készült [offline költségvizsgálat](reviews/lod-onset-cost-analysis-nd79-2026-09-11.md):
+a 6/5 cél közepesen ~33× dinamikus levélszámot és 23 640 apró chunkot
+is okoz. Nem aktiváltuk, nincs új vizuális javítás. A következő javasolt
+előfeltétel a korlátos méretű hierarchikus chunk-csomagolás és az építési/
+upload-költség rendezése; irányválasztást kértünk. Az első finomodás,
+a vízréteg és a teljes zoomminőség továbbra is nyitott.
+
+**ND-78 frissítés (2026-09-11):** az új ND-77 log alapján a teljes quad
+és a vízszintre emelt proxy méretkülönbsége reprodukált. A nyers mélységre
+finomító kísérlet súlyos túlosztása miatt visszavonva. A megvalósított
+részjavítás a renderer által később kizárt tengerfeneket már az osztási
+keret előtt szűri: a `split-quota` miatti terepkésést csökkenti.
+Az 1. lépés teljes minőségi célja továbbra is nyitott, a durva vízréteg
+nem változott. [Bizonyítékok és átadás](reviews/lod-early-ocean-exclusion-nd78-2026-09-11.md).
+
+**ND-77 aktuális állapot (2026-09-11):** az ND-76 élő próbában a víz mellett
+terepen is marad kiugró méret (88,64 px befejezett finomításnál). Az első
+engedélyezett következő lépés célzott azonosító/megállási naplója elkészült:
+[részletek és próbamenet](reviews/lod-terrain-decision-trace-nd77-2026-09-11.md).
+**A terephiba javítása új logig nyitott**, nem kész felbontásjavítás.
+A vízfelszín önálló finomítása és az ismételt kiválasztás optimalizálása
+külön következő lépés; most nem változtak.
+
+**ND-76 frissítés (2026-09-11):** az ND-75 élő log igazolta a régi kamerához
+készülő 2,5–10,6 s-os kéréseket és az állva is megmaradó nagy tile-okat.
+Implementált a [képernyő-quad alapú, adagolt finomítás és emit-cache](reviews/lod-progressive-projected-nd76-2026-09-11.md),
+megszakítható elavult kéréssel. Élő elfogadásra vár; az alábbi korábbi
+„szünetel / csak diagnosztika” állapotokat ez felülírja. Upload-időkeret,
+szigorú mélyterep-bounds, kamerakorlát és km-lépték továbbra is nyitott.
+
 **M9 diagnosztikai frissítés (2026-09-11):** a zoom közben későn és foltosan
 finomodó felszínről [külön, mérésekkel alátámasztott diagnózis](reviews/lod-zoom-diagnosis-2026-09-11.md)
 készült. A fő új tételek: GPU/CPU modellkülönbségből eredő finomítás-tiltás,
 durva/fine felület takarása, abszolút kameramozgás-kapu, budget miatti
 fedésvesztés a dinamikus rétegben, chunk-diff és geomorph eltérése.
-Javítás még nem történt; az alábbi történeti „működő/kész” megjelölések
+Az [ND-69 első javítási csomagja](reviews/lod-zoom-fixes-2026-09-11.md)
+elkészült: CPU-besorolás, parti sarokvédelem, nézetfrissítés és a budgetnél
+megőrzött frontier; 431/431 teszt sikeres. Élő Unity-acceptance még nincs.
+Az [ND-70 második csomagja](reviews/lod-zoom-fixes-phase2-2026-09-11.md) is
+implementált: teljes base-tile fedéscsere, geometriai közösél-feloldás és
+pozícióérzékeny chunk-frissítés. 445/445 .NET-teszt sikeres, az új két Unity
+Mesh API-teszt még csak fordított. **Új élő visszajelzés:** a zoom és visszazoom
+szépen működik; kb. 13 görgetés után a további élesedés nem érzékelhető.
+A lassulás ismert, a felhasználó most kifejezetten halasztja a gyorsítást.
+Teljes zoomtartományú látvány/FPS-acceptance, upload-időkeret,
+inkrementális emisszió továbbra is nyitott. Az
+[ND-71 harmadik csomag](reviews/lod-zoom-fixes-phase3-2026-09-11.md)
+**élőben elutasítva:** nem hozott érdemi látványjavulást, a cut 6,7–9,6 s lett.
+Az [ND-72 regressziójavítás](reviews/lod-zoom-regression-nd72-2026-09-11.md)
+kivette a drága mintavételt az aktív kiválasztásból/morphból; az ND-70
+működő fedés- és zoomjavításai megmaradnak. Az új, kérésenként egy pontot
+mérő renderdiagnosztika a további élességvizsgálatot szolgálja. **Friss élő
+visszajelzés:** valamivel jobb, de későn indul a finomodás. Az
+[ND-73 hangolás](reviews/lod-zoom-onset-nd73-2026-09-11.md) csak az első
+base-osztást hozza előre és rövidíti a morphot; a mélyebb 12 px cél és a
+200 000 budget marad. A próba csúcslevélszáma +25,7%, nem költségmentes;
+**élő eredményét a felhasználó elutasította.** A friss log még 0,600 morphot
+mutatott, a scene fájl 0,35 értékétől eltérően. Az
+[ND-74](reviews/lod-terrain-proxy-nd74-2026-09-11.md) Build-kori radiális
+terep-proxyt vezet be közös cut/morph metrikával; implementált, élő próbára
+átadva, nem elfogadott. Nincs per-node új Core-minta, de több tile készülhet.
+A felhasználó most a hátralévő feladatokat sorban kéri, minden lépés után
+saját ellenőrzéssel: (1) terephez igazított LOD — jelen lépés tesztje;
+(2) láthatóság/part; (3) részleges emit és upload-időkeret;
+(4) felszínkövető kamera; (5) szükség esetén sűrű felületi adat;
+(6) teljes tartományú ellenőrzés és külön precíz km-lépték.
+Szigorú terrain-error bound továbbra sincs; a radiális proxy csak közelítés.
+**ND-75, új diagnosztikai kapu:** a felhasználó ND-74 után közepes zoomnál
+megálló finomodást, mélyen elégtelen javulást jelez. Kérésére most csak a
+[tényleges kirajzolt mesh pixelméretének naplózása](reviews/lod-drawn-size-log-nd75-2026-09-11.md)
+készül, függetlenül a LOD-kérés elkészültétől. A további javítási sorrend
+az új próba + log közös értékeléséig szünetel; a beállítások változatlanok.
+Az alábbi történeti „működő/kész” megjelölések
 nem jelentik a jelenlegi zoomminőség és teljesítmény elfogadását.
 
 Állapotfelmérés: 2026-09-01 (frissítve). Az M0-M5, M7-M8, M10 (deep-time
@@ -21,6 +141,7 @@ vizuális ellenőrzés/döntés a megvalósításhoz: Igen/Részben/Nem).
 
 | Mérföldkő | Megnevezés | Leírás | Prio | Komplexitás | Kellek? |
 |---|---|---|---|---|---|
+| M9/UI | Precíz, kamerafüggő kilométeres léptékcsík | Felhasználói igény (2026-09-11), **csak backlog, még nincs implementáció**: az adott képernyőszélességű csík mellett a neki megfelelő valós felszíni távolság jelenjen meg km-ben (kis léptéknél m-ben). Nem görgetésszám- vagy zoomtáblázat: az aktuális kamera vetítése, viewportja, bolygótranszformációja és a világmodell fizikai sugara alapján kell számolni. Implementáció előtt egyértelmű mérési definíció kell: ajánlott a megjelölt referenciaponton át húzott képernyőszakasz két felszíni végpontja közti referencia-gömbi geodetikus távolság; ez nem az egyenetlen terepen megtett út hossza. A sugarak metszésénél a megjelenített domborzatot/tengert és a vertikális túlrajzolást figyelembe kell venni, a kijelzett fizikai hosszba viszont nem szabad a túlrajzolást vagy a Unity-egységeket kilométerként bekeverni. A csík helye/referenciapontja legyen látható; perspektívában nem állítható, hogy ugyanaz a lépték az egész képernyőre érvényes. Ég/horizont/metszéshiány esetén egyértelműen érvénytelen állapot, nem becsült hamis szám. Rögzített hibakeret és független geometriai regressziók szükségesek: több zoom/FOV/felbontás/képarány, bolygósugár, forgatás, pólus, lapél, part és túlrajzolás; a felirat kerekítése is a hibakeret része. | Közepes | Közepes | Igen (definíció + élő ellenőrzés) |
 | M9/M10 | Deep-time újraépítés sebessége — cél <1s | Felhasználói kérés (2026-09-10): a `deepTimeMyr` csúszka (vagy bármi más, ami teljes `Build()`-et vált ki) mozgatása jelenleg ~24 másodperces újraépítést okoz - a cél <1s. **Friss, legacy-fix UTÁNI mérés hét `Logs/PerfLog_*.txt`-ből** (level=5 statikus alap, `adaptiveBaseLevel=8`, hydroLevel=8): `TELJES átlag 22.57s` (21.74-24.74s), ebből **`BuildStaticBaseLayer` átlag 17.52s (77.6%)**, **`hydrology` átlag 4.19s (18.6%)**, minden más együtt átlag ~0.86s. ✅ **1. LÉPÉS MÉRVE (2026-09-11)**: az eldobott legacy geometria kihagyása a korábbi 24.1-24.5s-ról jellemzően 21.7-23.2s-ra vitte a teljes időt. ✅ **2. EXACT LÉPÉS MÉRVE (2026-09-11)**: a coarse folyómunka kihagyása és a normál-középpont újrahasználata után két deep-time rebuild 18.997s és 19.138s (átlag 19.067s), az előző 22.57s átlaghoz képest 15.5% gyorsulás. ✅ **3. EXACT LÉPÉS MÉRVE — ND-63:** a statikus level-8 sarkok cache-e után két deep-time rebuild 12.159s és 11.976s (átlag 12.067s), további 36.7% gyorsulás; a sarokfázis 7.511s-ról 0.439s-ra esett, `terrainBasis reused=True`. ✅ **4. EXACT LÉPÉS MÉRVE — ND-64:** a közös tile-középpont terrain-bázis és az egyszer előállított napi Nap-minták után két rebuild 5.609s és 5.954s (átlag 5.781s), újabb 52.1% gyorsulás; a hydrology field 0.156s-ra, a klasszifikáció 0.485s-ra esett. ✅ **5. EXACT LÉPÉS MÉRVE — ND-65:** két rebuild 5.181s és 5.372s (átlag 5.277s), további 8.7% gyorsulás; a priority-flood 1.249s-ról 0.854s-ra (-31.7%), az emisszió 2.464s-ról 2.361s-ra (-4.2%) esett. ✅ **6. EXACT LÉPÉS MÉRVE — ND-66:** négy meleg rebuild 3.339s / 3.507s / 3.729s / 3.682s, átlag 3.564s; ez az ND-65-höz képest további 32.5%, a 22.570s baseline-hoz képest 84.2% gyorsulás (6.3×). `denseStatic=True`; a statikus emisszió 0.945s-ra, a sarokfázis 0.099s-ra esett. ✅ **7–8. EXACT LÉPÉS MÉRVE — ND-67/68:** öt meleg rebuild 2.656s / 2.790s / 2.607s / 2.935s / 3.185s, átlag 2.835s; ez az ND-66-hoz képest további 20.5%, a 22.570s baseline-hoz képest 87.4% gyorsulás (8.0×). `denseFlood=True`, a topológia minden meleg futásban `reused=True`; a flood 0.748s-ról 0.258s-ra (-65.6%), a statikus base-layer 1.602s-ra, az emit 0.664s-ra esett. A hideg első Build továbbra is 13.029s, főleg a terrain-bázisok első előállítása miatt. **2026-09-11: a felhasználó a jelenlegi eredményt ideiglenesen elfogadta; a `<1 s` cél és az alábbi exact folytatások backlogban maradnak, a munka most másik feladatra vált.** A preview továbbra is csak tartalék, ha az exact út végül nem vihető 1s alá. | Magas | Nagy | Igen (élő Unity PerfLog) |
 | M9/M10 | Deep-time exact folytatás — sűrű lake pipeline | Az ND-67 utáni öt meleg futásban a lake-fázis átlag 190.7ms (120.3–341.5ms), a dense flood eredményének Dictionary-konverziója további 9.6ms. Következő exact irány: `IdentifyLakes` tömbindexelt változata, amely közvetlenül a dense field/fill/ocean tömböket és az újrahasznált topológiát olvassa, majd csak a ténylegesen továbbadott tóeredményt materializálja TileId-ként. A Dictionary-út maradjon referencia-orákulum; teljes eredmény-egyezési teszt és élő PerfLog kell. | Közepes | Közepes | Igen (PerfLog) |
 | M9/M10 | Deep-time invariant csapadékmező cache | A csapadékfázis stabilan átlag 295.1ms minden deep-time Buildben, miközben a jelenlegi hívás saját t=0 mezőt számol, és a deep-time értéket nem kapja bemenetként. Implementáció előtt tételesen rögzítendő a cache-kulcs és minden invalidáló Inspector-paraméter; csak a bizonyítottan változatlan `MoisturePrecipitation` snapshot használható újra. A dendritikus folyóhálózat nem cache-elhető vele vakon, mert a jelenlegi deep-time lemezmagokat is megkapja. | Közepes | Közepes | Igen (PerfLog) |

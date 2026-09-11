@@ -55,7 +55,7 @@ namespace WorldGen.Viewer
     /// felbontás ezt ténylegesen kihasználná.
     /// </summary>
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
-    public class PlanetGridMesh : MonoBehaviour
+    public partial class PlanetGridMesh : MonoBehaviour
     {
         [SerializeField, Range(0, 8)]
         [Tooltip("REFERENCIA-szint (M2-M8): a tengerszint-kalibráció és a " +
@@ -477,20 +477,23 @@ namespace WorldGen.Viewer
         private int adaptiveMaxLevel = 20;
 
         [SerializeField]
-        [Tooltip("SCREEN-SPACE-LOD (screen-space-lod branch, felvaltja a korabbi " +
-                 "adaptiveSplitFactor tavolsag/meret-aranyt): a kepernyon " +
-                 "megcelzott MAXIMALIS tile-atmero pixelben - ha egy tile a " +
-                 "kamera FOV/felbontasa alapjan tobb pixelt foglalna el ennel, " +
-                 "felbomlik. FUGGETLEN a tavolsagtol es a szinttol (a regi " +
-                 "metrikaval ellentetben, ahol egyetlen aranyszam MINDEN szinten " +
-                 "egyformán hatott, es emiatt vagy a kozepes zoom finomodott " +
-                 "tul koran/robbanasszeruen, vagy a mely szintek (18-20) SOSEM " +
-                 "voltak elerhetok a kamera minimalis tavolsaganal - ld. " +
-                 "docs/04-decisions.md a resztezes ND-jehez). Kisebb ertek = " +
-                 "korabban/agresszivebben finomodik (tobb tile, reszletesebb, " +
-                 "de lassabb); nagyobb = ritkabban (kevesebb tile, gyorsabb, " +
-                 "de durvabb).")]
-        private double targetTilePixelSize = 48.0;
+        [Tooltip("A gömbös LOD-metrika pixelátmérő-célja, FOV/felbontás alapján. " +
+                 "Kisebb érték több tile-t és korábbi finomodást jelent, nagyobb számítási költséggel. " +
+                 "Nem garantált maximum az eltolt terepen vagy telített budgetnél. " +
+                 "ND-73: az első base-felosztás külön, korábbi célt kaphat.")]
+        private double targetTilePixelSize = 12.0;
+
+        [SerializeField]
+        [Tooltip("ND-73: csak a statikus alap ELSŐ felosztásának pixelcélja. " +
+                 "A mélyebb szintek targetTilePixelSize értéke nem változik. " +
+                 "A merge-küszöb és a normál split közé kell esnie; különben nincs előrehozás.")]
+        private double initialRefinementPixelSize = 10.0;
+
+        [SerializeField]
+        [Tooltip("ND-74: a kész statikus terepmintákból becsült felszíntávolság vezérli a CPU LOD-ot és morphot. " +
+                 "Több közeli részletet, de több mesh-munkát is jelenthet. Nem szigorú pixelhibakorlát. " +
+                 "Kikapcsolva az előző gömbös metrika; base > 8 és GPU-geometria esetén szintén gömbös fallback.")]
+        private bool useTerrainLodProxy = true;
 
         [SerializeField, Range(0, 8)]
         [Tooltip("FAZIS 1 (ND-47): a kvadfa-bejaras GYOKERSZINTJE - LEVALASZTVA " +
@@ -538,43 +541,29 @@ namespace WorldGen.Viewer
         // a KICKOFF-kori kamera-pozicio (az alkalmazaskori konyveleshez). A task a
         // WORKER szalon eloallitja a teljes (fel-nem-toltott) geometriat; a fo
         // szal csak feltolti (TryApplyCompletedAsyncCut -> ApplyAdaptiveMeshBuffers).
-        private System.Threading.Tasks.Task<AdaptiveMeshBuffers> _cutTask;
+        private System.Threading.Tasks.Task<AdaptiveMeshBuffers>? _cutTask;
         private double _pendingCutCamX, _pendingCutCamY, _pendingCutCamZ;
         // Ha az async ut EGYSZER hibazik, tartosan visszaallunk a szinkron utra
         // (kulonben egy determinista hiba vegtelenul ujraprobalna).
         private bool _asyncMeshRebuildDisabledAfterError;
 
         [SerializeField]
-        [Tooltip("A dinamikus (level>base) terep-mesh mostantol rogzitett meretu " +
-                 "'chunk'-okra bomlik (minden chunk egy ezen a szinten levo os " +
-                 "leszarmazottai a cutban) - kameramozgaskor CSAK a TENYLEGESEN " +
-                 "valtozott chunk-ok epulnek/toltodnek fel ujra, a valtozatlanok " +
-                 "erintetlenul maradnak. Enelkul MINDEN cut-valtaskor a TELJES " +
-                 "dinamikus mesh ujraepul, ami a fo-szalu mesh-feltoltes koltseget " +
-                 "a teljes lathato reszlettel (nem a tenyleges valtozassal) teszi " +
-                 "aranyossa - ez volt az oka annak, hogy a budgetet (adaptiveRenderBudget) " +
-                 "nem lehetett tovabb emelni akadas nelkul, tehat a felszin plafont " +
-                 "ert el a felhasznalo altal elvart finomsag elott. Csak az ASZINKRON " +
-                 "uton (useAsyncMeshRebuild=true, useGpuGeometry=false) aktiv - a regi " +
-                 "szinkron/GPU utak valtozatlanok maradnak.")]
+        [Tooltip("A dinamikus CPU-terep külön chunkokba kerül. Csak a megváltozott " +
+                 "topológia vagy feloldott geometria épül újra; a víz és border feltöltése " +
+                 "egyelőre globális. A csomagméretet a useBoundedDynamicChunks szabályozza.")]
         private bool useChunkedDynamicMesh = true;
 
         [SerializeField]
         [Range(0, 20)]
-        [Tooltip("A dinamikus chunk-ok gyoker-szintje - minden chunk egy ezen a " +
-                 "szinten levo tile osszes leszarmazottjat fedi a cutban. Futasidoben " +
-                 "az [adaptiveBaseLevel, adaptiveMaxLevel] savba levagva (a chunk NEM " +
-                 "lehet durvabb, mint a statikus alapreteg, ahol a dinamikus levelek " +
-                 "kezdodnek). KRITIKUS: tul KICSI ertek (a base-szinthez kozeli) " +
-                 "AZT JELENTI, hogy egyetlen, ORIASI chunk fedi a kamera KORNYEZETEBEN " +
-                 "levo OSSZES finomitott reszletet - mivel az PONTOSAN ez a terulet " +
-                 "valtozik szinte minden framen (folyamatos LOD-atmenet), egy ilyen " +
-                 "chunk MAJDNEM MINDEN framen teljesen ujraepul, es a chunkolas semmit " +
-                 "nem gyorsit (sot, a konyveles-tobblet miatt LASSITHAT is - ld. ND-48 " +
-                 "2026-09-05 utolagos javitasat). Nagyobb ertek = kisebb, tobb chunk = " +
-                 "egy kamera-mozgas csak egy KIS teruletet erint ujra, ez a chunkolas " +
-                 "tenyleges celja. Kiindulo ajanlas: adaptiveBaseLevel + 3..4.")]
-        private int dynamicChunkLevel = 11;
+        [Tooltip("ND-80: a legdurvább engedett chunk-szint. A túl sok levelet tartalmazó " +
+                 "terület automatikusan kisebb chunkokra oszlik. A régi fix módban " +
+                 "továbbra is legalább az adaptiveBaseLevel érvényes.")]
+        private int dynamicChunkLevel = 6;
+
+        [SerializeField]
+        [Tooltip("ND-80: legfeljebb 256 tereplevél/chunk, összevonás 128-nál. " +
+                 "Kikapcsolva a korábbi fix chunkszint használható összehasonlításhoz.")]
+        private bool useBoundedDynamicChunks = true;
 
         // A LEGUTOBB feltoltott dinamikus chunk-csoportositas (chunk-gyoker ->
         // a benne levo levelek) - ez a hiszterezishez/diffhez hasonlo bemenet:
@@ -582,6 +571,13 @@ namespace WorldGen.Viewer
         // chunk-ok valtoztak. A worker szal CSAK OLVASSA (ugyanaz a mintazat,
         // mint a _currentCut-nal) - a fo szal irja, amikor mar nem fut task.
         private Dictionary<TileId, HashSet<TileId>> _previousChunkGroups = new Dictionary<TileId, HashSet<TileId>>();
+        private Dictionary<TileId, List<Vector3>> _previousChunkPositions = new Dictionary<TileId, List<Vector3>>();
+        private TerrainIndexMask? _terrainIndexMask;
+        private LodCornerResolver? _activeCornerResolver;
+        private Matrix4x4 _requestedLodLocalToClip, _requestedLodLocalToCamera;
+        private int _requestedLodPixelWidth, _requestedLodPixelHeight;
+        private float _requestedLodNearClip;
+        private bool _fullBuildRequestedAfterCut;
         // Chunk-gyoker -> a chunk SAJAT GameObject-je (MeshFilter+MeshRenderer).
         // Explicit dictionary (nem transform.Find(nev)), hogy a teljes-torles
         // (uj vilag, ld. InvalidateAdaptiveCaches) O(chunk-szam) legyen, ne
@@ -604,11 +600,9 @@ namespace WorldGen.Viewer
         private double fovSafetyMargin = 1.3;
 
         [SerializeField]
-        [Tooltip("Unity-egyseg: mennyit kell mozdulnia a kameranak (a bolygo " +
-                 "kozeppontjahoz kepest) ket kvadfa-ujraszamolas kozott. Enelkul " +
-                 "minden egyes frame-ben ujraszamolna a cut-ot es ujraepitene a " +
-                 "mesh-t, feleslegesen (ld. §9.1 'csak amikor a kamera erdemben " +
-                 "mozdul').")]
+        [Tooltip("Unity-egység: ekkora mozgás az időkapu után rögtön új LOD-kérést indít. " +
+                 "Kisebb mozgás is frissül, legfeljebb 0,25 s indítási késleltetéssel; " +
+                 "a futó worker és a minSecondsBetweenAdaptiveRebuilds továbbra is korlátoz.")]
         private float adaptiveCameraMoveThreshold = 0.5f;
 
         [SerializeField]
@@ -616,7 +610,7 @@ namespace WorldGen.Viewer
                  "hanyada (a K_split-tavolsaghoz kepesti tortresz) alatt erik el " +
                  "a teljes (nem-morpholt) veglegeset pozíciójukat. Minel nagyobb, " +
                  "annal fokozatosabb az atmenet.")]
-        private double geomorphRangeFraction = 0.6;
+        private double geomorphRangeFraction = 0.35;
 
         [SerializeField]
         [Tooltip("Ha ures, a Camera.main-t hasznalja - explicit beallithato, ha " +
@@ -678,7 +672,8 @@ namespace WorldGen.Viewer
                  "ebből a környezetből nem lehetett ténylegesen lefuttatni/tesztelni - " +
                  "csak a C#-os offline compile-check és a Threefry4x64 64-bites " +
                  "aritmetika-emulációjának KAT-vektoros ellenőrzése történt meg. " +
-                 "Alapból KIKAPCSOLVA, amíg élesben (Play módban) meg nem erősítve.")]
+                 "Alapból KIKAPCSOLVA. Az adaptív CPU-geometria ezt figyelmen kívül hagyja: " +
+                 "a GPU-ból hiányzó secondary detail miatt ott kötelező a teljes CPU-besorolás (ND-69).")]
         private bool useGpuClassification = false;
 
         [SerializeField]
@@ -719,6 +714,10 @@ namespace WorldGen.Viewer
         // helyett), mert a kuszob most a kamera FOV/felbontasa alapjan
         // szamolodik minden ujraepiteskor, nem egy Inspector-konstans.
         private double _currentTargetAngularRadiusRadians = AdaptiveQuadTree.DefaultSplitThresholdRadians;
+        private double _currentBaseTargetAngularRadiusRadians = AdaptiveQuadTree.DefaultSplitThresholdRadians;
+        private double _currentGeomorphRangeFraction = 0.35;
+        private TerrainLodProxy? _terrainLodProxy;
+        private TerrainLodProxy? _requestedTerrainLodProxy;
         private readonly Dictionary<(int Face, int Level, uint CornerU, uint CornerV), Vector3> _persistentCornerCache = new();
         private readonly LinkedList<(int Face, int Level, uint CornerU, uint CornerV)> _cornerCacheLru = new();
         private readonly Dictionary<(int Face, int Level, uint CornerU, uint CornerV), LinkedListNode<(int Face, int Level, uint CornerU, uint CornerV)>> _cornerCacheLruNodes = new();
@@ -774,7 +773,9 @@ namespace WorldGen.Viewer
         private FlowNetwork.DenseGridTopology? _hydrologyDenseTopology;
 
         private bool _hasLastCutCameraPosition;
-        private Vector3 _lastCutCameraPosition;
+        private AdaptiveViewState _lastAppliedCutView;
+        private AdaptiveViewState _pendingCutView;
+        private float _pendingCutRequestedRealtime;
         private double _lastCutCameraCoreX, _lastCutCameraCoreY, _lastCutCameraCoreZ;
 
         // Az adaptiv ujraepiteshez szukseges "vilag-kontextus", amit a Build()
@@ -915,7 +916,18 @@ namespace WorldGen.Viewer
         private void Update()
         {
             if (!useAdaptiveLod)
+            {
+                // Kikapcsolás után is teljesüljön a worker miatt elhalasztott
+                // nyilvános Build-kérés; a régi adaptív eredményt már nem rajzoljuk.
+                if (_fullBuildRequestedAfterCut && (_cutTask == null || _cutTask.IsCompleted))
+                {
+                    if (_cutTask != null && _cutTask.IsFaulted)
+                        Debug.LogWarning($"Elhagyott adaptív kérés hibája: {_cutTask.Exception?.GetBaseException()}");
+                    _cutTask = null;
+                    Build();
+                }
                 return;
+            }
 
             // ONGYOGYITAS Unity "hot reload" utan (felhasznaloi eszrevetel,
             // 2026-09-01: Play alatti szkript-ujraforditas utan a mozgatas
@@ -944,6 +956,7 @@ namespace WorldGen.Viewer
             // es felepitjuk a mesh-t (Unity-API csak itt).
             if (_cutTask != null)
             {
+                SupersedeObsoleteCut(cam);
                 TryApplyCompletedAsyncCut();
                 return;
             }
@@ -956,7 +969,7 @@ namespace WorldGen.Viewer
             // folyamatos csuszka-huzas kozben ne inditson masodpercenkent tobb
             // (a nagy alapreteg miatt draga) teljes ujraepitest - a valtozas nem
             // vesz el, csak a kovetkezo, fek-utani Update-ben hajtodik vegre.
-            if (WorldConfigChangedSinceBuild())
+            if (_fullBuildRequestedAfterCut || WorldConfigChangedSinceBuild())
             {
                 if (Time.unscaledTime - _lastAdaptiveRebuildRealtime < minSecondsBetweenAdaptiveRebuilds)
                     return;
@@ -1019,10 +1032,11 @@ namespace WorldGen.Viewer
             }
 
             BodyFrameConversion.ToCore(transform.InverseTransformPoint(cam.transform.position), out double camX, out double camY, out double camZ);
-            var camPos = new Vector3((float)camX, (float)camY, (float)camZ);
-
-            bool movedEnough = !_hasLastCutCameraPosition || Vector3.Distance(camPos, _lastCutCameraPosition) >= adaptiveCameraMoveThreshold;
-            if (!movedEnough && !_adaptiveConfigDirty)
+            AdaptiveViewState view = CaptureAdaptiveView(cam, camX, camY, camZ);
+            bool viewChanged = !_hasLastCutCameraPosition || DesiredTerrainLodProxy() != _requestedTerrainLodProxy || view.NeedsRefresh(
+                _lastAppliedCutView, adaptiveCameraMoveThreshold,
+                Time.unscaledTime - _lastAdaptiveRebuildRealtime);
+            if (!viewChanged && !_adaptiveConfigDirty && !_lodRefinementPending)
                 return;
 
             // Ido-alapu fekezes: folyamatos egerhuzas/zoom kozben a mozgas-
@@ -1036,6 +1050,7 @@ namespace WorldGen.Viewer
             if (Time.unscaledTime - _lastAdaptiveRebuildRealtime < minSecondsBetweenAdaptiveRebuilds)
                 return;
 
+            if (_adaptiveConfigDirty) _previousChunkCache.Clear();
             _adaptiveConfigDirty = false;
             _lastAdaptiveRebuildRealtime = Time.unscaledTime;
             // A szél-overlay ki/be kapcsolasa modfuggo sarok-szineket ad -
@@ -1059,6 +1074,7 @@ namespace WorldGen.Viewer
             if (_colorCacheWindMode != windSpeedOverlay)
             {
                 _persistentCornerColorCache.Clear();
+                _previousChunkCache.Clear();
                 // ND-66: a tombos base-szin ugyanugy modfuggo, mint a
                 // Dictionary-cache. A statikus mesh mar feltoltott szineit ez
                 // nem irja at, de kesobbi base-sarok lekerdezes nem kaphat
@@ -1122,6 +1138,14 @@ namespace WorldGen.Viewer
 
         private Camera GetAdaptiveCamera() => adaptiveCameraOverride != null ? adaptiveCameraOverride : Camera.main;
 
+        private AdaptiveViewState CaptureAdaptiveView(Camera cam, double x, double y, double z)
+        {
+            BodyFrameConversion.ToCore(transform.InverseTransformDirection(cam.transform.forward),
+                out double fx, out double fy, out double fz);
+            return new AdaptiveViewState(x, y, z, fx, fy, fz,
+                cam.fieldOfView * Mathf.Deg2Rad, cam.aspect, cam.pixelWidth, cam.pixelHeight);
+        }
+
         // M9: igaz, ha az Inspectorban valtozott valamelyik adaptiv-LOD mezo
         // (ld. OnValidate) - az Update() ezt is figyeli a kamera-mozgas
         // kuszobe mellett, kulonben Play kozbeni Inspector-modositas csak a
@@ -1147,6 +1171,17 @@ namespace WorldGen.Viewer
         /// </summary>
         private string _gyrInputText = "0.000";
         private double _gyrInputParsedValue;
+
+        private static readonly string[] DeepTimeStepLabels =
+        {
+            "1y", "100y", "10ky", "1my", "100my"
+        };
+
+        // A deepTimeMyr belso egysege millio ev (Myr).
+        private static readonly double[] DeepTimeStepMyr =
+        {
+            0.000001, 0.0001, 0.01, 1.0, 100.0
+        };
 
         private void OnValidate()
         {
@@ -1175,7 +1210,8 @@ namespace WorldGen.Viewer
         // LOD-ujraepites. (A tisztan LOD-vezerlo mezok - budget, base level stb. -
         // NEM ide tartoznak: azokat a _adaptiveConfigDirty ag kezeli.)
         private bool _hasWorldConfigSnapshot;
-        private long _wcWorldSeed; private int _wcPlateCount, _wcLevel;
+        private long _wcWorldSeed; private int _wcPlateCount, _wcLevel, _wcAdaptiveBaseLevel;
+        private float _wcRadius;
         private double _wcDeepTime, _wcTargetWater, _wcRiverFrac, _wcWindMax, _wcPrecipMax;
         private double _wcDayT, _wcOrbital, _wcRotation, _wcAxialTilt, _wcRelief, _wcElevScale;
         private bool _wcCraters, _wcRivers, _wcLakesIce, _wcErosion, _wcWindOverlay, _wcPrecipOverlay;
@@ -1186,6 +1222,7 @@ namespace WorldGen.Viewer
         {
             _hasWorldConfigSnapshot = true;
             _wcWorldSeed = worldSeed; _wcPlateCount = plateCount; _wcLevel = level;
+            _wcAdaptiveBaseLevel = adaptiveBaseLevel; _wcRadius = radius;
             _wcDeepTime = deepTimeMyr; _wcTargetWater = targetWaterFraction; _wcRiverFrac = riverTargetFraction;
             _wcWindMax = windSpeedColorMaxMs; _wcPrecipMax = precipitationColorMax;
             _wcDayT = climateDayT; _wcOrbital = climateOrbitalPeriodDays;
@@ -1231,6 +1268,7 @@ namespace WorldGen.Viewer
         {
             if (!_hasWorldConfigSnapshot) return true;
             return _wcWorldSeed != worldSeed || _wcPlateCount != plateCount || _wcLevel != level
+                || _wcAdaptiveBaseLevel != adaptiveBaseLevel || _wcRadius != radius
                 || _wcDeepTime != deepTimeMyr || _wcTargetWater != targetWaterFraction || _wcRiverFrac != riverTargetFraction
                 || _wcWindMax != windSpeedColorMaxMs || _wcDayT != climateDayT || _wcOrbital != climateOrbitalPeriodDays
                 || _wcRotation != climateRotationPeriodDays || _wcAxialTilt != climateAxialTiltDegrees
@@ -1387,7 +1425,7 @@ namespace WorldGen.Viewer
             // A panel a három kameramód-sorral együtt tíz sornyi helyet
             // használ. Tartsuk a hátteret ugyanabból a sorszámból számolva,
             // hogy új vezérlő hozzáadásakor ne lógjon ki a tartalom.
-            const float panelRowCount = 10f;
+            const float panelRowCount = 12f;
             GUI.Box(new Rect(x - 6f, y - 6f, w + 12f, rowH * panelRowCount + 16f), "Deep time");
             y += rowH * 0.6f;
 
@@ -1402,9 +1440,14 @@ namespace WorldGen.Viewer
                 deepTimeSliderMyr = sliderVal;
                 _lastDeepTimeSliderMyr = sliderVal;
                 _gyrInputParsedValue = deepTimeMyr / 1000.0;
-                _gyrInputText = _gyrInputParsedValue.ToString("0.###", CultureInfo.InvariantCulture);
+                _gyrInputText = FormatDeepTimeGyr(_gyrInputParsedValue);
                 // Az Update() innen a WorldConfigChangedSinceBuild-en at, fekezve epit ujra.
             }
+
+            DrawDeepTimeStepButtons(x, y, w, rowH, -1.0);
+            y += rowH;
+            DrawDeepTimeStepButtons(x, y, w, rowH, 1.0);
+            y += rowH;
 
             // Kezi Gyr-bevitel (milliard ev) - a beirt szoveget NEM alkalmazzuk
             // azonnal (kulonben minden ertelmes reszprefixnel - pl. "0.2" utan
@@ -1419,7 +1462,7 @@ namespace WorldGen.Viewer
                 && GUI.GetNameOfFocusedControl() != gyrFieldControlName)
             {
                 _gyrInputParsedValue = currentGyr;
-                _gyrInputText = currentGyr.ToString("0.###", CultureInfo.InvariantCulture);
+                _gyrInputText = FormatDeepTimeGyr(currentGyr);
             }
             GUI.Label(new Rect(x, y, 90f, rowH), "Gyr kézzel:");
             GUI.SetNextControlName(gyrFieldControlName);
@@ -1438,7 +1481,7 @@ namespace WorldGen.Viewer
                     deepTimeSliderMyr = (float)deepTimeMyr;
                     _lastDeepTimeSliderMyr = deepTimeSliderMyr;
                     _gyrInputParsedValue = clampedGyr;
-                    _gyrInputText = clampedGyr.ToString("0.###", CultureInfo.InvariantCulture);
+                    _gyrInputText = FormatDeepTimeGyr(clampedGyr);
                     // Az Update() innen a WorldConfigChangedSinceBuild-en at, fekezve epit ujra.
                 }
                 if (enterPressedInField)
@@ -1479,9 +1522,48 @@ namespace WorldGen.Viewer
             else if (axialToggle && cameraViewMode != CameraViewMode.AxialRotation) cameraViewMode = CameraViewMode.AxialRotation;
         }
 
+        private void DrawDeepTimeStepButtons(float x, float y, float width, float rowHeight, double direction)
+        {
+            float buttonWidth = width / DeepTimeStepLabels.Length;
+            string sign = direction < 0.0 ? "-" : "+";
+            for (int i = 0; i < DeepTimeStepLabels.Length; i++)
+            {
+                if (GUI.Button(
+                    new Rect(x + i * buttonWidth, y, buttonWidth, rowHeight),
+                    sign + DeepTimeStepLabels[i]))
+                {
+                    ApplyDeepTimeStep(direction * DeepTimeStepMyr[i]);
+                }
+            }
+        }
+
+        private void ApplyDeepTimeStep(double deltaMyr)
+        {
+            double maxMyr = Math.Max(0.0, onScreenDeepTimeMaxMyr);
+            deepTimeMyr = Math.Max(0.0, Math.Min(maxMyr, deepTimeMyr + deltaMyr));
+            deepTimeSliderMyr = (float)deepTimeMyr;
+            _lastDeepTimeSliderMyr = deepTimeSliderMyr;
+            _gyrInputParsedValue = deepTimeMyr / 1000.0;
+            _gyrInputText = FormatDeepTimeGyr(_gyrInputParsedValue);
+        }
+
+        private static string FormatDeepTimeGyr(double value)
+        {
+            // Kilenc tizedes Gyr-ben pontosan megjeleniti az 1 eves lepest is.
+            return value.ToString("0.#########", CultureInfo.InvariantCulture);
+        }
+
         [ContextMenu("Rebuild")]
         public void Build()
         {
+            // A nyilvános Build-gomb se üríthesse a worker által használt
+            // világ-/sarokcache-eket. A kérés a single-flight után teljesül.
+            if (_cutTask != null)
+            {
+                _fullBuildRequestedAfterCut = true;
+                return;
+            }
+            _fullBuildRequestedAfterCut = false;
             // TELJESITMENY-DIAGNOSZTIKA: Build() a VILAGOT MEGHATAROZO
             // parameterek (pl. deepTimeMyr) barmelyikenek valtozasakor teljes
             // egeszeben ujrafut (WorldConfigChangedSinceBuild). A felhasznalo
@@ -2161,7 +2243,7 @@ namespace WorldGen.Viewer
             bool useDenseStaticData = adaptiveBaseLevel <= 8;
             ClassificationDiag classificationDiag = useDenseStaticData
                 ? PrecomputeStaticClassificationsInParallel(leaves)
-                : PrecomputeClassificationsInParallel(leaves);
+                : PrecomputeClassificationsInParallel(leaves, forceCpu: true);
             double classificationMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
             phaseStopwatch.Restart();
@@ -2169,6 +2251,23 @@ namespace WorldGen.Viewer
                 ? PrecomputeStaticCornersInParallel()
                 : PrecomputeCornersInParallel(leaves);
             double cornersMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+
+            phaseStopwatch.Restart();
+            // A pozíciók már tartalmazzák a tengerszintet, reliefet és az
+            // aktuális világot. Semmilyen új Core-mintát nem kérünk itt.
+            _terrainLodProxy = null;
+            if (useDenseStaticData)
+            {
+                var radii = new double[_staticCornerPositions.Length];
+                for (int i = 0; i < radii.Length; i++)
+                {
+                    Vector3 p = _staticCornerPositions[i];
+                    radii[i] = Math.Sqrt((double)p.x * p.x + (double)p.y * p.y + (double)p.z * p.z);
+                }
+                _terrainLodProxy = new TerrainLodProxy(adaptiveBaseLevel, radii,
+                    radius + _adaptiveSeaLevel * elevationScale);
+            }
+            double terrainProxyMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
             var verticesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
             var normalsByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
@@ -2204,7 +2303,10 @@ namespace WorldGen.Viewer
             double emitMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
             phaseStopwatch.Restart();
-            BuildMultiMaterialMesh(verticesByKey, normalsByKey, trianglesByKey, colorsByKey, gameObject);
+            ConcatenatedMesh staticMesh = ConcatenateMultiMaterialBuckets(verticesByKey, normalsByKey, trianglesByKey, colorsByKey);
+            AttachTerrainTileIds(staticMesh, leaves);
+            UploadConcatenatedMultiMaterialMesh(gameObject, staticMesh);
+            InitializeTerrainIndexMask(staticMesh, leaves);
             double meshMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
             phaseStopwatch.Restart();
@@ -2231,6 +2333,7 @@ namespace WorldGen.Viewer
                 $"usedGpu={classificationDiag.UsedGpu}, gpuDispatch={classificationDiag.GpuDispatchMs:F1}ms, " +
                 $"cpuTempLoop={classificationDiag.CpuTemperatureLoopMs:F1}ms) | " +
                 $"corners={cornersMs:F1}ms (needed={cornerDiag.NeededCount}, missing={cornerDiag.MissingCount}) | " +
+                $"terrainProxy={terrainProxyMs:F1}ms proxyBytes={_terrainLodProxy?.StorageBytes ?? 0} proxyNewCoreSamples=0 | " +
                 $"bucketPrepare={bucketPrepareMs:F1}ms | emit={emitMs:F1}ms | mesh={meshMs:F1}ms | borders={bordersMs:F1}ms | " +
                 $"water={waterMs:F1}ms | eviction={evictionMs:F1}ms");
         }
@@ -2334,6 +2437,10 @@ namespace WorldGen.Viewer
         private static int StaticTerrainBucketIndex(RenderCategory category, int bucket)
             => (int)category * OceanRockBucketCount + bucket;
 
+        private TerrainLodProxy? DesiredTerrainLodProxy()
+            => useTerrainLodProxy && !useGpuGeometry && adaptiveMaxLevel >= adaptiveBaseLevel
+                && _terrainLodProxy?.BaseLevel == adaptiveBaseLevel ? _terrainLodProxy : null;
+
         /// <summary>
         /// M9 kozponti belepesi pontja: uj cut szamolasa a MEGLEVO cut-bol
         /// (hiszterezis, ld. AdaptiveQuadTree), majd a mesh teljes ujraepitese
@@ -2391,11 +2498,22 @@ namespace WorldGen.Viewer
             // felbontasatol/FOV-jatol, itt viszont NEM az.
             double effectiveTargetPixelSize = Math.Max(targetTilePixelSize, 1.0);
             double screenHeightPixels = Math.Max(1, cam.pixelHeight);
-            double pixelsPerRadian = screenHeightPixels / verticalFovRad;
-            double targetAngularRadiusRadians = (effectiveTargetPixelSize / 2.0) / pixelsPerRadian;
+            double targetAngularRadiusRadians = AdaptiveViewState.AngularRadiusForPixelDiameter(
+                effectiveTargetPixelSize, verticalFovRad, (int)screenHeightPixels);
             double effectiveMergeHysteresisFactor = Math.Max(mergeHysteresisFactor, 1.0);
             double mergeAngularRadiusRadians = targetAngularRadiusRadians / effectiveMergeHysteresisFactor;
             _currentTargetAngularRadiusRadians = targetAngularRadiusRadians;
+            double initialAngularRadius = AdaptiveViewState.AngularRadiusForPixelDiameter(
+                initialRefinementPixelSize, verticalFovRad, (int)screenHeightPixels);
+            double baseSplitScale = useGpuGeometry ? 1 : AdaptiveViewState.EarlierBaseSplitScale(
+                targetAngularRadiusRadians, mergeAngularRadiusRadians, initialAngularRadius);
+            _currentBaseTargetAngularRadiusRadians = targetAngularRadiusRadians * baseSplitScale;
+            _currentGeomorphRangeFraction = geomorphRangeFraction;
+            // A cut és az utána futó emit ugyanazt az immutábilis snapshotot
+            // használja, akkor is, ha a kapcsolót közben átállítják.
+            TerrainLodProxy? terrainProxy = _requestedTerrainLodProxy = DesiredTerrainLodProxy();
+            _requestedProjectedView = terrainProxy != null && !cam.orthographic ? CaptureProjectedLodView(cam,camX,camY,camZ) : null;
+            PrepareTerrainEvaluationCache(terrainProxy);
 
             // DIAGNOSZTIKAI RES JAVITVA (2026-09-01): a Stopwatch korabban
             // CSAK a RebuildAdaptiveMesh()-t merte - egy valos katasztrofa-
@@ -2427,6 +2545,13 @@ namespace WorldGen.Viewer
             // base-gyokerhez van kotve (ld. AdaptiveQuadTree Fazis 1 doksi).
             int traversalRootLevel = Math.Min(adaptiveTraversalRootLevel, effectiveBaseLevel);
             int renderBudget = Math.Max(1, adaptiveRenderBudget);
+            // ND-72: az ND-71 ágankénti terepmintázása élőben súlyos regresszió.
+            // A gömbös ND-70 kiválasztás marad; csak EGY renderelt nadírt mérünk.
+            _requestedLodLocalToCamera = cam.worldToCameraMatrix * transform.localToWorldMatrix;
+            _requestedLodLocalToClip = cam.projectionMatrix * _requestedLodLocalToCamera;
+            _requestedLodPixelWidth = cam.pixelWidth;
+            _requestedLodPixelHeight = cam.pixelHeight;
+            _requestedLodNearClip = cam.nearClipPlane;
 
             // FAZIS 3 (ND-47): a BuildCut TISZTA statikus fuggveny - worker
             // szalon futtatva a kivalasztas koltsege NEM a fo szalon jelentkezik.
@@ -2444,6 +2569,16 @@ namespace WorldGen.Viewer
                 // (az a fix, tul kicsi budget ujraosztasa volt).
                 IReadOnlyCollection<TileId> previousCut = _currentCut;
                 _pendingCutCamX = camX; _pendingCutCamY = camY; _pendingCutCamZ = camZ;
+                _pendingCutView = CaptureAdaptiveView(cam, camX, camY, camZ);
+                _pendingCutRequestedRealtime = Time.unscaledTime;
+                _pendingSurfaceAltitude = camDistanceFromCenter - (terrainProxy != null
+                    ? terrainProxy.RadiusAt(TileGeometry.FromPosition(camX,camY,camZ,effectiveBaseLevel)) : radius);
+                _cutCancellation = new System.Threading.CancellationTokenSource();
+                var cancellation = _cutCancellation.Token;
+                var selectionWork = new LodSelectionWork(_requestedProjectedView, NewSplitsPerRequest, cancellation,
+                    captureTrace: logDrawnTileSizes,
+                    skipStaticBase: _requestedProjectedView!=null ? IsBaseAncestorOceanic : (Func<TileId,bool>?)null,
+                    evaluationCache: _terrainEvaluationCache);
                 // FAZIS 5 (ND-47) geomorph-pontossag: a worker-emit
                 // (ComputeGeomorphAlpha) a _lastCutCameraCore*-bol szamolja a
                 // geomorph-alfat. Ezt MAR ITT (a task inditasa ELOTT, a fo
@@ -2454,18 +2589,37 @@ namespace WorldGen.Viewer
                 _lastCutCameraCoreX = camX; _lastCutCameraCoreY = camY; _lastCutCameraCoreZ = camZ;
                 _cutTask = System.Threading.Tasks.Task.Run(() =>
                 {
+                    var cutStopwatch = Stopwatch.StartNew();
                     HashSet<TileId> cut = AdaptiveQuadTree.BuildCut(
                         camX, camY, camZ, radius, previousCut,
                         effectiveBaseLevel, adaptiveMaxLevel, targetAngularRadiusRadians, mergeAngularRadiusRadians,
                         fwdX, fwdY, fwdZ, halfFovRadians, maxLeafCount: renderBudget,
                         minUsefulCosGrazing: dynamicMinUsefulCosGrazing,
-                        traversalRootLevel: traversalRootLevel, staticBaseLevel: effectiveBaseLevel);
-                    return ComputeAdaptiveMeshBuffersCpu(cut);
+                        traversalRootLevel: traversalRootLevel, staticBaseLevel: effectiveBaseLevel,
+                        baseSplitScale: baseSplitScale, terrainProxy: terrainProxy, work: selectionWork);
+                    cutStopwatch.Stop();
+                    cancellation.ThrowIfCancellationRequested();
+                    AdaptiveMeshBuffers buffers = ComputeAdaptiveMeshBuffersCpu(cut, cancellation);
+                    buffers.NewSplits = selectionWork.NewSplits;
+                    buffers.DeferredSplits = selectionWork.DeferredSplits;
+                    buffers.SelectionTrace = selectionWork.Trace;
+                    buffers.SkippedSelectionBases = selectionWork.SkippedStaticBases;
+                    buffers.CutMs = cutStopwatch.Elapsed.TotalMilliseconds;
+                    buffers.SelectionMs = selectionWork.SelectionMs;
+                    buffers.BalanceMs = selectionWork.BalanceMs;
+                    buffers.MetricCacheHits = selectionWork.MetricCacheHits;
+                    buffers.MetricEvaluations = selectionWork.MetricEvaluations;
+                    buffers.MetricCacheEntries = selectionWork.EvaluationCache?.Count ?? 0;
+                    return buffers;
                 });
                 PerfLog(
                     $"[{DateTime.Now:HH:mm:ss.fff}] RecomputeCut (async kickoff): " +
                     $"cam=({camX:F3},{camY:F3},{camZ:F3}) tavolsag-origotol={camDistanceFromCenter:F3} " +
-                    $"target={targetAngularRadiusRadians:F6} budget={renderBudget} baseLevel={effectiveBaseLevel} maxLevel={adaptiveMaxLevel}");
+                    $"target={targetAngularRadiusRadians:F6} budget={renderBudget} baseLevel={effectiveBaseLevel} maxLevel={adaptiveMaxLevel} " +
+                    $"halfFov={halfFovRadians:F9} verticalFov={verticalFovRad:F9} aspect={cam.aspect:F6} viewport={cam.pixelWidth}x{cam.pixelHeight} " +
+                    $"baseTarget={_currentBaseTargetAngularRadiusRadians:F9} morphRange={_currentGeomorphRangeFraction:F3} " +
+                    $"terrainProxy={terrainProxy != null} proxyRequested={useTerrainLodProxy} " +
+                    $"projectedTerrain={_requestedProjectedView != null} newSplitLimit={NewSplitsPerRequest}");
                 return; // az alkalmazas (feltoltes) az Update()-ben, amint a task kesz
             }
 
@@ -2475,15 +2629,15 @@ namespace WorldGen.Viewer
                 effectiveBaseLevel, adaptiveMaxLevel, targetAngularRadiusRadians, mergeAngularRadiusRadians,
                 fwdX, fwdY, fwdZ, halfFovRadians, maxLeafCount: renderBudget,
                 minUsefulCosGrazing: dynamicMinUsefulCosGrazing,
-                traversalRootLevel: traversalRootLevel, staticBaseLevel: effectiveBaseLevel);
+                traversalRootLevel: traversalRootLevel, staticBaseLevel: effectiveBaseLevel,
+                baseSplitScale: baseSplitScale, terrainProxy: terrainProxy,
+                work: _requestedProjectedView != null ? new LodSelectionWork(_requestedProjectedView,
+                    skipStaticBase: IsBaseAncestorOceanic, evaluationCache: _terrainEvaluationCache) : null);
             buildCutStopwatch.Stop();
 
             _lastCutCameraCoreX = camX;
             _lastCutCameraCoreY = camY;
             _lastCutCameraCoreZ = camZ;
-            _lastCutCameraPosition = new Vector3((float)camX, (float)camY, (float)camZ);
-            _hasLastCutCameraPosition = true;
-
             PerfLog(
                 $"[{DateTime.Now:HH:mm:ss.fff}] RecomputeCutAndRebuildAdaptiveMesh HIVAS: " +
                 $"cam=({camX:F3},{camY:F3},{camZ:F3}) tavolsag-origotol={camDistanceFromCenter:F3} " +
@@ -2492,10 +2646,17 @@ namespace WorldGen.Viewer
                 $"effectiveBaseLevel={effectiveBaseLevel} adaptiveMaxLevel={adaptiveMaxLevel} " +
                 $"dynamicMinUsefulCosGrazing={dynamicMinUsefulCosGrazing:F4} (phi={Math.Acos(dynamicMinUsefulCosGrazing) * 180.0 / Math.PI:F2}deg) " +
                 $"cam.fieldOfView={cam.fieldOfView} cam.aspect={cam.aspect:F4} cam.pixelHeight={cam.pixelHeight}");
-            PerfLog($"  BuildCut={buildCutStopwatch.Elapsed.TotalMilliseconds:F2}ms cut.Count={_currentCut.Count}");
+            PerfLog($"  BuildCut={buildCutStopwatch.Elapsed.TotalMilliseconds:F2}ms cut.Count={_currentCut.Count} " +
+                DescribeSurfaceLod(_currentCut, camX, camY, camZ));
 
             var stopwatch = Stopwatch.StartNew();
             RebuildAdaptiveMesh();
+            _lastAppliedCutView = CaptureAdaptiveView(cam, camX, camY, camZ);
+            _hasLastCutCameraPosition = true;
+            _lodRefinementPending = false;
+            _cutSupersededSinceApply = false;
+            _appliedSelectionTrace = null; // A szinkron tartalékút nem rögzít megállási trace-t.
+            _appliedDiagnosticCoverage = null;
             stopwatch.Stop();
             PerfLog($"  TELJES (BuildCut+RebuildAdaptiveMesh) = {(buildCutStopwatch.Elapsed.TotalMilliseconds + stopwatch.Elapsed.TotalMilliseconds):F2}ms");
             if (buildCutStopwatch.Elapsed.TotalMilliseconds > adaptiveRebuildWarningMs
@@ -2527,6 +2688,17 @@ namespace WorldGen.Viewer
             System.Threading.Tasks.Task<AdaptiveMeshBuffers> task = _cutTask;
             _cutTask = null;
 
+            bool superseded = _cutCancellation?.IsCancellationRequested == true;
+            _cutCancellation?.Dispose();
+            _cutCancellation = null;
+            if ((!task.IsFaulted && superseded) || task.IsCanceled
+                || (task.IsFaulted && task.Exception?.GetBaseException() is OperationCanceledException))
+            {
+                _lodRefinementPending = true;
+                PerfLog("[ND-76 request] discarded=True; félkész geometria nem került a rendererbe");
+                return;
+            }
+
             if (task.IsFaulted || task.IsCanceled)
             {
                 _asyncMeshRebuildDisabledAfterError = true;
@@ -2542,16 +2714,43 @@ namespace WorldGen.Viewer
             _lastCutCameraCoreX = _pendingCutCamX;
             _lastCutCameraCoreY = _pendingCutCamY;
             _lastCutCameraCoreZ = _pendingCutCamZ;
-            _lastCutCameraPosition = new Vector3((float)_pendingCutCamX, (float)_pendingCutCamY, (float)_pendingCutCamZ);
-            _hasLastCutCameraPosition = true;
-
             // FAZIS 3: a geometria MAR keszen van (worker szal), itt CSAK a Unity
             // mesh-feltoltes tortenik (fo szal) - ez a maradek fo-szal-koltseg,
             // ami sokkal kisebb, mint a teljes emit volt.
             var stopwatch = Stopwatch.StartNew();
             ApplyAdaptiveMeshBuffers(buffers);
+            _appliedSelectionTrace = buffers.SelectionTrace;
+            _appliedDiagnosticCoverage = buffers.DiagnosticCoverage;
+            _appliedTraceView = _requestedProjectedView;
+            _appliedTraceThreshold = _currentTargetAngularRadiusRadians;
+            _appliedTraceBaseThreshold = _currentBaseTargetAngularRadiusRadians;
+            _appliedTraceMorphRange = _currentGeomorphRangeFraction;
+            _appliedTraceBaseLevel = adaptiveBaseLevel;
+            _appliedTracePixelHeight = _requestedLodPixelHeight;
+            _appliedTraceFov = _pendingCutView.VerticalFovRadians;
+            _lastAppliedCutView = _pendingCutView;
+            _hasLastCutCameraPosition = true;
+            _lodRefinementPending = buffers.DeferredSplits > 0;
+            _cutSupersededSinceApply = false;
             stopwatch.Stop();
-            PerfLog($"  [async apply] mesh-feltoltes={stopwatch.Elapsed.TotalMilliseconds:F2}ms cut.Count={_currentCut.Count} dynLeaves={buffers.DynamicLeafCount}");
+            PerfLog($"  [async apply ND-76] mesh-feltoltes={stopwatch.Elapsed.TotalMilliseconds:F2}ms " +
+                $"cut.Count={_currentCut.Count} dynLeaves={buffers.DynamicLeafCount} " +
+                $"skippedOceanic={buffers.SkippedOceanicCount} cut={buffers.CutMs:F2}ms " +
+                $"workCache=ND81 selection={buffers.SelectionMs:F2}ms balance={buffers.BalanceMs:F2}ms " +
+                $"metricHits={buffers.MetricCacheHits} metricComputed={buffers.MetricEvaluations} metricEntries={buffers.MetricCacheEntries} " +
+                $"filter={buffers.FilterMs:F2}ms classification={buffers.ClassificationMs:F2}ms " +
+                $"corners={buffers.CornersMs:F2}ms emit={buffers.EmitMs:F2}ms " +
+                $"resolveCheck={buffers.ResolveCheckMs:F2}ms auxiliaryCopy={buffers.AuxiliaryCopyMs:F2}ms tileEmit={buffers.TileEmitMs:F2}ms " +
+                $"changedChunks={buffers.ChangedChunkTerrain?.Count ?? 0}/{buffers.NewChunkGroups?.Count ?? 0} " +
+                $"positionOnlyChunks={buffers.PositionOnlyTerrain?.Count ?? 0} " +
+                $"chunkPacking={(buffers.BoundedChunks ? "ND80" : "fixed")} chunkMinLevel={buffers.MinimumChunkLevel} " +
+                $"chunkLeafLimit={buffers.ChunkLeafLimit} maxChunkLeaves={buffers.MaxChunkLeaves} grouping={buffers.GroupingMs:F2}ms " +
+                $"emittedLeaves={buffers.EmittedLeaves} reusedLeaves={buffers.ReusedLeaves} newSplits={buffers.NewSplits} deferredSplits={buffers.DeferredSplits} " +
+                $"earlyOceanExclusion=ND78 skippedSelectionBases={buffers.SkippedSelectionBases} " +
+                $"fallbackLeaves={buffers.FallbackLeafCount} replacedBase={buffers.ReplacedBaseTiles.Count} " +
+                $"maskIndices={buffers.MaskIndexCount} " +
+                DescribeSurfaceLod(_currentCut, _pendingCutCamX, _pendingCutCamY, _pendingCutCamZ) + " " +
+                $"requestAge={(Time.unscaledTime - _pendingCutRequestedRealtime) * 1000:F1}ms");
             if (stopwatch.Elapsed.TotalMilliseconds > adaptiveRebuildWarningMs)
             {
                 Debug.LogWarning(
@@ -2585,6 +2784,28 @@ namespace WorldGen.Viewer
             public List<int> BorderIndices;
             public float WaterSurfaceRadius;
             public int DynamicLeafCount;
+            public int SkippedOceanicCount;
+            public int FallbackLeafCount;
+            public int MaskIndexCount;
+            public HashSet<TileId> ReplacedBaseTiles = new();
+            public Dictionary<TileId, ConcatenatedMesh> PositionOnlyTerrain = new();
+            public Dictionary<TileId, List<Vector3>> NewChunkPositions = new();
+            public double CutMs, FilterMs, ClassificationMs, CornersMs, EmitMs;
+            public double SelectionMs, BalanceMs, ResolveCheckMs, AuxiliaryCopyMs, TileEmitMs;
+            public int MetricCacheHits, MetricEvaluations, MetricCacheEntries;
+            public int EmittedLeaves, ReusedLeaves, NewSplits, DeferredSplits;
+            public int SkippedSelectionBases;
+            public bool BoundedChunks;
+            public int ChunkLeafLimit, MaxChunkLeaves, MinimumChunkLevel;
+            public double GroupingMs;
+            public LodSelectionTrace? SelectionTrace;
+            public LodCoverage? DiagnosticCoverage;
+            public Dictionary<TileId, CachedLodChunk> ChunkCache = new();
+            public bool HasNadirDiagnostic, NadirOceanBlocked, NadirUnderWater;
+            public int NadirTerrainLevel;
+            public double NadirSurfaceClearance, NadirMorphAlpha, NadirDiagnosticMs;
+            public double NadirProxyRadiusError = double.NaN;
+            public SurfaceQuad NadirTerrainQuad;
             // FAZIS 3 (ND-47): a terep-mesh MAR konkatenalt (worker szalon) verzioja
             // - a fo szal csak feltolti (UploadConcatenatedMultiMaterialMesh).
             // CSAK a NEM chunkolt uton hasznalt (useChunkedDynamicMesh=false).
@@ -2611,8 +2832,9 @@ namespace WorldGen.Viewer
         /// mellett biztonsagos (egyszerre egy worker, a fo szal a task futasa
         /// alatt nem nyul a cache-ekhez; ld. TryApplyCompletedAsyncCut).
         /// </summary>
-        private AdaptiveMeshBuffers ComputeAdaptiveMeshBuffersCpu(HashSet<TileId> cut)
+        private AdaptiveMeshBuffers ComputeAdaptiveMeshBuffersCpu(HashSet<TileId> cut, System.Threading.CancellationToken cancellation = default)
         {
+            var phaseStopwatch = Stopwatch.StartNew();
             var b = new AdaptiveMeshBuffers
             {
                 Cut = cut,
@@ -2631,111 +2853,149 @@ namespace WorldGen.Viewer
                 if (t.Level <= adaptiveBaseLevel)
                     continue;
                 if (IsBaseAncestorOceanic(t))
+                {
+                    b.SkippedOceanicCount++;
                     continue;
+                }
                 dynamicLeaves.Add(t);
             }
-            TileId[] leaves = dynamicLeaves.ToArray();
+            LodCoverage coverage = LodCoverage.Complete(dynamicLeaves, adaptiveBaseLevel);
+            b.ReplacedBaseTiles = coverage.Roots;
+            b.FallbackLeafCount = coverage.FallbackCount;
+            var leaves = new TileId[coverage.Leaves.Count];
+            coverage.Leaves.CopyTo(leaves);
+            Array.Sort(leaves, (a, c) => a.Value.CompareTo(c.Value));
             b.DynamicLeafCount = leaves.Length;
+            b.FilterMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            cancellation.ThrowIfCancellationRequested();
+
+            phaseStopwatch.Restart();
             PrecomputeClassificationsInParallel(leaves, forceCpu: true);
+            b.ClassificationMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+            cancellation.ThrowIfCancellationRequested();
+            phaseStopwatch.Restart();
             PrecomputeCornersInParallel(leaves);
+            b.CornersMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+            cancellation.ThrowIfCancellationRequested();
+            phaseStopwatch.Restart();
 
-            if (useChunkedDynamicMesh)
+            b.DiagnosticCoverage = logDrawnTileSizes ? coverage : null;
+            _activeCornerResolver = new LodCornerResolver(adaptiveBaseLevel, coverage, GetRawSurfaceQuad);
+            try
             {
-                // A CHUNKOLT UT (ld. useChunkedDynamicMesh doksija): a levelek
-                // chunk-gyoker szerint csoportosulnak, majd a chunk-diff dontii
-                // el, MELYIK chunk-nak kell UJ, konkatenalt terep-geometria (a
-                // valtozatlanoke a fo szalon erintetlen marad). A viz/hatar
-                // adatok TOVABBRA IS globalisak (hatokor-szukites, ld. doksi) -
-                // ezert az EmitAdaptiveTile-t MINDEN levelre meg kell hivni,
-                // csak a VALTOZATLAN chunk-ok terep-kimenete egy eldobando
-                // "scratch" bucketbe kerul (a GameObject-jukhoz nem nyulunk).
-                // HIBAJAVITAS (2026-09-05, felhasznaloi visszajelzes: "300k
-                // budget es meg mindig nagy tile-ok, ES lassu lett"): a korabbi
-                // Math.Min(dynamicChunkLevel, adaptiveBaseLevel) FELULRŐL az
-                // adaptiveBaseLevel-re (8) VAGTA a chunk-szintet FUGGETLENUL
-                // attol, mit allitott be a felhasznalo - egyetlen, DURVA (level
-                // 6-8) chunk fedte a kamera KORNYEZETEBEN levo OSSZES finomitott
-                // reszletet. Mivel a kamera-kozeli terulet VALTOZIK szinte
-                // MINDEN framen (folyamatos LOD-atmenet), ez a hatalmas chunk
-                // MAJDNEM MINDEN framen ujraepult - a chunkolas semmit nem
-                // gyorsitott, csak plusz konyveles-koltseget adott hozza. A
-                // HELYES also korlat az adaptiveBaseLevel (a chunk nem lehet
-                // DURVABB, mint a statikus alapreteg, aminel a levelek
-                // kezdodnek), a FELSO korlat az adaptiveMaxLevel - a chunk-
-                // szintnek EZEN A SAVON BELUL kell lennie, a felhasznalo altal
-                // beallitott ertek szerint (nagyobb = kisebb, tobb chunk =
-                // finomabb inkrementalitas, ld. dynamicChunkLevel doksija).
-                int chunkLevel = Math.Clamp(dynamicChunkLevel, adaptiveBaseLevel, adaptiveMaxLevel);
-                Dictionary<TileId, HashSet<TileId>> newGroups = DynamicMeshChunking.GroupByChunk(leaves, chunkLevel);
-                DynamicMeshChunking.ChunkDiff diff = DynamicMeshChunking.DiffChunks(_previousChunkGroups, newGroups);
-                var changedSet = new HashSet<TileId>(diff.ChangedOrNewChunks);
-
-                var scratchVerts = new Dictionary<(RenderCategory, int), List<Vector3>>();
-                var scratchNormals = new Dictionary<(RenderCategory, int), List<Vector3>>();
-                var scratchTris = new Dictionary<(RenderCategory, int), List<int>>();
-                var scratchColors = new Dictionary<(RenderCategory, int), List<Color>>();
-                var changedChunkTerrain = new Dictionary<TileId, ConcatenatedMesh>();
-
-                foreach (KeyValuePair<TileId, HashSet<TileId>> group in newGroups)
+                if (useChunkedDynamicMesh)
                 {
-                    bool changed = changedSet.Contains(group.Key);
-                    Dictionary<(RenderCategory, int), List<Vector3>> vertsByKey;
-                    Dictionary<(RenderCategory, int), List<Vector3>> normalsByKey;
-                    Dictionary<(RenderCategory, int), List<int>> trisByKey;
-                    Dictionary<(RenderCategory, int), List<Color>> colorsByKey;
-                    if (changed)
+                    // ND-76: topológia + feloldott csúcspozíciók alapján a
+                    // változatlan chunk teljes terrain/víz/border emitje kimarad.
+                    // A víz/border feltöltése továbbra is globális.
+                    var groupingTimer = Stopwatch.StartNew();
+                    b.BoundedChunks = useBoundedDynamicChunks;
+                    b.ChunkLeafLimit = b.BoundedChunks ? DynamicMeshChunking.DefaultMaxLeavesPerChunk : 0;
+                    int chunkLevel = Math.Clamp(dynamicChunkLevel,
+                        b.BoundedChunks ? 0 : adaptiveBaseLevel, adaptiveMaxLevel);
+                    b.MinimumChunkLevel = chunkLevel;
+                    Dictionary<TileId, HashSet<TileId>> newGroups = b.BoundedChunks
+                        ? DynamicMeshChunking.GroupByLeafBudget(leaves, chunkLevel, b.ChunkLeafLimit,
+                            _previousChunkGroups, cancellation)
+                        : DynamicMeshChunking.GroupByChunk(leaves, chunkLevel);
+                    foreach (var group in newGroups.Values)
+                        b.MaxChunkLeaves = Math.Max(b.MaxChunkLeaves, group.Count);
+                    b.GroupingMs = groupingTimer.Elapsed.TotalMilliseconds;
+                    DynamicMeshChunking.ChunkDiff diff = DynamicMeshChunking.DiffChunks(_previousChunkGroups, newGroups);
+                    var changedSet = new HashSet<TileId>(diff.ChangedOrNewChunks);
+
+                    var changedChunkTerrain = new Dictionary<TileId, ConcatenatedMesh>();
+                    b.PositionOnlyTerrain = new Dictionary<TileId, ConcatenatedMesh>();
+                    b.NewChunkPositions = new Dictionary<TileId, List<Vector3>>();
+                    var chunkTimer = new Stopwatch();
+
+                    foreach (KeyValuePair<TileId, HashSet<TileId>> group in newGroups)
                     {
-                        vertsByKey = new Dictionary<(RenderCategory, int), List<Vector3>>();
-                        normalsByKey = new Dictionary<(RenderCategory, int), List<Vector3>>();
-                        trisByKey = new Dictionary<(RenderCategory, int), List<int>>();
-                        colorsByKey = new Dictionary<(RenderCategory, int), List<Color>>();
-                    }
-                    else
-                    {
-                        vertsByKey = scratchVerts;
-                        normalsByKey = scratchNormals;
-                        trisByKey = scratchTris;
-                        colorsByKey = scratchColors;
+                        cancellation.ThrowIfCancellationRequested();
+                        chunkTimer.Restart();
+                        bool changed = changedSet.Contains(group.Key);
+                        var orderedLeaves = new List<TileId>(group.Value);
+                        orderedLeaves.Sort((a, c) => a.Value.CompareTo(c.Value));
+                        List<Vector3> resolved = CaptureResolvedPositions(orderedLeaves);
+                        bool hasCached = _previousChunkCache.TryGetValue(group.Key, out CachedLodChunk cached);
+                        bool canReuse = !changed && hasCached
+                            && DynamicMeshChunking.SamePositions(cached.ResolvedPositions, resolved);
+                        b.ResolveCheckMs += chunkTimer.Elapsed.TotalMilliseconds;
+                        if (canReuse)
+                        {
+                            b.ChunkCache[group.Key] = cached;
+                            b.NewChunkPositions[group.Key] = cached.Terrain.Vertices;
+                            chunkTimer.Restart();
+                            AppendAuxiliaryBuffers(cached.Auxiliary,b);
+                            b.AuxiliaryCopyMs += chunkTimer.Elapsed.TotalMilliseconds;
+                            b.ReusedLeaves += orderedLeaves.Count;
+                            continue;
+                        }
+                        chunkTimer.Restart();
+                        AdaptiveMeshBuffers auxiliary = CreateAuxiliaryBuffers(b.WaterSurfaceRadius);
+                        var vertsByKey = new Dictionary<(RenderCategory, int), List<Vector3>>();
+                        var normalsByKey = new Dictionary<(RenderCategory, int), List<Vector3>>();
+                        var trisByKey = new Dictionary<(RenderCategory, int), List<int>>();
+                        var colorsByKey = new Dictionary<(RenderCategory, int), List<Color>>();
+
+                        foreach (TileId leaf in orderedLeaves)
+                        {
+                            EmitAdaptiveTile(
+                                leaf, vertsByKey, normalsByKey, trisByKey, colorsByKey,
+                                auxiliary.WaterVertices, auxiliary.WaterNormals, auxiliary.WaterTriangles, auxiliary.WaterColors,
+                                auxiliary.BorderVerts, auxiliary.BorderIndices, b.WaterSurfaceRadius, dynamicLayerRadialBias, replaceStaticTerrain: true);
+                        }
+
+                        ConcatenatedMesh mesh = ConcatenateMultiMaterialBuckets(vertsByKey, normalsByKey, trisByKey, colorsByKey);
+                        AttachTerrainTileIds(mesh, orderedLeaves);
+                        b.ChunkCache[group.Key] = new CachedLodChunk(resolved,mesh,auxiliary);
+                        b.EmittedLeaves += orderedLeaves.Count;
+                        b.TileEmitMs += chunkTimer.Elapsed.TotalMilliseconds;
+                        chunkTimer.Restart();
+                        AppendAuxiliaryBuffers(auxiliary,b);
+                        b.AuxiliaryCopyMs += chunkTimer.Elapsed.TotalMilliseconds;
+                        b.NewChunkPositions[group.Key] = mesh.Vertices;
+                        if (changed || !hasCached || !_previousChunkPositions.TryGetValue(group.Key, out List<Vector3> previousPositions))
+                            changedChunkTerrain[group.Key] = mesh;
+                        else if (!DynamicMeshChunking.SamePositions(previousPositions, mesh.Vertices))
+                            b.PositionOnlyTerrain[group.Key] = mesh;
                     }
 
-                    foreach (TileId leaf in group.Value)
+                    b.ChangedChunkTerrain = changedChunkTerrain;
+                    b.RemovedChunkRoots = diff.RemovedChunks;
+                    b.NewChunkGroups = newGroups;
+                }
+                else
+                {
+                    b.Vertices = new Dictionary<(RenderCategory, int), List<Vector3>>();
+                    b.Normals = new Dictionary<(RenderCategory, int), List<Vector3>>();
+                    b.Triangles = new Dictionary<(RenderCategory, int), List<int>>();
+                    b.Colors = new Dictionary<(RenderCategory, int), List<Color>>();
+                    foreach (TileId leaf in leaves)
                     {
+                        cancellation.ThrowIfCancellationRequested();
                         EmitAdaptiveTile(
-                            leaf, vertsByKey, normalsByKey, trisByKey, colorsByKey,
+                            leaf, b.Vertices, b.Normals, b.Triangles, b.Colors,
                             b.WaterVertices, b.WaterNormals, b.WaterTriangles, b.WaterColors,
-                            b.BorderVerts, b.BorderIndices, b.WaterSurfaceRadius, dynamicLayerRadialBias);
+                            b.BorderVerts, b.BorderIndices, b.WaterSurfaceRadius, dynamicLayerRadialBias, replaceStaticTerrain: true);
+                        b.EmittedLeaves++;
                     }
-
-                    if (changed)
-                        changedChunkTerrain[group.Key] = ConcatenateMultiMaterialBuckets(vertsByKey, normalsByKey, trisByKey, colorsByKey);
+                    // FAZIS 3 (ND-47): a terep-bucketek konkatenalasa MAR ITT, a worker
+                    // szalon - a fo szalon (ApplyAdaptiveMeshBuffers) mar csak a natv
+                    // Unity mesh-feltoltes marad (a korabbi fo-szalu AddRange +
+                    // RecalculateBounds lekerul).
+                    b.TerrainConcat = ConcatenateMultiMaterialBuckets(b.Vertices, b.Normals, b.Triangles, b.Colors);
+                    AttachTerrainTileIds(b.TerrainConcat, leaves);
                 }
 
-                b.ChangedChunkTerrain = changedChunkTerrain;
-                b.RemovedChunkRoots = diff.RemovedChunks;
-                b.NewChunkGroups = newGroups;
+                b.EmitMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+                var diagnosticStopwatch = Stopwatch.StartNew();
+                CaptureNadirDiagnostic(b, coverage);
+                b.NadirDiagnosticMs = diagnosticStopwatch.Elapsed.TotalMilliseconds;
+                return b;
             }
-            else
-            {
-                b.Vertices = new Dictionary<(RenderCategory, int), List<Vector3>>();
-                b.Normals = new Dictionary<(RenderCategory, int), List<Vector3>>();
-                b.Triangles = new Dictionary<(RenderCategory, int), List<int>>();
-                b.Colors = new Dictionary<(RenderCategory, int), List<Color>>();
-                foreach (TileId leaf in leaves)
-                {
-                    EmitAdaptiveTile(
-                        leaf, b.Vertices, b.Normals, b.Triangles, b.Colors,
-                        b.WaterVertices, b.WaterNormals, b.WaterTriangles, b.WaterColors,
-                        b.BorderVerts, b.BorderIndices, b.WaterSurfaceRadius, dynamicLayerRadialBias);
-                }
-                // FAZIS 3 (ND-47): a terep-bucketek konkatenalasa MAR ITT, a worker
-                // szalon - a fo szalon (ApplyAdaptiveMeshBuffers) mar csak a natv
-                // Unity mesh-feltoltes marad (a korabbi fo-szalu AddRange +
-                // RecalculateBounds lekerul).
-                b.TerrainConcat = ConcatenateMultiMaterialBuckets(b.Vertices, b.Normals, b.Triangles, b.Colors);
-            }
-
-            return b;
+            finally { _activeCornerResolver = null; }
         }
 
         /// <summary>
@@ -2745,8 +3005,86 @@ namespace WorldGen.Viewer
         /// </summary>
         private void ApplyAdaptiveMeshBuffers(AdaptiveMeshBuffers b)
         {
-            if (useChunkedDynamicMesh && b.ChangedChunkTerrain != null)
+            try { ApplyAdaptiveMeshBuffersCore(b); }
+            catch
             {
+                // Sikertelen feltöltés nem igazol új fedést. Visszaállítjuk
+                // az alapot, a félkész dinamikus geometriát kikapcsoljuk.
+                ApplyTerrainCoverage(Array.Empty<TileId>());
+                foreach (GameObject chunk in _dynamicChunkGameObjects.Values)
+                    if (chunk != null) chunk.SetActive(false);
+                foreach (string name in new[] { "DynamicRefined", "DynamicWater", "DynamicBorders" })
+                {
+                    Transform child = transform.Find(name);
+                    if (child != null) child.gameObject.SetActive(false);
+                }
+                _previousChunkGroups.Clear();
+                _previousChunkPositions.Clear();
+                _previousChunkCache.Clear();
+                _appliedSelectionTrace = null;
+                _appliedDiagnosticCoverage = null;
+                _hasLastCutCameraPosition = false;
+                throw;
+            }
+            // Külön a mesh-alkalmazás hibakezelésétől: pusztán megfigyelés.
+            if (b.HasNadirDiagnostic)
+                PerfLog(DescribeNadirDiagnostic(b));
+        }
+
+        private void CaptureNadirDiagnostic(AdaptiveMeshBuffers b, LodCoverage coverage)
+        {
+            double x = _lastCutCameraCoreX, y = _lastCutCameraCoreY, z = _lastCutCameraCoreZ;
+            double distance = Math.Sqrt(x * x + y * y + z * z);
+            if (distance < 1e-9) return;
+            TileId sample = TileGeometry.FromPosition(x, y, z, Math.Max(adaptiveBaseLevel, adaptiveMaxLevel));
+            TileId leaf = coverage.FindRenderedLeaf(sample, adaptiveBaseLevel);
+            // Pontosan ugyanaz a morph/közösél-feloldás, mint az emitnél;
+            // az _activeCornerResolver a teljes kérés lezárásáig él.
+            GetAdaptiveCorners(leaf, out Vector3 a, out Vector3 c, out Vector3 d, out Vector3 e);
+            b.NadirTerrainQuad = new SurfaceQuad(ToSurfacePoint(a), ToSurfacePoint(c), ToSurfacePoint(d), ToSurfacePoint(e));
+            b.NadirTerrainLevel = leaf.Level;
+            b.NadirOceanBlocked = IsBaseAncestorOceanic(sample);
+            b.NadirMorphAlpha = leaf.Level > adaptiveBaseLevel ? ComputeGeomorphAlpha(leaf) : 1;
+            // Egyetlen modellpont kérésenként; semmilyen kiválasztási döntést nem befolyásol.
+            double terrainRadius = ComputeDisplacedRadius(x / distance, y / distance, z / distance,
+                _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters);
+            double seaRadius = radius + _adaptiveSeaLevel * elevationScale;
+            b.NadirUnderWater = terrainRadius < seaRadius;
+            b.NadirSurfaceClearance = distance - Math.Max(terrainRadius, seaRadius);
+            if (_requestedTerrainLodProxy != null)
+                b.NadirProxyRadiusError = _requestedTerrainLodProxy.RadiusAt(sample) - Math.Max(terrainRadius, seaRadius);
+            b.HasNadirDiagnostic = true;
+        }
+
+        private string DescribeNadirDiagnostic(AdaptiveMeshBuffers b)
+        {
+            SurfacePoint Clip(SurfacePoint p)
+            {
+                var local = new Vector4((float)p.X, (float)p.Y, (float)p.Z, 1);
+                Vector4 camera = _requestedLodLocalToCamera * local;
+                if (-camera.z <= _requestedLodNearClip)
+                    return new SurfacePoint(0, 0, -1); // Nem osztunk a kamera mögötti/near-plane ponttal.
+                Vector4 clip = _requestedLodLocalToClip * local;
+                return new SurfacePoint(clip.x, clip.y, clip.w);
+            }
+            SurfaceQuad q = b.NadirTerrainQuad;
+            double pixels = AdaptiveViewState.QuadPixelDiameter(
+                new SurfaceQuad(Clip(q.P00), Clip(q.P10), Clip(q.P11), Clip(q.P01)),
+                _requestedLodPixelWidth, _requestedLodPixelHeight);
+            return $"  [ND-72 render] nadirTerrainL={b.NadirTerrainLevel} " +
+                $"nadirOceanBlocked={b.NadirOceanBlocked} nadirUnderWater={b.NadirUnderWater} " +
+                $"nadirSurfaceClearanceUnits={b.NadirSurfaceClearance:F6} nadirMorphAlpha={b.NadirMorphAlpha:F3} " +
+                $"nadirTerrainQuadPx={pixels:F2} diagnostic={b.NadirDiagnosticMs:F2}ms " +
+                $"proxyRadiusErrorUnits={b.NadirProxyRadiusError:F6} " +
+                "(request-view; terrain quad, not water/occlusion; NaN=invalid projection)";
+        }
+
+        private void ApplyAdaptiveMeshBuffersCore(AdaptiveMeshBuffers b)
+        {
+            if (b.ChangedChunkTerrain != null)
+            {
+                Transform oldUnchunked = transform.Find("DynamicRefined");
+                if (oldUnchunked != null) oldUnchunked.gameObject.SetActive(false);
                 // CSAK a VALTOZOTT/UJ chunk-ok GameObject-jet toltjuk fel ujra -
                 // ez a chunkolas teljes celja (ld. useChunkedDynamicMesh doksija).
                 foreach (KeyValuePair<TileId, ConcatenatedMesh> kv in b.ChangedChunkTerrain)
@@ -2754,6 +3092,14 @@ namespace WorldGen.Viewer
                     GameObject chunkGo = GetOrCreateChunkRenderTarget(kv.Key);
                     chunkGo.SetActive(true);
                     UploadConcatenatedMultiMaterialMesh(chunkGo, kv.Value);
+                }
+                foreach (KeyValuePair<TileId, ConcatenatedMesh> kv in b.PositionOnlyTerrain)
+                {
+                    Mesh mesh = _dynamicChunkGameObjects[kv.Key].GetComponent<MeshFilter>().sharedMesh;
+                    mesh.SetVertices(kv.Value.Vertices, 0, kv.Value.Vertices.Count, MeshUpdateFlags.DontRecalculateBounds);
+                    mesh.bounds = new Bounds((kv.Value.BoundsMin + kv.Value.BoundsMax) * .5f,
+                        kv.Value.BoundsMax - kv.Value.BoundsMin);
+                    RememberDrawnPositions(_dynamicChunkGameObjects[kv.Key], kv.Value.Vertices);
                 }
                 // A mar nem-hasznalt chunk-okat deaktivaljuk (nem toroljuk - ha a
                 // kamera visszater, ugyanaz a chunk-gyoker ujra elohivhato az
@@ -2764,15 +3110,24 @@ namespace WorldGen.Viewer
                         removedGo.SetActive(false);
                 }
                 _previousChunkGroups = b.NewChunkGroups;
+                _previousChunkPositions = b.NewChunkPositions;
+                _previousChunkCache = b.ChunkCache;
             }
             else
             {
                 GameObject dynamicTerrainGo = GetOrCreateChildRenderTarget("DynamicRefined");
+                dynamicTerrainGo.SetActive(true);
+                foreach (GameObject chunk in _dynamicChunkGameObjects.Values) chunk.SetActive(false);
+                _previousChunkGroups.Clear();
+                _previousChunkPositions.Clear();
+                _previousChunkCache.Clear();
                 // FAZIS 3: a terep MAR konkatenalt (worker szalon) - itt csak feltoltjuk.
                 UploadConcatenatedMultiMaterialMesh(dynamicTerrainGo, b.TerrainConcat);
             }
             BuildBorders(b.BorderVerts, b.BorderIndices, "DynamicBorders");
             BuildWaterSurface(b.WaterVertices, b.WaterNormals, b.WaterTriangles, b.WaterColors, "DynamicWater");
+            b.MaskIndexCount = ApplyTerrainCoverage(b.ReplacedBaseTiles);
+            _drawnLodAppliedAt = Time.unscaledTime;
             EvictCornerCacheIfNeeded();
             EvictTileClassificationCacheIfNeeded();
         }
@@ -2790,6 +3145,15 @@ namespace WorldGen.Viewer
         {
             if (_currentCut == null)
                 return;
+
+            // ND-70: szinkron és async CPU-út ugyanazt a fedést/varratot állítja elő.
+            if (!useGpuGeometry || tileClassificationCompute == null)
+            {
+                ApplyAdaptiveMeshBuffers(ComputeAdaptiveMeshBuffersCpu(_currentCut));
+                return;
+            }
+            ApplyTerrainCoverage(Array.Empty<TileId>());
+            ClearAllDynamicChunks();
 
             // GPU-CALC / teljesitmeny: a DRAGA per-tile Core-kiertekeleseket
             // (klasszifikacio: eleváció+homerseklet+biome; sarkak: eleváció a
@@ -2901,7 +3265,7 @@ namespace WorldGen.Viewer
                 // EmitAdaptiveTile-hivasok mar csupa cache-talalatot csak
                 // olvasnak, tehat gyorsak maradnak.
                 classStopwatch = Stopwatch.StartNew();
-                classDiag = PrecomputeClassificationsInParallel(leaves);
+                classDiag = PrecomputeClassificationsInParallel(leaves, forceCpu: true);
                 classStopwatch.Stop();
 
                 cornerStopwatch = Stopwatch.StartNew();
@@ -2990,7 +3354,7 @@ namespace WorldGen.Viewer
             Dictionary<int, List<Color>> waterColorsByBucket,
             List<Vector3> borderVerts, List<int> borderIndices,
             float waterSurfaceRadius, float radialBias, int staticDenseIndex = -1,
-            StaticMeshBuckets? staticBuckets = null)
+            StaticMeshBuckets? staticBuckets = null, bool replaceStaticTerrain = false)
         {
             bool useStaticDenseData = staticDenseIndex >= 0
                 && id.Level == _staticRenderDataLevel
@@ -3055,7 +3419,7 @@ namespace WorldGen.Viewer
                 pn11 = GetOrComputePersistentCornerNormal(id.Face, lvl, u + 1, v + 1);
                 pn01 = GetOrComputePersistentCornerNormal(id.Face, lvl, u, v + 1);
             }
-            if (radialBias != 0f)
+            if (radialBias != 0f && !replaceStaticTerrain)
             {
                 p00 += p00.normalized * radialBias;
                 p10 += p10.normalized * radialBias;
@@ -3437,10 +3801,32 @@ namespace WorldGen.Viewer
         /// <summary>
         /// Egy aktiv level 4 sarka - a "fine" (valodi, eltolt) pozicio a
         /// perzisztens sarok-cache-bol, geomorphing-gal (§9.2) a szulo-quad
-        /// bilinearis interpolaciojabol szarmazo "coarse" pozicio fele
-        /// blendelve, amig a level a base level folott van.
+        /// háromszög-interpolációjából származó coarse pozíció felé blendelve.
+        /// ND-70: a CPU-s fedéscsere a közös sarkokat/éleket is feloldja.
         /// </summary>
         private void GetAdaptiveCorners(TileId id, out Vector3 p00, out Vector3 p10, out Vector3 p11, out Vector3 p01)
+        {
+            if (_activeCornerResolver == null || id.Level <= adaptiveBaseLevel)
+            {
+                GetUnstitchedAdaptiveCorners(id, out p00, out p10, out p11, out p01);
+                return;
+            }
+            id.GetUV(out uint u, out uint v);
+            p00 = ToUnityPoint(_activeCornerResolver.Corner(id.Face, id.Level, u, v));
+            p10 = ToUnityPoint(_activeCornerResolver.Corner(id.Face, id.Level, u + 1, v));
+            p11 = ToUnityPoint(_activeCornerResolver.Corner(id.Face, id.Level, u + 1, v + 1));
+            p01 = ToUnityPoint(_activeCornerResolver.Corner(id.Face, id.Level, u, v + 1));
+        }
+
+        private static SurfacePoint ToSurfacePoint(Vector3 p) => new SurfacePoint(p.x, p.y, p.z);
+        private static Vector3 ToUnityPoint(SurfacePoint p) => new Vector3((float)p.X, (float)p.Y, (float)p.Z);
+        private SurfaceQuad GetRawSurfaceQuad(TileId id)
+        {
+            GetUnstitchedAdaptiveCorners(id, out Vector3 a, out Vector3 b, out Vector3 c, out Vector3 d);
+            return new SurfaceQuad(ToSurfacePoint(a), ToSurfacePoint(b), ToSurfacePoint(c), ToSurfacePoint(d));
+        }
+
+        private void GetUnstitchedAdaptiveCorners(TileId id, out Vector3 p00, out Vector3 p10, out Vector3 p11, out Vector3 p01)
         {
             id.GetUV(out uint u, out uint v);
             int lvl = id.Level;
@@ -3479,10 +3865,10 @@ namespace WorldGen.Viewer
             double relU1 = (u + 1 - pu * 2) / 2.0;
             double relV1 = (v + 1 - pv * 2) / 2.0;
 
-            Vector3 coarse00 = BilinearOnQuad(parent00, parent10, parent11, parent01, relU0, relV0);
-            Vector3 coarse10 = BilinearOnQuad(parent00, parent10, parent11, parent01, relU1, relV0);
-            Vector3 coarse11 = BilinearOnQuad(parent00, parent10, parent11, parent01, relU1, relV1);
-            Vector3 coarse01 = BilinearOnQuad(parent00, parent10, parent11, parent01, relU0, relV1);
+            Vector3 coarse00 = InterpolateTriangulatedQuad(parent00, parent10, parent11, parent01, relU0, relV0);
+            Vector3 coarse10 = InterpolateTriangulatedQuad(parent00, parent10, parent11, parent01, relU1, relV0);
+            Vector3 coarse11 = InterpolateTriangulatedQuad(parent00, parent10, parent11, parent01, relU1, relV1);
+            Vector3 coarse01 = InterpolateTriangulatedQuad(parent00, parent10, parent11, parent01, relU0, relV1);
 
             float a = (float)alpha;
             p00 = Vector3.Lerp(coarse00, fine00, a);
@@ -3491,11 +3877,10 @@ namespace WorldGen.Viewer
             p01 = Vector3.Lerp(coarse01, fine01, a);
         }
 
-        private static Vector3 BilinearOnQuad(Vector3 c00, Vector3 c10, Vector3 c11, Vector3 c01, double u, double v)
+        private static Vector3 InterpolateTriangulatedQuad(Vector3 c00, Vector3 c10, Vector3 c11, Vector3 c01, double u, double v)
         {
-            Vector3 top = Vector3.Lerp(c00, c10, (float)u);
-            Vector3 bottom = Vector3.Lerp(c01, c11, (float)u);
-            return Vector3.Lerp(top, bottom, (float)v);
+            var quad = new SurfaceQuad(ToSurfacePoint(c00), ToSurfacePoint(c10), ToSurfacePoint(c11), ToSurfacePoint(c01));
+            return ToUnityPoint(quad.At(u, v));
         }
 
         /// <summary>
@@ -3520,17 +3905,46 @@ namespace WorldGen.Viewer
         private double ComputeGeomorphAlpha(TileId childId)
         {
             TileId parent = childId.Parent();
+            double threshold = parent.Level == adaptiveBaseLevel
+                ? _currentBaseTargetAngularRadiusRadians : _currentTargetAngularRadiusRadians;
+            if (_requestedProjectedView != null && _requestedTerrainLodProxy != null)
+            {
+                double error;
+                if (_terrainEvaluationCache != null)
+                    _terrainEvaluationCache.EvaluateTerrain(_requestedTerrainLodProxy, parent, out error, out _);
+                else _requestedProjectedView.EvaluateTerrain(_requestedTerrainLodProxy, parent, out error);
+                if (error <= 0) return 0;
+                double fraction = _currentGeomorphRangeFraction;
+                return fraction <= 0 ? 1 : Math.Max(0,Math.Min(1,(1-Math.Tan(threshold)/Math.Tan(error))/fraction));
+            }
+            // ND-74: ugyanaz a gömb/proxy snapshot, mint a kiválasztásnál;
+            // itt sem maradhat drága ND-71 magasság-callback.
             AdaptiveQuadTree.GetCenterAndBoundingRadius(parent, radius, out double pcx, out double pcy, out double pcz, out double rParent);
+            if (_requestedTerrainLodProxy != null)
+                _requestedTerrainLodProxy.ScaleMetric(parent, radius, ref pcx, ref pcy, ref pcz, ref rParent);
             double dx = _lastCutCameraCoreX - pcx, dy = _lastCutCameraCoreY - pcy, dz = _lastCutCameraCoreZ - pcz;
             double distance = Math.Sqrt(dx * dx + dy * dy + dz * dz);
 
-            double splitDistance = rParent / Math.Tan(Math.Max(_currentTargetAngularRadiusRadians, 1e-9));
-            double morphRange = geomorphRangeFraction * splitDistance;
-            if (morphRange <= 0.0)
-                return 1.0;
+            double splitDistance = rParent / Math.Tan(Math.Max(threshold, 1e-9));
+            return AdaptiveViewState.GeomorphAlpha(distance, splitDistance, _currentGeomorphRangeFraction);
+        }
 
-            double alpha = (splitDistance - distance) / morphRange;
-            return alpha < 0.0 ? 0.0 : (alpha > 1.0 ? 1.0 : alpha);
+        private string DescribeSurfaceLod(HashSet<TileId> cut, double x, double y, double z)
+        {
+            int deepest = adaptiveBaseLevel;
+            foreach (TileId leaf in cut) deepest = Math.Max(deepest, leaf.Level);
+            int nadir = adaptiveBaseLevel;
+            if (x * x + y * y + z * z > 1e-12)
+            {
+                TileId tile = TileGeometry.FromPosition(x, y, z, adaptiveMaxLevel);
+                while (tile.Level > adaptiveBaseLevel)
+                {
+                    if (cut.Contains(tile)) { nadir = tile.Level; break; }
+                    tile = tile.Parent();
+                }
+            }
+            // A cut óceáni szűrés ELŐTTI adata; a dynLeaves külön renderadat.
+            return $"surfaceMetric=False terrainProxy={_requestedTerrainLodProxy != null} projectedTerrain={_requestedProjectedView != null} deepestCutL={deepest} nadirCutL={nadir} surfaceBounds=0";
         }
 
         /// <summary>
@@ -3732,7 +4146,9 @@ namespace WorldGen.Viewer
             var missing = new List<(int Face, int Level, uint CornerU, uint CornerV)>(needed.Count);
             foreach (var key in needed)
                 if (!TryGetStaticCornerIndex(key.Face, key.Level, key.CornerU, key.CornerV, _staticCornerPositions.Length, out _)
-                    && !_persistentCornerCache.ContainsKey(key))
+                    && (!_persistentCornerCache.ContainsKey(key)
+                        || !_persistentCornerColorCache.ContainsKey(key)
+                        || !_persistentCornerNormalCache.ContainsKey(key)))
                     missing.Add(key);
             if (missing.Count == 0)
                 return (needed.Count, 0);
@@ -3743,6 +4159,18 @@ namespace WorldGen.Viewer
             System.Threading.Tasks.Parallel.For(0, missing.Count, i =>
             {
                 var k = missing[i];
+                // Részleges cache: egy fallback betölthette a POZÍCIÓT,
+                // illetve a szín-cache külön is invalidálódhat. A hiányzó
+                // attribútumokat ugyanitt, párhuzamosan kell kiegészíteni.
+                if (_persistentCornerCache.TryGetValue(k, out Vector3 existing))
+                {
+                    results[i] = existing;
+                    colorResults[i] = _persistentCornerColorCache.TryGetValue(k, out Color color)
+                        ? color : ContinuousCornerColorAuto(existing);
+                    normalResults[i] = _persistentCornerNormalCache.TryGetValue(k, out Vector3 normal)
+                        ? normal : ComputeCornerNormal(k.Face, k.Level, k.CornerU, k.CornerV, existing);
+                    return;
+                }
                 if (TryGetStaticTerrainBasis(
                     k.Face, k.Level, k.CornerU, k.CornerV,
                     out TerrainPointBasis centerBasis,
@@ -3778,7 +4206,8 @@ namespace WorldGen.Viewer
                 _persistentCornerCache[key] = results[i];
                 _persistentCornerColorCache[key] = colorResults[i];
                 _persistentCornerNormalCache[key] = normalResults[i];
-                _cornerCacheLruNodes[key] = _cornerCacheLru.AddLast(key);
+                if (_cornerCacheLruNodes.ContainsKey(key)) TouchLru(key);
+                else _cornerCacheLruNodes[key] = _cornerCacheLru.AddLast(key);
             }
             return (needed.Count, missing.Count);
         }
@@ -4081,6 +4510,7 @@ namespace WorldGen.Viewer
         private readonly Dictionary<TileId, AdaptiveTileClassification> _tileClassificationCache = new();
         private readonly LinkedList<TileId> _tileClassificationLru = new();
         private readonly Dictionary<TileId, LinkedListNode<TileId>> _tileClassificationLruNodes = new();
+        private readonly Dictionary<TileId, bool> _baseOceanRefinementMask = new();
 
         private bool TryGetStaticTileClassification(TileId id, out AdaptiveTileClassification classification)
         {
@@ -4101,24 +4531,41 @@ namespace WorldGen.Viewer
         }
 
         /// <summary>
-        /// Olcso ellenorzes (nincs uj Core-szamitas, csak cache-olvasas): a
-        /// `id` base-szintu OSE oceani-e a MAR meglevo klasszifikacios cache
-        /// szerint (a BuildStaticBaseLayer minden base-tile-t leklasszifikal,
-        /// es a cache-minimum garantaltan sose engedi ezt kilakoltatni - ld.
-        /// EffectiveCacheMinimum). Ha valamiert nincs a cache-ben (nem
-        /// varhato), KONZERVATIVAN false-t ad vissza (NEM oceani, tehat
-        /// finomodhat) - inkabb tobbet szamoljunk, mint hogy csendben
-        /// eltuntessunk ervenyes finomitast egy cache-hianyossag miatt.
+        /// ND-69: az óceáni középpont mellett a base négy sarka is víz alatt
+        /// legyen. Így a már az alapmesh-en látható part nem veszhet el a
+        /// finomításból. Nem bizonyítja, hogy a teljes tile-belső víz alatti!
+        /// A döntés base-tile-onként egyszer készül, majd világváltásig él.
         /// </summary>
         private bool IsBaseAncestorOceanic(TileId id)
         {
             TileId current = id;
             while (current.Level > adaptiveBaseLevel)
                 current = current.Parent();
-            if (TryGetStaticTileClassification(current, out AdaptiveTileClassification denseBaseClass))
-                return denseBaseClass.IsOceanic;
-            return _tileClassificationCache.TryGetValue(current, out AdaptiveTileClassification baseClass) && baseClass.IsOceanic;
+            if (_baseOceanRefinementMask.TryGetValue(current, out bool canSkip)) return canSkip;
+            if (!TryGetStaticTileClassification(current, out AdaptiveTileClassification baseClass)
+                && !_tileClassificationCache.TryGetValue(current, out baseClass))
+                return false;
+            if (!baseClass.IsOceanic || elevationScale <= 0 || terrainReliefExaggeration <= 0)
+            {
+                _baseOceanRefinementMask[current] = false;
+                return false;
+            }
+
+            current.GetUV(out uint u, out uint v);
+            // A float vertex-kerekítés közelében ne tiltsunk. A kisebb vízsugár
+            // szigorúbb feltétel: a bizonytalan parti pontok finomodnak.
+            double waterRadius = radius + _adaptiveSeaLevel * elevationScale - 0.0001;
+            canSkip = OceanRefinement.CanSkip(true, waterRadius * waterRadius,
+                SquaredRadius(GetOrComputePersistentCorner(current.Face, current.Level, u, v)),
+                SquaredRadius(GetOrComputePersistentCorner(current.Face, current.Level, u + 1, v)),
+                SquaredRadius(GetOrComputePersistentCorner(current.Face, current.Level, u + 1, v + 1)),
+                SquaredRadius(GetOrComputePersistentCorner(current.Face, current.Level, u, v + 1)));
+            _baseOceanRefinementMask[current] = canSkip;
+            return canSkip;
         }
+
+        private static double SquaredRadius(Vector3 p)
+            => (double)p.x * p.x + (double)p.y * p.y + (double)p.z * p.z;
 
         private AdaptiveTileClassification GetOrComputeTileClassification(TileId id)
         {
@@ -4271,18 +4718,8 @@ namespace WorldGen.Viewer
         /// </summary>
         private ClassificationDiag PrecomputeStaticClassificationsInParallel(TileId[] leaves)
         {
-            if (useGpuClassification && tileClassificationCompute != null
-                && _adaptiveErosionTimeMyr == 0.0)
-            {
-                ClassificationDiag gpuDiag = PrecomputeClassificationsOnGpu(leaves);
-                var gpuDense = new AdaptiveTileClassification[leaves.Length];
-                for (int i = 0; i < leaves.Length; i++)
-                    gpuDense[i] = _tileClassificationCache[leaves[i]];
-                _staticTileClassifications = gpuDense;
-                _staticRenderDataLevel = adaptiveBaseLevel;
-                return gpuDiag;
-            }
-
+            // ND-69: a statikus CPU-geometria és az óceáni finomítás-szűrés
+            // ugyanazt a teljes modellt kapja; a GPU-ból hiányzik egy zajréteg.
             var results = new AdaptiveTileClassification[leaves.Length];
             System.Threading.Tasks.Parallel.For(0, leaves.Length, i =>
             {
@@ -4390,12 +4827,31 @@ namespace WorldGen.Viewer
         /// </summary>
         private void InvalidateAdaptiveCaches()
         {
+            _cutCancellation?.Dispose();
+            _cutCancellation = null;
+            _previousChunkCache.Clear();
+            _lodRefinementPending = false;
+            _cutSupersededSinceApply = false;
+            _requestedProjectedView = null;
+            _terrainEvaluationCache = null;
+            _appliedSelectionTrace = null;
+            _appliedDiagnosticCoverage = null;
+            _appliedTraceView = null;
+            _drawnDiagnosticMeshes.Clear();
+            _drawnHiddenStaticQuads = new HashSet<int>();
+            _drawnDiagnosticRevision++;
+            _drawnLodAppliedAt = Time.unscaledTime;
+            _terrainLodProxy = null;
+            _requestedTerrainLodProxy = null;
+            _terrainIndexMask = null;
+            _activeCornerResolver = null;
             _persistentCornerCache.Clear();
             _persistentCornerColorCache.Clear();
             _persistentCornerNormalCache.Clear();
             _cornerCacheLru.Clear();
             _cornerCacheLruNodes.Clear();
             _tileClassificationCache.Clear();
+            _baseOceanRefinementMask.Clear();
             _tileClassificationLru.Clear();
             _tileClassificationLruNodes.Clear();
             _staticTileClassifications = Array.Empty<AdaptiveTileClassification>();
@@ -4869,12 +5325,82 @@ namespace WorldGen.Viewer
         /// </summary>
         private sealed class ConcatenatedMesh
         {
+            public TileId[]? TileIds;
             public readonly List<Vector3> Vertices = new List<Vector3>();
             public readonly List<Vector3> Normals = new List<Vector3>();
             public readonly List<Color> Colors = new List<Color>();
             public readonly List<int[]> SubmeshTriangles = new List<int[]>();
             public readonly List<(RenderCategory Category, int Bucket)> SubmeshKeys = new List<(RenderCategory, int)>();
             public Vector3 BoundsMin, BoundsMax;
+        }
+
+        private void AttachTerrainTileIds(ConcatenatedMesh mesh, IEnumerable<TileId> emissions)
+        {
+            var buckets = new Dictionary<(RenderCategory, int), int>();
+            var counts = new int[mesh.SubmeshKeys.Count];
+            for (int i=0;i<counts.Length;i++)
+            {
+                buckets.Add(mesh.SubmeshKeys[i],i);
+                counts[i]=mesh.SubmeshTriangles[i].Length/6;
+            }
+            var identity = new TerrainQuadIdentity(counts);
+            foreach (TileId tile in emissions)
+            {
+                // A diagnosztika nem indíthat új Core-kiértékelést.
+                if (!TryGetStaticTileClassification(tile,out AdaptiveTileClassification classification)
+                    && !_tileClassificationCache.TryGetValue(tile,out classification)) return;
+                if (!buckets.TryGetValue((classification.Category,classification.Bucket),out int bucket)) return;
+                identity.Add(bucket,tile);
+            }
+            mesh.TileIds=identity.Complete();
+            if (mesh.TileIds.Length*4!=mesh.Vertices.Count)
+                throw new InvalidOperationException("Nem quadonként tárolt terrain mesh.");
+        }
+
+        private void InitializeTerrainIndexMask(ConcatenatedMesh data, TileId[] tiles)
+        {
+            Mesh mesh = GetComponent<MeshFilter>().sharedMesh;
+            var starts = new Dictionary<(RenderCategory, int), int>();
+            int total = 0;
+            for (int i = 0; i < data.SubmeshKeys.Count; i++)
+            {
+                SubMeshDescriptor descriptor = mesh.GetSubMesh(i);
+                if (descriptor.baseVertex != 0 || descriptor.indexCount != data.SubmeshTriangles[i].Length)
+                    throw new InvalidOperationException("Váratlan statikus mesh-index layout.");
+                starts[data.SubmeshKeys[i]] = descriptor.indexStart;
+                total = Math.Max(total, descriptor.indexStart + descriptor.indexCount);
+            }
+            var indices = new int[total];
+            for (int i = 0; i < data.SubmeshKeys.Count; i++)
+                Array.Copy(data.SubmeshTriangles[i], 0, indices, starts[data.SubmeshKeys[i]], data.SubmeshTriangles[i].Length);
+            var offsets = new int[tiles.Length];
+            for (int i = 0; i < tiles.Length; i++)
+            {
+                AdaptiveTileClassification classification = _staticRenderDataLevel == adaptiveBaseLevel
+                    ? _staticTileClassifications[i] : GetOrComputeTileClassification(tiles[i]);
+                var key = (classification.Category, classification.Bucket);
+                offsets[TerrainIndexMask.DenseIndex(tiles[i])] = starts[key];
+                starts[key] += 6;
+            }
+            _terrainIndexMask = new TerrainIndexMask(adaptiveBaseLevel, offsets, indices);
+            _drawnHiddenStaticQuads = _terrainIndexMask.CopyHiddenQuadIndices();
+        }
+
+        private int ApplyTerrainCoverage(IEnumerable<TileId> replacedRoots)
+        {
+            if (_terrainIndexMask == null) return 0;
+            Mesh mesh = GetComponent<MeshFilter>().sharedMesh;
+            List<TerrainIndexMask.Range> ranges = _terrainIndexMask.SetHidden(replacedRoots);
+            int count = 0;
+            foreach (TerrainIndexMask.Range range in ranges)
+            {
+                mesh.SetIndexBufferData(_terrainIndexMask.Indices, range.Start, range.Start, range.Count,
+                    MeshUpdateFlags.DontRecalculateBounds);
+                count += range.Count;
+            }
+            _drawnHiddenStaticQuads = _terrainIndexMask.CopyHiddenQuadIndices();
+            if (ranges.Count > 0) _drawnDiagnosticRevision++;
+            return count;
         }
 
         private static ConcatenatedMesh ConcatenateMultiMaterialBuckets(
@@ -4928,6 +5454,7 @@ namespace WorldGen.Viewer
         /// </summary>
         private void UploadConcatenatedMultiMaterialMesh(GameObject targetGo, ConcatenatedMesh cm)
         {
+            _drawnDiagnosticMeshes.Remove(targetGo);
             // A meglevo Mesh ujrahasznositasa (Clear + ujratoltes) elkeruli az
             // ismetelt natv objektum-letrehozast (ld. korabbi teljesitmeny-fix).
             MeshFilter meshFilter = targetGo.GetComponent<MeshFilter>();
@@ -4942,7 +5469,7 @@ namespace WorldGen.Viewer
             mesh.SetColors(cm.Colors);
             mesh.subMeshCount = cm.SubmeshTriangles.Count;
             for (int i = 0; i < cm.SubmeshTriangles.Count; i++)
-                mesh.SetTriangles(cm.SubmeshTriangles[i], i);
+                mesh.SetTriangles(cm.SubmeshTriangles[i], i, calculateBounds: false);
             if (cm.Vertices.Count > 0)
                 mesh.bounds = new Bounds((cm.BoundsMin + cm.BoundsMax) * 0.5f, cm.BoundsMax - cm.BoundsMin);
 
@@ -4952,6 +5479,8 @@ namespace WorldGen.Viewer
             for (int i = 0; i < cm.SubmeshKeys.Count; i++)
                 materials.Add(GetOrCreateCategoryMaterial(cm.SubmeshKeys[i]));
             targetGo.GetComponent<MeshRenderer>().sharedMaterials = materials.ToArray();
+            RememberDrawnSurface(targetGo, cm.Vertices, cm.SubmeshTriangles,
+                targetGo == gameObject ? 1 : 2, cm.TileIds);
         }
 
         // Visszafele-kompatibilis kompozicio (a SZINKRON ut + BuildStaticBaseLayer
@@ -5012,10 +5541,12 @@ namespace WorldGen.Viewer
         /// </summary>
         private void ClearAllDynamicChunks()
         {
+            _previousChunkCache.Clear();
             foreach (KeyValuePair<TileId, GameObject> kv in _dynamicChunkGameObjects)
                 if (kv.Value != null) Destroy(kv.Value);
             _dynamicChunkGameObjects.Clear();
             _previousChunkGroups.Clear();
+            _previousChunkPositions.Clear();
         }
 
         private void BuildBorders(List<Vector3> borderVerts, List<int> borderIndices, string childName)
@@ -5804,6 +6335,7 @@ namespace WorldGen.Viewer
                 return;
             }
             waterGo.SetActive(true);
+            _drawnDiagnosticMeshes.Remove(waterGo);
 
             var allVertices = new List<Vector3>();
             var allNormals = new List<Vector3>();
@@ -5848,6 +6380,8 @@ namespace WorldGen.Viewer
 
             waterMeshFilter.sharedMesh = mesh;
             waterGo.GetComponent<MeshRenderer>().sharedMaterials = materials.ToArray();
+            RememberDrawnSurface(waterGo, allVertices, submeshTriangleLists,
+                childName == "WaterSurface" ? 3 : 4);
         }
 
         /// <summary>
@@ -6903,6 +7437,7 @@ namespace WorldGen.Viewer
             // ujraszamitas eredmenyenek fo-szalu atvetele, ld.
             // TryApplyCompletedCloudRebuild doksija.
             TryApplyCompletedCloudRebuild();
+            TickDrawnTileDiagnostics();
         }
 
         /// <summary>

@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using WorldGen.Core.Grid;
 
 namespace WorldGen.Viewer.Lod
@@ -27,6 +29,89 @@ namespace WorldGen.Viewer.Lod
     /// </summary>
     public static class DynamicMeshChunking
     {
+        public const int DefaultMaxLeavesPerChunk = 256;
+
+        /// <summary>
+        /// ND-80: területi csomagolás, kemény levélszám-korláttal. A bemenet
+        /// átfedésmentes cut; a levelek és az előző partíció nem változnak.
+        /// A korábban osztott chunk csak fél kapacitásnál vonódik össze.
+        /// </summary>
+        public static Dictionary<TileId, HashSet<TileId>> GroupByLeafBudget(
+            IEnumerable<TileId> cut, int minimumChunkLevel, int maxLeavesPerChunk = DefaultMaxLeavesPerChunk,
+            IReadOnlyDictionary<TileId, HashSet<TileId>>? previousChunks = null,
+            CancellationToken cancellation = default)
+        {
+            if (cut == null) throw new ArgumentNullException(nameof(cut));
+            if (minimumChunkLevel < 0 || minimumChunkLevel > TileId.MaxLevel)
+                throw new ArgumentOutOfRangeException(nameof(minimumChunkLevel));
+            if (maxLeavesPerChunk < 1) throw new ArgumentOutOfRangeException(nameof(maxLeavesPerChunk));
+            cancellation.ThrowIfCancellationRequested();
+            var expanded = new HashSet<TileId>();
+            if (previousChunks != null)
+                foreach (TileId previousRoot in previousChunks.Keys)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    TileId node = previousRoot;
+                    while (node.Level > minimumChunkLevel)
+                    {
+                        node = node.Parent();
+                        expanded.Add(node);
+                    }
+                }
+
+            var roots = new Dictionary<TileId, HashSet<TileId>>();
+            foreach (TileId leaf in cut)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                TileId root = ChunkRootOf(leaf, minimumChunkLevel);
+                if (!roots.TryGetValue(root, out HashSet<TileId>? leaves))
+                    roots[root] = leaves = new HashSet<TileId>();
+                leaves.Add(leaf);
+            }
+            var result = new Dictionary<TileId, HashSet<TileId>>();
+            void Partition(TileId root, HashSet<TileId> leaves)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                // A korábbi mély partíció nem darabolhatja tovább a cut új,
+                // összevont levelét. A csoportosító sosem generál geometriát.
+                if (leaves.Contains(root))
+                {
+                    if (leaves.Count != 1) throw new ArgumentException("Átfedő cut-levelek.", nameof(cut));
+                    result.Add(root, leaves);
+                    return;
+                }
+                int limit = expanded.Contains(root) ? Math.Max(1, maxLeavesPerChunk / 2) : maxLeavesPerChunk;
+                if (leaves.Count <= limit)
+                {
+                    result.Add(root, leaves);
+                    return;
+                }
+                var children = new HashSet<TileId>?[4];
+                foreach (TileId leaf in leaves)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    int shift = 2 * (leaf.Level - root.Level - 1);
+                    int quadrant = (int)((leaf.Morton >> shift) & 3);
+                    (children[quadrant] ??= new HashSet<TileId>()).Add(leaf);
+                }
+                for (int i = 0; i < 4; i++)
+                    if (children[i] != null) Partition(root.Child(i), children[i]!);
+            }
+            var orderedRoots = new List<TileId>(roots.Keys);
+            orderedRoots.Sort((a,b) => a.Value.CompareTo(b.Value));
+            foreach (TileId root in orderedRoots) Partition(root, roots[root]);
+            return result;
+        }
+
+        /// <summary>Azonos topológia mellett is változhat a morpholt geometria.</summary>
+        public static bool SamePositions<T>(IReadOnlyList<T> previous, IReadOnlyList<T> next) where T : IEquatable<T>
+        {
+            if (previous == null || previous.Count != next.Count) return false;
+            for (int i = 0; i < next.Count; i++)
+                if (!previous[i].Equals(next[i])) return false;
+            return true;
+        }
+
         /// <summary>
         /// Egy cut-beli levelet a `chunkLevel`-szintu OSTOL (ez a "chunk gyoker")
         /// csoportosit. Ha a level MAR &lt;= chunkLevel (nem vart eset a normal

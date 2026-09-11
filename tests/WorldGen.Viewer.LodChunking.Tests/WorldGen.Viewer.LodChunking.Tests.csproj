@@ -26,7 +26,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/SurfaceLodBounds.cs" Link="Source/SurfaceLodBounds.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/ProjectedLodView.cs" Link="Source/ProjectedLodView.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/WaterLodSource.cs" Link="Source/WaterLodSource.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/TerrainLodProxy.cs" Link="Source/TerrainLodProxy.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/RenderedTileDiagnostics.cs" Link="Source/RenderedTileDiagnostics.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/DynamicMeshChunking.cs" Link="Source/DynamicMeshChunking.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/AdaptiveQuadTree.cs" Link="Source/AdaptiveQuadTree.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/AdaptiveViewState.cs" Link="Source/AdaptiveViewState.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/OceanRefinement.cs" Link="Source/OceanRefinement.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/LodCoverage.cs" Link="Source/LodCoverage.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/LodCornerResolver.cs" Link="Source/LodCornerResolver.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/TerrainIndexMask.cs" Link="Source/TerrainIndexMask.cs" />
   </ItemGroup>
 
 </Project>

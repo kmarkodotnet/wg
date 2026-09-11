@@ -203,6 +203,9 @@ MonoBehaviour:
   adaptiveBaseLevel: 8
   adaptiveMaxLevel: 20
   targetTilePixelSize: 12
+  initialRefinementPixelSize: 10
+  useTerrainLodProxy: 1
+  logDrawnTileSizes: 1
   adaptiveTraversalRootLevel: 3
   adaptiveRenderBudget: 200000
   useAsyncMeshRebuild: 1
@@ -211,7 +214,7 @@ MonoBehaviour:
   mergeHysteresisFactor: 1.5
   fovSafetyMargin: 1.3
   adaptiveCameraMoveThreshold: 1
-  geomorphRangeFraction: 0.6
+  geomorphRangeFraction: 0.36
   adaptiveCameraOverride: {fileID: 0}
   cornerCacheMaxSize: 300000
   tileClassificationCacheMaxSize: 300000

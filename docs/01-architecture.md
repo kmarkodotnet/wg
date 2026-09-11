@@ -238,6 +238,169 @@ ritka vagy változó LOD-adatok útja; részletek: ND-66 és ND-67.
 
 ---
 
+### 3.7 Adaptív terrain-fedés tulajdonosa (ND-70)
+
+A kiválasztott cut nem közvetlenül renderlista: előbb minden érintett
+base-tile alatt teljes renderpartícióvá egészül ki (`LodCoverage`).
+A `LodCornerResolver` a legdurvább érintkező levélhez igazítja a közös
+csúcsot/élt, a mező és a nyers morpholt quad a viewer callbackjéből jön.
+E modulok UnityEngine nélkül tesztelhetők, nem kerülnek a Core-ba.
+
+A sikeresen feltöltött dinamikus partícióhoz a `TerrainIndexMask` kapcsolja
+ki a kiváltott statikus terrain-háromszögeket; üres partíció visszaállítja az
+eredeti indexeket. A `PlanetGridMesh` kizárólag főszálon tölti a Unity mesh-eket.
+Azonos chunk-topológia mellett is külön vizsgálja a csúcspozíció változását,
+hogy a CPU-s geomorph ne ragadhasson be. A részleges indexfrissítés API-ja:
+[Unity Mesh.SetIndexBufferData](https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Mesh.SetIndexBufferData.html).
+
+### 3.8 Domborzati LOD-metrika (ND-71)
+
+**Aktuális státusz, ND-72:** az alábbi kísérleti integráció az élő
+teljesítményregresszió miatt visszavonva. Az aktív `PlanetGridMesh` ismét
+az ND-70 gömbös kiválasztását és morphját használja, nincs domborzati
+bounds-callback vagy bounds-cache a belső ciklusban. A tiszta opcionális
+LOD API csak offline próbákhoz maradt meg. Az alábbi leírás történeti.
+
+A CPU-kiválasztó a viewer `GetSurfaceLodBounds` callbackjén át a tényleges,
+morph nélküli terepsarkokat és középpontot kapja, testkoordinátákban.
+A nézetkúp a teljes mintaboundsot, a mintasűrűség és a morph az érintősíkbeli
+kiterjedést és az eltolt középpont távolságát használja (`SurfaceLodBounds`).
+Az alapgömb horizont-/backface-tesztje itt nem érvényes; nincs helyette
+szigorú terrain-occlusion garancia. A minták közti rejtett terepmaximum és a
+meredek falak vetített hibakorlátja szintén nyitott. Részletek: ND-71.
+
+A bounds-cache egyetlen kérés kiválasztását és emisszióját szolgálja ki.
+A minták a meglévő pozíció-cache-be kerülnek; a render-előkészítés ezért
+külön vizsgálja a szín és normál meglétét is, duplikált LRU-bejegyzés nélkül.
+A Core-modell, a kamera kezelése, a maxLOD és a budget nem változik.
+
+### 3.9 Olcsó renderdiagnosztika (ND-72)
+
+Az óceáni szűrés és fedéspótlás UTÁNI `LodCoverage.FindRenderedLeaf` adja
+a nadír terrain-levelét. A viewer az emitben használt morpholt/közösélhez
+illesztett négy sarkot méri; kérésenként egy új modellpontból víz/land állapot
+és radiális felszíntávolság is készül. Ez nem része a kiválasztásnak.
+A kérés elején rögzített kamera-/vetítési mátrix és viewport adja a quad
+pixelátmérőjét; a homogén osztás és négy sarok átmérője Unity nélkül tesztelt.
+Near-plane vagy kamera mögötti sarok érvénytelen mérést ad. Ez nem raycast,
+nem láthatóságvizsgálat, nem a víz felszínének és nem a teljes viewportnak
+a hibamérése. A diagnosztika saját ideje külön szerepel a logban.
+
+### 3.10 Első felosztás és morph hangolása (ND-73)
+
+A prioritásos cut opcionális `baseSplitScale` paramétere csak a még nem
+felosztott statikus base csomópont split-küszöbét csökkenti. A mélyebb szintek
+és a merge-küszöb változatlanok; az új base-splitnek a merge felett kell
+maradnia. Az alapértelmezett 1-es skála a korábbi API-viselkedés.
+A viewer 10 px első / 12 px további célt használ; a base-szülő morphja a
+base-küszöböt kapja, a többi a rendes küszöböt. A morph-range 0,35.
+A küszöbök és a morph-range kéréskori értékei rögzítettek a worker számára.
+Nincs domborzati callback a kiválasztásban. A GPU-kísérleti út nem kap
+előrehozott base-splitet. Részletek és mérési korlátok: ND-73.
+
+### 3.11 Build-kori tereptávolság-proxy (ND-74)
+
+`BuildStaticBaseLayer → statikus saroksugarak → TerrainLodProxy → cut + morph`.
+A proxy saját másolatot tart a hatlapos sugarakról, valamint base alatti
+maximum-piramist. Az adat snapshotként olvasható, nincs benne Core-hívás,
+UnityEngine vagy módosítható publikus tömb. Új Build invalidálja; a kiválasztás
+és emisszió ugyanazt a kéréskori példányt olvassa. Base > 8 és GPU-geometria
+esetén a gömbös út marad. A meglévő culling nem változik ebben a lépésben.
+A finom középpont sugarát bilineárisan interpoláljuk: ez a LOD-döntés
+közelítése, nem a renderelt geometria lecserélése. A valódi mesh továbbra is
+a teljes világmodellből készül. A nadírdiagnosztika külön méri a proxy
+sugárhibáját a valódi modellponthoz képest.
+
+### 3.12 Kirajzolt felszín mintapontos diagnosztikája (ND-75)
+
+A `PlanetGridMesh.RenderDiagnostics` partial kizárólag sikeres mesh-uploadok
+végleges vertex-/indexadatait jegyzi meg. A maszk elrejtett quad-indexei
+immutábilis snapshotot kapnak; position-only frissítés a régi indexek mellé
+az új pozíciólistát rögzíti. Az inaktív chunk nem mérhető láthatóként.
+A `RenderedTileDiagnostics` Unity-független clipping/mélységtesztelő,
+17×9 képernyőmintával. A kameravetítés a méréskori, nem a LOD-kéréskori.
+A főszál csak snapshot-referenciát/mátrixot ad át és kész szöveget naplóz;
+egyetlen mérőworker dolgozik, legfeljebb 1 Hz-en. Nincs Core-mintavétel,
+mesh-collider, új rajzolás vagy a finomítást befolyásoló visszacsatolás.
+A képterületi mintavétel és a GPU-képhez képesti korlátok az ND-75-ben élnek.
+
+### 3.13 Adagolt képernyő-LOD (ND-76)
+
+Kamera-snapshot + Build-kori terep-proxy → frustum/terepbounds alapú,
+új osztásokra korlátozott cut → teljes fedés/közösél-feloldás →
+chunk-cache összevetés → csak változott geometria emissziója → alkalmazás.
+A halasztott cut új kérést indít álló kameránál is. A cache csak sikeres
+alkalmazáskor vált generációt; a megszakított kérés nem publikál félkész mesht.
+A numerikus világmodell változatlan; a becslés és az ütemezés viewer-logika.
+
+### 3.14 Tereptile-döntés diagnosztika (ND-77)
+
+CPU-emissziós tile-sorrend → material-bucket szerint konkatenált TileId-tömb
+→ sikeres mesh-upload → ND-75 képernyőtalálat → pontos tile és a sikeres
+kérés megállási trace-e. A megállási trace megfigyelés, nem LOD-visszacsatolás.
+A mintázó az immutábilis, alkalmazott generációt kapja, nem a futó kérését.
+A proxy-becslés és a feltöltött geometria mérete külön mező; az eltérést
+nem szabad automatikusan egyetlen hibaforrásnak tulajdonítani.
+
+Az ND-78 a renderer meglévő teljes-base kizárását a prioritásos kiválasztás
+elé hozza: a biztosan később eldobott tengerfenék nem fogyaszt új osztási
+keretet. A callback csak a base-en, a kész statikus adatokból dolgozik.
+A nyers mélységű proxy-kísérlet túlosztása miatt visszavonva; az éles proxy
+és morph metrikája változatlan. A látható fragmentum és a teljes quad
+méretkülönbsége külön megoldandó kérdés marad.
+
+### 3.15 Korlátos renderchunk-partíció (ND-80)
+
+A CPU kiválasztás → óceáni szűrés → teljes base-fedés → globális
+közösél-resolver lánc után külön csomagolás fut. A `DynamicMeshChunking`
+a leveleket legdurvább területi gyökerek alá gyűjti, és a 256 levelet
+meghaladó csoportokat rekurzívan bontja. Az előző sikeres partíció alapján
+128 levélig nem vonja vissza az osztást. A TileId-k és a geometria nem
+változnak; csak a renderer/diff/cache munkacsomagjai.
+
+A worker az előző partíciót csak olvassa, az új csoportokat külön építi.
+Sikeres alkalmazás vált generációt; a meglévő diff az eltűnt szülő- vagy
+gyermekchunkokat ugyanabban az alkalmazásban kikapcsolja. A korlát per
+chunk levélszám, nem frame-időkeret vagy összes memória-korlát.
+
+### 3.16 Pontos vetület-cache (ND-81)
+
+A `PlanetGridMesh.Refinement` egy `LodTerrainEvaluationCache` példányt tart
+a cut/emit single-flight worker számára. Új kérés előtt pontos kamera-/
+vetületegyezés és proxy-referenciaazonosság alapján megtartja vagy lecseréli;
+Build és nem perspektivikus mód eldobja. A 262 144 bejegyzéses felső korlát
+után is teljes kiértékelés történik, csak új tárolás nem.
+
+A cache TileId → láthatóság/szöghiba leképezés, nem kiválasztási állapot.
+A `LodSelectionWork` továbbra is friss prioritási sort, kvótát és trace-t
+használ, és külön méri a selection/balance szakaszt. A geometria workerének
+geomorph számítása is olvashat/írhat ide; a külön diagnosztikai task nem.
+A `ProjectedLodView` változatlanul immutábilis. A coverage-függő közösél-
+feloldást és a pozícióazonosság-ellenőrzést nem hagyjuk ki cache-találatkor.
+Az emit belső részidői a feloldást/ellenőrzést, segédréteg-másolást és az
+új chunk emisszióját külön mutatják; nem hozzáadandók az emit összegéhez.
+
+### 3.17 Önálló víz-LOD előkészítés (ND-82, első kapu)
+
+A `WaterLodSource` saját, másolt base-vízmaszkból és tengerszintsugárból
+készít immutábilis kiválasztási forrást. A maszk a valóban emittált víz
+azonosítóit jelenti, nem a tengerfenék-kizárást. Állandó sugarú
+`TerrainLodProxy` használja újra a meglévő geometriai metrikát; nincs
+magasság-/klímamintavétel vagy UnityEngine-függés. A `Select` saját előző
+víz-cutot, szögküszöböt, levélkeretet és splitkvótát kap. Más forrásból
+származó előzményt elutasít (új Build új snapshotot igényel).
+
+A `WaterLodSelection` rendezett, csak olvasható leveleket és teljesen
+lefedett kiváltandó base-gyökereket ad. A saját `LodCornerResolver` a finom
+vízszélt a durva szomszéd/alap vízhúrjához illeszti. A kihagyott alap
+érintetlenül fed, száraz base alá nem kerül új víz. A geometriai fedést
+tesztek ellenőrzik; a vízszínek, vízmaszk és mesh-csere még nincsenek bekötve.
+
+**A viewer most nem hívja ezt a modult.** Runtime-aktiválás csak a következő
+kapuban: pontos attribútumforrás, statikus víz indexmaszkja, kizárólagos
+durva/finom rajzolás, atomikus publikáció és hibánál visszaállás. A régi
+víz-emisszió és a felhasználó által halasztott elsőzoom-probléma változatlan.
+
 ## 4. Modultérkép (frissítve)
 
 ```

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using WorldGen.Core.Grid;
 
 namespace WorldGen.Viewer.Lod
@@ -87,7 +88,7 @@ namespace WorldGen.Viewer.Lod
         public const int DefaultTraversalRootLevelSentinel = -1;
 
         /// <summary>
-        /// <see cref="staticBaseLevel"/> sentinel: nincs statikus reteg - a
+        /// A <c>staticBaseLevel</c> sentinelje: nincs statikus reteg - a
         /// cut TELJES particio (minden megallo csomopont emittalodik, level
         /// szerinti also korlat nelkul). Ez a visszafele-kompatibilis
         /// alapertelmezes. Ha &gt;=0, a bejaras CSAK a `level &gt; staticBaseLevel`
@@ -262,8 +263,20 @@ namespace WorldGen.Viewer.Lod
             int maxLeafCount = DefaultMaxLeafCount,
             double minUsefulCosGrazing = DefaultMinUsefulCosGrazing,
             int traversalRootLevel = DefaultTraversalRootLevelSentinel,
-            int staticBaseLevel = NoStaticBaseLevel)
+            int staticBaseLevel = NoStaticBaseLevel,
+            Func<TileId, SurfaceLodBounds>? surfaceBounds = null,
+            double baseSplitScale = 1.0,
+            TerrainLodProxy? terrainProxy = null, LodSelectionWork? work = null)
         {
+            if (!(baseSplitScale > 0 && baseSplitScale <= 1)
+                || (baseSplitScale < 1 && !(splitThresholdRadians * baseSplitScale > mergeThresholdRadians)))
+                throw new ArgumentOutOfRangeException(nameof(baseSplitScale));
+            if (baseSplitScale != 1 && staticBaseLevel < 0)
+                throw new ArgumentException("A korábbi első split statikus alapot igényel.", nameof(baseSplitScale));
+            if (surfaceBounds != null && staticBaseLevel < 0)
+                throw new ArgumentException("A domborzati metrika a prioritásos, statikus alapú úthoz tartozik.", nameof(surfaceBounds));
+            if (terrainProxy != null && (staticBaseLevel != terrainProxy.BaseLevel || surfaceBounds != null))
+                throw new ArgumentException("A proxy a saját statikus szintjét igényli, ND-71 callback nélkül.", nameof(terrainProxy));
             // FAZIS 2 (ND-47): ha van statikus reteg (uj mod), PRIORITASOS
             // (best-first) finomitas - a legnagyobb kepernyo-hibaju (= a
             // kamerahoz legkozelebbi, kozponti) csempet finomitjuk ELOSZOR, es a
@@ -273,18 +286,22 @@ namespace WorldGen.Viewer.Lod
             // haphazard helyen vag be, a nezett kozep nem osztodik" tunetet.
             // Regi modban (staticBaseLevel &lt; 0) a korabbi parhuzamos, DFS-alapu
             // SelectCut marad (teljes particio, nincs koltsegvetes-priorizalas).
+            var phaseTimer = work != null ? Stopwatch.StartNew() : null;
             HashSet<TileId> cut = staticBaseLevel >= 0
                 ? SelectCutPrioritized(
                     cameraX, cameraY, cameraZ, planetRadius, previousCut,
                     baseLevel, maxLevel, splitThresholdRadians, mergeThresholdRadians,
                     forwardX, forwardY, forwardZ, halfFovRadians, maxLeafCount, minUsefulCosGrazing,
-                    traversalRootLevel, staticBaseLevel)
+                    traversalRootLevel, staticBaseLevel, surfaceBounds, baseSplitScale, terrainProxy, work)
                 : SelectCut(
                     cameraX, cameraY, cameraZ, planetRadius, previousCut,
                     baseLevel, maxLevel, splitThresholdRadians, mergeThresholdRadians,
                     forwardX, forwardY, forwardZ, halfFovRadians, maxLeafCount, minUsefulCosGrazing,
                     traversalRootLevel, staticBaseLevel);
-            EnforceRestrictedBalance(cut, baseLevel, maxLeafCount);
+            if (work != null) { work.SelectionMs = phaseTimer!.Elapsed.TotalMilliseconds; phaseTimer.Restart(); }
+            EnforceRestrictedBalance(cut, baseLevel, maxLeafCount, work != null,
+                work?.Cancellation ?? default);
+            if (work != null) work.BalanceMs = phaseTimer!.Elapsed.TotalMilliseconds;
             return cut;
         }
 
@@ -311,7 +328,8 @@ namespace WorldGen.Viewer.Lod
             double splitThresholdRadians, double mergeThresholdRadians,
             double forwardX, double forwardY, double forwardZ,
             double halfFovRadians, int budget, double minUsefulCosGrazing,
-            int traversalRootLevel, int staticBaseLevel)
+            int traversalRootLevel, int staticBaseLevel, Func<TileId, SurfaceLodBounds>? surfaceBounds,
+            double baseSplitScale, TerrainLodProxy? terrainProxy, LodSelectionWork? work)
         {
             if (baseLevel < 0 || baseLevel > maxLevel)
                 throw new ArgumentOutOfRangeException(nameof(baseLevel));
@@ -343,16 +361,25 @@ namespace WorldGen.Viewer.Lod
             // csak in-view csomopontot pusholunk (grazeStop/!inView elobb kiesik),
             // tehat a ciklusban mindig igaz lenne.
             var heap = new List<HeapEntry>();
+            int pendingDynamicLeaves = 0;
 
             void TryEnqueueLeaf(TileId node)
             {
+                work?.Cancellation.ThrowIfCancellationRequested();
+                // ND-78: a renderer által amúgy is teljesen kihagyott base
+                // alá nem építünk eldobásra ítélt leszármazottakat.
+                if (node.Level==staticBaseLevel && work?.TrySkipStaticBase(node)==true) return;
                 EvaluateNodeForPriority(node, cameraX, cameraY, cameraZ, planetRadius, camLen,
-                    forwardX, forwardY, forwardZ, halfFovRadians, minUsefulCosGrazing, staticBaseLevel,
+                    forwardX, forwardY, forwardZ, halfFovRadians, minUsefulCosGrazing, staticBaseLevel, surfaceBounds, terrainProxy, work,
                     out double error, out bool inView, out bool horizonCulled, out bool grazeStop);
                 if (horizonCulled)
+                {
+                    work?.Trace?.Record(node,"horizon",error);
                     return; // teljesen a horizont mogott - a statikus fed, nincs teendo
+                }
                 if (grazeStop || !inView)
                 {
+                    work?.Trace?.Record(node,grazeStop ? "grazing" : "outside-view",error);
                     // Nem finomodik tovabb (surolo szog vagy latokupon kivul) -
                     // ha a base fole esik, vegleges level; egyebkent a statikus fed.
                     if (node.Level > staticBaseLevel)
@@ -360,6 +387,7 @@ namespace WorldGen.Viewer.Lod
                     return;
                 }
                 HeapPush(heap, new HeapEntry(error, node));
+                if (node.Level > staticBaseLevel) pendingDynamicLeaves++;
             }
 
             uint rootN = rootLevel == 0 ? 1u : (1u << rootLevel);
@@ -372,23 +400,43 @@ namespace WorldGen.Viewer.Lod
             {
                 HeapEntry top = HeapPop(heap);
                 TileId node = top.Node;
+                if (node.Level > staticBaseLevel) pendingDynamicLeaves--;
                 double error = top.Error;
 
-                double threshold = previousExpanded.Contains(node) ? mergeThresholdRadians : splitThresholdRadians;
+                bool wasExpanded = previousExpanded.Contains(node);
+                double threshold = wasExpanded ? mergeThresholdRadians : splitThresholdRadians;
+                // ND-73: csak az első, statikus alapot kiváltó felosztás
+                // indul korábban. A mélyebb szintek nem kapnak sűrűbb célt.
+                // A merge-küszöb változatlan: visszazoomkor nem tartjuk meg
+                // a korábbi profilnál tovább a már felesleges base-gyerekeket.
+                if (node.Level == staticBaseLevel && !wasExpanded) threshold *= baseSplitScale;
                 bool wantSplit = node.Level < maxLevel && error > threshold;
+                string stopReason = node.Level >= maxLevel ? "max-level" : "below-threshold";
 
-                // Koltsegvetes: ha mar eleg (level>base) level szuletett, NE
-                // finomitsunk tovabb - a maradek (kisebb hibaju) resz durvabb
-                // marad. A statikus reteg fedi, tehat lyuk nincs.
-                if (result.Count >= budget)
+                // ND-69: a függő frontier is lefoglalt megjelenítési költség.
+                // A kivett szülő helyére csak akkor kerülhet négy gyermek,
+                // ha mind elfér; budgetnél a szülőt őrizzük meg. A base alatti
+                // keresés ingyenes, hiszen az még nem hoz dinamikus levelet.
+                if (node.Level >= staticBaseLevel
+                    && result.Count + pendingDynamicLeaves + 4 > budget)
+                {
+                    if (wantSplit) stopReason = "leaf-budget";
                     wantSplit = false;
+                }
+
+                // ND-76: a régi felosztás nem fogyaszt új munkakeretet. Az
+                // alapszint alatti keresés szintén ingyenes; nincs új geometria.
+                if (wantSplit && node.Level >= staticBaseLevel && !wasExpanded && work != null)
+                {
+                    wantSplit = work.AllowNewSplit();
+                    if (!wantSplit) stopReason = "split-quota";
+                }
 
                 if (!wantSplit)
                 {
+                    work?.Trace?.Record(node,stopReason,error,threshold);
                     if (node.Level > staticBaseLevel)
                         result.Add(node);
-                    if (result.Count >= budget)
-                        break; // kemeny felso korlat - a maradek sort eldobjuk (statikus fed)
                     continue;
                 }
 
@@ -466,10 +514,28 @@ namespace WorldGen.Viewer.Lod
             TileId node,
             double cameraX, double cameraY, double cameraZ, double planetRadius, double camLen,
             double forwardX, double forwardY, double forwardZ, double halfFovRadians,
-            double minUsefulCosGrazing, int staticBaseLevel,
+            double minUsefulCosGrazing, int staticBaseLevel, Func<TileId, SurfaceLodBounds>? surfaceBounds, TerrainLodProxy? terrainProxy, LodSelectionWork? work,
             out double error, out bool inView, out bool horizonCulled, out bool grazeStop)
         {
             error = 0.0; inView = false; horizonCulled = false; grazeStop = false;
+
+            if (work?.View != null && terrainProxy != null)
+            {
+                inView = work.EvaluateTerrain(terrainProxy,node,out error);
+                return;
+            }
+
+            // ND-71: az alapgömb horizontja és radiális normálisa nem írhatja
+            // felül a tényleges domborzatot. A takart terep finomítását egy
+            // későbbi, bizonyított terrain-occlusion teszt szűrheti tovább.
+            if (surfaceBounds != null)
+            {
+                SurfaceLodBounds bounds = surfaceBounds(node);
+                error = bounds.AngularRadius(cameraX, cameraY, cameraZ);
+                inView = bounds.IntersectsViewCone(cameraX, cameraY, cameraZ,
+                    forwardX, forwardY, forwardZ, halfFovRadians);
+                return;
+            }
 
             GetCenterAndBoundingRadius(node, planetRadius, out double cx, out double cy, out double cz, out double rTile);
             double dx = cameraX - cx, dy = cameraY - cy, dz = cameraZ - cz;
@@ -518,6 +584,14 @@ namespace WorldGen.Viewer.Lod
 
             error = angularRadius;
             inView = IsWithinViewCone(cx, cy, cz, rTile, cameraX, cameraY, cameraZ, forwardX, forwardY, forwardZ, halfFovRadians);
+            // ND-74: az előszűrés most változatlan. Csak az átjutó patch
+            // prioritása/osztása kap tereptávolságot; nincs új modellminta.
+            if (inView && terrainProxy != null)
+            {
+                terrainProxy.ScaleMetric(node, planetRadius, ref cx, ref cy, ref cz, ref rTile);
+                dx = cameraX - cx; dy = cameraY - cy; dz = cameraZ - cz;
+                error = Math.Atan2(rTile, Math.Sqrt(dx * dx + dy * dy + dz * dz));
+            }
         }
 
         /// <summary>
@@ -1000,9 +1074,8 @@ namespace WorldGen.Viewer.Lod
         /// <summary>
         /// A csomopont KOZEPE (TileGeometry.ToPosition szerinti egysegvektor
         /// * planetRadius) es befoglalo sugara (a negy SAROK tavolsaganak
-        /// maximuma a kozepponttol) - UGYANAZ a geometria, amit a tenyleges
-        /// mesh-epites is hasznal (ld. PlanetGridMesh), tehat a LOD-dontes
-        /// es a megjelenitett geometria sosem ter el egymastol.
+        /// maximuma a kozepponttol). Csak a referencia-gömböt írja le;
+        /// a domborzati CPU-út ND-71 óta külön bounds-lekérdezést használ.
         /// </summary>
         public static void GetCenterAndBoundingRadius(
             TileId node, double planetRadius,
@@ -1046,7 +1119,8 @@ namespace WorldGen.Viewer.Lod
         /// szama felulrol korlatos: minden csomopont legfeljebb maxLevel-ig
         /// bonthato).
         /// </summary>
-        internal static void EnforceRestrictedBalance(HashSet<TileId> cut, int baseLevel, int maxLeafCount = DefaultMaxLeafCount)
+        internal static void EnforceRestrictedBalance(HashSet<TileId> cut, int baseLevel, int maxLeafCount = DefaultMaxLeafCount,
+            bool strictBudget = false, System.Threading.CancellationToken cancellation = default)
         {
             // MASODIK BIZTONSAGI KORLAT (2026-09-01, HARMADIK kor - a
             // Visit()-beli korlat (ld. ott a doksit) az EnforceRestrictedBalance-t
@@ -1066,6 +1140,7 @@ namespace WorldGen.Viewer.Lod
             bool changed;
             do
             {
+                cancellation.ThrowIfCancellationRequested();
                 if (cut.Count > balanceSizeCap)
                     break;
                 changed = false;
@@ -1085,6 +1160,7 @@ namespace WorldGen.Viewer.Lod
                 var candidates = new HashSet<TileId>();
                 foreach (TileId t in cut)
                 {
+                    cancellation.ThrowIfCancellationRequested();
                     if (t.Level <= baseLevel)
                         continue;
                     candidates.Add(t);
@@ -1135,8 +1211,14 @@ namespace WorldGen.Viewer.Lod
                     }
                 });
 
-                foreach (TileId ancestor in toSplit.Keys)
+                var orderedSplits = new List<TileId>(toSplit.Keys);
+                orderedSplits.Sort((a,b) => a.Value.CompareTo(b.Value));
+                foreach (TileId ancestor in orderedSplits)
                 {
+                    cancellation.ThrowIfCancellationRequested();
+                    // ND-76: az új munkakeretes út budgetjét a balance sem
+                    // lépheti át. A megmaradó szintkülönbséget a resolver illeszti.
+                    if (strictBudget && cut.Count + 3 > maxLeafCount) return;
                     // A korlat MID-ITERACIOBAN is ellenorzott (nem csak a
                     // ciklus elejen) - egyetlen iteracio onmagaban is
                     // tobbszorosere nombelheti a cut-ot, ha a toSplit

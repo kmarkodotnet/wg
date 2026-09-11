@@ -590,6 +590,102 @@ Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → m�
 
 ## M9 — Következő, részletes terv (autonóm folytatás, "csináld magadtól")
 
+**Aktuális felhasználói sorrend, ND-82 (2026-09-11):** az első zoomok
+akadását/küszöbét backlogra halasztottuk. Következő önálló feladat a
+[vízfelszín saját finomítása](reviews/water-lod-selection-nd82-2026-09-11.md).
+Első kapuja implementált: külön víz-cut, költségkeret, teljes base-fedés és
+illesztett geometriai terv, 24 új célzott teszttel. Teljes regresszió 617/617,
+LOD Release 229/229, Unity-forrásfordítás 0 hiba. **Runtime-aktiválás még
+nincs**, a vízmaszk/szín/mesh-publikáció bekötése a következő lépés.
+Ez nem a zoomhiba megoldása vagy új vizuális elfogadás; M9 továbbra is
+durván 60–70%. A korábbi „következő prioritás” sorokat ez a döntés felülírja.
+
+**ND-81 aktuális átadás (2026-09-11):** az ismételt metrikaszámítás
+[pontos cache-e](reviews/lod-work-cache-nd81-2026-09-11.md) implementált,
+a selection/balance és emit belső részidői naplózottak. Offline 40 páros
+finomítási kör azonos eredményt ad; a kiválasztási lánc 27–37%-kal rövidebb
+ebben a próbában. LOD 205/205 Debug/Release, Unity-forrásfordítás 0 hiba.
+A pixelcél változatlan; élő gyorsulás/visual acceptance még nincs.
+M9 tartalmilag továbbra is durván 60–70%; további munka és próbák 8–20 óra
+(durva becslés, nem mérés). Következő lépés csak felhasználói próba után.
+
+**ND-80 élő eredmény (2026-09-11):** a [logelemzés](reviews/lod-bounded-chunks-live-2026-09-11.md)
+igazolja a 256-os chunkkorlátot és kedvezőbb feltöltési csúcsokat.
+A háttérkérések ~0,54 s-os mediánja, 4–5 s-os állókamerás finomítása és
+a késői élesedés megmaradt. Következő prioritás a cut/előállítás ismételt
+munkája; vizuális elfogadás nincs, M9 továbbra is durván 60–70%.
+
+**ND-80 átadva próbára (2026-09-11):** a megjelenítés átalakításának első
+lépése a [256 levélre korlátozott hierarchikus chunk-csomagolás](reviews/lod-bounded-chunks-nd80-2026-09-11.md).
+A pixelcél és a geometria változatlan; nem élességjavításként adjuk át.
+Offline 104 állásban azonos fedés, LOD 190/190 Debug/Release; Unity-fordítás
+0 hiba. Élő teljesítmény/visual acceptance kell. M9 tartalmilag továbbra
+is durván 60–70%; upload és minőségi cél folytatása hátra.
+
+**ND-79 aktuális kapu (2026-09-11):** az ND-78 élő próba után a korai
+finomodás hiánya továbbra is igazolt. Közepesen kész állapotban ~9,9 px-es
+statikus terep marad a 10 px-es küszöb miatt. A kisebb célok offline próbája
+korábbi részletet, de súlyos geometria-/chunkszám-növekedést mutatott;
+nem aktiváltuk őket. [Elemzés és javasolt előfeltételek](reviews/lod-onset-cost-analysis-nd79-2026-09-11.md).
+Nincs új vizuális acceptance; M9 továbbra is durván 60–70%.
+
+**ND-78 részjavítás (2026-09-11):** a megjelenítő által kizárt tengerfenék
+már nem fogyaszt kiválasztási osztáskeretet. Offline azonos renderelt
+terep mellett közepesen 11→8, mélyebben 14→13 hullám; élő próba hátra.
+A teljes mélységű proxy-kísérlet visszavonva, mert tömeges túlosztást adott.
+Nem lezárt élességjavítás; M9 60–70% marad.
+[Részletes bizonyíték és korlátok](reviews/lod-early-ocean-exclusion-nd78-2026-09-11.md).
+
+**ND-77 aktuális kapu (2026-09-11):** az ND-76 élő log gyorsabb reakciót,
+de befejezett finomítás mellett 88,64 px-es dinamikus tereptile-t is mutat.
+Az engedélyezett 1. lépés [tile-azonosító és megállási trace része](reviews/lod-terrain-decision-trace-nd77-2026-09-11.md)
+implementált. Új próba kell a konkrét hibaforrás bizonyításához; terepjavítás
+még nincs. LOD 161/161 Debug/Release, Unity-fordítás 0 hiba. M9 60–70% marad.
+
+**ND-76 aktuális állapot (2026-09-11):** az ND-75 élő próba alapján elkészült
+a [nézetfrustum/proxy-quad méretű, adagolt finomítás és teljes chunk emit-cache](reviews/lod-progressive-projected-nd76-2026-09-11.md).
+A régi nézetű kérés kooperatívan megszakítható; álló kameránál a halasztott
+finomítás folytatódik. A tiszta kiválasztási próba mélyen ~75%-kal kisebb
+cutot adott azonos középső LOD mellett, közepes zoomnál viszont többlet is
+lehet. Élő Unity-acceptance nincs; a tartalmi becslés továbbra is 60–70%.
+A főszálas upload több frame-re bontása még nyitott, nem része a cache-fixnek.
+
+**2026-09-11, aktuális korrekció:** a korábbi „kész” alfejezetek nem jelentik
+a zoomminőség lezárását. A diagnózis alapján elkészült az
+[első javítási csomag](reviews/lod-zoom-fixes-2026-09-11.md) (ND-69): hiteles
+CPU-besorolás, parti védelem, nézetfrissítés és megőrzött budget-frontier.
+Az [ND-70 második csomag](reviews/lod-zoom-fixes-phase2-2026-09-11.md) teljes
+base-fedéscserét, közösél-feloldást és pozícióérzékeny chunk-frissítést ad.
+445/445 .NET-teszt sikeres; két új Unity Mesh API-teszt lefordult, de még nem
+futott. **Friss élő visszajelzés:** a zoom/visszazoom szépen működik, de kb.
+13 görgetés után nincs érzékelt további élesedés; a gyorsítás most halasztva.
+Az [ND-71 harmadik csomag](reviews/lod-zoom-fixes-phase3-2026-09-11.md)
+élőben nem hozott érdemi látványjavulást, viszont súlyos lassulást okozott.
+Az [ND-72 javítás](reviews/lod-zoom-regression-nd72-2026-09-11.md) az aktív
+kiválasztást/morphot visszaállítja az ND-70 útra, egyetlen nadírpontot mérő
+renderdiagnosztikával. Ez regressziójavítás, nem új felbontási áttörés.
+Az új élő visszajelzés szerint valamivel jobb, de késői a finomodás kezdete.
+Az [ND-73 hangolás](reviews/lod-zoom-onset-nd73-2026-09-11.md) korábbi első
+base-osztást és 0,6→0,35 morph-range-et ad; a mélyebb cél és budget nem nő.
+**Élő eredménye elutasítva.** A 18:39:49-es logban ráadásul még 0,600 volt
+a morph-range a scene fájl 0,35 értéke helyett; ez nem cáfolja a panaszt.
+Az [ND-74 első terep-proxy lépés](reviews/lod-terrain-proxy-nd74-2026-09-11.md)
+Buildkor a kész sarokmintákból készít távolságközelítést, amit a cut és morph
+közösen használ, új zoomkori Core-minták nélkül. Ez élő próbára átadott,
+nem elfogadott megoldás; nem szigorú képernyőhiba-korlát. A további tételek
+csak a felhasználó lépésenkénti ellenőrzése után következnek.
+**Új ND-74 visszajelzés:** távol jó, közepes zoomnál nem érzékelt finomodás,
+mélyebben ismét javul, de elégtelen. Emiatt a további javítások előtt az
+[ND-75 mérőnapló](reviews/lod-drawn-size-log-nd75-2026-09-11.md) készült:
+az aktuális kamerával vetített, ténylegesen feltöltött terrain/water mesh
+17×9-es mélységtesztelt mintázása. Most csak diagnosztika, LOD-hangolás nélkül;
+a felhasználó új próbája és annak értelmezése következik.
+Az upload-időkeret, inkrementális emisszió, precíz km-lépték (backlog),
+felszínkövető kamerakorlát, szigorú terepbounds és az új csomag élő
+vizuális/performance elfogadása nyitott.
+Tartalmilag súlyozott, korrigált durva M9-becslés: 60–70%; a zoomjavításokból és
+validációból további 14–30 óra (nem mért ráfordítás; új lépték-UI nélkül).
+
 ### Cél
 
 Kontinens- és régiónézet: a domborzat zoomolással ténylegesen finomodik
