@@ -175,6 +175,124 @@ public class FlowNetworkStructuralTests
             Assert.Equal(a.FloodOrder[id], b.FloodOrder[id]);
         }
     }
+
+    [Fact]
+    public void HeapMatchesPreviousSortedSetImplementationExactly()
+    {
+        var field = SeaLevelCalibration.ComputeElevationField(WorldSeed, PlateCount, level: 5);
+        double seaLevel = SeaLevelCalibration.CalibrateSeaLevel(field.Values, TargetWaterFraction);
+        var isOcean = FlowNetwork.ComputeOceanField(field, seaLevel);
+
+        FlowNetwork.FloodResult expected = PriorityFloodSortedSetReference(field, isOcean);
+        FlowNetwork.FloodResult actual = FlowNetwork.PriorityFlood(field, isOcean);
+
+        foreach (TileId id in field.Keys)
+        {
+            Assert.Equal(BitConverter.DoubleToInt64Bits(expected.Filled[id]), BitConverter.DoubleToInt64Bits(actual.Filled[id]));
+            Assert.Equal(expected.Parent[id], actual.Parent[id]);
+            Assert.Equal(expected.FloodOrder[id], actual.FloodOrder[id]);
+        }
+    }
+
+    [Fact]
+    public void DenseFloodMatchesDictionaryFloodExactly()
+    {
+        const int denseLevel = 5;
+        var field = SeaLevelCalibration.ComputeElevationField(WorldSeed, PlateCount, denseLevel);
+        double seaLevel = SeaLevelCalibration.CalibrateSeaLevel(field.Values, TargetWaterFraction);
+        var isOcean = FlowNetwork.ComputeOceanField(field, seaLevel);
+        FlowNetwork.FloodResult expected = FlowNetwork.PriorityFlood(field, isOcean);
+
+        FlowNetwork.DenseGridTopology topology = FlowNetwork.DenseGridTopology.Create(denseLevel);
+        var denseField = new double[topology.Count];
+        var denseOcean = new bool[topology.Count];
+        for (int i = 0; i < topology.Count; i++)
+        {
+            TileId id = topology.TileAt(i);
+            denseField[i] = field[id];
+            denseOcean[i] = isOcean[id];
+        }
+
+        FlowNetwork.DenseFloodResult actual = FlowNetwork.PriorityFloodDense(topology, denseField, denseOcean);
+        Dictionary<TileId, double> convertedFilled = actual.ToFilledDictionary(topology);
+        for (int i = 0; i < topology.Count; i++)
+        {
+            TileId id = topology.TileAt(i);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(expected.Filled[id]), BitConverter.DoubleToInt64Bits(actual.Filled[i]));
+            Assert.Equal(BitConverter.DoubleToInt64Bits(expected.Filled[id]), BitConverter.DoubleToInt64Bits(convertedFilled[id]));
+            Assert.Equal(expected.FloodOrder[id], actual.FloodOrder[i]);
+
+            TileId? expectedParent = expected.Parent[id];
+            if (expectedParent.HasValue)
+                Assert.Equal(topology.IndexOf(expectedParent.Value), actual.ParentIndex[i]);
+            else
+                Assert.Equal(-1, actual.ParentIndex[i]);
+
+            Assert.Equal(topology.IndexOf(TileNeighbors.Neighbor(id, TileDirection.Right)),
+                topology.NeighborIndex(i, TileDirection.Right));
+            Assert.Equal(topology.IndexOf(TileNeighbors.Neighbor(id, TileDirection.Left)),
+                topology.NeighborIndex(i, TileDirection.Left));
+            Assert.Equal(topology.IndexOf(TileNeighbors.Neighbor(id, TileDirection.Up)),
+                topology.NeighborIndex(i, TileDirection.Up));
+            Assert.Equal(topology.IndexOf(TileNeighbors.Neighbor(id, TileDirection.Down)),
+                topology.NeighborIndex(i, TileDirection.Down));
+        }
+    }
+
+    private static FlowNetwork.FloodResult PriorityFloodSortedSetReference(
+        Dictionary<TileId, double> field, Dictionary<TileId, bool> isOcean)
+    {
+        var result = new FlowNetwork.FloodResult();
+        var visited = new HashSet<TileId>();
+        var queue = new SortedSet<(double Elevation, long Counter)>();
+        var counterToTile = new Dictionary<long, TileId>();
+        long counter = 0;
+
+        foreach (var pair in isOcean)
+        {
+            if (!pair.Value) continue;
+            TileId tile = pair.Key;
+            result.Filled[tile] = field[tile];
+            result.Parent[tile] = null;
+            visited.Add(tile);
+            queue.Add((field[tile], counter));
+            counterToTile[counter] = tile;
+            counter++;
+        }
+
+        int order = 0;
+        while (queue.Count > 0)
+        {
+            (double Elevation, long Counter) min = queue.Min;
+            queue.Remove(min);
+            TileId current = counterToTile[min.Counter];
+            result.FloodOrder[current] = order++;
+
+            TileNeighbors.GetAll(current, out TileId right, out TileId left, out TileId up, out TileId down);
+            TryFloodReference(right, current, min.Elevation, field, result, visited, queue, counterToTile, ref counter);
+            TryFloodReference(left, current, min.Elevation, field, result, visited, queue, counterToTile, ref counter);
+            TryFloodReference(up, current, min.Elevation, field, result, visited, queue, counterToTile, ref counter);
+            TryFloodReference(down, current, min.Elevation, field, result, visited, queue, counterToTile, ref counter);
+        }
+
+        return result;
+    }
+
+    private static void TryFloodReference(
+        TileId candidate, TileId from, double fromElevation,
+        Dictionary<TileId, double> field, FlowNetwork.FloodResult result,
+        HashSet<TileId> visited, SortedSet<(double Elevation, long Counter)> queue,
+        Dictionary<long, TileId> counterToTile, ref long counter)
+    {
+        if (visited.Contains(candidate)) return;
+        visited.Add(candidate);
+        double candidateFilled = Math.Max(field[candidate], fromElevation);
+        result.Filled[candidate] = candidateFilled;
+        result.Parent[candidate] = from;
+        queue.Add((candidateFilled, counter));
+        counterToTile[counter] = candidate;
+        counter++;
+    }
 }
 
 public class FlowNetworkEdgeCaseTests

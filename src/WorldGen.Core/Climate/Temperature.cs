@@ -75,6 +75,32 @@ namespace WorldGen.Core.Climate
                 x, y, z, dayT, orbitalPeriod, rotationPeriod, axialTilt,
                 orbitalPhase0, rotationPhase0);
 
+            return TemperatureKelvinFromAverageInsolation(
+                avgFactor, isOceanic, elevationM, seaLevelM, fPeak, greenhouseK);
+        }
+
+        /// <summary>
+        /// A napi minták előre kiszámított Nap-irányaiból számol hőmérsékletet.
+        /// Sok pontra, azonos idő/pálya/forgás/dőlés mellett azonos eredményt ad,
+        /// mint a <see cref="TemperatureKelvin"/>, de a drága Nap-irányokat csak
+        /// egyszer kell előállítani (ND-64).
+        /// </summary>
+        public static double TemperatureKelvinFromSamples(
+            double x, double y, double z,
+            in DailyInsolationSampleDirections samples,
+            bool isOceanic, double elevationM, double seaLevelM,
+            double fPeak = DefaultFPeak, double greenhouseK = DefaultGreenhouseK)
+        {
+            double avgFactor = samples.AverageFactor(x, y, z);
+            return TemperatureKelvinFromAverageInsolation(
+                avgFactor, isOceanic, elevationM, seaLevelM, fPeak, greenhouseK);
+        }
+
+        private static double TemperatureKelvinFromAverageInsolation(
+            double avgFactor, bool isOceanic, double elevationM, double seaLevelM,
+            double fPeak, double greenhouseK)
+        {
+
             double albedo = isOceanic ? AlbedoOcean : AlbedoLand;
             double absorbed = fPeak * avgFactor * (1.0 - albedo);
             // x^0.25 = sqrt(sqrt(x)) - EGZAKT (nem közelítés), mert mindkét
@@ -242,6 +268,61 @@ namespace WorldGen.Core.Climate
                 cycleEccentricityAmplitudeK, cycleObliquityAmplitudeK, cyclePrecessionAmplitudeK);
 
             return tRadiative + tGreenhouse + tOcean - tAltitude + tWeather + tCycle;
+        }
+    }
+
+    /// <summary>
+    /// Egy teljes napi inszolációs mintasor ponttól független Nap-iránya.
+    /// A tömbök létrehozás után csak olvashatók; a struktúra ezért biztonságosan
+    /// megosztható a párhuzamos tile-kiértékelések között (ND-64).
+    /// </summary>
+    public readonly struct DailyInsolationSampleDirections
+    {
+        private readonly double[] _x;
+        private readonly double[] _y;
+        private readonly double[] _z;
+
+        private DailyInsolationSampleDirections(double[] x, double[] y, double[] z)
+        {
+            _x = x;
+            _y = y;
+            _z = z;
+        }
+
+        public static DailyInsolationSampleDirections Create(
+            double dayT, double orbitalPeriod, double rotationPeriod, double axialTilt,
+            double orbitalPhase0 = 0.0, double rotationPhase0 = 0.0,
+            int numSamples = Temperature.DefaultNumDaySamples)
+        {
+            if (numSamples <= 0)
+                throw new ArgumentOutOfRangeException(nameof(numSamples));
+
+            var x = new double[numSamples];
+            var y = new double[numSamples];
+            var z = new double[numSamples];
+            for (int i = 0; i < numSamples; i++)
+            {
+                double sampleT = dayT + i * (rotationPeriod / numSamples);
+                OrbitalMechanics.SunDirectionBodyFrame(
+                    sampleT, orbitalPeriod, rotationPeriod, axialTilt,
+                    orbitalPhase0, rotationPhase0,
+                    out x[i], out y[i], out z[i]);
+            }
+            return new DailyInsolationSampleDirections(x, y, z);
+        }
+
+        public double AverageFactor(double x, double y, double z)
+        {
+            if (_x == null || _y == null || _z == null)
+                throw new InvalidOperationException("A napi Nap-mintasor nincs inicializálva.");
+
+            double total = 0.0;
+            for (int i = 0; i < _x.Length; i++)
+            {
+                double cosTheta = x * _x[i] + y * _y[i] + z * _z[i];
+                total += Math.Max(0.0, cosTheta);
+            }
+            return total / _x.Length;
         }
     }
 }

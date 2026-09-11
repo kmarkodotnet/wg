@@ -171,10 +171,15 @@ namespace WorldGen.Viewer
             if (starField != null)
             {
                 starField.EnsureBuilt();
-                // AxialRotation modban a csillagmezo FIX marad (0 szog) -
-                // a bolygo forog helyette, ld. fent. Mas modokban a regi,
-                // ellentetes-iranyu forgatas szimulalja a bolygo forgasat.
-                starField.SetRotationAngleRadians(axialRotationMode ? 0.0 : rotationAngle);
+                // A StarField a Planet gyereke, ezért AxialRotation módban
+                // nem elég a lokális szögét nullázni: akkor örökölné a Planet
+                // forgását. Itt valóban a világtérhez rögzítjük. Más módokban
+                // a régi, ellentétes helyi forgatás szimulálja a bolygó
+                // forgását az identitáson álló Planet mellett.
+                if (axialRotationMode)
+                    starField.KeepFixedInWorldSpace();
+                else
+                    starField.SetRotationAngleRadians(rotationAngle);
             }
         }
 

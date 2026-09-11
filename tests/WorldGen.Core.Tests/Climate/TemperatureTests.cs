@@ -109,6 +109,36 @@ public class TemperaturePurityTests
             0.5, 0.5, 0.7071, 42.0, 365.25, 1.0, 0.4, true, -1000.0, 0.0);
         Assert.Equal(a, b);
     }
+
+    [Fact]
+    public void PrecomputedDailySamplesAreBitIdenticalToDirectPath()
+    {
+        const double dayT = 42.25;
+        const double orbitalPeriod = 365.25;
+        const double rotationPeriod = 1.0;
+        const double axialTilt = 0.40910517666747087;
+        DailyInsolationSampleDirections samples = DailyInsolationSampleDirections.Create(
+            dayT, orbitalPeriod, rotationPeriod, axialTilt);
+
+        var points = new[]
+        {
+            (X: 1.0, Y: 0.0, Z: 0.0, Ocean: false, Elevation: 800.0, Sea: 120.0),
+            (X: 0.5, Y: 0.5, Z: 0.7071067811865476, Ocean: true, Elevation: -3200.0, Sea: 50.0),
+            (X: -0.321, Y: 0.876, Z: -0.359, Ocean: false, Elevation: 4210.0, Sea: -80.0)
+        };
+
+        foreach (var point in points)
+        {
+            double direct = Temperature.TemperatureKelvin(
+                point.X, point.Y, point.Z, dayT, orbitalPeriod, rotationPeriod, axialTilt,
+                point.Ocean, point.Elevation, point.Sea);
+            double cached = Temperature.TemperatureKelvinFromSamples(
+                point.X, point.Y, point.Z, in samples,
+                point.Ocean, point.Elevation, point.Sea);
+
+            Assert.Equal(BitConverter.DoubleToInt64Bits(direct), BitConverter.DoubleToInt64Bits(cached));
+        }
+    }
 }
 
 public class TemperatureEdgeCaseTests

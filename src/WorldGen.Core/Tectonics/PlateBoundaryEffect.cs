@@ -128,6 +128,26 @@ namespace WorldGen.Core.Tectonics
             double oceanicOceanicUpliftFactor = DefaultOceanicOceanicUpliftFactor)
         {
             TwoBestDots(wx, wy, wz, seeds, out double best, out double second, out int bestIndex, out int secondIndex);
+            if (best - second >= gapScale)
+                return 0.0;
+            double mountainMask = CrustElevation.MountainMask(worldSeed, x, y, z);
+            return BoundaryUpliftFromNearestPlates(
+                worldSeed, best, second, bestIndex, secondIndex, mountainMask,
+                gapScale, upliftMax, oceanicOceanicUpliftFactor);
+        }
+
+        /// <summary>
+        /// Már meghatározott két legközelebbi lemez és már kiszámolt
+        /// MountainMask alapján adja az upliftet. Az ND-63 exact cache-útja
+        /// ezzel nem ismétli meg sem a seed-szkennelést, sem a maszk zaját.
+        /// </summary>
+        public static double BoundaryUpliftFromNearestPlates(
+            ulong worldSeed,
+            double best, double second, int bestIndex, int secondIndex,
+            double mountainMask,
+            double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters,
+            double oceanicOceanicUpliftFactor = DefaultOceanicOceanicUpliftFactor)
+        {
             double gap = best - second;
             if (gap >= gapScale)
                 return 0.0;
@@ -138,9 +158,7 @@ namespace WorldGen.Core.Tectonics
             bool secondOceanic = secondIndex >= 0 && CrustElevation.IsOceanic(worldSeed, secondIndex);
             if (bestOceanic && secondOceanic)
                 rawUplift *= oceanicOceanicUpliftFactor;
-
-            double mask = CrustElevation.MountainMask(worldSeed, x, y, z);
-            return rawUplift * mask;
+            return rawUplift * mountainMask;
         }
 
         /// <summary>

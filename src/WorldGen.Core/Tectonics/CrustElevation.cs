@@ -161,37 +161,110 @@ namespace WorldGen.Core.Tectonics
             return (r - 0.5) * 2.0;
         }
 
+        /// <summary>
+        /// Az eleváció időfüggetlen zajtagjai egy adott nyers pozíción.
+        /// Deep-time során a mozgó lemez és így a kéregtípus változhat, ezek
+        /// a részeredmények viszont kizárólag a world seedtől és a pozíciótól
+        /// függenek (ND-63).
+        /// </summary>
+        public static void ComputeNoiseBasis(
+            ulong worldSeed, double x, double y, double z,
+            out double primaryNoise, out double mountainMask, out double secondaryNoise)
+        {
+            // ridged_multifractal kb. [0,1]-hez kozeli, atlagosan ~0.7
+            // korul - (r-0.5)*2-vel [-1,1]-hez kozeli, ELOJELES
+            // modositova alakitva, hogy ne csak felfele toljon.
+            double r = FractalNoise.RidgedMultifractal(worldSeed, x, y, z);
+            primaryNoise = (r - 0.5) * 2.0;
+            mountainMask = MountainMask(worldSeed, x, y, z);
+            // ND-52: a masodlagos zaj SZANDEKOSAN nem kap MountainMask-ot;
+            // az oceani amplitudo-csokkentes viszont az osszeallitasban erre
+            // a tagra is ervenyes.
+            secondaryNoise = SecondaryDetailNoise(worldSeed, x, y, z);
+        }
+
+        /// <summary>
+        /// A <see cref="ComputeNoiseBasis"/> által előállított, időfüggetlen
+        /// tagokból állítja össze a plate-függő alap-elevációt. A műveleti
+        /// sorrend megegyezik a korábbi <see cref="BaseElevation"/> útéval.
+        /// </summary>
+        public static double BaseElevationFromNoiseBasis(
+            ulong worldSeed, int plateId,
+            double primaryNoise, double mountainMask, double secondaryNoise,
+            out bool isOceanic,
+            double oceanicProbability = DefaultOceanicProbability)
+        {
+            isOceanic = IsOceanic(worldSeed, plateId, oceanicProbability);
+            double baseValue = isOceanic ? OceanicBaseMeters : ContinentalBaseMeters;
+            double amplitude = NoiseAmplitudeMeters * (isOceanic ? OceanicNoiseFactor : 1.0);
+            double secondaryAmplitude = SecondaryNoiseAmplitudeMeters * (isOceanic ? OceanicNoiseFactor : 1.0);
+            return baseValue + primaryNoise * mountainMask * amplitude + secondaryNoise * secondaryAmplitude;
+        }
+
         /// <summary>A tile alap-magassága méterben: kéreg-típus bázis + térben koherens, maszkolt ridged zaj.</summary>
         public static double BaseElevation(
             ulong worldSeed, int plateId, double x, double y, double z, out bool isOceanic,
             double oceanicProbability = DefaultOceanicProbability)
         {
-            isOceanic = IsOceanic(worldSeed, plateId, oceanicProbability);
-            double baseValue = isOceanic ? OceanicBaseMeters : ContinentalBaseMeters;
+            ComputeNoiseBasis(
+                worldSeed, x, y, z,
+                out double primaryNoise, out double mountainMask, out double secondaryNoise);
+            return BaseElevationFromNoiseBasis(
+                worldSeed, plateId, primaryNoise, mountainMask, secondaryNoise,
+                out isOceanic, oceanicProbability);
+        }
+    }
 
-            // ridged_multifractal kb. [0,1]-hez kozeli, atlagosan ~0.7
-            // korul - (r-0.5)*2-vel [-1,1]-hez kozeli, ELOJELES
-            // modositova alakitva, hogy tovabbra is szimmetrikus
-            // magassag-perturbaciokent hasson (nem csak felfele told).
-            double r = FractalNoise.RidgedMultifractal(worldSeed, x, y, z);
-            double noise = (r - 0.5) * 2.0;
+    /// <summary>
+    /// Egy nyers gömbfelszíni pozíció world-seed-függő, de deep-time-
+    /// független részeredményei (ND-63). Nem tartalmaz plate ID-t, kéregtípust,
+    /// upliftet, eróziót vagy más időfüggő állapotot.
+    /// </summary>
+    public readonly struct TerrainPointBasis
+    {
+        public readonly double WarpedX;
+        public readonly double WarpedY;
+        public readonly double WarpedZ;
+        public readonly double PrimaryNoise;
+        public readonly double MountainMask;
+        public readonly double SecondaryNoise;
 
-            double mask = MountainMask(worldSeed, x, y, z);
-            double amplitude = NoiseAmplitudeMeters * (isOceanic ? OceanicNoiseFactor : 1.0);
+        public TerrainPointBasis(
+            double warpedX, double warpedY, double warpedZ,
+            double primaryNoise, double mountainMask, double secondaryNoise)
+        {
+            WarpedX = warpedX;
+            WarpedY = warpedY;
+            WarpedZ = warpedZ;
+            PrimaryNoise = primaryNoise;
+            MountainMask = mountainMask;
+            SecondaryNoise = secondaryNoise;
+        }
 
-            // ND-52: a masodlagos reszlet-zaj SZANDEKOSAN NEM kapja meg a
-            // MountainMask-ot - epp a "sik" regiokban (ahol a maszk
-            // elnyomna az elsodleges ridged-reszletet) a legfontosabb,
-            // hogy legyen valamennyi kozeli-zoom textura, kulonben pont
-            // ott maradna leglaposabb a felszin, ahol a felhasznalo
-            // panasza szerint a problema a legszembetunobb. Az oceani
-            // szelidites (OceanicNoiseFactor) viszont ugyanugy vonatkozik
-            // ra, hogy az oceanfenek ne kapjon aranytalanul sok reszletet
-            // a kontinenshez kepest.
-            double secondaryNoise = SecondaryDetailNoise(worldSeed, x, y, z);
-            double secondaryAmplitude = SecondaryNoiseAmplitudeMeters * (isOceanic ? OceanicNoiseFactor : 1.0);
+        public static TerrainPointBasis Compute(ulong worldSeed, double x, double y, double z)
+        {
+            DomainWarp.WarpPosition(worldSeed, x, y, z, out double wx, out double wy, out double wz);
+            CrustElevation.ComputeNoiseBasis(
+                worldSeed, x, y, z,
+                out double primaryNoise, out double mountainMask, out double secondaryNoise);
+            return new TerrainPointBasis(wx, wy, wz, primaryNoise, mountainMask, secondaryNoise);
+        }
 
-            return baseValue + noise * mask * amplitude + secondaryNoise * secondaryAmplitude;
+        /// <summary>
+        /// A cache-elt bázisból és az aktuálisan mozgatott lemezmagokból adja
+        /// vissza az időbeli relaxáció ELŐTTI base/uplift komponenseket.
+        /// </summary>
+        public void Evaluate(
+            ulong worldSeed, (double X, double Y, double Z)[] seeds,
+            out double baseElevation, out double uplift, out bool isOceanic)
+        {
+            PlateBoundaryEffect.TwoBestDots(
+                WarpedX, WarpedY, WarpedZ, seeds,
+                out double best, out double second, out int bestIndex, out int secondIndex);
+            baseElevation = CrustElevation.BaseElevationFromNoiseBasis(
+                worldSeed, bestIndex, PrimaryNoise, MountainMask, SecondaryNoise, out isOceanic);
+            uplift = PlateBoundaryEffect.BoundaryUpliftFromNearestPlates(
+                worldSeed, best, second, bestIndex, secondIndex, MountainMask);
         }
     }
 }

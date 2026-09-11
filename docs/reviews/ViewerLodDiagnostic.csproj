@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Önálló diagnosztika; nem része a solutionnek vagy a Unity buildnek. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>annotations</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/WorldGen.Core/WorldGen.Core.csproj" />
+    <Compile Include="lod-zoom-probe.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/AdaptiveQuadTree.cs" Link="AdaptiveQuadTree.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/DynamicMeshChunking.cs" Link="DynamicMeshChunking.cs" />
+  </ItemGroup>
+</Project>

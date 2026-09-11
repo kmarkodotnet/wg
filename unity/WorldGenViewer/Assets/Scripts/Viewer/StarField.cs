@@ -86,6 +86,18 @@ namespace WorldGen.Viewer
             transform.localRotation = Quaternion.AngleAxis(-(float)(angleRadians * Mathf.Rad2Deg), Vector3.up);
         }
 
+        /// <summary>
+        /// A csillagmezőt a világtérben rögzíti. A StarField a scene-ben a
+        /// Planet gyereke, ezért a localRotation identitásra állítása nem
+        /// elég: azzal továbbra is örökölné a bolygó tengelyforgását.
+        /// A world rotation képkockánkénti identitásra állítása pontosan
+        /// kompenzálja a szülő aktuális forgását.
+        /// </summary>
+        public void KeepFixedInWorldSpace()
+        {
+            transform.rotation = Quaternion.identity;
+        }
+
         [ContextMenu("Rebuild Stars")]
         private void RebuildFromContextMenu()
         {

@@ -742,6 +742,37 @@ namespace WorldGen.Viewer
         // NORMAL cache - ld. ComputeCornerNormalViaFiniteDifference doksija.
         private readonly Dictionary<(int Face, int Level, uint CornerU, uint CornerV), Vector3> _persistentCornerNormalCache = new();
 
+        // ND-63: a statikus base-level sarokpontok és az ND-55 normál két
+        // offset-mintájának world-seed-függő, de deep-time-független terrain-
+        // bázisa. Tömör tömb, nem Dictionary: level 8-on a három tömb nyers
+        // adata kb. 54,4 MiB. Deep-time rebuildkor megmarad, seed/base-level
+        // váltáskor teljesen újraépül.
+        private ulong _staticTerrainBasisSeed;
+        private int _staticTerrainBasisLevel = -1;
+        private TerrainPointBasis[] _staticCornerCenterBasis = Array.Empty<TerrainPointBasis>();
+        private TerrainPointBasis[] _staticCornerUBasis = Array.Empty<TerrainPointBasis>();
+        private TerrainPointBasis[] _staticCornerVBasis = Array.Empty<TerrainPointBasis>();
+
+        // ND-66: a TELJES base-grid nem ritka halmaz, hanem szabalyos,
+        // face/u/v szerint kozvetlenul indexelheto tomb. Ezek a tombok a
+        // statikus emit tobb millio Dictionary/LRU muveletet valtjak ki, es
+        // Build utan a dinamikus LOD base-szintu szulo-lekerdezeseit is
+        // kiszolgaljak. A numerikus ertekek ugyanazok, csak a tarolas mas.
+        private int _staticRenderDataLevel = -1;
+        private AdaptiveTileClassification[] _staticTileClassifications = Array.Empty<AdaptiveTileClassification>();
+        private Vector3[] _staticCornerPositions = Array.Empty<Vector3>();
+        private Vector3[] _staticCornerNormals = Array.Empty<Vector3>();
+        private Color[] _staticCornerColors = Array.Empty<Color>();
+
+        // ND-63/ND-64: a level-8 tile-KOZEPPONTOK azonos terrain-bazisat
+        // hasznalja a hidrologiai elevation field es a base-level tile-
+        // klasszifikacio. 393 216 * 48 byte ~= 18 MiB, plusz a TileId tomb.
+        private ulong _tileCenterTerrainBasisSeed;
+        private int _tileCenterTerrainBasisLevel = -1;
+        private TileId[] _tileCenterTerrainIds = Array.Empty<TileId>();
+        private TerrainPointBasis[] _tileCenterTerrainBasis = Array.Empty<TerrainPointBasis>();
+        private FlowNetwork.DenseGridTopology? _hydrologyDenseTopology;
+
         private bool _hasLastCutCameraPosition;
         private Vector3 _lastCutCameraPosition;
         private double _lastCutCameraCoreX, _lastCutCameraCoreY, _lastCutCameraCoreZ;
@@ -804,6 +835,7 @@ namespace WorldGen.Viewer
         private int _pendingRiverRefinementGeneration;
         private double _adaptiveAxialTiltRad;
         private double _adaptiveErosionTimeMyr;
+        private DailyInsolationSampleDirections _adaptiveDailyInsolationSamples;
 
         // M8: az utolsó Build() eredményének gyorsítótára - a panel-adatok
         // (ComputePanelData) ezekre épülnek, hogy ne kelljen a teljes
@@ -1027,6 +1059,11 @@ namespace WorldGen.Viewer
             if (_colorCacheWindMode != windSpeedOverlay)
             {
                 _persistentCornerColorCache.Clear();
+                // ND-66: a tombos base-szin ugyanugy modfuggo, mint a
+                // Dictionary-cache. A statikus mesh mar feltoltott szineit ez
+                // nem irja at, de kesobbi base-sarok lekerdezes nem kaphat
+                // elavult overlay-erteket.
+                _staticCornerColors = Array.Empty<Color>();
                 _colorCacheWindMode = windSpeedOverlay;
             }
         }
@@ -1342,8 +1379,16 @@ namespace WorldGen.Viewer
                 return;
 
             const float pad = 12f, w = 340f, rowH = 22f;
-            float x = pad, y = pad;
-            GUI.Box(new Rect(x - 6f, y - 6f, w + 12f, rowH * 8f + 16f), "Deep time");
+            // A bal oldalt a világ-/kontinens-/régiópanelek használják, ezért
+            // a deep-time vezérlők a jobb felső sarokba kerülnek. Keskeny
+            // Game View esetén se engedjük a panelt a képernyőn kívülre.
+            float x = Mathf.Max(pad, Screen.width - w - pad);
+            float y = pad;
+            // A panel a három kameramód-sorral együtt tíz sornyi helyet
+            // használ. Tartsuk a hátteret ugyanabból a sorszámból számolva,
+            // hogy új vezérlő hozzáadásakor ne lógjon ki a tartalom.
+            const float panelRowCount = 10f;
+            GUI.Box(new Rect(x - 6f, y - 6f, w + 12f, rowH * panelRowCount + 16f), "Deep time");
             y += rowH * 0.6f;
 
             GUI.Label(new Rect(x, y, w, rowH), $"Idő: {deepTimeMyr:F1} Myr  ({deepTimeMyr / 1000.0:F3} Gyr)");
@@ -1423,11 +1468,15 @@ namespace WorldGen.Viewer
             bool freeToggle = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), cameraViewMode == CameraViewMode.Free, " Szabad kamera");
             bool axialToggle = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), cameraViewMode == CameraViewMode.AxialRotation, " Tengelyforgás");
             y += rowH;
-            bool orbitalToggle = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), cameraViewMode == CameraViewMode.OrbitalFollow, " Pálya mentén");
+            // Az OrbitalFollow még nincs implementálva. Ne kínáljunk olyan
+            // aktív módot, amely csendben ugyanazt csinálja, mint a Free.
+            bool guiEnabledBeforeOrbital = GUI.enabled;
+            GUI.enabled = false;
+            GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), false, " Pálya mentén (hamarosan)");
+            GUI.enabled = guiEnabledBeforeOrbital;
             y += rowH;
             if (freeToggle && cameraViewMode != CameraViewMode.Free) cameraViewMode = CameraViewMode.Free;
             else if (axialToggle && cameraViewMode != CameraViewMode.AxialRotation) cameraViewMode = CameraViewMode.AxialRotation;
-            else if (orbitalToggle && cameraViewMode != CameraViewMode.OrbitalFollow) cameraViewMode = CameraViewMode.OrbitalFollow;
         }
 
         [ContextMenu("Rebuild")]
@@ -1522,24 +1571,37 @@ namespace WorldGen.Viewer
             PerfLog($"Build() seaLevel+oceanField={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms seaLevel={seaLevel:F1}");
             buildPhaseStopwatch.Restart();
 
-            // A folyo-tile kivalasztas logikaja a Core-ban van (FlowNetwork.
-            // SelectRiverTiles) - itt nincs duplikalva szimulacios matek.
+            // A regi, level-8-as folyo-tile/parent mezoket mar sem a render,
+            // sem a panel nem fogyasztja: a render a dendritikus halozatot
+            // hasznalja, a panel pedig a sajat level-5 referencia-floodjat
+            // szamolja. Uresen tartjuk oket a kesobbi teljes eltavolitasig.
             HashSet<TileId> riverTiles = new HashSet<TileId>();
             HashSet<TileId> lakeTiles = new HashSet<TileId>();
             Dictionary<TileId, TileId> riverParent = null;
             Dictionary<TileId, double> lakeSurface = null;
-            if (showRivers || showLakesIce)
+            double hydroFieldMs = 0.0;
+            double hydroFloodMs = 0.0;
+            double hydroLakesMs = 0.0;
+            double hydroTerrainBasisMs = 0.0;
+            double hydroTopologyMs = 0.0;
+            double hydroDenseKernelMs = 0.0;
+            double hydroDenseConversionMs = 0.0;
+            bool hydroTerrainBasisReused = false;
+            bool hydroTopologyReused = false;
+            bool denseFloodUsed = false;
+            var hydrologySubphaseStopwatch = Stopwatch.StartNew();
+            if (showLakesIce)
             {
-                // A folyók/tavak DEDIKÁLT, FINOMABB szinten (hydrologyLevel)
-                // számolódnak - a durva megjelenítési `level`-től FÜGGETLENÜL,
-                // mert külön réteg (vonal/vízfelszín), nem tile-osztályozás. Így a
-                // vízrajz kevésbé blokkos, a fő mesh és a `level` érintése nélkül.
+                // A tavak DEDIKÁLT, FINOMABB szinten (hydrologyLevel)
+                // számolódnak - a durva megjelenítési `level`-től FÜGGETLENÜL.
                 // A mezőre UGYANAZT alkalmazzuk (kráter + erózió), mint a
                 // megjelenítésire, és a KÖZÖS tengerszintet használjuk a
                 // konzisztens partvonalhoz.
                 int hydroLevel = Mathf.Clamp(hydrologyLevel, level, 8);
                 Dictionary<TileId, double> hydroField;
                 Dictionary<TileId, bool> hydroOcean;
+                double[]? hydroDenseField = null;
+                bool[]? hydroDenseOcean = null;
                 if (hydroLevel == level)
                 {
                     hydroField = field;
@@ -1547,64 +1609,84 @@ namespace WorldGen.Viewer
                 }
                 else
                 {
-                    hydroField = SeaLevelCalibration.ComputeElevationFieldAtTime(seed, plateCount, hydroLevel, deepTimeMyr);
-                    hydroField = ImpactCratering.ApplyToField(hydroField, craters);
-                    hydroField = ApplyDeepTimeErosionToField(hydroField, seed, seeds, _adaptiveErosionTimeMyr);
+                    hydroTerrainBasisReused = EnsureTileCenterTerrainBasisCache(seed, hydroLevel);
+                    hydroTerrainBasisMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds;
+                    hydroField = BuildElevationFieldFromCachedTileCenters(
+                        seed, seeds, craters, _adaptiveErosionTimeMyr, hydroLevel,
+                        out hydroDenseField);
                     hydroOcean = FlowNetwork.ComputeOceanField(hydroField, seaLevel);
+                    hydroDenseOcean = new bool[hydroDenseField.Length];
+                    for (int i = 0; i < hydroDenseField.Length; i++)
+                        hydroDenseOcean[i] = hydroDenseField[i] < seaLevel;
                 }
+                hydroFieldMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds;
 
-                // A priority-flood ('filled' + parent + floodOrder) KOZOS bemenete
-                // a folyoknak es a tavaknak - egyszer szamoljuk, ha barmelyik kell.
-                FlowNetwork.FloodResult flood = FlowNetwork.PriorityFlood(hydroField, hydroOcean);
-                if (showRivers)
+                hydrologySubphaseStopwatch.Restart();
+                Dictionary<TileId, double> filledForLakes;
+                if (hydroDenseField != null && hydroDenseOcean != null)
                 {
-                    Dictionary<TileId, long> accumulation = FlowNetwork.FlowAccumulation(hydroField, flood.Parent, flood.FloodOrder);
-                    riverTiles = FlowNetwork.SelectRiverTiles(hydroOcean, accumulation, riverTargetFraction);
+                    hydroTopologyReused = _hydrologyDenseTopology != null
+                        && _hydrologyDenseTopology.Level == hydroLevel;
+                    if (!hydroTopologyReused)
+                        _hydrologyDenseTopology = FlowNetwork.DenseGridTopology.Create(hydroLevel);
+                    hydroTopologyMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds;
+                    FlowNetwork.DenseGridTopology denseTopology = _hydrologyDenseTopology!;
 
-                    // Folyó-VONALHÁLÓZAT a TÉNYLEGES lefolyás-fából: minden folyó-
-                    // tile a DOWNSTREAM (flood.Parent) tile-jához köt egyetlen
-                    // szakasszal. Ez irányított -> dendritikus fa (mellékfolyók
-                    // összefolynak, a tenger felé tartanak), NEM a szimmetrikus,
-                    // rácsszerű "minden szomszéd" háló. A parent lehet óceán-tile is
-                    // (folyótorkolat -> a vonal eléri a partot). A BuildRiverNetwork
-                    // ebből rajzol tile-közép -> parent-közép szakaszokat.
-                    if (riverTiles.Count > 0)
+                    FlowNetwork.DenseFloodResult denseFlood = FlowNetwork.PriorityFloodDense(
+                        denseTopology, hydroDenseField, hydroDenseOcean);
+                    hydroDenseKernelMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds - hydroTopologyMs;
+                    filledForLakes = denseFlood.ToFilledDictionary(denseTopology);
+                    hydroDenseConversionMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds
+                        - hydroTopologyMs - hydroDenseKernelMs;
+                    denseFloodUsed = true;
+                }
+                else
+                {
+                    FlowNetwork.FloodResult flood = FlowNetwork.PriorityFlood(hydroField, hydroOcean);
+                    filledForLakes = flood.Filled;
+                }
+                hydroFloodMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds;
+
+                hydrologySubphaseStopwatch.Restart();
+                // Beltavak: a 'filled' es az eredeti mezo kulonbsege > kuszob,
+                // szarazfoldon (LakesIceErosion.IdentifyLakes, §33 topografiai to-detektalas).
+                // SZURES: csak a JELENTOS tavak (eleg nagy tile-szam ES eleg mely) -
+                // igy eltunik a sok apro, blokkos helyi melyedes (zaj). A tavakat
+                // LAPOS vizfelszinkent rajzoljuk a feltoltesi szinten (BuildLakeSurface),
+                // ezert per-tile eltaroljuk a to-felszin (flat) elevaciojat.
+                LakesIceErosion.LakeResult lakes = LakesIceErosion.IdentifyLakes(hydroField, filledForLakes, hydroOcean);
+                lakeSurface = new Dictionary<TileId, double>();
+                foreach (LakesIceErosion.LakeInfo lake in lakes.Lakes)
+                {
+                    if (lake.TileCount < minLakeTiles || lake.MaxDepth < minLakeDepthMeters)
+                        continue;
+                    foreach (TileId t in lake.Tiles)
                     {
-                        riverParent = new Dictionary<TileId, TileId>(riverTiles.Count);
-                        foreach (TileId t in riverTiles)
-                            if (flood.Parent.TryGetValue(t, out TileId? p) && p.HasValue)
-                                riverParent[t] = p.Value;
+                        lakeTiles.Add(t);
+                        lakeSurface[t] = lake.SurfaceElevation;
                     }
                 }
-                if (showLakesIce)
-                {
-                    // Beltavak: a 'filled' es az eredeti mezo kulonbsege > kuszob,
-                    // szarazfoldon (LakesIceErosion.IdentifyLakes, §33 topografiai to-detektalas).
-                    // SZURES: csak a JELENTOS tavak (eleg nagy tile-szam ES eleg mely) -
-                    // igy eltunik a sok apro, blokkos helyi melyedes (zaj). A tavakat
-                    // LAPOS vizfelszinkent rajzoljuk a feltoltesi szinten (BuildLakeSurface),
-                    // ezert per-tile eltaroljuk a to-felszin (flat) elevaciojat.
-                    LakesIceErosion.LakeResult lakes = LakesIceErosion.IdentifyLakes(hydroField, flood.Filled, hydroOcean);
-                    lakeSurface = new Dictionary<TileId, double>();
-                    foreach (LakesIceErosion.LakeInfo lake in lakes.Lakes)
-                    {
-                        if (lake.TileCount < minLakeTiles || lake.MaxDepth < minLakeDepthMeters)
-                            continue;
-                        foreach (TileId t in lake.Tiles)
-                        {
-                            lakeTiles.Add(t);
-                            lakeSurface[t] = lake.SurfaceElevation;
-                        }
-                    }
-                }
+                hydroLakesMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds;
             }
-            PerfLog($"Build() hydrology(hydroLevel={Mathf.Clamp(hydrologyLevel, level, 8)}, rivers={riverTiles.Count}, lakes={lakeTiles.Count})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
+            PerfLog(
+                $"Build() hydrology(hydroLevel={Mathf.Clamp(hydrologyLevel, level, 8)}, " +
+                $"coarseRiversSkipped=True, lakes={lakeTiles.Count})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms " +
+                $"[field={hydroFieldMs:F1}ms terrainBasis={hydroTerrainBasisMs:F1}ms " +
+                $"(reused={hydroTerrainBasisReused}) denseFlood={denseFloodUsed} " +
+                $"topology={hydroTopologyMs:F1}ms (reused={hydroTopologyReused}) " +
+                $"flood={hydroFloodMs:F1}ms (kernel={hydroDenseKernelMs:F1}ms, " +
+                $"conversion={hydroDenseConversionMs:F1}ms) lakes={hydroLakesMs:F1}ms]");
             buildPhaseStopwatch.Restart();
 
             double axialTiltRad = climateAxialTiltDegrees * Math.PI / 180.0;
             // Ugyanaz az ok, mint a seed/seeds/craters-nel: a statikus viz-ag
             // (ContinuousWaterCornerColor) a szel-overlay-ben MAR ezt hasznalja.
             _adaptiveAxialTiltRad = axialTiltRad;
+            // ND-64: a napi 24 Nap-irany minden tile-nal azonos. Egyszer
+            // allitjuk elo, a klasszifikacio csak a pontonkenti dot-productokat
+            // es a valtozatlan homerseklet-kepletet futtatja.
+            _adaptiveDailyInsolationSamples = DailyInsolationSampleDirections.Create(
+                climateDayT, climateOrbitalPeriodDays, climateRotationPeriodDays, axialTiltRad);
 
             // M7 allando jegtakaro: az EVES homerseklet-statisztikabol
             // (LakesIceErosion.AnnualTemperatureStats + ClassifyIce) a referencia-
@@ -1856,12 +1938,15 @@ namespace WorldGen.Viewer
                                 waterColorsByBucket[waterBucket], wc00, wc10, wc11, wc01, wp00, wp10, wp11, wp01);
                         }
 
-                        int b = borderVerts.Count;
-                        borderVerts.Add(p00); borderVerts.Add(p10); borderVerts.Add(p11); borderVerts.Add(p01);
-                        borderIndices.Add(b + 0); borderIndices.Add(b + 1);
-                        borderIndices.Add(b + 1); borderIndices.Add(b + 2);
-                        borderIndices.Add(b + 2); borderIndices.Add(b + 3);
-                        borderIndices.Add(b + 3); borderIndices.Add(b + 0);
+                        if (showBorders)
+                        {
+                            int b = borderVerts.Count;
+                            borderVerts.Add(p00); borderVerts.Add(p10); borderVerts.Add(p11); borderVerts.Add(p01);
+                            borderIndices.Add(b + 0); borderIndices.Add(b + 1);
+                            borderIndices.Add(b + 1); borderIndices.Add(b + 2);
+                            borderIndices.Add(b + 2); borderIndices.Add(b + 3);
+                            borderIndices.Add(b + 3); borderIndices.Add(b + 0);
+                        }
                     }
                 }
             }
@@ -1875,9 +1960,9 @@ namespace WorldGen.Viewer
             BuildBorders(borderVerts, borderIndices, "Borders");
             BuildCraterMarkers(craters, seed, seeds);
             BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, waterColorsByBucket, "WaterSurface");
-            PerfLog(
-                $"Build() legacy geometry loop(level={level}, tiles={n * n * 6})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms" +
-                (useAdaptiveLod ? " [ELDOBVA - useAdaptiveLod felulirja]" : ""));
+            PerfLog(useAdaptiveLod
+                ? $"Build() biome-only adaptive preparation(level={level}, tiles={n * n * 6})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms"
+                : $"Build() legacy geometry loop(level={level}, tiles={n * n * 6})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
             buildPhaseStopwatch.Restart();
 
             _lastSeed = seed;
@@ -2052,6 +2137,8 @@ namespace WorldGen.Viewer
         /// </summary>
         private void BuildStaticBaseLayer()
         {
+            var totalStopwatch = Stopwatch.StartNew();
+            var phaseStopwatch = Stopwatch.StartNew();
             int n = 1 << adaptiveBaseLevel;
             var baseTiles = new List<TileId>(6 * n * n);
             for (int face = 0; face <= 5; face++)
@@ -2060,8 +2147,28 @@ namespace WorldGen.Viewer
                         baseTiles.Add(TileId.FromFaceLevelUV(face, adaptiveBaseLevel, u, v));
 
             TileId[] leaves = baseTiles.ToArray();
-            PrecomputeClassificationsInParallel(leaves);
-            PrecomputeCornersInParallel(leaves);
+            double enumerateMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+
+            phaseStopwatch.Restart();
+            bool terrainBasisReused = EnsureStaticTerrainBasisCache();
+            double terrainBasisMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+
+            phaseStopwatch.Restart();
+            bool tileCenterBasisReused = EnsureTileCenterTerrainBasisCache(_adaptiveSeed, adaptiveBaseLevel);
+            double tileCenterBasisMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+
+            phaseStopwatch.Restart();
+            bool useDenseStaticData = adaptiveBaseLevel <= 8;
+            ClassificationDiag classificationDiag = useDenseStaticData
+                ? PrecomputeStaticClassificationsInParallel(leaves)
+                : PrecomputeClassificationsInParallel(leaves);
+            double classificationMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+
+            phaseStopwatch.Restart();
+            (int NeededCount, int MissingCount) cornerDiag = useDenseStaticData
+                ? PrecomputeStaticCornersInParallel()
+                : PrecomputeCornersInParallel(leaves);
+            double cornersMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
             var verticesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
             var normalsByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
@@ -2071,25 +2178,161 @@ namespace WorldGen.Viewer
             var waterNormalsByBucket = new Dictionary<int, List<Vector3>>();
             var waterTrianglesByBucket = new Dictionary<int, List<int>>();
             var waterColorsByBucket = new Dictionary<int, List<Color>>();
-            var borderVerts = new List<Vector3>();
-            var borderIndices = new List<int>();
+            var borderVerts = new List<Vector3>(showBorders ? checked(leaves.Length * 4) : 0);
+            var borderIndices = new List<int>(showBorders ? checked(leaves.Length * 8) : 0);
             float waterSurfaceRadius = radius + (float)(_adaptiveSeaLevel * elevationScale);
 
-            foreach (TileId leaf in leaves)
+            phaseStopwatch.Restart();
+            StaticMeshBuckets? staticBuckets = useDenseStaticData
+                ? CreateStaticMeshBuckets(
+                    verticesByKey, normalsByKey, trianglesByKey, colorsByKey,
+                    waterVerticesByBucket, waterNormalsByBucket,
+                    waterTrianglesByBucket, waterColorsByBucket)
+                : null;
+            double bucketPrepareMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+
+            phaseStopwatch.Restart();
+            for (int i = 0; i < leaves.Length; i++)
             {
                 EmitAdaptiveTile(
-                    leaf, verticesByKey, normalsByKey, trianglesByKey, colorsByKey,
+                    leaves[i], verticesByKey, normalsByKey, trianglesByKey, colorsByKey,
                     waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, waterColorsByBucket,
-                    borderVerts, borderIndices, waterSurfaceRadius, radialBias: 0f);
+                    borderVerts, borderIndices, waterSurfaceRadius, radialBias: 0f,
+                    staticDenseIndex: useDenseStaticData ? i : -1,
+                    staticBuckets: staticBuckets);
             }
+            double emitMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            phaseStopwatch.Restart();
             BuildMultiMaterialMesh(verticesByKey, normalsByKey, trianglesByKey, colorsByKey, gameObject);
-            BuildBorders(borderVerts, borderIndices, "Borders");
-            BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, waterColorsByBucket, "WaterSurface");
+            double meshMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            phaseStopwatch.Restart();
+            BuildBorders(borderVerts, borderIndices, "Borders");
+            double bordersMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+
+            phaseStopwatch.Restart();
+            BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, waterColorsByBucket, "WaterSurface");
+            double waterMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+
+            phaseStopwatch.Restart();
             EvictCornerCacheIfNeeded();
             EvictTileClassificationCacheIfNeeded();
+            double evictionMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+
+            totalStopwatch.Stop();
+            PerfLog(
+                $"  BuildStaticBaseLayer reszletek: total={totalStopwatch.Elapsed.TotalMilliseconds:F1}ms " +
+                $"enumerate={enumerateMs:F1}ms | terrainBasis={terrainBasisMs:F1}ms " +
+                $"(reused={terrainBasisReused}) | " +
+                $"tileCenterBasis={tileCenterBasisMs:F1}ms (reused={tileCenterBasisReused}) | " +
+                $"denseStatic={useDenseStaticData} | " +
+                $"classification={classificationMs:F1}ms (missing={classificationDiag.MissingCount}, " +
+                $"usedGpu={classificationDiag.UsedGpu}, gpuDispatch={classificationDiag.GpuDispatchMs:F1}ms, " +
+                $"cpuTempLoop={classificationDiag.CpuTemperatureLoopMs:F1}ms) | " +
+                $"corners={cornersMs:F1}ms (needed={cornerDiag.NeededCount}, missing={cornerDiag.MissingCount}) | " +
+                $"bucketPrepare={bucketPrepareMs:F1}ms | emit={emitMs:F1}ms | mesh={meshMs:F1}ms | borders={bordersMs:F1}ms | " +
+                $"water={waterMs:F1}ms | eviction={evictionMs:F1}ms");
         }
+
+        private sealed class StaticMeshBuckets
+        {
+            public readonly List<Vector3>[] TerrainVertices;
+            public readonly List<Vector3>[] TerrainNormals;
+            public readonly List<int>[] TerrainTriangles;
+            public readonly List<Color>[] TerrainColors;
+            public readonly List<Vector3>[] WaterVertices;
+            public readonly List<Vector3>[] WaterNormals;
+            public readonly List<int>[] WaterTriangles;
+            public readonly List<Color>[] WaterColors;
+
+            public StaticMeshBuckets(int[] terrainQuadCounts, int[] waterQuadCounts)
+            {
+                TerrainVertices = new List<Vector3>[terrainQuadCounts.Length];
+                TerrainNormals = new List<Vector3>[terrainQuadCounts.Length];
+                TerrainTriangles = new List<int>[terrainQuadCounts.Length];
+                TerrainColors = new List<Color>[terrainQuadCounts.Length];
+                for (int i = 0; i < terrainQuadCounts.Length; i++)
+                {
+                    int quads = terrainQuadCounts[i];
+                    TerrainVertices[i] = new List<Vector3>(checked(quads * 4));
+                    TerrainNormals[i] = new List<Vector3>(checked(quads * 4));
+                    TerrainTriangles[i] = new List<int>(checked(quads * 6));
+                    TerrainColors[i] = new List<Color>(checked(quads * 4));
+                }
+
+                WaterVertices = new List<Vector3>[waterQuadCounts.Length];
+                WaterNormals = new List<Vector3>[waterQuadCounts.Length];
+                WaterTriangles = new List<int>[waterQuadCounts.Length];
+                WaterColors = new List<Color>[waterQuadCounts.Length];
+                for (int i = 0; i < waterQuadCounts.Length; i++)
+                {
+                    int quads = waterQuadCounts[i];
+                    WaterVertices[i] = new List<Vector3>(checked(quads * 4));
+                    WaterNormals[i] = new List<Vector3>(checked(quads * 4));
+                    WaterTriangles[i] = new List<int>(checked(quads * 6));
+                    WaterColors[i] = new List<Color>(checked(quads * 4));
+                }
+            }
+        }
+
+        private StaticMeshBuckets CreateStaticMeshBuckets(
+            Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> verticesByKey,
+            Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> normalsByKey,
+            Dictionary<(RenderCategory Category, int Bucket), List<int>> trianglesByKey,
+            Dictionary<(RenderCategory Category, int Bucket), List<Color>> colorsByKey,
+            Dictionary<int, List<Vector3>> waterVerticesByBucket,
+            Dictionary<int, List<Vector3>> waterNormalsByBucket,
+            Dictionary<int, List<int>> waterTrianglesByBucket,
+            Dictionary<int, List<Color>> waterColorsByBucket)
+        {
+            int terrainSlotCount = ((int)RenderCategory.Lake + 1) * OceanRockBucketCount;
+            var terrainQuadCounts = new int[terrainSlotCount];
+            var waterQuadCounts = new int[WaterDepthBucketCount];
+            for (int i = 0; i < _staticTileClassifications.Length; i++)
+            {
+                AdaptiveTileClassification classification = _staticTileClassifications[i];
+                int terrainSlot = StaticTerrainBucketIndex(classification.Category, classification.Bucket);
+                terrainQuadCounts[terrainSlot]++;
+                if (classification.IsOceanic
+                    && (classification.Biome == Biome.Ocean || classification.Biome == Biome.SeaIce))
+                {
+                    int waterBucket = WaterDepthBucket(_adaptiveSeaLevel - classification.Elevation);
+                    waterQuadCounts[waterBucket]++;
+                }
+            }
+
+            var buckets = new StaticMeshBuckets(terrainQuadCounts, waterQuadCounts);
+            for (int categoryIndex = 0; categoryIndex <= (int)RenderCategory.Lake; categoryIndex++)
+            {
+                var category = (RenderCategory)categoryIndex;
+                for (int bucket = 0; bucket < OceanRockBucketCount; bucket++)
+                {
+                    int slot = StaticTerrainBucketIndex(category, bucket);
+                    if (terrainQuadCounts[slot] == 0)
+                        continue;
+                    var key = (category, bucket);
+                    verticesByKey[key] = buckets.TerrainVertices[slot];
+                    normalsByKey[key] = buckets.TerrainNormals[slot];
+                    trianglesByKey[key] = buckets.TerrainTriangles[slot];
+                    colorsByKey[key] = buckets.TerrainColors[slot];
+                }
+            }
+
+            for (int bucket = 0; bucket < WaterDepthBucketCount; bucket++)
+            {
+                if (waterQuadCounts[bucket] == 0)
+                    continue;
+                waterVerticesByBucket[bucket] = buckets.WaterVertices[bucket];
+                waterNormalsByBucket[bucket] = buckets.WaterNormals[bucket];
+                waterTrianglesByBucket[bucket] = buckets.WaterTriangles[bucket];
+                waterColorsByBucket[bucket] = buckets.WaterColors[bucket];
+            }
+            return buckets;
+        }
+
+        private static int StaticTerrainBucketIndex(RenderCategory category, int bucket)
+            => (int)category * OceanRockBucketCount + bucket;
 
         /// <summary>
         /// M9 kozponti belepesi pontja: uj cut szamolasa a MEGLEVO cut-bol
@@ -2746,9 +2989,15 @@ namespace WorldGen.Viewer
             Dictionary<int, List<int>> waterTrianglesByBucket,
             Dictionary<int, List<Color>> waterColorsByBucket,
             List<Vector3> borderVerts, List<int> borderIndices,
-            float waterSurfaceRadius, float radialBias)
+            float waterSurfaceRadius, float radialBias, int staticDenseIndex = -1,
+            StaticMeshBuckets? staticBuckets = null)
         {
-            AdaptiveTileClassification classification = GetOrComputeTileClassification(id);
+            bool useStaticDenseData = staticDenseIndex >= 0
+                && id.Level == _staticRenderDataLevel
+                && (uint)staticDenseIndex < (uint)_staticTileClassifications.Length;
+            AdaptiveTileClassification classification = useStaticDenseData
+                ? _staticTileClassifications[staticDenseIndex]
+                : GetOrComputeTileClassification(id);
             double elevation = classification.Elevation;
             bool isOceanic = classification.IsOceanic;
             Biome biome = classification.Biome;
@@ -2756,10 +3005,56 @@ namespace WorldGen.Viewer
             int bucket = classification.Bucket;
             var key = (category, bucket);
 
-            GetOrAddLists(verticesByKey, normalsByKey, trianglesByKey, colorsByKey, key,
-                out List<Vector3> vertices, out List<Vector3> normals, out List<int> triangles, out List<Color> colors);
+            List<Vector3> vertices;
+            List<Vector3> normals;
+            List<int> triangles;
+            List<Color> colors;
+            if (staticBuckets != null)
+            {
+                int terrainSlot = StaticTerrainBucketIndex(category, bucket);
+                vertices = staticBuckets.TerrainVertices[terrainSlot];
+                normals = staticBuckets.TerrainNormals[terrainSlot];
+                triangles = staticBuckets.TerrainTriangles[terrainSlot];
+                colors = staticBuckets.TerrainColors[terrainSlot];
+            }
+            else
+            {
+                GetOrAddLists(verticesByKey, normalsByKey, trianglesByKey, colorsByKey, key,
+                    out vertices, out normals, out triangles, out colors);
+            }
 
-            GetAdaptiveCorners(id, out Vector3 p00, out Vector3 p10, out Vector3 p11, out Vector3 p01);
+            id.GetUV(out uint u, out uint v);
+            int lvl = id.Level;
+            Vector3 p00, p10, p11, p01;
+            Vector3 pn00, pn10, pn11, pn01;
+            int staticCorner00 = -1;
+            int staticCorner10 = -1;
+            int staticCorner11 = -1;
+            int staticCorner01 = -1;
+            if (useStaticDenseData)
+            {
+                int side = (1 << lvl) + 1;
+                staticCorner00 = id.Face * side * side + (int)u * side + (int)v;
+                staticCorner10 = staticCorner00 + side;
+                staticCorner11 = staticCorner10 + 1;
+                staticCorner01 = staticCorner00 + 1;
+                p00 = _staticCornerPositions[staticCorner00];
+                p10 = _staticCornerPositions[staticCorner10];
+                p11 = _staticCornerPositions[staticCorner11];
+                p01 = _staticCornerPositions[staticCorner01];
+                pn00 = _staticCornerNormals[staticCorner00];
+                pn10 = _staticCornerNormals[staticCorner10];
+                pn11 = _staticCornerNormals[staticCorner11];
+                pn01 = _staticCornerNormals[staticCorner01];
+            }
+            else
+            {
+                GetAdaptiveCorners(id, out p00, out p10, out p11, out p01);
+                pn00 = GetOrComputePersistentCornerNormal(id.Face, lvl, u, v);
+                pn10 = GetOrComputePersistentCornerNormal(id.Face, lvl, u + 1, v);
+                pn11 = GetOrComputePersistentCornerNormal(id.Face, lvl, u + 1, v + 1);
+                pn01 = GetOrComputePersistentCornerNormal(id.Face, lvl, u, v + 1);
+            }
             if (radialBias != 0f)
             {
                 p00 += p00.normalized * radialBias;
@@ -2773,22 +3068,16 @@ namespace WorldGen.Viewer
             // a MEGOSZTOTT sarok-cache-mintazat, mint a szinnel
             // (_persistentCornerColorCache) - PrecomputeCornersInParallel
             // MAR feltoltotte parhuzamosan.
-            id.GetUV(out uint u, out uint v);
-            int lvl = id.Level;
-            Vector3 pn00 = GetOrComputePersistentCornerNormal(id.Face, lvl, u, v);
-            Vector3 pn10 = GetOrComputePersistentCornerNormal(id.Face, lvl, u + 1, v);
-            Vector3 pn11 = GetOrComputePersistentCornerNormal(id.Face, lvl, u + 1, v + 1);
-            Vector3 pn01 = GetOrComputePersistentCornerNormal(id.Face, lvl, u, v + 1);
             if (IsContinuousTerrainCategory(category))
             {
                 // TELJESITMENY: a szin a MEGOSZTOTT sarok-cache-bol jon
                 // (PrecomputeCornersInParallel MAR feltoltotte parhuzamosan),
                 // NEM itt, az egyszalu EmitAdaptiveTile-ban szamolodik ujra -
                 // ld. _persistentCornerColorCache doksija.
-                Color cc00 = GetOrComputePersistentCornerColor(id.Face, lvl, u, v);
-                Color cc10 = GetOrComputePersistentCornerColor(id.Face, lvl, u + 1, v);
-                Color cc11 = GetOrComputePersistentCornerColor(id.Face, lvl, u + 1, v + 1);
-                Color cc01 = GetOrComputePersistentCornerColor(id.Face, lvl, u, v + 1);
+                Color cc00 = useStaticDenseData ? _staticCornerColors[staticCorner00] : GetOrComputePersistentCornerColor(id.Face, lvl, u, v);
+                Color cc10 = useStaticDenseData ? _staticCornerColors[staticCorner10] : GetOrComputePersistentCornerColor(id.Face, lvl, u + 1, v);
+                Color cc11 = useStaticDenseData ? _staticCornerColors[staticCorner11] : GetOrComputePersistentCornerColor(id.Face, lvl, u + 1, v + 1);
+                Color cc01 = useStaticDenseData ? _staticCornerColors[staticCorner01] : GetOrComputePersistentCornerColor(id.Face, lvl, u, v + 1);
                 AddQuad(vertices, normals, triangles, colors, cc00, cc10, cc11, cc01, pn00, pn10, pn11, pn01, p00, p10, p11, p01);
             }
             else
@@ -2823,13 +3112,33 @@ namespace WorldGen.Viewer
 
                 double depth = _adaptiveSeaLevel - elevation;
                 int waterBucket = WaterDepthBucket(depth);
-                if (!waterVerticesByBucket.TryGetValue(waterBucket, out List<Vector3> waterVerts))
+                List<Vector3> waterVerts;
+                List<Vector3> waterNormals;
+                List<int> waterTriangles;
+                List<Color> waterColors;
+                if (staticBuckets != null)
+                {
+                    waterVerts = staticBuckets.WaterVertices[waterBucket];
+                    waterNormals = staticBuckets.WaterNormals[waterBucket];
+                    waterTriangles = staticBuckets.WaterTriangles[waterBucket];
+                    waterColors = staticBuckets.WaterColors[waterBucket];
+                }
+                else if (!waterVerticesByBucket.TryGetValue(waterBucket, out waterVerts))
                 {
                     waterVerts = new List<Vector3>();
+                    waterNormals = new List<Vector3>();
+                    waterTriangles = new List<int>();
+                    waterColors = new List<Color>();
                     waterVerticesByBucket[waterBucket] = waterVerts;
-                    waterNormalsByBucket[waterBucket] = new List<Vector3>();
-                    waterTrianglesByBucket[waterBucket] = new List<int>();
-                    waterColorsByBucket[waterBucket] = new List<Color>();
+                    waterNormalsByBucket[waterBucket] = waterNormals;
+                    waterTrianglesByBucket[waterBucket] = waterTriangles;
+                    waterColorsByBucket[waterBucket] = waterColors;
+                }
+                else
+                {
+                    waterNormals = waterNormalsByBucket[waterBucket];
+                    waterTriangles = waterTrianglesByBucket[waterBucket];
+                    waterColors = waterColorsByBucket[waterBucket];
                 }
                 // ND-60: ld. a statikus alapreteg azonos javitasa - a viz szine
                 // MINDIG a valodi melysegbol jon, fuggetlenul a homerseklettol/
@@ -2839,16 +3148,21 @@ namespace WorldGen.Viewer
                 Color wc10 = ContinuousWaterCornerColor(p10, _adaptiveSeaLevel);
                 Color wc11 = ContinuousWaterCornerColor(p11, _adaptiveSeaLevel);
                 Color wc01 = ContinuousWaterCornerColor(p01, _adaptiveSeaLevel);
-                AddQuad(waterVerts, waterNormalsByBucket[waterBucket], waterTrianglesByBucket[waterBucket],
-                    waterColorsByBucket[waterBucket], wc00, wc10, wc11, wc01, wp00, wp10, wp11, wp01);
+                AddQuad(waterVerts, waterNormals, waterTriangles,
+                    waterColors, wc00, wc10, wc11, wc01, wp00, wp10, wp11, wp01);
             }
 
-            int b = borderVerts.Count;
-            borderVerts.Add(p00); borderVerts.Add(p10); borderVerts.Add(p11); borderVerts.Add(p01);
-            borderIndices.Add(b + 0); borderIndices.Add(b + 1);
-            borderIndices.Add(b + 1); borderIndices.Add(b + 2);
-            borderIndices.Add(b + 2); borderIndices.Add(b + 3);
-            borderIndices.Add(b + 3); borderIndices.Add(b + 0);
+            // ND-65: BuildBorders kikapcsolt allapotban eldobja a listakat,
+            // ezert ilyenkor ne epitsunk fel 393k tile-nyi hasznalatlan adatot.
+            if (showBorders)
+            {
+                int b = borderVerts.Count;
+                borderVerts.Add(p00); borderVerts.Add(p10); borderVerts.Add(p11); borderVerts.Add(p01);
+                borderIndices.Add(b + 0); borderIndices.Add(b + 1);
+                borderIndices.Add(b + 1); borderIndices.Add(b + 2);
+                borderIndices.Add(b + 2); borderIndices.Add(b + 3);
+                borderIndices.Add(b + 3); borderIndices.Add(b + 0);
+            }
         }
 
         /// <summary>
@@ -2985,12 +3299,15 @@ namespace WorldGen.Viewer
                         waterColorsByBucket[waterBucket], wc00, wc10, wc11, wc01, wp00, wp10, wp11, wp01);
                 }
 
-                int b = borderVerts.Count;
-                borderVerts.Add(p00); borderVerts.Add(p10); borderVerts.Add(p11); borderVerts.Add(p01);
-                borderIndices.Add(b + 0); borderIndices.Add(b + 1);
-                borderIndices.Add(b + 1); borderIndices.Add(b + 2);
-                borderIndices.Add(b + 2); borderIndices.Add(b + 3);
-                borderIndices.Add(b + 3); borderIndices.Add(b + 0);
+                if (showBorders)
+                {
+                    int b = borderVerts.Count;
+                    borderVerts.Add(p00); borderVerts.Add(p10); borderVerts.Add(p11); borderVerts.Add(p01);
+                    borderIndices.Add(b + 0); borderIndices.Add(b + 1);
+                    borderIndices.Add(b + 1); borderIndices.Add(b + 2);
+                    borderIndices.Add(b + 2); borderIndices.Add(b + 3);
+                    borderIndices.Add(b + 3); borderIndices.Add(b + 0);
+                }
             }
         }
 
@@ -3226,6 +3543,9 @@ namespace WorldGen.Viewer
         /// </summary>
         private Vector3 GetOrComputePersistentCorner(int face, int lvl, uint cornerU, uint cornerV)
         {
+            if (TryGetStaticCornerIndex(face, lvl, cornerU, cornerV, _staticCornerPositions.Length, out int staticIndex))
+                return _staticCornerPositions[staticIndex];
+
             var key = (face, lvl, cornerU, cornerV);
             if (_persistentCornerCache.TryGetValue(key, out Vector3 cached))
             {
@@ -3250,6 +3570,9 @@ namespace WorldGen.Viewer
         /// </summary>
         private Color GetOrComputePersistentCornerColor(int face, int lvl, uint cornerU, uint cornerV)
         {
+            if (TryGetStaticCornerIndex(face, lvl, cornerU, cornerV, _staticCornerColors.Length, out int staticIndex))
+                return _staticCornerColors[staticIndex];
+
             var key = (face, lvl, cornerU, cornerV);
             if (_persistentCornerColorCache.TryGetValue(key, out Color cached))
                 return cached;
@@ -3268,6 +3591,9 @@ namespace WorldGen.Viewer
         /// </summary>
         private Vector3 GetOrComputePersistentCornerNormal(int face, int lvl, uint cornerU, uint cornerV)
         {
+            if (TryGetStaticCornerIndex(face, lvl, cornerU, cornerV, _staticCornerNormals.Length, out int staticIndex))
+                return _staticCornerNormals[staticIndex];
+
             var key = (face, lvl, cornerU, cornerV);
             if (_persistentCornerNormalCache.TryGetValue(key, out Vector3 cached))
                 return cached;
@@ -3289,10 +3615,23 @@ namespace WorldGen.Viewer
         /// <summary>ND-55: cache-tol fuggetlen, szalbiztos sarok-NORMAL szamitas - ld. PrecomputeCornersInParallel.</summary>
         private Vector3 ComputeCornerNormal(int face, int lvl, uint cornerU, uint cornerV)
         {
+            Vector3 center = ComputeCorner(face, lvl, cornerU, cornerV);
+            return ComputeCornerNormal(face, lvl, cornerU, cornerV, center);
+        }
+
+        /// <summary>
+        /// A mar kiszamolt kozeppontot ujrahasznalo normal-ut. A center ugyanazt
+        /// a ComputeCorner-hivast jelenti, mint amit a regi overload belul vegzett,
+        /// ezert a kimenet bitre valtozatlan, csak egy teljes elevation-kiertekeles
+        /// marad el minden uj saroknal.
+        /// </summary>
+        private Vector3 ComputeCornerNormal(int face, int lvl, uint cornerU, uint cornerV, Vector3 center)
+        {
             int n = 1 << lvl;
             double uc = (double)cornerU / n * 2.0 - 1.0;
             double vc = (double)cornerV / n * 2.0 - 1.0;
-            return ComputeCornerNormalViaFiniteDifference(face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters);
+            return ComputeCornerNormalViaFiniteDifference(
+                face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters, center);
         }
 
         /// <summary>
@@ -3302,6 +3641,77 @@ namespace WorldGen.Viewer
         /// ugyanaz a ket-fazisu minta, mint PrecomputeClassificationsInParallel.
         /// </summary>
         /// <summary>Visszaadja: (szukseges egyedi sarok-kulcsok szama, ebbol hany volt cache-miss).</summary>
+        private (int NeededCount, int MissingCount) PrecomputeStaticCornersInParallel()
+        {
+            int n = 1 << adaptiveBaseLevel;
+            int side = n + 1;
+            int faceStride = checked(side * side);
+            int count = checked(6 * faceStride);
+            var positions = new Vector3[count];
+            var colors = new Color[count];
+            var normals = new Vector3[count];
+
+            System.Threading.Tasks.Parallel.For(0, count, index =>
+            {
+                int face = index / faceStride;
+                int faceIndex = index - face * faceStride;
+                uint cornerU = (uint)(faceIndex / side);
+                uint cornerV = (uint)(faceIndex - (int)cornerU * side);
+                double uc = (double)cornerU / n * 2.0 - 1.0;
+                double vc = (double)cornerV / n * 2.0 - 1.0;
+
+                Vector3 p;
+                Vector3 normal;
+                if (TryGetStaticTerrainBasis(
+                    face, adaptiveBaseLevel, cornerU, cornerV,
+                    out TerrainPointBasis centerBasis,
+                    out TerrainPointBasis uBasis,
+                    out TerrainPointBasis vBasis))
+                {
+                    p = ToDisplacedVector3FromBasis(
+                        face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters, in centerBasis);
+                    normal = ComputeCornerNormalViaFiniteDifferenceFromBasis(
+                        face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
+                        p, in uBasis, in vBasis);
+                }
+                else
+                {
+                    p = ComputeCorner(face, adaptiveBaseLevel, cornerU, cornerV);
+                    normal = ComputeCornerNormal(face, adaptiveBaseLevel, cornerU, cornerV, p);
+                }
+
+                positions[index] = p;
+                colors[index] = ContinuousCornerColorAuto(p);
+                normals[index] = normal;
+            });
+
+            _staticCornerPositions = positions;
+            _staticCornerColors = colors;
+            _staticCornerNormals = normals;
+            _staticRenderDataLevel = adaptiveBaseLevel;
+            return (count, count);
+        }
+
+        private bool TryGetStaticCornerIndex(
+            int face, int level, uint cornerU, uint cornerV, int dataLength,
+            out int index)
+        {
+            if (level == _staticRenderDataLevel && face >= 0 && face < 6)
+            {
+                int n = 1 << level;
+                if (cornerU <= n && cornerV <= n)
+                {
+                    int side = n + 1;
+                    index = face * side * side + (int)cornerU * side + (int)cornerV;
+                    if ((uint)index < (uint)dataLength)
+                        return true;
+                }
+            }
+
+            index = -1;
+            return false;
+        }
+
         private (int NeededCount, int MissingCount) PrecomputeCornersInParallel(TileId[] leaves)
         {
             var needed = new HashSet<(int Face, int Level, uint CornerU, uint CornerV)>();
@@ -3321,7 +3731,8 @@ namespace WorldGen.Viewer
 
             var missing = new List<(int Face, int Level, uint CornerU, uint CornerV)>(needed.Count);
             foreach (var key in needed)
-                if (!_persistentCornerCache.ContainsKey(key))
+                if (!TryGetStaticCornerIndex(key.Face, key.Level, key.CornerU, key.CornerV, _staticCornerPositions.Length, out _)
+                    && !_persistentCornerCache.ContainsKey(key))
                     missing.Add(key);
             if (missing.Count == 0)
                 return (needed.Count, 0);
@@ -3332,10 +3743,33 @@ namespace WorldGen.Viewer
             System.Threading.Tasks.Parallel.For(0, missing.Count, i =>
             {
                 var k = missing[i];
-                Vector3 p = ComputeCorner(k.Face, k.Level, k.CornerU, k.CornerV);
-                results[i] = p;
-                colorResults[i] = ContinuousCornerColorAuto(p);
-                normalResults[i] = ComputeCornerNormal(k.Face, k.Level, k.CornerU, k.CornerV);
+                if (TryGetStaticTerrainBasis(
+                    k.Face, k.Level, k.CornerU, k.CornerV,
+                    out TerrainPointBasis centerBasis,
+                    out TerrainPointBasis uBasis,
+                    out TerrainPointBasis vBasis))
+                {
+                    int n = 1 << k.Level;
+                    double uc = (double)k.CornerU / n * 2.0 - 1.0;
+                    double vc = (double)k.CornerV / n * 2.0 - 1.0;
+                    Vector3 p = ToDisplacedVector3FromBasis(
+                        k.Face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters, in centerBasis);
+                    results[i] = p;
+                    colorResults[i] = ContinuousCornerColorAuto(p);
+                    normalResults[i] = ComputeCornerNormalViaFiniteDifferenceFromBasis(
+                        k.Face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
+                        p, in uBasis, in vBasis);
+                }
+                else
+                {
+                    Vector3 p = ComputeCorner(k.Face, k.Level, k.CornerU, k.CornerV);
+                    results[i] = p;
+                    colorResults[i] = ContinuousCornerColorAuto(p);
+                    // A normal veges differenciajanak kozeppontja bitre ugyanaz a
+                    // pont, amit fent mar kiszamoltunk. A regi kod ezt minden uj
+                    // sarokra egy teljes elevation-lanccal ujra eloallitotta.
+                    normalResults[i] = ComputeCornerNormal(k.Face, k.Level, k.CornerU, k.CornerV, p);
+                }
             });
 
             for (int i = 0; i < missing.Count; i++)
@@ -3347,6 +3781,207 @@ namespace WorldGen.Viewer
                 _cornerCacheLruNodes[key] = _cornerCacheLru.AddLast(key);
             }
             return (needed.Count, missing.Count);
+        }
+
+        /// <summary>
+        /// ND-63: a teljes statikus rács három időfüggetlen terrain-bázisát
+        /// egyszer számolja ki world seedenként/base levelenként. A lokális
+        /// tömbök csak a teljes Parallel.For sikere után kerülnek a mezőkbe,
+        /// ezért kivételnél nem maradhat félkész cache.
+        /// </summary>
+        private bool EnsureStaticTerrainBasisCache()
+        {
+            // A jelenlegi teljes-világ render célpontja level 8. Level 9-10-en
+            // a három bázistömb 4x/16x nagyobb lenne; ott a már önmagában is
+            // extrém statikus mesh mellett ne okozzunk további kontrollálatlan
+            // memóriaugrást. Az általános, nem cache-elt exact út megmarad.
+            if (adaptiveBaseLevel > 8)
+            {
+                _staticCornerCenterBasis = Array.Empty<TerrainPointBasis>();
+                _staticCornerUBasis = Array.Empty<TerrainPointBasis>();
+                _staticCornerVBasis = Array.Empty<TerrainPointBasis>();
+                _staticTerrainBasisLevel = -1;
+                return false;
+            }
+
+            int n = 1 << adaptiveBaseLevel;
+            int side = n + 1;
+            int faceStride = checked(side * side);
+            int count = checked(6 * faceStride);
+            if (_staticTerrainBasisSeed == _adaptiveSeed
+                && _staticTerrainBasisLevel == adaptiveBaseLevel
+                && _staticCornerCenterBasis.Length == count
+                && _staticCornerUBasis.Length == count
+                && _staticCornerVBasis.Length == count)
+                return true;
+
+            var centerBasis = new TerrainPointBasis[count];
+            var uBasis = new TerrainPointBasis[count];
+            var vBasis = new TerrainPointBasis[count];
+            System.Threading.Tasks.Parallel.For(0, count, index =>
+            {
+                int face = index / faceStride;
+                int faceIndex = index - face * faceStride;
+                uint cornerU = (uint)(faceIndex / side);
+                uint cornerV = (uint)(faceIndex - (int)cornerU * side);
+                double uc = (double)cornerU / n * 2.0 - 1.0;
+                double vc = (double)cornerV / n * 2.0 - 1.0;
+
+                TileGeometry.PositionFromFaceUV(face, uc, vc, out double x, out double y, out double z);
+                centerBasis[index] = TerrainPointBasis.Compute(_adaptiveSeed, x, y, z);
+
+                TileGeometry.PositionFromFaceUV(
+                    face, uc + NormalSampleEpsilonUV, vc,
+                    out double ux, out double uy, out double uz);
+                uBasis[index] = TerrainPointBasis.Compute(_adaptiveSeed, ux, uy, uz);
+
+                TileGeometry.PositionFromFaceUV(
+                    face, uc, vc + NormalSampleEpsilonUV,
+                    out double vx, out double vy, out double vz);
+                vBasis[index] = TerrainPointBasis.Compute(_adaptiveSeed, vx, vy, vz);
+            });
+
+            _staticCornerCenterBasis = centerBasis;
+            _staticCornerUBasis = uBasis;
+            _staticCornerVBasis = vBasis;
+            _staticTerrainBasisSeed = _adaptiveSeed;
+            _staticTerrainBasisLevel = adaptiveBaseLevel;
+            return false;
+        }
+
+        private bool TryGetStaticTerrainBasis(
+            int face, int level, uint cornerU, uint cornerV,
+            out TerrainPointBasis centerBasis,
+            out TerrainPointBasis uBasis,
+            out TerrainPointBasis vBasis)
+        {
+            if (level == _staticTerrainBasisLevel
+                && _staticTerrainBasisSeed == _adaptiveSeed)
+            {
+                int n = 1 << level;
+                int side = n + 1;
+                if (face >= 0 && face < 6 && cornerU <= n && cornerV <= n)
+                {
+                    int index = face * side * side + (int)cornerU * side + (int)cornerV;
+                    centerBasis = _staticCornerCenterBasis[index];
+                    uBasis = _staticCornerUBasis[index];
+                    vBasis = _staticCornerVBasis[index];
+                    return true;
+                }
+            }
+
+            centerBasis = default;
+            uBasis = default;
+            vBasis = default;
+            return false;
+        }
+
+        /// <summary>
+        /// ND-64: egy adott, legfeljebb level-8 rács minden tile-középpontjához
+        /// előállítja az időfüggetlen terrain-bázist. A célkonfigurációban a
+        /// hydrologyLevel és adaptiveBaseLevel egyaránt 8, ezért ugyanaz a tömb
+        /// szolgálja ki a két legdrágább fogyasztót.
+        /// </summary>
+        private bool EnsureTileCenterTerrainBasisCache(ulong seed, int targetLevel)
+        {
+            if (targetLevel < 0 || targetLevel > 8)
+            {
+                _tileCenterTerrainIds = Array.Empty<TileId>();
+                _tileCenterTerrainBasis = Array.Empty<TerrainPointBasis>();
+                _tileCenterTerrainBasisLevel = -1;
+                return false;
+            }
+
+            int n = 1 << targetLevel;
+            int faceStride = checked(n * n);
+            int count = checked(6 * faceStride);
+            if (_tileCenterTerrainBasisSeed == seed
+                && _tileCenterTerrainBasisLevel == targetLevel
+                && _tileCenterTerrainIds.Length == count
+                && _tileCenterTerrainBasis.Length == count)
+                return true;
+
+            var ids = new TileId[count];
+            var bases = new TerrainPointBasis[count];
+            System.Threading.Tasks.Parallel.For(0, count, index =>
+            {
+                int face = index / faceStride;
+                int faceIndex = index - face * faceStride;
+                uint u = (uint)(faceIndex / n);
+                uint v = (uint)(faceIndex - (int)u * n);
+                TileId id = TileId.FromFaceLevelUV(face, targetLevel, u, v);
+                TileGeometry.ToPosition(id, out double x, out double y, out double z);
+                ids[index] = id;
+                bases[index] = TerrainPointBasis.Compute(seed, x, y, z);
+            });
+
+            _tileCenterTerrainIds = ids;
+            _tileCenterTerrainBasis = bases;
+            _tileCenterTerrainBasisSeed = seed;
+            _tileCenterTerrainBasisLevel = targetLevel;
+            return false;
+        }
+
+        private bool TryGetTileCenterTerrainBasis(TileId id, out TerrainPointBasis basis)
+        {
+            if (id.Level == _tileCenterTerrainBasisLevel
+                && _tileCenterTerrainBasisSeed == _adaptiveSeed)
+            {
+                int n = 1 << id.Level;
+                id.GetUV(out uint u, out uint v);
+                int index = id.Face * n * n + (int)u * n + (int)v;
+                if ((uint)index < (uint)_tileCenterTerrainBasis.Length)
+                {
+                    basis = _tileCenterTerrainBasis[index];
+                    return true;
+                }
+            }
+
+            basis = default;
+            return false;
+        }
+
+        /// <summary>
+        /// A korábbi háromlépcsős field-láncot (elevation, kráter, erózió)
+        /// egy passzban futtatja a cache-elt bázisból. A lebegőpontos sorrend
+        /// szándékosan ugyanaz: (base+uplift), majd +crater, végül
+        /// +(relaxedUplift-uplift).
+        /// </summary>
+        private Dictionary<TileId, double> BuildElevationFieldFromCachedTileCenters(
+            ulong seed, (double X, double Y, double Z)[] seeds,
+            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr,
+            int targetLevel, out double[] denseValues)
+        {
+            if (_tileCenterTerrainBasisSeed != seed
+                || _tileCenterTerrainBasisLevel != targetLevel
+                || _tileCenterTerrainIds.Length != _tileCenterTerrainBasis.Length)
+                throw new InvalidOperationException("A tile-középpont terrain-bázis cache nincs előkészítve.");
+
+            var values = new double[_tileCenterTerrainIds.Length];
+            System.Threading.Tasks.Parallel.For(0, values.Length, i =>
+            {
+                TileId id = _tileCenterTerrainIds[i];
+                TileGeometry.ToPosition(id, out double x, out double y, out double z);
+                _tileCenterTerrainBasis[i].Evaluate(
+                    seed, seeds, out double baseElevation, out double uplift, out _);
+
+                double elevation = baseElevation + uplift;
+                if (craters.Count > 0)
+                    elevation += ImpactCratering.ElevationDelta(x, y, z, craters);
+                if (erosionTimeMyr != 0.0)
+                {
+                    double relaxedUplift = DeepTimeErosionGlaciation.UpliftRelaxationElevation(
+                        uplift, erosionTimeMyr);
+                    elevation += relaxedUplift - uplift;
+                }
+                values[i] = elevation;
+            });
+
+            var field = new Dictionary<TileId, double>(values.Length);
+            for (int i = 0; i < values.Length; i++)
+                field[_tileCenterTerrainIds[i]] = values[i];
+            denseValues = values;
+            return field;
         }
 
         private static void AddCornerKeys(HashSet<(int Face, int Level, uint CornerU, uint CornerV)> set, int face, int lvl, uint u, uint v)
@@ -3447,6 +4082,24 @@ namespace WorldGen.Viewer
         private readonly LinkedList<TileId> _tileClassificationLru = new();
         private readonly Dictionary<TileId, LinkedListNode<TileId>> _tileClassificationLruNodes = new();
 
+        private bool TryGetStaticTileClassification(TileId id, out AdaptiveTileClassification classification)
+        {
+            if (id.Level == _staticRenderDataLevel)
+            {
+                int n = 1 << id.Level;
+                id.GetUV(out uint u, out uint v);
+                int index = id.Face * n * n + (int)u * n + (int)v;
+                if ((uint)index < (uint)_staticTileClassifications.Length)
+                {
+                    classification = _staticTileClassifications[index];
+                    return true;
+                }
+            }
+
+            classification = default;
+            return false;
+        }
+
         /// <summary>
         /// Olcso ellenorzes (nincs uj Core-szamitas, csak cache-olvasas): a
         /// `id` base-szintu OSE oceani-e a MAR meglevo klasszifikacios cache
@@ -3462,11 +4115,16 @@ namespace WorldGen.Viewer
             TileId current = id;
             while (current.Level > adaptiveBaseLevel)
                 current = current.Parent();
+            if (TryGetStaticTileClassification(current, out AdaptiveTileClassification denseBaseClass))
+                return denseBaseClass.IsOceanic;
             return _tileClassificationCache.TryGetValue(current, out AdaptiveTileClassification baseClass) && baseClass.IsOceanic;
         }
 
         private AdaptiveTileClassification GetOrComputeTileClassification(TileId id)
         {
+            if (TryGetStaticTileClassification(id, out AdaptiveTileClassification denseClassification))
+                return denseClassification;
+
             if (_tileClassificationCache.TryGetValue(id, out AdaptiveTileClassification cached))
             {
                 if (_tileClassificationLruNodes.TryGetValue(id, out var node))
@@ -3494,7 +4152,20 @@ namespace WorldGen.Viewer
         private AdaptiveTileClassification ComputeTileClassification(TileId id)
         {
             TileGeometry.ToPosition(id, out double cx, out double cy, out double cz);
-            double elevation = ComputeElevationAtPoint(cx, cy, cz, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters, _adaptiveErosionTimeMyr, out bool isCratered);
+            double elevation;
+            bool isCratered;
+            if (TryGetTileCenterTerrainBasis(id, out TerrainPointBasis basis))
+            {
+                elevation = ComputeElevationAtPointFromBasis(
+                    cx, cy, cz, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
+                    _adaptiveErosionTimeMyr, in basis, out isCratered);
+            }
+            else
+            {
+                elevation = ComputeElevationAtPoint(
+                    cx, cy, cz, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
+                    _adaptiveErosionTimeMyr, out isCratered);
+            }
 
             // Az oceani besorolas itt KOZVETLENUL a pontszeru elevaciobol jon
             // (elevation < referencia-szintu seaLevel), NEM a level-fuggo
@@ -3590,6 +4261,36 @@ namespace WorldGen.Viewer
                 _tileClassificationLruNodes[id] = _tileClassificationLru.AddLast(id);
             }
             return new ClassificationDiag(missing.Count, false, 0, 0);
+        }
+
+        /// <summary>
+        /// ND-66: a teljes base-grid klasszifikacioja kozvetlen indexu tombbe.
+        /// Deep-time/CPU agon nincs Dictionary- es LinkedList-feltoltes; a
+        /// kiserleti t=0 GPU-ag eredmenyet valtozatlanul a regi ut allitja elo,
+        /// majd ugyanebbe a tombbe masoljuk.
+        /// </summary>
+        private ClassificationDiag PrecomputeStaticClassificationsInParallel(TileId[] leaves)
+        {
+            if (useGpuClassification && tileClassificationCompute != null
+                && _adaptiveErosionTimeMyr == 0.0)
+            {
+                ClassificationDiag gpuDiag = PrecomputeClassificationsOnGpu(leaves);
+                var gpuDense = new AdaptiveTileClassification[leaves.Length];
+                for (int i = 0; i < leaves.Length; i++)
+                    gpuDense[i] = _tileClassificationCache[leaves[i]];
+                _staticTileClassifications = gpuDense;
+                _staticRenderDataLevel = adaptiveBaseLevel;
+                return gpuDiag;
+            }
+
+            var results = new AdaptiveTileClassification[leaves.Length];
+            System.Threading.Tasks.Parallel.For(0, leaves.Length, i =>
+            {
+                results[i] = ComputeTileClassification(leaves[i]);
+            });
+            _staticTileClassifications = results;
+            _staticRenderDataLevel = adaptiveBaseLevel;
+            return new ClassificationDiag(leaves.Length, false, 0, 0);
         }
 
         /// <summary>
@@ -3697,6 +4398,11 @@ namespace WorldGen.Viewer
             _tileClassificationCache.Clear();
             _tileClassificationLru.Clear();
             _tileClassificationLruNodes.Clear();
+            _staticTileClassifications = Array.Empty<AdaptiveTileClassification>();
+            _staticCornerPositions = Array.Empty<Vector3>();
+            _staticCornerNormals = Array.Empty<Vector3>();
+            _staticCornerColors = Array.Empty<Color>();
+            _staticRenderDataLevel = -1;
             // A szin-cache-t is uritettuk (fent) - a mod-flaget szinkronban
             // tartjuk, kulonben a kovetkezo Update() feleslegesen ujra uritene.
             _colorCacheWindMode = windSpeedOverlay;
@@ -5272,6 +5978,17 @@ namespace WorldGen.Viewer
             return BodyFrameConversion.ToUnity(x, y, z) * displacedRadius;
         }
 
+        private Vector3 ToDisplacedVector3FromBasis(
+            int face, double uc, double vc, ulong seed, (double X, double Y, double Z)[] seeds,
+            List<ImpactCratering.CraterRecord> craters, in TerrainPointBasis basis)
+        {
+            TileGeometry.PositionFromFaceUV(face, uc, vc, out double x, out double y, out double z);
+            double elevation = ComputeElevationAtPointFromBasis(
+                x, y, z, seed, seeds, craters, _adaptiveErosionTimeMyr, in basis);
+            float displacedRadius = radius + (float)(DisplayElevation(elevation) * elevationScale);
+            return BodyFrameConversion.ToUnity(x, y, z) * displacedRadius;
+        }
+
         // Kicsi, ROGZITETT (nem tile-merettol fuggo) UV-eltolas a lejto-erzekeny
         // normal veges-differencia szamitasahoz - ld. ComputeCornerNormalViaFiniteDifference.
         private const double NormalSampleEpsilonUV = 1e-4;
@@ -5312,8 +6029,34 @@ namespace WorldGen.Viewer
             List<ImpactCratering.CraterRecord> craters)
         {
             Vector3 center = ToDisplacedVector3(face, uc, vc, seed, seeds, craters);
+            return ComputeCornerNormalViaFiniteDifference(face, uc, vc, seed, seeds, craters, center);
+        }
+
+        private Vector3 ComputeCornerNormalViaFiniteDifference(
+            int face, double uc, double vc, ulong seed, (double X, double Y, double Z)[] seeds,
+            List<ImpactCratering.CraterRecord> craters, Vector3 center)
+        {
             Vector3 alongU = ToDisplacedVector3(face, uc + NormalSampleEpsilonUV, vc, seed, seeds, craters) - center;
             Vector3 alongV = ToDisplacedVector3(face, uc, vc + NormalSampleEpsilonUV, seed, seeds, craters) - center;
+            Vector3 rawNormal = Vector3.Cross(alongU, alongV);
+            Vector3 normal;
+            if (!(rawNormal.sqrMagnitude >= 1e-12f))
+                normal = SafeSurfaceNormal(center);
+            else
+                normal = rawNormal.normalized;
+            if (Vector3.Dot(normal, center) < 0f) normal = -normal;
+            return normal;
+        }
+
+        private Vector3 ComputeCornerNormalViaFiniteDifferenceFromBasis(
+            int face, double uc, double vc, ulong seed, (double X, double Y, double Z)[] seeds,
+            List<ImpactCratering.CraterRecord> craters, Vector3 center,
+            in TerrainPointBasis uBasis, in TerrainPointBasis vBasis)
+        {
+            Vector3 alongU = ToDisplacedVector3FromBasis(
+                face, uc + NormalSampleEpsilonUV, vc, seed, seeds, craters, in uBasis) - center;
+            Vector3 alongV = ToDisplacedVector3FromBasis(
+                face, uc, vc + NormalSampleEpsilonUV, seed, seeds, craters, in vBasis) - center;
             Vector3 rawNormal = Vector3.Cross(alongU, alongV);
             Vector3 normal;
             if (!(rawNormal.sqrMagnitude >= 1e-12f))
@@ -5415,9 +6158,25 @@ namespace WorldGen.Viewer
             double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
             List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr, out bool isCratered)
         {
+            TerrainPointBasis basis = TerrainPointBasis.Compute(seed, x, y, z);
+            return ComputeElevationAtPointFromBasis(
+                x, y, z, seed, seeds, craters, erosionTimeMyr, in basis, out isCratered);
+        }
+
+        private static double ComputeElevationAtPointFromBasis(
+            double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
+            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr,
+            in TerrainPointBasis basis)
+            => ComputeElevationAtPointFromBasis(
+                x, y, z, seed, seeds, craters, erosionTimeMyr, in basis, out _);
+
+        private static double ComputeElevationAtPointFromBasis(
+            double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
+            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr,
+            in TerrainPointBasis basis, out bool isCratered)
+        {
             isCratered = false;
-            DomainWarp.WarpPosition(seed, x, y, z, out double wx, out double wy, out double wz);
-            int plateId = PlateGeneration.AssignPlate(wx, wy, wz, seeds);
+            basis.Evaluate(seed, seeds, out double baseElevation, out double uplift, out _);
 
             // M10 deep-time erozio (DeepTimeErosionGlaciation): a lemezhatar-
             // uplift-BONUSZ idovel relaxal a MEGLEVO ertekenek eqFraction-jara
@@ -5428,8 +6187,6 @@ namespace WorldGen.Viewer
             // viselkedes VALTOZATLAN. NEM uj szimulacios matek: a MAR VERIFIKALT
             // Core-fuggvenyeket hivja (BaseElevation + BoundaryUpliftFromWarped +
             // UpliftRelaxationElevation).
-            double baseElevation = CrustElevation.BaseElevation(seed, plateId, x, y, z, out _);
-            double uplift = PlateBoundaryEffect.BoundaryUpliftFromWarped(seed, x, y, z, wx, wy, wz, seeds);
             double relaxedUplift = DeepTimeErosionGlaciation.UpliftRelaxationElevation(uplift, erosionTimeMyr);
             double elevation = baseElevation + relaxedUplift;
 
@@ -5670,9 +6427,12 @@ namespace WorldGen.Viewer
             double cx, double cy, double cz, double axialTiltRad, bool isOceanic,
             double elevation, double seaLevel)
         {
-            return Temperature.TemperatureKelvin(
-                cx, cy, cz, climateDayT, climateOrbitalPeriodDays, climateRotationPeriodDays,
-                axialTiltRad, isOceanic, elevation, seaLevel);
+            // Az axialTiltRad parameter a korabbi hivasi felulet resze; minden
+            // hivo a Build-ben beallitott _adaptiveAxialTiltRad erteket adja.
+            // A cache is pontosan ebbol keszul, igy a numerikus eredmeny azonos.
+            return Temperature.TemperatureKelvinFromSamples(
+                cx, cy, cz, in _adaptiveDailyInsolationSamples,
+                isOceanic, elevation, seaLevel);
         }
 
         /// <summary>

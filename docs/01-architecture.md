@@ -226,6 +226,16 @@ Helyes megoldás:
 
 Az idő-scrub a szűk keresztmetszet, nem a render. A megoldás a v0.1-ben leírt checkpoint + interpoláció (ND-03).
 
+### 3.6 Sűrű teljes-rács gyorsutak
+
+A teljes, fix levelű cubed-sphere mezők nem ritka adatszerkezetek. A
+teljesítménykritikus deep-time út ezért használhat `face/u/v` szerint
+közvetlenül indexelt tömböket és világfüggetlen, újrahasznált
+szomszédindex-topológiát. Ez kizárólag reprezentációs optimalizálás: a
+bejárási sorrendnek és minden numerikus eredménynek egyeznie kell az általános,
+TileId/Dictionary alapú Core-úttal. Az általános API marad az orákulum és a
+ritka vagy változó LOD-adatok útja; részletek: ND-66 és ND-67.
+
 ---
 
 ## 4. Modultérkép (frissítve)

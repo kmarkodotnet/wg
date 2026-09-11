@@ -1472,6 +1472,12 @@ előre jelzett, dokumentált kockázat (ld. `docs/04-decisions.md` ND-62)
 (`Quaternion.AngleAxis((float)axialTiltDegrees, Vector3.right)`)
 valószínűleg fordított - szólj, és egy előjelváltással javítjuk.
 
+**2026-09-11-i javítás utáni pontosítás:** a képernyőn természetesen mindig
+a gömb Nap felé néző fele világos. Egy konkrét, könnyen felismerhető kontinenst
+figyelj: Tengelyforgás módban annak át kell haladnia a terminátoron, miközben
+a csillagok világkoordinátában állnak. A scene forgásperiódusa 1 nap, ezért
+`Days Per Second=0.1` mellett egy teljes fordulat körülbelül 10 másodperc.
+
 ---
 
 ## Régebbi, még nyitott tételek (korábbi munkamenetekből)

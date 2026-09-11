@@ -3066,6 +3066,213 @@ döntés, Core-t nem érinti - csak egy MÁR publikus függvényt hívunk
 újonnan). **Élő Unity-ellenőrzés hátra** - a `SunController`
 Inspectorában be kell kötni az új `planetGridMesh` mezőt.
 
+**Élő teszt kiegészítése (2026-09-11):** a csillagmező tengelyforgás
+módban lassan a bolygóval együtt mozgott. Gyökérok: a `StarField` a
+`Planet` gyereke, ezért a `SetRotationAngleRadians(0)` csak a lokális
+forgatást nullázta, a szülő forgását továbbra is örökölte. Javítás:
+`StarField.KeepFixedInWorldSpace()` minden képkockán világkoordinátában
+identitáson tartja. A scene-ben talált `rotationPeriodDays=100` érték a
+világ `climateRotationPeriodDays=1` értékével is ellentmondott és a tesztet
+százszor lassította; 1 napra összehangolva. További élő ellenőrzés hátra.
+
+### ND-63 — Deep-time exact rebuild: időfüggetlen terrain-bázis cache, változatlan időfüggő kiértékeléssel
+
+**Kontextus és mérés (2026-09-11):** a legacy geometriahurok, a nem használt
+coarse folyófelhalmozás és a redundáns normál-középpont kiértékelésének
+eltávolítása után két élő deep-time rebuild 18,997 s és 19,138 s volt. A
+domináns részfázis a statikus sarkok pozíció/szín/normál számítása, átlag
+7,511 s. Minden időlépésnél 396 294 sarok cache miss keletkezik, miközben a
+sarok nyers koordinátája és a következő drága részeredmények nem függenek a
+deep-time értéktől: `DomainWarp.WarpPosition`, az elsődleges ridged zaj, a
+`MountainMask` és a másodlagos zaj.
+
+**Döntés:** a viewer a statikus base-level sarkok középpontjához és a két
+ND-55 normálmintájához perzisztens, `(worldSeed, adaptiveBaseLevel)` kulcsú,
+tömör tömbös `TerrainPointBasis` cache-t tart fenn. A bázis kizárólag a
+warpolt koordinátát és a kéreg-eleváció időfüggetlen zajtagjait tárolja.
+Deep-time váltáskor továbbra is újrafut:
+
+- a mozgó lemezmagok előállítása és a legközelebbi/két legközelebbi lemez
+  meghatározása;
+- a kéregtípusból következő base elevation összeállítása;
+- a lemezhatár-uplift és annak időbeli relaxációja;
+- a kráterkorrekció, hőmérséklet, biome és minden modellbesorolás.
+
+A `TwoBestDots` eredményének `bestIndex` tagja ugyanabban a seed-sorrendben,
+ugyanazzal a szigorú `>` összehasonlítással adja azt a plate ID-t, mint az
+eddigi külön `AssignPlate` passz. Ezért a két seed-szkennelés egyetlen
+passzba vonható össze. A `MountainMask` ugyanaz a double részeredmény a base
+elevation és az uplift számára, ezért újraszámítás helyett megosztható.
+
+**Hatókör első fázisa:** csak a legfeljebb level-8 statikus base-level
+sarokút használja az új cache-t. Level 9-10 esetén a memória 4x/16x lenne,
+ezért ott az általános exact út marad. A dinamikus, változó LOD-sarkok a
+meglévő általános útvonalon maradnak; a level-8 hidrológia és tile-
+klasszifikáció közös bázistömbje egy
+következő, külön mérhető fázis. Így az első változtatás kis felületű, és a
+7,511 s-os legnagyobb blokkot célozza.
+
+**Determinizmus és verziózás:** az új út ugyanazokat a részműveleteket és
+azonos lebegőpontos műveleti sorrendet használja; csak a tiszta,
+időfüggetlen részeredményt tárolja el. Core-teszt hasonlítja össze az eredeti
+és a bázisból történő kiértékelés `double` bitmintáját több seed/pont esetén.
+Nem seed-törő, világverzió-emelés nem szükséges. A cache nem kerül
+perzisztálásra és nem része a world state hashnek.
+
+**Memória:** level 8-on `6*(256+1)^2 = 396 294` sarok, három minta és mintánként
+hat `double` körülbelül 54,4 MiB nyers tömbmemória. Dictionary nem használható
+ehhez a bázishoz; a `(face,u,v)` determinisztikus tömbindexre képeződik.
+
+**Elfogadási kritérium:** Core bitazonossági tesztek, teljes build/test,
+Unity C# fordítás, majd élő PerfLog. Vizuális késznek csak változatlan felszín
+és az új log alapján nyilvánítható.
+
+### ND-64 — Deep-time exact rebuild: közös tile-középpont bázis és előállított napi Nap-minták
+
+**Élő mérési alap (2026-09-11):** az ND-63 első fázisa után a két deep-time
+rebuild 12 158,5 ms és 11 976,2 ms volt (átlag 12 067,4 ms). A statikus
+sarokfázis 7 511,4 ms-ról 438,8 ms-ra csökkent, miközben a terrain-bázis
+mindkét rebuildben `reused=True`. A maradék idő három domináns blokkja a
+level-8 hidrológia (átlag 4 912,2 ms), a tile-klasszifikáció (3 026,0 ms) és
+a mesh-emisszió (2 521,6 ms).
+
+**Döntés, terrain:** az ND-63 második fázisában a level-8 tile-középpontokhoz
+is tömör, `(worldSeed, level)` kulcsú `TerrainPointBasis` tömb készül. Ugyanezt
+olvassa a hidrológiai elevation field és a base-level tile-klasszifikáció.
+Az aktuálisan mozgatott plate-ek, uplift, relaxáció, kráter és óceán/biome
+döntések továbbra is minden időpontban frissen értékelődnek. Az eredeti field
+lebegőpontos műveleti sorrendje megmarad: először `base + uplift`, utána
+kráterkorrekció, végül `+(relaxedUplift-uplift)`.
+
+**Döntés, hőmérséklet:** a `Temperature.DailyAverageInsolationFactor` napi 24
+mintájának Nap-iránya kizárólag a Build-szintű idő/pálya/forgás/dőlés
+paraméterektől függ, a felszíni ponttól nem. Ezek az irányok egyszer készülnek
+el, majd minden tile ugyanabban a sorrendben végzi el a 24 dot-productot és
+összegzést. A hőmérséklet képlete, mintaszáma és összeadási sorrendje nem
+változik. Az élő log közvetlen bizonyítéka: a t=0 GPU-klasszifikáció dispatch-e
+37,2 ms, az utána futó, eleváció-zaj nélküli CPU hőmérséklet-loop 3 677,8 ms.
+
+**Determinizmus és verziózás:** mindkét változtatás tiszta közös-részkifejezés
+kiemelés; sem random mapping, sem numerikus képlet, sem mintavétel nem változik.
+A régi és az előállított-bázisú utak `double` bitmintáját teszt fedi. Nem
+seed-törő, világverzió-emelés nem szükséges. A tile-középpont cache level 8-on
+393 216 × 48 byte, körülbelül 18 MiB nyers tömbmemória; level 8 fölött nem
+épül fel.
+
+**Elfogadási kapu:** teljes build/test és Unity C# fordítás után új élő PerfLog.
+A `<1 s` cél ettől még nem tekinthető elértnek; a mérés után a mesh-emisszió és
+a priority-flood maradékát külön kell kezelni.
+
+### ND-65 — Exact maradék: kikapcsolt border-work elhagyása és determinisztikus priority-flood heap
+
+**Kontextus (2026-09-11):** az ND-64 utáni két élő deep-time rebuild átlaga
+5 781,2 ms. A két domináns blokk a statikus mesh-emisszió (2 464,2 ms) és a
+level-8 priority-flood (1 248,8 ms). A scene-ben `showBorders=0`, mégis minden
+393 216 tile négy border-vertexet és nyolc vonalindexet ír listákba; a
+`BuildBorders` ezt az egész eredményt felhasználás nélkül eldobja. A flood
+`SortedSet<(double Elevation,long Counter)>` mellett külön
+`Dictionary<long,TileId>` leképezést tart fenn, noha a tile közvetlenül a
+prioritási sor elemében tárolható.
+
+**Döntés:** kikapcsolt border-rendernél az emit-loop nem állít elő border-
+geometriát. Bekapcsolt állapotban az út változatlan. A priority-flood rendezett
+halmaza egy belső bináris minimum-heapre cserélődik, amely közvetlenül az
+`(Elevation, Counter, Tile)` hármast tárolja. Az összehasonlítás először
+`double.CompareTo`-val az elevációt, majd `long.CompareTo`-val az egyedi,
+monoton számlálót vizsgálja; ez ugyanaz a teljes rendezés, mint az eddigi
+ValueTuple/SortedSet kulcsé. Így a pop-sorrend, a szomszédok fix
+right/left/up/down bejárása, a parent, filled és floodOrder eredmény változatlan.
+
+**Determinizmus és verziózás:** sem szimulációs képlet, sem tie-break, sem
+bejárási sorrend nem változik; a heap csak az azonos prioritási sor más
+adatszerkezeti reprezentációja. Nem seed-törő, világverzió-emelés nem kell.
+Teszt hasonlítja össze a teljes `Filled`, `Parent` és `FloodOrder` kimenetet a
+korábbi rendezett-halmaz referenciaúttal.
+
+### ND-66 — A teljes statikus base-grid tömör, közvetlenül indexelt render-cache-e
+
+**Kontextus (2026-09-11):** az ND-65 utáni két élő deep-time rebuild átlaga
+5 276,6 ms. A priority-flood 31,7%-kal, az emisszió csak 4,2%-kal gyorsult; az
+utóbbi továbbra is 2 361,0 ms, a teljes idő 44,7%-a. A base-grid nem ritka vagy
+változó topológia: mind a 393 216 level-8 tile, illetve mind a 396 294 face-local
+sarok jelen van, mégis a statikus emit minden tile-nál egy TileId-kulcsú
+klasszifikációs Dictionary+LRU találatot, valamint 4-4 tuple-kulcsú pozíció-,
+normál- és szín-Dictionary találatot végez. A pozíciótalálatok ezen felül a
+LinkedList-alapú LRU-t is átrendezik. Ez több millió főszálas hash-/lista-
+művelet olyan adatokon, amelyek indexe közvetlenül levezethető
+`face * stride + u * side + v` alakban.
+
+**Döntés:** a teljes statikus base-grid klasszifikációja, sarokpozíciója,
+normálja és színe tömör tömbökbe kerül, a már rögzített face/u/v bejárási
+sorrenddel. A statikus emit közvetlen tömbindexet használ; nem tölti fel és nem
+érinti az általános dinamikus Dictionary/LRU cache-eket. A tömbök a Build után
+is megmaradnak, ezért a dinamikus LOD base-szintű szülő-sarok és oceanic-ős
+lekérdezése ugyanazt az adatot közvetlenül eléri. Level 8 felett a már meglévő
+memóriakorlát miatt az általános cache-út marad.
+
+**Egzakt viselkedés:** a tömbös út ugyanazokat a
+`ComputeTileClassification`, `ToDisplacedVector3FromBasis`,
+`ContinuousCornerColorAuto` és
+`ComputeCornerNormalViaFiniteDifferenceFromBasis` függvényeket hívja, ugyanarra
+a TileId-/face/u/v-sorrendre. Csak a tárolás és a visszakeresés változik; nincs
+új numerikus képlet, random mapping vagy seedfüggés. Nem seed-törő,
+világverzió-emelés nem kell. Az élő Unity-kapu: változatlan látvány és új
+PerfLog; a parancssori C# build ezt nem helyettesíti.
+
+### ND-67 — Exact sűrű priority-flood és újrahasznált cubed-sphere topológia
+
+**Kontextus (2026-09-11):** az ND-66 utáni négy meleg deep-time rebuild átlaga
+3 564,3 ms. A teljes hydrology 1 003,5 ms, ebből a priority-flood 748,0 ms. A
+heap már az ND-65 szerinti tömör bináris heap, de a level-8 rács minden egyes
+tile-jához továbbra is Dictionary/HashSet alapú `filled`, `parent`, `order` és
+`visited` állapotot kezel, illetve minden rebuildben négyszer geometriai úton
+újraszámolja a világidőtől teljesen független szomszédságot.
+
+**Döntés:** a `FlowNetwork` kap egy fix level teljes cubed-sphere rácsát
+face/u/v sorrendben reprezentáló, világfüggetlen `DenseGridTopology` típust. A
+topológia egyszer állítja elő a TileId-ket és a right/left/up/down
+szomszédindexeket, majd deep-time rebuildenként újrahasználható. Az új
+`PriorityFloodDense` az elevációt, ocean flaget, visited állapotot, filled
+magasságot, parent indexet és flood ordert tömbökben kezeli. A régi Dictionary-
+alapú publikus út változatlanul megmarad a referencia-szintű/paneles
+fogyasztóknak és egzakt összehasonlítási orákulumnak.
+
+**Determinizmus:** a sűrű index pontosan a meglévő beszúrási sorrend
+(`face`, majd `u`, majd `v`). Az óceáni gyökerek enqueue-sorrendje, a heap
+`(elevation,counter)` összehasonlítása és a szomszédok right/left/up/down
+sorrendje változatlan. Teszt veti össze minden tile `Filled`, `Parent` és
+`FloodOrder` értékét a Dictionary-úttal, a `double` értékeket bitmintára.
+Nincs numerikus vagy seed-viselkedés változás; világverzió-emelés nem kell.
+
+### ND-68 — Statikus mesh-bucketek pontos előméretezése és közvetlen elérése
+
+**Kontextus (2026-09-11):** az ND-66 után a statikus emisszió még átlag
+944,7 ms. A klasszifikáció már teljes egészében tömbben rendelkezésre áll az
+emit előtt, mégis minden tile négy `(category,bucket)` Dictionary-lookupot
+végez, a terrain- és vízlisták pedig alapkapacitásról ismételten növekednek és
+másolódnak.
+
+**Döntés:** a statikus emit előtt egy lineáris számlálópassz meghatározza minden
+terrain- és water-bucket quad-számát. A listák pontos `4*quadCount` vertex/
+normal/color és `6*quadCount` index kapacitással jönnek létre, egyszer kerülnek
+be a meglévő Dictionary-kimenetbe, az emit pedig közvetlen tömbreferenciával
+éri el őket. A dinamikus, ritka és változó LOD-út továbbra is a meglévő
+Dictionary-alapú `GetOrAddLists` megoldást használja.
+
+**Egzakt viselkedés:** a bucket kulcsa, a tile-ok face/u/v emit-sorrendje, az
+`AddQuad` hívások és a későbbi determinisztikus submesh-sorrend változatlan.
+Az előpassz csak kapacitást és referenciát készít elő; nem hoz létre új
+renderkategóriát, nem módosít színt, geometriát vagy szimulációs adatot.
+
+**Élő mérés (2026-09-11):** öt meleg deep-time rebuild átlaga 2 834,7 ms,
+az ND-66 utáni 3 564,3 ms-hoz képest további 20,5% javulás. A dense flood
+átlag 257,5 ms (`topology reused=True`), 65,6%-kal kevesebb az előző
+748,0 ms-nál. A statikus base-layer 1 602,4 ms, az emit 664,4 ms; rendre
+13,0% és 29,7% javulás. A felhasználó ezt az állapotot ideiglenesen
+elfogadta; a `<1 s` cél nyitott backlog marad. A következő kör előtt a nagy
+13,4–243,2 ms `bucketPrepare`, 97,0–309,2 ms mesh és 25,9–283,7 ms víz-
+szórás miatt Unity Profiler/GC-allokációs mérés szükséges.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |
