@@ -152,6 +152,7 @@ namespace WorldGen.Viewer
             foreach(GameObject go in removed) _drawnDiagnosticMeshes.Remove(go);
             if(surfaces.Count==0) { PerfLog($"[ND-75 drawn] frame={Time.frameCount} status=no-uploaded-surface"); return; }
             HashSet<int> hidden=_drawnHiddenStaticQuads;
+            HashSet<int> hiddenWater=_drawnHiddenStaticWaterQuads;
             Vector3 localCamera=transform.InverseTransformPoint(cam.transform.position);
             BodyFrameConversion.ToCore(localCamera,out double cameraX,out double cameraY,out double cameraZ);
             double distance=Math.Sqrt((double)localCamera.x*localCamera.x+(double)localCamera.y*localCamera.y+(double)localCamera.z*localCamera.z);
@@ -162,8 +163,8 @@ namespace WorldGen.Viewer
                 +_lastAppliedCutView.Y*_lastAppliedCutView.Y+_lastAppliedCutView.Z*_lastAppliedCutView.Z):double.NaN;
             double appliedDelta=_hasLastCutCameraPosition?Math.Sqrt((cameraX-_lastAppliedCutView.X)*(cameraX-_lastAppliedCutView.X)
                 +(cameraY-_lastAppliedCutView.Y)*(cameraY-_lastAppliedCutView.Y)+(cameraZ-_lastAppliedCutView.Z)*(cameraZ-_lastAppliedCutView.Z)):double.NaN;
-            bool pending=_cutTask!=null;
-            double pendingMs=pending?(Time.unscaledTime-_pendingCutRequestedRealtime)*1000:0;
+            bool pending=_cutTask!=null || _pendingTerrainUpload!=null;
+            double pendingMs=pending?UploadMilliseconds(Stopwatch.GetTimestamp()-_pendingCutRequestedTicks):0;
             int width=cam.pixelWidth,height=cam.pixelHeight;
             if(width<=0 || height<=0) return;
             var trace=new DrawnTraceSnapshot(this);
@@ -171,17 +172,19 @@ namespace WorldGen.Viewer
             string header=FormattableString.Invariant($"[ND-75 drawn] frame={Time.frameCount} capturedAt={Time.unscaledTime:F3}s wall={DateTime.Now:HH:mm:ss.fff} meshRevision={_drawnDiagnosticRevision} ")
                 + FormattableString.Invariant($"cameraDistanceUnits={distance:F6} altitudeAboveBaseUnits={altitude:F6} zoomRatioRoverAltitude={zoom:F4} viewClass={(orbit!=null?orbit.CurrentViewLevel.ToString():"unknown")} ")
                 + FormattableString.Invariant($"cameraCore=({cameraX:F6},{cameraY:F6},{cameraZ:F6}) fov={cam.fieldOfView:F3} viewport={width}x{height} ")
-                + FormattableString.Invariant($"lodPending={pending} pendingMs={pendingMs:F1} lastLodApplyAgeMs={(Time.unscaledTime-_drawnLodAppliedAt)*1000:F1} ")
+                + FormattableString.Invariant($"lodPending={pending} pendingClock=ND95 pendingMs={pendingMs:F1} lastLodApplyAgeMs={(Time.unscaledTime-_drawnLodAppliedAt)*1000:F1} ")
+                + $"uploadPending={_pendingTerrainUpload != null} uploadStaged={_pendingTerrainUpload?.Batch.CompletedCount ?? 0} "
                 + FormattableString.Invariant($"appliedCutCameraDistanceUnits={appliedDistance:F6} appliedCameraDeltaUnits={appliedDelta:F6} ")
                 + FormattableString.Invariant($"captureMs={capture.Elapsed.TotalMilliseconds:F2} activeSurfaceMeshes={surfaces.Count} hiddenStaticQuads={hidden.Count} ")
+                + $"hiddenStaticWaterQuads={hiddenWater.Count} waterLod=ND83 independentWater={_appliedWaterSelection != null} waterLeaves={_appliedWaterSelection?.Leaves.Count ?? 0} "
                 + $"refinementPending={_lodRefinementPending} selectionTraceStops={trace.Trace?.Count ?? 0} terrainIdentity=ND77 "
-                + FormattableString.Invariant($"modelSeed={_adaptiveSeed} modelTimeMyr={deepTimeMyr:R} seaLevel={_adaptiveSeaLevel:R} elevationScale={elevationScale:R} reliefExaggeration={terrainReliefExaggeration:R} plateCount={plateCount}");
+                + FormattableString.Invariant($"modelSeed={_adaptiveSeed} modelTimeMyr={deepTimeMyr:R} seaLevel={_adaptiveSeaLevel:R} physicalReliefScale={usePhysicalReliefScale} elevationScale={elevationScale:R} reliefExaggeration={terrainReliefExaggeration:R} plateCount={plateCount}");
             // A worker értékmátrixokat, kész listákat és immutábilis proxy/
             // trace snapshotot kap. Nem olvassa a futó kérését vagy Unity objektumot.
-            _drawnDiagnosticTask=Task.Run(()=>MeasureDrawnSurfaces(surfaces,hidden,width,height,header,trace));
+            _drawnDiagnosticTask=Task.Run(()=>MeasureDrawnSurfaces(surfaces,hidden,hiddenWater,width,height,header,trace));
         }
 
-        private static string MeasureDrawnSurfaces(List<DrawnSurfaceSnapshot> surfaces,HashSet<int> hidden,int width,int height,string header,DrawnTraceSnapshot trace)
+        private static string MeasureDrawnSurfaces(List<DrawnSurfaceSnapshot> surfaces,HashSet<int> hidden,HashSet<int> hiddenWater,int width,int height,string header,DrawnTraceSnapshot trace)
         {
             var timer=Stopwatch.StartNew();
             var measurement=new RenderedTileDiagnostics(width,height);
@@ -200,6 +203,7 @@ namespace WorldGen.Viewer
                     {
                         int start=indices[i]/4*4;
                         if(surface.Kind==1 && hidden.Contains(start/4)) continue;
+                        if(surface.Kind==3 && hiddenWater.Contains(start/4)) continue;
                         if(start<0 || start+3>=vertices.Count) { malformed++; continue; }
                         bool valid=true;
                         for(int j=0;j<6;j++) if(indices[i+j]<start || indices[i+j]>start+3) { valid=false; break; }

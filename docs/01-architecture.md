@@ -380,7 +380,7 @@ feloldást és a pozícióazonosság-ellenőrzést nem hagyjuk ki cache-találat
 Az emit belső részidői a feloldást/ellenőrzést, segédréteg-másolást és az
 új chunk emisszióját külön mutatják; nem hozzáadandók az emit összegéhez.
 
-### 3.17 Önálló víz-LOD előkészítés (ND-82, első kapu)
+### 3.17 Önálló víz-LOD (ND-82/83)
 
 A `WaterLodSource` saját, másolt base-vízmaszkból és tengerszintsugárból
 készít immutábilis kiválasztási forrást. A maszk a valóban emittált víz
@@ -394,12 +394,229 @@ A `WaterLodSelection` rendezett, csak olvasható leveleket és teljesen
 lefedett kiváltandó base-gyökereket ad. A saját `LodCornerResolver` a finom
 vízszélt a durva szomszéd/alap vízhúrjához illeszti. A kihagyott alap
 érintetlenül fed, száraz base alá nem kerül új víz. A geometriai fedést
-tesztek ellenőrzik; a vízszínek, vízmaszk és mesh-csere még nincsenek bekötve.
+tesztek ellenőrzik. Az ND-83 a `PlanetGridMesh.WaterRefinement` partialban
+beköti a CPU perspektivikus útba, a meglévő single-flight workerbe.
+8192 saját vízlevél és kérésenként 256 split a korlát; a normál pixelcél
+változatlan. A további vízfinomítás álló kameránál is új kört kér.
 
-**A viewer most nem hívja ezt a modult.** Runtime-aktiválás csak a következő
-kapuban: pontos attribútumforrás, statikus víz indexmaszkja, kizárólagos
-durva/finom rajzolás, atomikus publikáció és hibánál visszaállás. A régi
-víz-emisszió és a felhasználó által halasztott elsőzoom-probléma változatlan.
+A statikus emitter bucketenként feljegyzi a tényleges víz-TileId-kat.
+A `TerrainIndexMask` külön példánya támogatja a hiányzó quadokat (`-1`),
+de azokat elrejteni tilos. A víz RGB-attribútumai a nyers modellmagasság és
+a meglévő víz/overlay-színfüggvény eredményei, 65 536 elemig cache-elve.
+A geometria és RGB ugyanazon sarokgazdákhoz illeszkedik. Nincs víz-morph;
+azonos cutnál a teljes vízmesh újrahasználható. A statikus vízmaszk alatt
+kimarad a terrain-vezérelt víz; száraz base alatti parti víz és tavak maradnak.
+
+Két váltott vízobjektum készül. Sikeres feltöltés után egyetlen főszálas
+alkalmazás váltja a maszkot és az aktív objektumot; uploadhibánál a statikus
+vízre áll vissza. Build eldobja a forrást/cache-t, a régi index-layoutot nem
+alkalmazza az új mesh-re. GPU/nem perspektivikus/nem támogatott base esetén
+a régi út marad. ND-75 a tényleges, nem maszkolt vízgeometriát méri.
+Élő vizuális/performance elfogadás még nincs; a halasztott első zoom érintetlen.
+
+### 3.18 Fizikai relief-skála (ND-88)
+
+Az ND-84 vízszintes km-léptéke mellett a viewer alapértelmezett függőleges
+geometriája is fizikai arányt használ:
+`elevationScale = renderelt radius / PlanetConstants.RadiusMeters`, külön
+relief-túlrajzolás nélkül. A `PlanetGridMesh` a scene-ben tárolt értéket indulás
+és Inspector-változtatás előtt újraszámolja. A művészi túlrajzolás explicit
+kikapcsolható fizikai móddal érhető el; a Core elevációja egyik módban sem
+változik.
+
+### 3.19 Több frame-es terepfeltöltés (ND-85, első kapu)
+
+A CPU async worker kész eredményéből `PendingTerrainUpload` készül; a
+single-flight a staging teljes idejére kiterjed. A motorfüggetlen
+`LodUploadBatch<T>` másolt munkasort ütemez 2 ms puha és 64 mesh/frame
+korláttal. Egyetlen drága mesh nem megszakítható, ezért a keret túlléphető.
+
+A staging kizárólag rendererhez nem kötött tartalék Mesh-eket ír. A normál
+és position-only változások egyaránt teljes mesh-feltöltést kapnak; a régi
+geometria/attribútumok a várakozó frame-ekben érintetlenek. Csak a teljes
+munkasor után, külön Update-ban cseréljük a referenciákat, anyagokat,
+aux-rétegeket és maszkokat. A cut/cache/diagnosztika ezután publikálódik.
+
+Világ-/konfigurációváltás, Build vagy kikapcsolás eldobja a félkész sort.
+Mozgó kamera nem szakítja meg: előbb ez a konzisztens kérés jelenik meg,
+majd új kérés követi. Staginghiba a régi fedést hagyja meg, commit-hiba a
+statikus fallbackot használja. A következő kérés hibánál az egylépéses
+uploadra tér vissza. Chunkonként egy plusz Mesh újrahasználható; Build és
+OnDestroy felszabadítja a tartalékokat. A meglévő chunk-cache összmemóriája
+ettől még nem korlátos; a kétszeres geometriai tárolás lehetősége költség.
+
+`useStagedTerrainUpload` alapból igaz; a szinkron/GPU/nem chunkolt utak nem
+használják. Az első kapuban a víz/border upload, fedésmaszk és aktiválás
+még a commit-frame része volt; a víz/border következő lépése a 3.19 pont.
+A stageFrames/stageTotal/maxSlice és commit részidők elkülönülnek, az ND-75
+csak a publikált geometriát méri. Élő elfogadás még szükséges.
+
+### 3.20 Előkészített víz- és határvonal-feltöltés (ND-86)
+
+A `PlanetGridMesh.AuxiliaryUpload` partial az ND-85 munkasorába veszi fel
+a dinamikus parti vizet, a változott önálló vízréteget és a határvonalakat.
+A víz bucketjeinek rendezése, attribútum-/indexösszefűzése és bounds-számítása
+az async worker végén, managed adatokon történik. A statikus/legacy út marad.
+A meglévő `useStagedTerrainUpload` kapcsoló most ezek stagingjét is vezérli.
+
+A sor `Action` munkákat kezel, közös 2 ms/64 munka puha kerettel. Az üres
+víz vagy kikapcsolt border is explicit előkészített eredmény: a régi réteg
+csak a közös commitkor tűnik el. Változatlan önálló víz-cut nem kap új mesh-t.
+A staging nem köt renderert és nem publikál rajzdiagnosztikát. Rétegenként
+egy leválasztott mesh-tartalék újrahasználható; az önálló víz meglévő két
+rendercéljával legfeljebb három mesh lehet. Build/OnDestroy takarítja a
+tartalékokat; a korábbi megszakítás és hibafallback érvényben marad.
+
+A víz és a border egyenként még monolitikus feltöltési munka: egy nagy mesh
+átlépheti a puha keretet. A hozzáadott munkák növelhetik a staging késését.
+A fedésmaszkok, renderer-referenciák, aktiválás és eviction továbbra is
+egy commitban futnak. Az `auxPack`, `auxStage`, `terrainPublish`,
+`legacyAuxPublish`, `terrainMask`, `waterPublish`, `waterMask`, `eviction`
+logmezők különítik el a költségeket; ez nem garantált FPS- vagy élességjavítás.
+
+### 3.21 Előkészített terep-rendercélok (ND-87)
+
+A terep staging-job a mesh után a rendercél előkészítését is végzi. Új
+chunk-GameObject már a MeshFilter/MeshRenderer felvételekor inaktív; a
+mesh még nincs hozzárendelve. Meglévő chunkon a staging semmit nem
+publikál és nem változtat aktivitást. Az előkészített rekord tárolja a
+komponensreferenciákat és a kész `DrawnSurface` burkolót. A diagnosztikai
+térkép és a rajzolt mesh csak a közös commitban cserélődik.
+
+A kérés külön nyilvántartja saját új rendercéljait. Commit előtti eldobás
+ezeket eltávolítja a chunk-cache-ből és felszabadítja; a korábban létező
+objektumok érintetlenek. Commit után a normál chunk-cache birtokolja őket,
+commit-hibánál a meglévő statikus fallback kapcsolja ki a dinamikus réteget.
+Ez nem új, korlátos objektumpool; a teljes cache-memóriakeret még backlog.
+
+A `stageMesh` és `stageTarget` a staging összidejének részei. A végső
+`terrainPublish` részideje `terrainSwap` (mesh/anyag és spare-cache),
+`terrainDiagnostic`, `terrainActivate` és `terrainDeactivate`; a külső
+idő ezen felül a ciklusok, keresések és cache-referenciák költségét is méri.
+Ezek nem adandók még egyszer a teljes commithoz. Az aktív út jelölése
+`terrainPipeline=ND87`, az aux-réteg változatlanul `auxPipeline=ND86`.
+
+### 3.22 Előkészített terepfedés-maszk (ND-89)
+
+A `TerrainIndexMask.PrepareHidden` saját, másolt gyökérhalmazból készít
+elrejtési/visszaállítási offseteket és rendezett indexfeltöltési tartományokat.
+Az előkészítés nem módosítja az élő `Indices` tömböt vagy a rejtett tile-okat.
+A terv a maszkpéldányhoz és revíziójához kötött: idegen, elavult vagy már
+alkalmazott terv az első indexírás előtt elutasítandó. Ez főszálas protokoll,
+nem párhuzamosan írható maszk vagy új numerikus világmodell-algoritmus.
+
+A terepmaszk terve és a következő diagnosztikai snapshot a staging-sor
+utolsó munkájában készül. Az `ApplyPrepared` és a meglévő részleges natív
+indexfeltöltés csak a közös commitban fut. A snapshot is akkor publikálódik;
+azonos fedésnél nincs új snapshot vagy natív feltöltés. Nincs második
+statikus mesh vagy teljes indexbuffer-másolat. A legacy `SetHidden`
+prepare+apply kompozícióként megmarad, a vízmaszk integrációja változatlan.
+
+Napló: `terrainMaskMode=ND89`, `maskPlan` (stagingbeli terv és snapshot),
+`maskApply` (CPU-indexírás; single módban az előkészítés is), `maskUpload`
+(natív indexhívások és a mesh lekérése), `maskSnapshot` (publikálás vagy
+single út snapshot-készítése), `maskRanges` (feltöltési tartományok száma).
+A teljes staging `pipeline=ND89`, a tereppublikálás ND87, az aux út ND86.
+A natív maszkfeltöltés továbbra is egy commitban marad, a tervkészítés is
+egyetlen staging-job: egyikre sincs kemény 2 ms garancia.
+
+### 3.23 Helyi modellfelszínhez igazodó kamera (ND-91, első kapu)
+
+A `PlanetOrbitCamera.Surface` partial a target lokális nadírirányában az
+ND-84 meglévő `TryGetScaleSurfaceRadius` lekérdezését használja. A kamera
+felszín feletti magassága, forgási sebessége és arányos zoomja ehhez a
+tenger-/túlrajzolt terepsugárhoz igazodik. Pozitív, egyenletes target-skála
+esetén világ-egységre váltunk; más esetben az alapgömb fallback marad.
+A `minDistance - surfaceRadius` régi rés megmarad, legalább 0,001 egység
+és a near clip 1,1-szerese. A felszínminimum erősebb a maxDistance-nél.
+
+A `PlanetGridMesh.ScaleSurface` egyetlen pontos irány/snapshot cache-t
+tárol, amelyet `SnapshotWorldConfig` revíziója érvénytelenít. Folyamatban
+lévő konfigurációváltáskor nem vesz mintát kevert régi/új adatokból; ilyenkor
+a korábbi sugár (legalább alapgömb) az ideiglenes fallback. A zoom nem
+érvényteleníti a cache-t, a target forgása igen. `ApplyTransform` egységesen
+érvényesíti a korlátot (FlyTo alatt is); LateUpdate újra ellenőrzi az Update
+utáni világ-/targetváltozást. Egy később lefutó másik LateUpdate továbbra is
+Editor-vizsgálatot igényel; nincs új globális script execution order.
+
+Az `OrbitSurfaceMath` .NET-ben is tesztelhető, viewer-only segéd. A kapcsoló
+`followLocalSurface`, alapból igaz. A másodpercenkénti ND-91 log a tényleges
+kameratávolságot és a modellhez viszonyított magasságot külön nevezi meg;
+`sampleTotalMs` az időablak összes lekérdezési ideje, cache-hit ellenőrzéssel.
+Nem állítja, hogy renderelt háromszög-távolságot mért. Pontmintás első kapu:
+meredek oldalak, near-plane sarkok, tavak és coarse/morph felület eltérése
+miatt nincs teljes ütközésgarancia. Core, relief és cut-küszöb változatlan.
+
+### 3.24 Statikus terepmaszk-helyreállítás részleges commit-hibánál (ND-92)
+
+A CPU-maszk állapota nem bizonyíték a natív indexbufferre, ha valamelyik
+feltöltési hívás hibát dobott. Ilyenkor `TerrainIndexMask.RestoreAll` a
+megőrzött eredeti indexekből teljesen visszaállít, üríti a rejtett halmazt
+és érvénytelenít minden korábbi tervet. Visszaadott teljes tartományát a
+viewer a CPU előző rejtetthalmazától függetlenül feltölti. A diagnosztikai
+snapshot csak sikeres natív feltöltés után publikálódik. A normál commit
+továbbra is ND-89 részleges tartományokat használ; nincs állandó új buffer.
+
+Azonos hibaosztály miatt a vízmaszk is teljes `RestoreAll`-feltöltést kap
+a commit hibaágában, a normál vízfrissítés változatlan. A terep és víz
+helyreállítását külön próbáljuk; egyik hibája nem akadályozza a másikat.
+Második, helyreállítási hiba sem akadályozhatja meg a dinamikus réteg
+kikapcsolását és cut-cache érvénytelenítését. A kivételek együtt továbbadódnak;
+ismételten hibás GPU/mesh esetén teljes statikus fedés nem garantálható.
+Ez nem a normál vízmaszk protokolljának átépítése vagy általános GPU-tranzakció.
+
+### 3.25 Terepchunk-erőforrások korlátos megtartása (ND-93)
+
+A `PlanetGridMesh.ChunkResources` partial a dinamikus terepchunkok saját
+runtime mesh-eit tulajdonosi halmazban tartja. A létrehozáskor regisztrált
+mesh-ek eviction/Build/OnDestroy során explicit törlődnek, akkor is, ha a
+célobjektum már eltűnt. Külső sharedMesh-et nem veszünk saját tulajdonba;
+a legacy chunk-upload ilyenkor saját új mesh-t készít. OnDestroy nem
+törli újra a szülővel egyébként is megszűnő gyermekobjektumokat.
+
+A motorfüggetlen `InactiveChunkQueue` dictionary + láncolt lista: O(1)
+hozzáadás/kivétel, a legrégebben inaktív kulcs az első jelölt. Az alap
+célkorlát 128 (`inactiveTerrainChunkLimit`). Az Update legfeljebb 8 kulcsot
+vizsgál puha 0,5 ms keretben; nagy inaktiválás után átmeneti túllépés lehet.
+Aktív vagy a publikált `_previousChunkGroups` által használt kulcs védett.
+Staging alatt a takarítás szünetel; CPU-worker alatt futhat, mert annak
+managed chunk-cache-ét nem módosítja. Újrahasználat kiveszi a kulcsot a
+sorból, staging-megszakítás a nem használt erőforrásokat visszaadja neki.
+
+A takarítás együtt távolítja el az objektumot, saját kötött/tartalék mesh-t
+és diagnosztikai hivatkozást. `[ND-93 terrain cache]`: tényleges térképméretek
+(`targets`, `ownedMeshes`, `spares`, `inactiveKeys`), célkorlát, valamint az
+időablakban kiürített kulcsok és takarítási idő. Nem teljes memória-byte
+mérés; a statikus/aux és CPU cache-ek más életciklusúak. A főszálon a
+natív Destroy tényleges költsége később is jelentkezhet, nincs FPS-garancia.
+
+### 3.26 Terepfeltöltés két külön ütemezési ponttal (ND-94)
+
+A `PendingTerrainUpload` most címkézett munkákat tartalmaz. Chunkenként
+`terrainMesh` (mesh/anyag), majd `terrainTarget` (objektum/komponensek/
+diagnosztikai burkoló) következik. A két lépés között az eredmény csak
+leválasztott `PreparedTerrainUpload`, még nincs rendercél vagy publikált
+mesh-hozzárendelés. A teljes terep/víz/border/maszk sor után, külön Update
+marad a commit. A megszakítás a fél pár után is eldobható, saját spare-je
+az ND-93 inaktív sorába kerül, ha nem tartozik még aktív chunkhoz.
+
+A 2 ms puha keret marad; a régi 64 chunk/frame elméleti kapacitást 128
+részfeladat/frame őrzi meg. Egy natív hívás továbbra is túllépheti a keretet.
+A begin/slice `pipeline=ND94`, az apply `terrainPipeline=ND94`; a maszkterv
+`terrainMaskMode=ND89`, aux `ND86` marad. A slice `maxJobType`, `maxJobMs`,
+`maxJobKey` mezői a ténylegesen legdrágább részfeladatot azonosítják.
+Az aux-job kulcsa nulla, típusát a név jelzi. Az időt nem szabad ismét
+hozzáadni az `elapsed` értékhez: annak részhalmaza.
+
+### 3.27 Kérésóra és navigációs mérési érvényesség (ND-95)
+
+A viewer-only `LodRequestTiming` rendezett monotón időbélyegekből bontja
+fel a kérés falióra-idejét; a worker időbélyegei a kész bufferrel kerülnek
+a főszálra. A scheduling korábbi frame-időalapja nem módosul.
+A lépték mintája csak azonos kamera/target mátrix, vetület, viewport és
+világ-revízió mellett használható újra; érvénytelen világot a közös
+felszínminta is elutasít. A FlyTo helyi magasságot interpolál és minden
+animációs lépésen a közös `ApplyTransform` pontmintás korlátján halad át.
 
 ## 4. Modultérkép (frissítve)
 
@@ -440,6 +657,17 @@ víz-emisszió és a felhasználó által halasztott elsőzoom-probléma változ
 │  WorldGen.Core — Grid, Time, Units, Layers, Math, Random     │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+**ND-90 tektonikai elevációs szerződés:** eltérő kéregtípusú két legközelebbi
+lemez között a Core nem vált többé pontszerűen az óceáni és kontinentális
+báziseleváció között. A `CrustElevation` a lemeztávolságok `0.005`-ös
+gap-sávjában smoothstep súllyal keveri a két, ugyanazon pozícióban kiértékelt
+bázist; a sávon kívül a régi nyerteslemez-érték bitazonosan megmarad. Az
+`isOceanic` továbbra is a legközelebbi lemez diszkrét anyagtulajdonsága. A
+`PlateBoundaryEffect` tektonikus upliftje legfeljebb 1000 m. A statikus,
+deep-time és `TerrainPointBasis` út ugyanazt a kétlegközelebbi-lemez és
+zajbázis számítást használja, így a render, hidrológia és panelmetrikák nem
+válhatnak szét. Ez numerikus világkép-változás, ezért `.worldpkg` v2.
 
 **Két új modul a v0.1-hez képest:**
 

@@ -5,6 +5,7 @@ using System.Globalization;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Rendering;
+using WorldGen.Core;
 using WorldGen.Core.Climate;
 using WorldGen.Core.Events;
 using WorldGen.Core.Features;
@@ -40,11 +41,11 @@ namespace WorldGen.Viewer
     /// BiomeClassification, FlowNetwork, ImpactCratering) - itt csak Unity
     /// Mesh-re fordítjuk, semmilyen szimulációs számítás nincs duplikálva.
     ///
-    /// A `radius` egyelőre tetszőleges Unity-egység, NEM valós bolygóméret
-    /// (7420 km) - a nagy-világ precíziós kérdés (ND-19, floating origin)
-    /// külön lépés, mielőtt ez éles skálán futna. Az elevation (méterben)
-    /// ezért `elevationScale`-lel erősen túlrajzolt a láthatóság kedvéért,
-    /// nem valós arányban jelenik meg.
+    /// A `radius` tetszőleges Unity-egység, a fizikai sugár 7420 km. Az ND-88
+    /// fizikai relief-módjában az elevation skálája ebből a két sugárból
+    /// származik, ezért a vízszintes ND-84 km-lépték és a függőleges relief
+    /// azonos fizikai arányt használ. A régi művészi túlrajzolás kapcsolható
+    /// tartalék marad.
     ///
     /// M7 RENDER-HATÓKÖR: a folyó-tile-ok EGYBEN vannak színezve (nem
     /// vékony vonalként a tile-élek mentén) - ez egyszerűbb és
@@ -97,9 +98,17 @@ namespace WorldGen.Viewer
         private int plateCount = 20;
 
         [SerializeField]
-        [Tooltip("Unity-egység per méter, a domborzat vizuális túlrajzolásához " +
-                 "(a valós elevation/bolygóméret arány láthatatlanul kicsi lenne).")]
-        private double elevationScale = 0.01;
+        [Tooltip("Ha igaz, a viewer a függőleges domborzatot is fizikai 1:1 arányban " +
+                 "rajzolja az ND-84 km-léptékhez: elevationScale = radius / 7 420 000 m, " +
+                 "terrainReliefExaggeration = 1. A lemezperem így nem tűnhet több száz " +
+                 "kilométer magasnak pusztán megjelenítési túlrajzolás miatt. Kikapcsolva " +
+                 "az alábbi két művészi skálaparaméter ismét szabadon használható.")]
+        private bool usePhysicalReliefScale = true;
+
+        [SerializeField]
+        [Tooltip("Tartalék művészi Unity-egység/méter skála; csak kikapcsolt " +
+                 "usePhysicalReliefScale mellett érvényes.")]
+        private double elevationScale = 100.0 / PlanetConstants.RadiusMeters;
 
         [SerializeField]
         [Tooltip("MEGJELENITESI fuggoleges tulrajzolas (VERTICAL EXAGGERATION) - a " +
@@ -108,12 +117,13 @@ namespace WorldGen.Viewer
                  "megjelenitest skalazza, a VILAGMODELLT (kontinensek, partvonal, " +
                  "folyok, tengerszint) NEM valtoztatja - ezert a partvonalak es a " +
                  "kontinensek alakja valtozatlan marad, csak a hegyek magasabbak es " +
-                 "az oceanarok melyebbek lesznek. (A world-modell zaj-amplitudo " +
+                 "az oceanarok melyebbek lesznek. Fizikai relief-módban mindig 1. " +
+                 "(A world-modell zaj-amplitudo " +
                  "novelese ezzel szemben SZETZUZNA a kontinenseket - ld. ND-33/34, " +
                  "7x-nel a TEST-EARTH-001 44 kontinensrol 2-re esett.) 1 = nincs " +
                  "tulrajzolas (a korabbi viselkedes); 1.5 = enyhen markansabb " +
                  "domborzat (felhasznaloi keres, 2026-09-03); 5-10 = eros.")]
-        private double terrainReliefExaggeration = 1.5;
+        private double terrainReliefExaggeration = 1.0;
 
         // NINCS [Range] itt szandekosan (ld. axialTiltDegrees-nel korabban):
         // a Unity RangeAttribute csak (float,float)/(int,int) konstruktort
@@ -776,6 +786,7 @@ namespace WorldGen.Viewer
         private AdaptiveViewState _lastAppliedCutView;
         private AdaptiveViewState _pendingCutView;
         private float _pendingCutRequestedRealtime;
+        private long _pendingCutRequestedTicks;
         private double _lastCutCameraCoreX, _lastCutCameraCoreY, _lastCutCameraCoreZ;
 
         // Az adaptiv ujraepiteshez szukseges "vilag-kontextus", amit a Build()
@@ -900,7 +911,11 @@ namespace WorldGen.Viewer
                  "külön Refresh Panels-t is hívni.")]
         public UnityEvent Built = new UnityEvent();
 
-        private void Start() => Build();
+        private void Start()
+        {
+            SynchronizePhysicalReliefScale();
+            Build();
+        }
 
         /// <summary>
         /// M9: amig a jatek fut, a kamera-vezerelt kvadfa-cut ujraszamolasa -
@@ -915,8 +930,10 @@ namespace WorldGen.Viewer
         /// </summary>
         private void Update()
         {
+            TickUnusedTerrainChunks();
             if (!useAdaptiveLod)
             {
+                CancelStagedTerrainUpload();
                 // Kikapcsolás után is teljesüljön a worker miatt elhalasztott
                 // nyilvános Build-kérés; a régi adaptív eredményt már nem rajzoljuk.
                 if (_fullBuildRequestedAfterCut && (_cutTask == null || _cutTask.IsCompleted))
@@ -949,6 +966,12 @@ namespace WorldGen.Viewer
             Camera cam = GetAdaptiveCamera();
             if (cam == null)
                 return;
+
+            if (_pendingTerrainUpload != null)
+            {
+                TickStagedTerrainUpload();
+                return;
+            }
 
             // FAZIS 3 (ND-47): ha van folyamatban levo async BuildCut, kezeljuk
             // (single-flight). Amig fut, NEM inditunk ujat es nem epitunk ujra -
@@ -1174,17 +1197,31 @@ namespace WorldGen.Viewer
 
         private static readonly string[] DeepTimeStepLabels =
         {
-            "1y", "100y", "10ky", "1my", "100my"
+            "1y", "10y", "100y", "1ky", "10ky", "1my", "10my", "100my"
         };
 
         // A deepTimeMyr belso egysege millio ev (Myr).
         private static readonly double[] DeepTimeStepMyr =
         {
-            0.000001, 0.0001, 0.01, 1.0, 100.0
+            0.000001, 0.00001, 0.0001, 0.001, 0.01, 1.0, 10.0, 100.0
         };
+
+        private const int DeepTimeButtonsPerRow = 8;
+        private const int DeepTimeButtonRowCount = 1;
+
+        private void SynchronizePhysicalReliefScale()
+        {
+            if (!usePhysicalReliefScale)
+                return;
+
+            elevationScale = radius / PlanetConstants.RadiusMeters;
+            terrainReliefExaggeration = 1.0;
+        }
 
         private void OnValidate()
         {
+            SynchronizePhysicalReliefScale();
+            _uploadConfigRevision++;
             _adaptiveConfigDirty = true;
 
             // Deep-time csuszka <-> deepTimeMyr ketiranyu szinkron: amelyik
@@ -1220,6 +1257,7 @@ namespace WorldGen.Viewer
 
         private void SnapshotWorldConfig()
         {
+            _cameraSurfaceRevision++;
             _hasWorldConfigSnapshot = true;
             _wcWorldSeed = worldSeed; _wcPlateCount = plateCount; _wcLevel = level;
             _wcAdaptiveBaseLevel = adaptiveBaseLevel; _wcRadius = radius;
@@ -1416,15 +1454,16 @@ namespace WorldGen.Viewer
             if (!showOnScreenControls)
                 return;
 
-            const float pad = 12f, w = 340f, rowH = 22f;
+            const float pad = 12f, w = 600f, rowH = 22f;
             // A bal oldalt a világ-/kontinens-/régiópanelek használják, ezért
             // a deep-time vezérlők a jobb felső sarokba kerülnek. Keskeny
             // Game View esetén se engedjük a panelt a képernyőn kívülre.
             float x = Mathf.Max(pad, Screen.width - w - pad);
             float y = pad;
-            // A panel a három kameramód-sorral együtt tíz sornyi helyet
-            // használ. Tartsuk a hátteret ugyanabból a sorszámból számolva,
-            // hogy új vezérlő hozzáadásakor ne lógjon ki a tartalom.
+            // A széles panelen mind a nyolc pozitív lépték egy sorban, alattuk
+            // mind a nyolc negatív lépték egy második sorban fér el. Tartsuk a
+            // hátteret ugyanabból a sorszámból számolva, hogy egyetlen vezérlő
+            // se lógjon ki a panelből.
             const float panelRowCount = 12f;
             GUI.Box(new Rect(x - 6f, y - 6f, w + 12f, rowH * panelRowCount + 16f), "Deep time");
             y += rowH * 0.6f;
@@ -1444,10 +1483,10 @@ namespace WorldGen.Viewer
                 // Az Update() innen a WorldConfigChangedSinceBuild-en at, fekezve epit ujra.
             }
 
-            DrawDeepTimeStepButtons(x, y, w, rowH, -1.0);
-            y += rowH;
             DrawDeepTimeStepButtons(x, y, w, rowH, 1.0);
-            y += rowH;
+            y += rowH * DeepTimeButtonRowCount;
+            DrawDeepTimeStepButtons(x, y, w, rowH, -1.0);
+            y += rowH * DeepTimeButtonRowCount;
 
             // Kezi Gyr-bevitel (milliard ev) - a beirt szoveget NEM alkalmazzuk
             // azonnal (kulonben minden ertelmes reszprefixnel - pl. "0.2" utan
@@ -1524,12 +1563,14 @@ namespace WorldGen.Viewer
 
         private void DrawDeepTimeStepButtons(float x, float y, float width, float rowHeight, double direction)
         {
-            float buttonWidth = width / DeepTimeStepLabels.Length;
+            float buttonWidth = width / DeepTimeButtonsPerRow;
             string sign = direction < 0.0 ? "-" : "+";
             for (int i = 0; i < DeepTimeStepLabels.Length; i++)
             {
+                int row = i / DeepTimeButtonsPerRow;
+                int column = i - row * DeepTimeButtonsPerRow;
                 if (GUI.Button(
-                    new Rect(x + i * buttonWidth, y, buttonWidth, rowHeight),
+                    new Rect(x + column * buttonWidth, y + row * rowHeight, buttonWidth, rowHeight),
                     sign + DeepTimeStepLabels[i]))
                 {
                     ApplyDeepTimeStep(direction * DeepTimeStepMyr[i]);
@@ -1556,6 +1597,8 @@ namespace WorldGen.Viewer
         [ContextMenu("Rebuild")]
         public void Build()
         {
+            SynchronizePhysicalReliefScale();
+            CancelStagedTerrainUpload();
             // A nyilvános Build-gomb se üríthesse a worker által használt
             // világ-/sarokcache-eket. A kérés a single-flight után teljesül.
             if (_cutTask != null)
@@ -2315,6 +2358,7 @@ namespace WorldGen.Viewer
 
             phaseStopwatch.Restart();
             BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, waterColorsByBucket, "WaterSurface");
+            InitializeIndependentWater(staticBuckets, waterSurfaceRadius);
             double waterMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
             phaseStopwatch.Restart();
@@ -2348,6 +2392,7 @@ namespace WorldGen.Viewer
             public readonly List<Vector3>[] WaterNormals;
             public readonly List<int>[] WaterTriangles;
             public readonly List<Color>[] WaterColors;
+            public readonly List<TileId>[] WaterTiles;
 
             public StaticMeshBuckets(int[] terrainQuadCounts, int[] waterQuadCounts)
             {
@@ -2368,6 +2413,7 @@ namespace WorldGen.Viewer
                 WaterNormals = new List<Vector3>[waterQuadCounts.Length];
                 WaterTriangles = new List<int>[waterQuadCounts.Length];
                 WaterColors = new List<Color>[waterQuadCounts.Length];
+                WaterTiles = new List<TileId>[waterQuadCounts.Length];
                 for (int i = 0; i < waterQuadCounts.Length; i++)
                 {
                     int quads = waterQuadCounts[i];
@@ -2375,6 +2421,7 @@ namespace WorldGen.Viewer
                     WaterNormals[i] = new List<Vector3>(checked(quads * 4));
                     WaterTriangles[i] = new List<int>(checked(quads * 6));
                     WaterColors[i] = new List<Color>(checked(quads * 4));
+                    WaterTiles[i] = new List<TileId>(quads);
                 }
             }
         }
@@ -2450,6 +2497,7 @@ namespace WorldGen.Viewer
         /// </summary>
         private void RecomputeCutAndRebuildAdaptiveMesh(Camera cam, double camX, double camY, double camZ)
         {
+            _requestedUploadConfigRevision = _uploadConfigRevision;
             // Vedelmi korlat Inspector-hiba ellen (pl. base > max eseten az
             // AdaptiveQuadTree kivetelt dobna minden Update()-ben) - a [Range]
             // attributumok kulon-kulon mar korlatoznak, de az egymashoz
@@ -2514,6 +2562,7 @@ namespace WorldGen.Viewer
             TerrainLodProxy? terrainProxy = _requestedTerrainLodProxy = DesiredTerrainLodProxy();
             _requestedProjectedView = terrainProxy != null && !cam.orthographic ? CaptureProjectedLodView(cam,camX,camY,camZ) : null;
             PrepareTerrainEvaluationCache(terrainProxy);
+            PrepareIndependentWaterRequest();
 
             // DIAGNOSZTIKAI RES JAVITVA (2026-09-01): a Stopwatch korabban
             // CSAK a RebuildAdaptiveMesh()-t merte - egy valos katasztrofa-
@@ -2571,6 +2620,8 @@ namespace WorldGen.Viewer
                 _pendingCutCamX = camX; _pendingCutCamY = camY; _pendingCutCamZ = camZ;
                 _pendingCutView = CaptureAdaptiveView(cam, camX, camY, camZ);
                 _pendingCutRequestedRealtime = Time.unscaledTime;
+                // A frame-óra a Build kezdetén ragadhat; a mérés külön monotón órát használ.
+                _pendingCutRequestedTicks = Stopwatch.GetTimestamp();
                 _pendingSurfaceAltitude = camDistanceFromCenter - (terrainProxy != null
                     ? terrainProxy.RadiusAt(TileGeometry.FromPosition(camX,camY,camZ,effectiveBaseLevel)) : radius);
                 _cutCancellation = new System.Threading.CancellationTokenSource();
@@ -2589,6 +2640,7 @@ namespace WorldGen.Viewer
                 _lastCutCameraCoreX = camX; _lastCutCameraCoreY = camY; _lastCutCameraCoreZ = camZ;
                 _cutTask = System.Threading.Tasks.Task.Run(() =>
                 {
+                    long workerStartedTicks = Stopwatch.GetTimestamp();
                     var cutStopwatch = Stopwatch.StartNew();
                     HashSet<TileId> cut = AdaptiveQuadTree.BuildCut(
                         camX, camY, camZ, radius, previousCut,
@@ -2610,6 +2662,8 @@ namespace WorldGen.Viewer
                     buffers.MetricCacheHits = selectionWork.MetricCacheHits;
                     buffers.MetricEvaluations = selectionWork.MetricEvaluations;
                     buffers.MetricCacheEntries = selectionWork.EvaluationCache?.Count ?? 0;
+                    buffers.WorkerStartedTicks = workerStartedTicks;
+                    buffers.WorkerReadyTicks = Stopwatch.GetTimestamp();
                     return buffers;
                 });
                 PerfLog(
@@ -2653,7 +2707,7 @@ namespace WorldGen.Viewer
             RebuildAdaptiveMesh();
             _lastAppliedCutView = CaptureAdaptiveView(cam, camX, camY, camZ);
             _hasLastCutCameraPosition = true;
-            _lodRefinementPending = false;
+            _lodRefinementPending = _appliedWaterSelection?.RefinementPending == true;
             _cutSupersededSinceApply = false;
             _appliedSelectionTrace = null; // A szinkron tartalékút nem rögzít megállási trace-t.
             _appliedDiagnosticCoverage = null;
@@ -2710,7 +2764,14 @@ namespace WorldGen.Viewer
             }
 
             AdaptiveMeshBuffers buffers = task.Result;
-            _currentCut = buffers.Cut;
+            buffers.WorkerObservedTicks = Stopwatch.GetTimestamp();
+            if (BeginStagedTerrainUpload(buffers)) return;
+            CompleteAsyncMeshRequest(buffers);
+        }
+
+        private void CompleteAsyncMeshRequest(AdaptiveMeshBuffers buffers)
+        {
+            long commitStartedTicks = Stopwatch.GetTimestamp();
             _lastCutCameraCoreX = _pendingCutCamX;
             _lastCutCameraCoreY = _pendingCutCamY;
             _lastCutCameraCoreZ = _pendingCutCamZ;
@@ -2719,6 +2780,7 @@ namespace WorldGen.Viewer
             // ami sokkal kisebb, mint a teljes emit volt.
             var stopwatch = Stopwatch.StartNew();
             ApplyAdaptiveMeshBuffers(buffers);
+            _currentCut = buffers.Cut;
             _appliedSelectionTrace = buffers.SelectionTrace;
             _appliedDiagnosticCoverage = buffers.DiagnosticCoverage;
             _appliedTraceView = _requestedProjectedView;
@@ -2730,10 +2792,32 @@ namespace WorldGen.Viewer
             _appliedTraceFov = _pendingCutView.VerticalFovRadians;
             _lastAppliedCutView = _pendingCutView;
             _hasLastCutCameraPosition = true;
-            _lodRefinementPending = buffers.DeferredSplits > 0;
+            _lodRefinementPending = buffers.DeferredSplits > 0 || buffers.WaterSelection?.RefinementPending == true;
             _cutSupersededSinceApply = false;
             stopwatch.Stop();
+            long committedTicks = Stopwatch.GetTimestamp();
+            var requestTiming = new LodRequestTiming(_pendingCutRequestedTicks, buffers.WorkerStartedTicks,
+                buffers.WorkerReadyTicks, buffers.WorkerObservedTicks, commitStartedTicks, committedTicks,
+                Stopwatch.Frequency);
+            PerfLog($"[ND-95 request timing] requestTicks={_pendingCutRequestedTicks} " +
+                $"queueMs={requestTiming.QueueMs:F3} workerMs={requestTiming.WorkerMs:F3} " +
+                $"readyWaitMs={requestTiming.ReadyWaitMs:F3} stagingWallMs={requestTiming.StagingWallMs:F3} " +
+                $"commitMs={requestTiming.CommitMs:F3} totalMs={requestTiming.TotalMs:F3} focused={Application.isFocused}");
             PerfLog($"  [async apply ND-76] mesh-feltoltes={stopwatch.Elapsed.TotalMilliseconds:F2}ms " +
+                $"uploadMode={(buffers.StagedTerrain != null ? "ND85" : "single")} stageFrames={buffers.UploadStageFrames} " +
+                $"stageTotal={buffers.UploadStageMs:F2}ms maxSlice={buffers.UploadMaxSliceMs:F2}ms stagedVertices={buffers.UploadStagedVertices} " +
+                $"auxPipeline={(buffers.StagedLegacyWater != null ? "ND86" : "single")} auxPack={buffers.AuxiliaryPackMs:F2}ms " +
+                $"auxStage={buffers.AuxiliaryStageMs:F2}ms auxJobs={buffers.AuxiliaryStageJobs} " +
+                $"terrainPublish={buffers.TerrainPublishMs:F2}ms legacyAuxPublish={buffers.LegacyAuxPublishMs:F2}ms " +
+                $"terrainPipeline={(buffers.StagedTerrain != null ? "ND94" : "single")} " +
+                $"stageMesh={UploadMilliseconds(buffers.TerrainStageMeshTicks):F2}ms stageTarget={UploadMilliseconds(buffers.TerrainStageTargetTicks):F2}ms " +
+                $"newTargets={buffers.NewTerrainTargets.Count} reusedTargets={buffers.ReusedTerrainTargets} " +
+                $"terrainSwap={UploadMilliseconds(buffers.TerrainSwapTicks):F2}ms terrainDiagnostic={UploadMilliseconds(buffers.TerrainDiagnosticTicks):F2}ms " +
+                $"terrainActivate={UploadMilliseconds(buffers.TerrainActivationTicks):F2}ms terrainDeactivate={UploadMilliseconds(buffers.TerrainDeactivationTicks):F2}ms " +
+                $"terrainMask={buffers.TerrainMaskMs:F2}ms waterPublish={buffers.WaterPublishMs:F2}ms eviction={buffers.EvictionMs:F2}ms " +
+                $"terrainMaskMode={(buffers.PreparedTerrainMask != null ? "ND89" : "single")} " +
+                $"maskPlan={UploadMilliseconds(buffers.TerrainMaskPlanTicks):F2}ms maskApply={UploadMilliseconds(buffers.TerrainMaskApplyTicks):F2}ms " +
+                $"maskUpload={UploadMilliseconds(buffers.TerrainMaskUploadTicks):F2}ms maskSnapshot={UploadMilliseconds(buffers.TerrainMaskSnapshotTicks):F2}ms maskRanges={buffers.TerrainMaskRanges} " +
                 $"cut.Count={_currentCut.Count} dynLeaves={buffers.DynamicLeafCount} " +
                 $"skippedOceanic={buffers.SkippedOceanicCount} cut={buffers.CutMs:F2}ms " +
                 $"workCache=ND81 selection={buffers.SelectionMs:F2}ms balance={buffers.BalanceMs:F2}ms " +
@@ -2750,7 +2834,7 @@ namespace WorldGen.Viewer
                 $"fallbackLeaves={buffers.FallbackLeafCount} replacedBase={buffers.ReplacedBaseTiles.Count} " +
                 $"maskIndices={buffers.MaskIndexCount} " +
                 DescribeSurfaceLod(_currentCut, _pendingCutCamX, _pendingCutCamY, _pendingCutCamZ) + " " +
-                $"requestAge={(Time.unscaledTime - _pendingCutRequestedRealtime) * 1000:F1}ms");
+                $"requestAgeClock=ND95 requestAge={requestTiming.TotalMs:F1}ms");
             if (stopwatch.Elapsed.TotalMilliseconds > adaptiveRebuildWarningMs)
             {
                 Debug.LogWarning(
@@ -2771,6 +2855,7 @@ namespace WorldGen.Viewer
         /// </summary>
         private sealed class AdaptiveMeshBuffers
         {
+            public long WorkerStartedTicks, WorkerReadyTicks, WorkerObservedTicks;
             public HashSet<TileId> Cut;
             public Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> Vertices;
             public Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> Normals;
@@ -2783,6 +2868,28 @@ namespace WorldGen.Viewer
             public List<Vector3> BorderVerts;
             public List<int> BorderIndices;
             public float WaterSurfaceRadius;
+            public WaterLodSelection? WaterSelection;
+            public AdaptiveMeshBuffers? IndependentWaterGeometry;
+            public double WaterSelectionMs, WaterEmitMs;
+            public int WaterColorSamples;
+            public Dictionary<TileId, StagedTerrainMesh>? StagedTerrain;
+            public int UploadStageFrames, UploadStagedVertices;
+            public double UploadStageMs, UploadMaxSliceMs;
+            public WaterMeshData? PreparedLegacyWater, PreparedIndependentWater;
+            public bool PreparedBordersEnabled;
+            public Bounds PreparedBorderBounds;
+            public StagedAuxiliaryMesh? StagedLegacyWater, StagedIndependentWater, StagedBorders;
+            public double AuxiliaryPackMs, AuxiliaryStageMs;
+            public int AuxiliaryStageJobs;
+            public double TerrainPublishMs, LegacyAuxPublishMs, TerrainMaskMs, WaterPublishMs, EvictionMs;
+            public long TerrainStageMeshTicks, TerrainStageTargetTicks, TerrainSwapTicks, TerrainDiagnosticTicks,
+                TerrainActivationTicks, TerrainDeactivationTicks;
+            public readonly Dictionary<TileId, GameObject> NewTerrainTargets = new();
+            public int ReusedTerrainTargets;
+            public TerrainIndexMask.PreparedUpdate? PreparedTerrainMask;
+            public HashSet<int>? PreparedTerrainHiddenQuads;
+            public long TerrainMaskPlanTicks, TerrainMaskApplyTicks, TerrainMaskUploadTicks, TerrainMaskSnapshotTicks;
+            public int TerrainMaskRanges;
             public int DynamicLeafCount;
             public int SkippedOceanicCount;
             public int FallbackLeafCount;
@@ -2846,6 +2953,8 @@ namespace WorldGen.Viewer
                 BorderIndices = new List<int>(),
                 WaterSurfaceRadius = radius + (float)(_adaptiveSeaLevel * elevationScale),
             };
+            ComputeIndependentWater(b, cancellation);
+            phaseStopwatch.Restart();
 
             var dynamicLeaves = new List<TileId>();
             foreach (TileId t in cut)
@@ -2993,6 +3102,7 @@ namespace WorldGen.Viewer
                 var diagnosticStopwatch = Stopwatch.StartNew();
                 CaptureNadirDiagnostic(b, coverage);
                 b.NadirDiagnosticMs = diagnosticStopwatch.Elapsed.TotalMilliseconds;
+                PrepareAuxiliaryUploads(b, cancellation);
                 return b;
             }
             finally { _activeCornerResolver = null; }
@@ -3006,24 +3116,41 @@ namespace WorldGen.Viewer
         private void ApplyAdaptiveMeshBuffers(AdaptiveMeshBuffers b)
         {
             try { ApplyAdaptiveMeshBuffersCore(b); }
-            catch
+            catch (Exception applyError)
             {
                 // Sikertelen feltöltés nem igazol új fedést. Visszaállítjuk
                 // az alapot, a félkész dinamikus geometriát kikapcsoljuk.
-                ApplyTerrainCoverage(Array.Empty<TileId>());
-                foreach (GameObject chunk in _dynamicChunkGameObjects.Values)
-                    if (chunk != null) chunk.SetActive(false);
-                foreach (string name in new[] { "DynamicRefined", "DynamicWater", "DynamicBorders" })
+                var errors = new List<Exception> { applyError };
+                try
                 {
-                    Transform child = transform.Find(name);
-                    if (child != null) child.gameObject.SetActive(false);
+                    // A két statikus réteg helyreállítását egymás hibája se akadályozza.
+                    try { RestoreTerrainCoverageAfterFailure(); }
+                    catch (Exception recoveryError) { errors.Add(recoveryError); }
+                    try { RestoreWaterCoverageAfterFailure(); }
+                    catch (Exception recoveryError) { errors.Add(recoveryError); }
                 }
-                _previousChunkGroups.Clear();
-                _previousChunkPositions.Clear();
-                _previousChunkCache.Clear();
-                _appliedSelectionTrace = null;
-                _appliedDiagnosticCoverage = null;
-                _hasLastCutCameraPosition = false;
+                finally
+                {
+                    ResetIndependentWaterRendering(restoreStaticIndices: false);
+                    foreach (var chunk in _dynamicChunkGameObjects)
+                    {
+                        if (chunk.Value != null) chunk.Value.SetActive(false);
+                        RememberInactiveTerrainChunk(chunk.Key);
+                    }
+                    foreach (string name in new[] { "DynamicRefined", "DynamicWater", "DynamicBorders" })
+                    {
+                        Transform child = transform.Find(name);
+                        if (child != null) child.gameObject.SetActive(false);
+                    }
+                    _previousChunkGroups.Clear();
+                    _previousChunkPositions.Clear();
+                    _previousChunkCache.Clear();
+                    _appliedSelectionTrace = null;
+                    _appliedDiagnosticCoverage = null;
+                    _hasLastCutCameraPosition = false;
+                }
+                if (errors.Count > 1)
+                    throw new AggregateException("ND-92: a LOD-commit és a statikus fedés helyreállítása is hibás.", errors);
                 throw;
             }
             // Külön a mesh-alkalmazás hibakezelésétől: pusztán megfigyelés.
@@ -3081,6 +3208,7 @@ namespace WorldGen.Viewer
 
         private void ApplyAdaptiveMeshBuffersCore(AdaptiveMeshBuffers b)
         {
+            var publishTimer = Stopwatch.StartNew();
             if (b.ChangedChunkTerrain != null)
             {
                 Transform oldUnchunked = transform.Find("DynamicRefined");
@@ -3089,26 +3217,36 @@ namespace WorldGen.Viewer
                 // ez a chunkolas teljes celja (ld. useChunkedDynamicMesh doksija).
                 foreach (KeyValuePair<TileId, ConcatenatedMesh> kv in b.ChangedChunkTerrain)
                 {
-                    GameObject chunkGo = GetOrCreateChunkRenderTarget(kv.Key);
-                    chunkGo.SetActive(true);
-                    UploadConcatenatedMultiMaterialMesh(chunkGo, kv.Value);
+                    if (b.StagedTerrain != null) PublishStagedTerrain(b, kv.Key);
+                    else
+                    {
+                        GameObject chunkGo = GetOrCreateChunkRenderTarget(kv.Key);
+                        chunkGo.SetActive(true);
+                        UploadConcatenatedMultiMaterialMesh(chunkGo, kv.Value, ownChunkMesh: true);
+                    }
                 }
                 foreach (KeyValuePair<TileId, ConcatenatedMesh> kv in b.PositionOnlyTerrain)
                 {
+                    if (b.StagedTerrain != null)
+                    {
+                        PublishStagedTerrain(b, kv.Key);
+                        continue;
+                    }
                     Mesh mesh = _dynamicChunkGameObjects[kv.Key].GetComponent<MeshFilter>().sharedMesh;
                     mesh.SetVertices(kv.Value.Vertices, 0, kv.Value.Vertices.Count, MeshUpdateFlags.DontRecalculateBounds);
                     mesh.bounds = new Bounds((kv.Value.BoundsMin + kv.Value.BoundsMax) * .5f,
                         kv.Value.BoundsMax - kv.Value.BoundsMin);
                     RememberDrawnPositions(_dynamicChunkGameObjects[kv.Key], kv.Value.Vertices);
                 }
-                // A mar nem-hasznalt chunk-okat deaktivaljuk (nem toroljuk - ha a
-                // kamera visszater, ugyanaz a chunk-gyoker ujra elohivhato az
-                // erintetlenul maradt GameObject/Mesh visszakapcsolasaval).
+                // ND-93: a már nem használt chunkok a korlátos inaktív sorba kerülnek.
+                long deactivateStarted = System.Diagnostics.Stopwatch.GetTimestamp();
                 foreach (TileId removedRoot in b.RemovedChunkRoots)
                 {
                     if (_dynamicChunkGameObjects.TryGetValue(removedRoot, out GameObject? removedGo) && removedGo != null)
                         removedGo.SetActive(false);
+                    RememberInactiveTerrainChunk(removedRoot);
                 }
+                b.TerrainDeactivationTicks = System.Diagnostics.Stopwatch.GetTimestamp() - deactivateStarted;
                 _previousChunkGroups = b.NewChunkGroups;
                 _previousChunkPositions = b.NewChunkPositions;
                 _previousChunkCache = b.ChunkCache;
@@ -3117,19 +3255,35 @@ namespace WorldGen.Viewer
             {
                 GameObject dynamicTerrainGo = GetOrCreateChildRenderTarget("DynamicRefined");
                 dynamicTerrainGo.SetActive(true);
-                foreach (GameObject chunk in _dynamicChunkGameObjects.Values) chunk.SetActive(false);
+                foreach (var chunk in _dynamicChunkGameObjects)
+                {
+                    if (chunk.Value != null) chunk.Value.SetActive(false);
+                    RememberInactiveTerrainChunk(chunk.Key);
+                }
                 _previousChunkGroups.Clear();
                 _previousChunkPositions.Clear();
                 _previousChunkCache.Clear();
                 // FAZIS 3: a terep MAR konkatenalt (worker szalon) - itt csak feltoltjuk.
                 UploadConcatenatedMultiMaterialMesh(dynamicTerrainGo, b.TerrainConcat);
             }
-            BuildBorders(b.BorderVerts, b.BorderIndices, "DynamicBorders");
-            BuildWaterSurface(b.WaterVertices, b.WaterNormals, b.WaterTriangles, b.WaterColors, "DynamicWater");
-            b.MaskIndexCount = ApplyTerrainCoverage(b.ReplacedBaseTiles);
+            b.TerrainPublishMs = publishTimer.Elapsed.TotalMilliseconds;
+            publishTimer.Restart();
+            if (b.StagedBorders != null) PublishAuxiliaryUpload("Borders", "DynamicBorders", b.StagedBorders);
+            else BuildBorders(b.BorderVerts, b.BorderIndices, "DynamicBorders");
+            if (b.StagedLegacyWater != null) PublishAuxiliaryUpload("LegacyWater", "DynamicWater", b.StagedLegacyWater);
+            else BuildWaterSurface(b.WaterVertices, b.WaterNormals, b.WaterTriangles, b.WaterColors, "DynamicWater");
+            b.LegacyAuxPublishMs = publishTimer.Elapsed.TotalMilliseconds;
+            publishTimer.Restart();
+            b.MaskIndexCount = ApplyTerrainCoverage(b.ReplacedBaseTiles, b);
+            b.TerrainMaskMs = publishTimer.Elapsed.TotalMilliseconds;
+            publishTimer.Restart();
+            ApplyIndependentWater(b);
+            b.WaterPublishMs = publishTimer.Elapsed.TotalMilliseconds;
             _drawnLodAppliedAt = Time.unscaledTime;
+            publishTimer.Restart();
             EvictCornerCacheIfNeeded();
             EvictTileClassificationCacheIfNeeded();
+            b.EvictionMs = publishTimer.Elapsed.TotalMilliseconds;
         }
 
         /// <summary>
@@ -3153,6 +3307,7 @@ namespace WorldGen.Viewer
                 return;
             }
             ApplyTerrainCoverage(Array.Empty<TileId>());
+            ResetIndependentWaterRendering();
             ClearAllDynamicChunks();
 
             // GPU-CALC / teljesitmeny: a DRAGA per-tile Core-kiertekeleseket
@@ -3459,7 +3614,8 @@ namespace WorldGen.Viewer
             // felszin OPAK, ezert a jegszinu, tengerszintu lap elrejti a mely
             // fenekgeometriat - a tengeri jeg most a nyilt vizzel egy szinten,
             // laposan ul, csak FEHER (jeg) szinnel a kek helyett.
-            if (isOceanic && (biome == Biome.Ocean || biome == Biome.SeaIce))
+            if (isOceanic && (biome == Biome.Ocean || biome == Biome.SeaIce)
+                && !(replaceStaticTerrain && _requestedIndependentWater && _waterLodSource!.ContainsWater(id)))
             {
                 TileGeometry.GetContinuousBounds(id, out double uMin, out double uMax, out double vMin, out double vMax);
                 Vector3 wp00 = ToWaterVector3(id.Face, uMin, vMin, waterSurfaceRadius);
@@ -3482,6 +3638,7 @@ namespace WorldGen.Viewer
                 List<Color> waterColors;
                 if (staticBuckets != null)
                 {
+                    staticBuckets.WaterTiles[waterBucket].Add(id);
                     waterVerts = staticBuckets.WaterVertices[waterBucket];
                     waterNormals = staticBuckets.WaterNormals[waterBucket];
                     waterTriangles = staticBuckets.WaterTriangles[waterBucket];
@@ -4827,6 +4984,17 @@ namespace WorldGen.Viewer
         /// </summary>
         private void InvalidateAdaptiveCaches()
         {
+            // A Build eddigre már újraírta a statikus víz mesh-ét: a régi
+            // layout indexeit tilos az új világra visszamásolni.
+            ResetIndependentWaterRendering(restoreStaticIndices: false);
+            _drawnHiddenStaticWaterQuads = new HashSet<int>();
+            Transform legacyWater = transform.Find("DynamicWater");
+            if (legacyWater != null) legacyWater.gameObject.SetActive(false);
+            _waterLodSource = null;
+            _waterIndexMask = null;
+            _staticWaterMesh = null;
+            _requestedIndependentWater = false;
+            _waterCornerColors.Clear();
             _cutCancellation?.Dispose();
             _cutCancellation = null;
             _previousChunkCache.Clear();
@@ -5386,20 +5554,54 @@ namespace WorldGen.Viewer
             _drawnHiddenStaticQuads = _terrainIndexMask.CopyHiddenQuadIndices();
         }
 
-        private int ApplyTerrainCoverage(IEnumerable<TileId> replacedRoots)
+        private void RestoreTerrainCoverageAfterFailure()
         {
-            if (_terrainIndexMask == null) return 0;
-            Mesh mesh = GetComponent<MeshFilter>().sharedMesh;
-            List<TerrainIndexMask.Range> ranges = _terrainIndexMask.SetHidden(replacedRoots);
-            int count = 0;
-            foreach (TerrainIndexMask.Range range in ranges)
+            if (_terrainIndexMask == null) return;
+            TerrainIndexMask.Range range = _terrainIndexMask.RestoreAll();
+            if (range.Count > 0)
             {
+                Mesh mesh = GetComponent<MeshFilter>().sharedMesh;
                 mesh.SetIndexBufferData(_terrainIndexMask.Indices, range.Start, range.Start, range.Count,
                     MeshUpdateFlags.DontRecalculateBounds);
-                count += range.Count;
             }
+            // Csak sikeres natív helyreállítást állítunk a rajzolt diagnosztikában.
             _drawnHiddenStaticQuads = _terrainIndexMask.CopyHiddenQuadIndices();
-            if (ranges.Count > 0) _drawnDiagnosticRevision++;
+            _drawnDiagnosticRevision++;
+            PerfLog($"[ND-92 terrain recovery] indices={range.Count} restored=True");
+        }
+
+        private int ApplyTerrainCoverage(IEnumerable<TileId> replacedRoots, AdaptiveMeshBuffers? buffers = null)
+        {
+            if (_terrainIndexMask == null) return 0;
+            long started = Stopwatch.GetTimestamp();
+            IReadOnlyList<TerrainIndexMask.Range> ranges = buffers?.PreparedTerrainMask != null
+                ? _terrainIndexMask.ApplyPrepared(buffers.PreparedTerrainMask)
+                : _terrainIndexMask.SetHidden(replacedRoots);
+            if (buffers != null) buffers.TerrainMaskApplyTicks = Stopwatch.GetTimestamp() - started;
+            started = Stopwatch.GetTimestamp();
+            int count = 0;
+            if (ranges.Count > 0)
+            {
+                Mesh mesh = GetComponent<MeshFilter>().sharedMesh;
+                foreach (TerrainIndexMask.Range range in ranges)
+                {
+                    mesh.SetIndexBufferData(_terrainIndexMask.Indices, range.Start, range.Start, range.Count,
+                        MeshUpdateFlags.DontRecalculateBounds);
+                    count += range.Count;
+                }
+            }
+            if (buffers != null)
+            {
+                buffers.TerrainMaskUploadTicks = Stopwatch.GetTimestamp() - started;
+                buffers.TerrainMaskRanges = ranges.Count;
+            }
+            started = Stopwatch.GetTimestamp();
+            if (ranges.Count > 0)
+            {
+                _drawnHiddenStaticQuads = buffers?.PreparedTerrainHiddenQuads ?? _terrainIndexMask.CopyHiddenQuadIndices();
+                _drawnDiagnosticRevision++;
+            }
+            if (buffers != null) buffers.TerrainMaskSnapshotTicks = Stopwatch.GetTimestamp() - started;
             return count;
         }
 
@@ -5452,17 +5654,33 @@ namespace WorldGen.Viewer
         /// (workeren) elore szamolt min/max-bol allitjuk be, tehat NINCS
         /// RecalculateBounds (ami a fo szalon minden vertexen vegigmenne).
         /// </summary>
-        private void UploadConcatenatedMultiMaterialMesh(GameObject targetGo, ConcatenatedMesh cm)
+        private void UploadConcatenatedMultiMaterialMesh(GameObject targetGo, ConcatenatedMesh cm, bool ownChunkMesh = false)
         {
             _drawnDiagnosticMeshes.Remove(targetGo);
             // A meglevo Mesh ujrahasznositasa (Clear + ujratoltes) elkeruli az
             // ismetelt natv objektum-letrehozast (ld. korabbi teljesitmeny-fix).
             MeshFilter meshFilter = targetGo.GetComponent<MeshFilter>();
             Mesh mesh = meshFilter.sharedMesh;
-            if (mesh == null)
+            if (mesh == null || (ownChunkMesh && !_ownedTerrainChunkMeshes.Contains(mesh)))
+            {
                 mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
-            else
-                mesh.Clear();
+                if (ownChunkMesh)
+                {
+                    // A legacy upload hibája után is elérhető/takarítható legyen.
+                    _ownedTerrainChunkMeshes.Add(mesh);
+                    meshFilter.sharedMesh = mesh;
+                }
+            }
+            UploadTerrainMeshData(mesh, cm);
+            meshFilter.sharedMesh = mesh;
+            targetGo.GetComponent<MeshRenderer>().sharedMaterials = TerrainMaterials(cm);
+            RememberDrawnSurface(targetGo, cm.Vertices, cm.SubmeshTriangles,
+                targetGo == gameObject ? 1 : 2, cm.TileIds);
+        }
+
+        private static void UploadTerrainMeshData(Mesh mesh, ConcatenatedMesh cm)
+        {
+            mesh.Clear();
             mesh.indexFormat = IndexFormat.UInt32;
             mesh.SetVertices(cm.Vertices);
             mesh.SetNormals(cm.Normals);
@@ -5473,14 +5691,14 @@ namespace WorldGen.Viewer
             if (cm.Vertices.Count > 0)
                 mesh.bounds = new Bounds((cm.BoundsMin + cm.BoundsMax) * 0.5f, cm.BoundsMax - cm.BoundsMin);
 
-            meshFilter.sharedMesh = mesh;
+        }
 
+        private Material[] TerrainMaterials(ConcatenatedMesh cm)
+        {
             var materials = new List<Material>(cm.SubmeshKeys.Count);
             for (int i = 0; i < cm.SubmeshKeys.Count; i++)
                 materials.Add(GetOrCreateCategoryMaterial(cm.SubmeshKeys[i]));
-            targetGo.GetComponent<MeshRenderer>().sharedMaterials = materials.ToArray();
-            RememberDrawnSurface(targetGo, cm.Vertices, cm.SubmeshTriangles,
-                targetGo == gameObject ? 1 : 2, cm.TileIds);
+            return materials.ToArray();
         }
 
         // Visszafele-kompatibilis kompozicio (a SZINKRON ut + BuildStaticBaseLayer
@@ -5520,17 +5738,34 @@ namespace WorldGen.Viewer
         /// doksija) - a `_dynamicChunkGameObjects` explicit terkepen at, nem
         /// `transform.Find`-dal (O(1) a chunk-szamban, nem O(gyerekek szama)).
         /// </summary>
-        private GameObject GetOrCreateChunkRenderTarget(TileId chunkRoot)
+        private GameObject GetOrCreateChunkRenderTarget(TileId chunkRoot, bool activateNew = true)
         {
+            _inactiveTerrainChunks.Remove(chunkRoot);
             if (_dynamicChunkGameObjects.TryGetValue(chunkRoot, out GameObject? go) && go != null)
                 return go;
 
-            go = new GameObject("Chunk_" + chunkRoot.Value);
-            go.transform.SetParent(transform, false);
-            go.AddComponent<MeshFilter>();
-            go.AddComponent<MeshRenderer>();
+            go = CreateInactiveChunkRenderTarget(transform, chunkRoot);
+            if (activateNew) go.SetActive(true);
             _dynamicChunkGameObjects[chunkRoot] = go;
             return go;
+        }
+
+        private static GameObject CreateInactiveChunkRenderTarget(Transform parent, TileId chunkRoot)
+        {
+            var target = new GameObject("Chunk_" + chunkRoot.Value);
+            target.SetActive(false);
+            try
+            {
+                target.transform.SetParent(parent, false);
+                target.AddComponent<MeshFilter>();
+                target.AddComponent<MeshRenderer>();
+                return target;
+            }
+            catch
+            {
+                SafeDestroy(target);
+                throw;
+            }
         }
 
         /// <summary>
@@ -5541,9 +5776,21 @@ namespace WorldGen.Viewer
         /// </summary>
         private void ClearAllDynamicChunks()
         {
+            ClearAllDynamicChunkResources(destroyTargets: true);
+        }
+
+        private void ClearAllDynamicChunkResources(bool destroyTargets)
+        {
+            CancelStagedTerrainUpload();
+            foreach (TileId key in new List<TileId>(_dynamicChunkGameObjects.Keys))
+                ReleaseTerrainChunkResources(key, destroyTargets);
+            ClearUploadSpareMeshes();
+            // Egy kívülről már törölt célobjektum sem hagyhat saját natív mesh-t maga után.
+            foreach (Mesh mesh in _ownedTerrainChunkMeshes)
+                if (mesh != null) SafeDestroy(mesh);
+            _ownedTerrainChunkMeshes.Clear();
+            _inactiveTerrainChunks.Clear();
             _previousChunkCache.Clear();
-            foreach (KeyValuePair<TileId, GameObject> kv in _dynamicChunkGameObjects)
-                if (kv.Value != null) Destroy(kv.Value);
             _dynamicChunkGameObjects.Clear();
             _previousChunkGroups.Clear();
             _previousChunkPositions.Clear();

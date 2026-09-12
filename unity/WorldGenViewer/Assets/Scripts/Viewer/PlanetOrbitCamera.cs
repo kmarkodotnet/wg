@@ -11,7 +11,7 @@ namespace WorldGen.Viewer
     /// Tisztán vizuális/UX kód, NEM szimulációs logika - nincs I1/I2
     /// determinizmus-érintettség (float, System.Math sem kritikus úton).
     /// </summary>
-    public class PlanetOrbitCamera : MonoBehaviour
+    public partial class PlanetOrbitCamera : MonoBehaviour
     {
         [SerializeField]
         [Tooltip("A célpont, ami körül a kamera forog. Üresen hagyva automatikusan " +
@@ -115,8 +115,8 @@ namespace WorldGen.Viewer
             }
         }
 
-        /// <summary>A kamera felszín feletti magassága (nem a nyers, középponttól mért `distance`) - ld. `distance` mező doksija.</summary>
-        public float AltitudeAboveSurface => distance - surfaceRadius;
+        /// <summary>ND-91: a helyi modellfelszín feletti magasság; kikapcsolva az alapgömbhöz viszonyít.</summary>
+        public float AltitudeAboveSurface => distance - EffectiveSurfaceRadius;
 
         /// <summary>
         /// A target-tól a kamera fele mutató, Unity-vilagteri, normalizalt
@@ -170,8 +170,9 @@ namespace WorldGen.Viewer
             float targetPitch = Mathf.Asin(Mathf.Clamp(direction.y, -1f, 1f)) * Mathf.Rad2Deg;
             targetPitch = Mathf.Clamp(targetPitch, minPitch, maxPitch);
             float targetYaw = Mathf.Atan2(-direction.x, -direction.z) * Mathf.Rad2Deg;
-            float currentAltitude = distance - surfaceRadius;
-            float targetDistance = Mathf.Clamp(surfaceRadius + (newAltitudeAboveSurface ?? currentAltitude), minDistance, maxDistance);
+            RefreshLocalSurface();
+            float currentAltitude = AltitudeAboveSurface;
+            float targetAltitude = newAltitudeAboveSurface ?? currentAltitude;
 
             // IDEIGLENES DIAGNOSZTIKA (2026-09-06): ld. WorldGenPanelUI [diag]
             // - ez megmutatja, hogy a szamolt cel-szogek/tavolsag ertelmesek-e,
@@ -179,18 +180,19 @@ namespace WorldGen.Viewer
             // nem csinal semmit, ha a GameObject/komponens INAKTIV).
             Debug.Log($"PlanetOrbitCamera [diag]: FlyToDirection - direction={direction}, " +
                 $"currentPitch={_pitch}, currentYaw={_yaw}, currentDistance={distance} -> " +
-                $"targetPitch={targetPitch}, targetYaw={targetYaw}, targetDistance={targetDistance}, " +
+                $"targetPitch={targetPitch}, targetYaw={targetYaw}, targetAltitude={targetAltitude}, " +
                 $"gameObject.activeInHierarchy={gameObject.activeInHierarchy}, enabled={enabled}.");
 
             if (_flyToCoroutine != null) StopCoroutine(_flyToCoroutine);
-            _flyToCoroutine = StartCoroutine(FlyToCoroutine(targetPitch, targetYaw, targetDistance, durationSeconds));
+            _flyToCoroutine = StartCoroutine(FlyToCoroutine(targetPitch, targetYaw, targetAltitude, durationSeconds));
         }
 
-        private System.Collections.IEnumerator FlyToCoroutine(float targetPitch, float targetYaw, float targetDistance, float durationSeconds)
+        private System.Collections.IEnumerator FlyToCoroutine(float targetPitch, float targetYaw, float targetAltitude, float durationSeconds)
         {
             float startPitch = _pitch;
             float startYaw = _yaw;
-            float startDistance = distance;
+            RefreshLocalSurface();
+            float startAltitude = AltitudeAboveSurface;
             float t = 0f;
             while (t < durationSeconds)
             {
@@ -201,15 +203,23 @@ namespace WorldGen.Viewer
                 // LerpAngle: a legrovidebb koriranyban forog (nem a hosszabb,
                 // 360 fok koruli uton), mert `_yaw` korkoros mennyiseg.
                 _yaw = Mathf.LerpAngle(startYaw, targetYaw, eased);
-                distance = Mathf.Lerp(startDistance, targetDistance, eased);
-                ApplyTransform();
+                ApplyFlyToAltitude(Mathf.Lerp(startAltitude, targetAltitude, eased));
                 yield return null;
             }
             _pitch = targetPitch;
             _yaw = targetYaw;
-            distance = targetDistance;
-            ApplyTransform();
+            ApplyFlyToAltitude(targetAltitude);
             _flyToCoroutine = null;
+        }
+
+        private void ApplyFlyToAltitude(float altitude)
+        {
+            // Az új irányban mintázunk: hegy/víz/világváltás közben sem a régi
+            // sugárhoz interpolálunk. ApplyTransform ugyanazt az irány-cache-t használja.
+            RefreshLocalSurface();
+            distance = EffectiveSurfaceRadius + altitude;
+            if (!followLocalSurface) distance = Mathf.Clamp(distance, minDistance, maxDistance);
+            ApplyTransform();
         }
 
         private void Start()
@@ -227,6 +237,8 @@ namespace WorldGen.Viewer
 
         private void Update()
         {
+            RefreshLocalSurface();
+            ConstrainSurfaceDistance();
             float dx = Input.GetAxis("Mouse X");
             float dy = Input.GetAxis("Mouse Y");
 
@@ -261,7 +273,7 @@ namespace WorldGen.Viewer
                 // Padlo 0.001-en (NEM 1f-en, ld. rotationSpeedPerAltitude
                 // doksija) - igy a magassag-aranyos lassitas a legkozelebbi
                 // zoomig (minDistance=100.1, magassag~0.1) is ervenyben marad.
-                float altitude = Mathf.Max(0.001f, distance - surfaceRadius);
+                float altitude = Mathf.Max(0.001f, AltitudeAboveSurface);
                 float effectiveRotationSpeed = rotationSpeedPerAltitude * altitude;
                 _yaw += dx * effectiveRotationSpeed * Time.deltaTime;
                 _pitch -= dy * effectiveRotationSpeed * Time.deltaTime;
@@ -275,10 +287,10 @@ namespace WorldGen.Viewer
                 // kozeppont-tavolsagon) - igy a felszin kozeleben (ahol a
                 // finom LOD-savok vannak) is ugyanolyan HASZNALHATO marad a
                 // zoom, mint messziről, csak kisebb abszolut lepesekkel.
-                float altitude = Mathf.Max(0.001f, distance - surfaceRadius);
-                float newAltitude = altitude * Mathf.Exp(-scroll * zoomSensitivity);
-                distance = surfaceRadius + newAltitude;
-                distance = Mathf.Clamp(distance, minDistance, maxDistance);
+                RefreshLocalSurface();
+                distance = (float)OrbitSurfaceMath.ZoomDistance(distance, EffectiveSurfaceRadius, scroll, zoomSensitivity);
+                if (followLocalSurface) ConstrainSurfaceDistance();
+                else distance = Mathf.Clamp(distance, minDistance, maxDistance);
             }
 
             ApplyTransform();
@@ -286,6 +298,8 @@ namespace WorldGen.Viewer
 
         private void ApplyTransform()
         {
+            RefreshLocalSurface();
+            ConstrainSurfaceDistance();
             Vector3 targetPos = target != null ? target.position : Vector3.zero;
             Quaternion rot = Quaternion.Euler(_pitch, _yaw, 0f);
             transform.position = targetPos + rot * new Vector3(0f, 0f, -distance);

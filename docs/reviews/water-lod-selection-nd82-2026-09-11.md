@@ -1,5 +1,9 @@
 # ND-82 — Vízfelszín önálló tile-kiválasztása, első kapu
 
+**Későbbi folytatás:** az [ND-83 renderbekötés](water-lod-render-nd83-2026-09-11.md)
+elkészült és élő próbára vár. Az alábbi szöveg az első, még inaktív kapu
+történeti állapotát rögzíti.
+
 ## Felhasználói döntés és eredmény
 
 2026-09-11: az első zoomok beragadása maradjon backlog, folytassuk a következő

@@ -147,5 +147,10 @@ namespace WorldGen.Viewer.Lod
         /// <summary>Kérésenként/worker-szálanként külön resolver; nem megosztott cache.</summary>
         public LodCornerResolver CreateCornerResolver()
             => new LodCornerResolver(Source.BaseLevel, _coverage, Source.QuadAt);
+
+        /// <summary>Azonos élillesztés rendererpozíciókra vagy RGB komponensekre.</summary>
+        public LodCornerResolver CreateCornerResolver(Func<TileId, SurfaceQuad> rawAttributes)
+            => new LodCornerResolver(Source.BaseLevel, _coverage,
+                rawAttributes ?? throw new ArgumentNullException(nameof(rawAttributes)));
     }
 }

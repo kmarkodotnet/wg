@@ -150,14 +150,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b14c8331baecc8e4e8601993755feebe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  logDrawnTileSizes: 1
+  useStagedTerrainUpload: 1
   level: 5
   radius: 100
   showBorders: 0
   borderMaterial: {fileID: 0}
   worldSeed: 184482873278464
   plateCount: 20
-  elevationScale: 0.001
-  terrainReliefExaggeration: 1.5
+  usePhysicalReliefScale: 0
+  elevationScale: 0.000013477088948787062
+  terrainReliefExaggeration: 111
   targetWaterFraction: 0.65
   climateOrbitalPeriodDays: 365.25
   climateRotationPeriodDays: 1
@@ -205,12 +208,12 @@ MonoBehaviour:
   targetTilePixelSize: 12
   initialRefinementPixelSize: 10
   useTerrainLodProxy: 1
-  logDrawnTileSizes: 1
   adaptiveTraversalRootLevel: 3
   adaptiveRenderBudget: 200000
   useAsyncMeshRebuild: 1
   useChunkedDynamicMesh: 1
   dynamicChunkLevel: 6
+  useBoundedDynamicChunks: 1
   mergeHysteresisFactor: 1.5
   fovSafetyMargin: 1.3
   adaptiveCameraMoveThreshold: 1
@@ -2284,6 +2287,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1be25aba010fcf429d15ee3d471c799, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  showPhysicalScaleBar: 1
+  scaleBarTargetWidthPixels: 180
+  scaleBarBottomMarginPixels: 36
+  scaleBarRefreshIntervalSeconds: 0.15
+  followLocalSurface: 1
   target: {fileID: 0}
   distance: 300
   minDistance: 100.1

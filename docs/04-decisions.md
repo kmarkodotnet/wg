@@ -3725,6 +3725,396 @@ változtat képet. A teljes vízfinomítás csak a második kapu és élő Unity
 után tekinthető késznek. A korai zoomküszöb és a halasztott ND-81 panasz
 ebben a feladatban nem módosul.
 
+### ND-83 — Önálló víz-LOD renderbekötése
+
+**2026-09-11, döntés a kód előtt.** Az ND-82 második kapuja a CPU,
+perspektivikus adaptív útba kerül, ugyanabba a single-flight workerbe.
+Külön víz-cut: legfeljebb 8192 levél, kérésenként 256 új osztás, a meglévő
+normál pixelcél/hiszterézis mellett. A korai terep-zoomküszöb változatlan.
+
+- A statikus emit víz-bucketenként feljegyzi az emittált TileId-kat; ezekből
+  készül a vízforrás és a ritka indexmaszk. Hiányzó (száraz) base nem rejthető
+  el. A sugár a statikus renderer pontos float értéke.
+- A víz geometriájához nincs tengerfenék-normál vagy biome-kiértékelés.
+  A szín a nyers, morph nélküli modellmagasság és a meglévő ND-60/overlay
+  színfüggvény eredménye; korlátos, Buildenként érvénytelenített cache.
+  A pozíció és az RGB azonos topológiájú közösél-resolveren megy át.
+- A statikus vízmaszk alatti terrain-vezérelt víz-emisszió kimarad;
+  száraz base alatt a meglévő finom parti víz viselkedése megmarad.
+  A tavak külön objektuma/vízszintje nem változik. A GPU és nem támogatott
+  nézet a régi vízútra áll vissza, új vízmaszkolás nélkül.
+- Két váltott vízobjektum: az új mesh teljes feltöltése után, egy főszálas
+  alkalmazáson belül történik a statikus maszk és a látható objektum cseréje.
+  Megszakított worker nem publikál. Uploadhibánál teljes statikus vízre
+  állunk vissza, mindkét dinamikus vízobjektum kikapcsolásával.
+- A víz külön selection/emit/upload ideje és levelei naplózottak. Az ND-75
+  tényleges geometriamérése a maszkolt statikus vízquadokat nem számolja.
+  A víz további osztásigénye álló kameránál is új munkakört indít.
+
+A víz geometriai finomítása nem ígér új fizikai részleteket a modell
+felbontásán túl. A több frame-es feltöltés, víz-geomorph és az első zoomok
+halasztott hibája nem része ennek a lépésnek. Élő part/óceán/visszazoom és
+paraméterváltás-próba kell a vizuális és teljesítmény-elfogadáshoz.
+
+### ND-84 — Kamerafüggő, fizikai kilométer-lépték a megjelenített felszínen
+
+**2026-09-11, döntés implementáció előtt.** A lépték nem görgetésszámból,
+LOD-szintből vagy tile-méretből következik. Referenciapontja a kamera
+viewportjának láthatóan megjelölt közepe. A kívánt képernyőszélesség két
+végpontjából képzett sugarakat a viewer aktuális radiális felszínével metsszük:
+szárazföldön a renderrel azonos, tengerszint körül túlrajzolt domborzattal,
+vízen a renderelt tengerszintsugárral. A bolygó pozícióját és forgását az
+inverz transzformáció kezeli; nem egységes skála esetén a kijelzés érvénytelen.
+
+A két metszéspont normalizált iránya közti középponti szöget a Core kanonikus
+`PlanetConstants.RadiusMeters` értékével szorozzuk. Így a kijelzett hossz a
+referencia-gömb nagy köríve, nem a túlrajzolt terepen megtett út és nem
+Unity-egység. A domborzat csak azt határozza meg, hogy a képernyősugár hol éri
+el a látható felszínt. A felirat 1/2/5-ös „szép” m vagy km értéket mutat; a
+hozzá tartozó pixelszélességet determinisztikus felezéssel oldjuk meg, ezért
+a kerekítés nem válik pontatlan, lineáris pixelbecsléssé.
+
+Ha a középső referencia környezetében bármelyik sugár nem metszi a felszínt,
+a kamera nem perspektivikus, a szükséges modell-snapshot még nem él, vagy a
+transzformáció skálája nem egységes, a panel explicit érvénytelen jelet mutat.
+A számítás tisztán viewer/UI-oldali, a tile-kiválasztást, mesh-emissziót,
+világmodellt és seed-kompatibilitást nem változtatja. A gömbmetszés,
+nagy köríves távolság, szépérték-választás és megoldási hibakorlát külön
+UnityEngine-független regressziókat kap. Élő Unity-próba kell az elrendezés,
+a középjel és a teljes zoomtartomány ellenőrzéséhez.
+
+Az első élő próba visszajelzése alapján egyetlen átmeneti felszínmetszési hiba
+nem törölheti azonnal az utolsó hiteles értéket. A kijelzés nyolc egymást követő
+sikertelen mintáig megtartja azt; biztos konfigurációs hiba esetén továbbra is
+azonnal érvénytelen. A radiális iteráció tűrése a renderelt `float` háló
+pontosságához igazodik és csillapítást használ a part-/domborzatperemeken.
+Közeli kameránál, ha a gyors segédgömb-iteráció egy köztes sugár miatt feladja
+a metszést, előjeles sugárparaméteres gyökkeresés adja az első tényleges
+radiális felszínmetszést. Ez csak tartalék út, ezért a szokásos közepes és távoli
+nézet mintavételi költségét nem növeli.
+
+### ND-85 — Több képkockás terep-upload, egyetlen fedésváltással
+
+**2026-09-12, döntés implementáció előtt.** Következő tile-feladat az
+ND-83 után: a CPU async, chunkolt út terepfeltöltésének szétosztása.
+Nem módosítjuk a cutot, a pixelcélt, a morphot vagy a Core-t.
+
+- A kész workereredmény feltöltési tranzakcióvá válik. Legfeljebb 64 mesh
+  és puha 2 ms keret jut egy Update-ra; legalább egy mesh elkészül, mert
+  egy Unity uploadhívást nem lehet megszakítani. A 2 ms nem kemény FPS-garancia.
+- Minden megváltozott/pozíciófrissített chunk inaktív tartalék Mesh-be kerül.
+  Nem rajzolható és nem kerül a tényleges geometriadiagnosztikába. A normál
+  position-only út ebben a módban teljes tartalékfeltöltés: több összmunka,
+  cserébe a régi mesh a következő frame-ekben is változatlan marad.
+- Az összes terepmesh elkészülte után külön frame egyben váltja a mesh-
+  referenciákat, anyagokat, aux-rétegeket és statikus fedésmaszkokat.
+  A cut/cache/diagnosztikai kamera csak ekkor válik publikálttá.
+- Új worker nem indul staging közben. Világ-/LOD-konfiguráció-váltás,
+  explicit Build és adaptív mód kikapcsolása eldobja a még nem publikált
+  tranzakciót. Puszta kameramozgás nem éhezteti ki az uploadot: az elkészült
+  kérés megjelenik, majd a következő kérés felzárkózik az aktuális kamerához.
+- Staginghiba nem érinti a régi képet; commit-hiba a meglévő statikus
+  fallbackot használja. A tartalék mesh chunkonként újrahasználható; a
+  meglévő chunk-cache mellett legfeljebb egy további mesh/chunk marad.
+  Build/komponens-megszűnés felszabadítja a tartalékokat. Ez többletmemória,
+  nem általános chunk-cache memóriakorlát vagy objektumpool-javítás.
+- Külön stageFrames/stageTotal/maxSlice/commit és feltöltött chunk/vertex
+  mérés szükséges. A water/border upload, a maszk és aktiválás ebben az
+  első kapuban még egyetlen commit-frame költsége. Ezek további bontása és
+  a teljes főszálas keret csak élő mérés alapján következik.
+
+Az új út kapcsolható, az alapérték bekapcsolt; szinkron/GPU/nem chunkolt
+út változatlan. A vizuális elfogadás (lyuk, villanás, zoom/visszazoom,
+világváltás) és az FPS-hatás élő Unity-próbát igényel.
+
+### ND-86 — Víz és határvonal előkészített feltöltése
+
+**2026-09-12, döntés implementáció előtt.** Az ND-85 élő próbájában
+284 staging-adag p90 ideje 1,29 ms, maximuma 3,65 ms; 86 commit maximuma
+15,83 ms. A külön vízpublikációs szakasz maximuma 10,71 ms (maszkolással
+együtt, nem tiszta GPU-upload mérés). Következő kapu az aux-feltöltés.
+
+- A dinamikus víz-bucketek konkatenálása és bounds-számítása a meglévő CPU
+  workerre kerül. A sorrend, vertex/szín/normal és indexek nem változnak.
+  A statikus/legacy szinkron vízépítést nem módosítjuk.
+- A dinamikus parti víz, az önálló óceánvíz és a border külön staging-
+  munkaként követi a terepet, ugyanabban a 2 ms/64 feladatos puha keretben.
+  Üres/kikapcsolt réteg explicit üres eredményt kap; csak a commit rejti el
+  az előzőt. Azonos önálló víz-cut továbbra sem kér új vízmesh-t.
+- Az aux-mesh-ek sem kapnak renderert a feltöltés során. A commit csak
+  mesh/anyag/diagnosztika-referenciát és láthatóságot vált, majd alkalmazza
+  a fedésmaszkokat. A teljes terep+víz+border egy tranzakció.
+- Rétegenként egy plusz tartalék mesh tárolható, Build/OnDestroy takarítja.
+  Az önálló víz meglévő két bufferén felül egy közös tartalék használható.
+  Staginghiba/megszakítás a régi képet hagyja; commit-hiba a meglévő statikus
+  fallback. Nem változik a LOD-kiválasztás, színmodell, tavak vagy pixelcél.
+- A vízkonkatenálás, aux-staging, terepcsere, legacy aux-publikáció,
+  terrain/water maszk és cache-eviction külön mérhető lesz.
+
+A natív meshhívások még nem részekre bontott bufferfeltöltések: egy nagy
+víz/border job túllépheti a puha keretet. A maszk és a referenciaváltások
+egy frame-ben maradnak. A 10,71 ms okának pontosabb elválasztását és az
+új költségeloszlást élő loggal kell igazolni; FPS-javulás nem előlegezhető.
+
+### ND-87 — Terep-rendercélok előkészítése és a publikálás felbontása
+
+**2026-09-12, implementáció előtt.** Az ND-86 élő logban a 7,88 ms-os
+commitból 6,30 ms a tereppublikálás; belső költségei még nincsenek külön mérve.
+A felhasználó jóváhagyta e szakasz mérését és előkészítésének leválasztását.
+
+- A meglévő staging-job a mesh mellett a rendercélt is előkészíti. Új
+  GameObject még a komponensek felvétele előtt inaktív; meglévő célhoz
+  staging alatt sem mesh-, sem anyag-, sem aktivitásmódosítás nem tartozik.
+- A MeshFilter/MeshRenderer referenciája és a diagnosztikai adatburkoló
+  előre készül. A publikált diagnosztikai térkép csak commitkor változik.
+- Új célok a meglévő chunk-cache-be kerülnek. Commit előtti megszakításkor
+  csak e kérés új céljai törlődnek; a korábbi cache és a látható kép marad.
+  Commit-hiba után a meglévő statikus fallback takarítja a fedést, a célok
+  a normál cache-életciklusban maradnak. Nem általános objektumpool.
+- Külön idő: staging mesh/anyag, cél-/diagnosztika-előkészítés; commit
+  mesh-/anyagcsere, diagnosztikai publikálás, aktiválás és eltűnő célok
+  kikapcsolása. Új/újrahasznált célok száma is naplózandó.
+- A közös terep/víz/border/maszk fedésváltás, puha 2 ms/64 job keret,
+  a legacy út, Core, kiválasztás és zoomküszöb változatlan.
+
+Az objektumkészítés dominanciája hipotézis; a részidők és új élő próba
+igazolják a hatást. Egy job továbbra is túllépheti a keretet, a staging
+összideje nőhet; a teljes ~669 ms-os kéréskésés megoldása nem e lépés célja.
+
+### ND-89 — Előkészített terepfedés-maszk, változatlan GPU-publikálással
+
+**2026-09-12, implementáció előtt.** A friss ND-87 logban 257 commit során
+a tereppublikálás maximuma 1,98 ms; a 9,85 ms-os commitból 7,95 ms a maszk.
+Nem ismert még e maszkidő CPU/natív bontása. Következő lépés csak a terepmaszk.
+
+- A maszk következő állapota előkészíthető tranzakció: validált, másolt
+  gyökérhalmaz, elrejtési/visszaállítási offsetek és rendezett upload-range-ek.
+  Az előkészítés sem a jelenlegi indexeket, sem a rejtett tile-okat nem írja.
+- Az ND-85–87 főszálas staging-sor végére kerül egy maszktervezési job, a
+  következő diagnosztikai snapshot is ott készül. Nincs worker-hozzáférés
+  az élő maszkhoz, teljes statikus indexbuffer-másolat vagy új GPU-mesh.
+- A terv tulajdonoshoz és monoton revízióhoz kötött; idegen/elavult vagy
+  már alkalmazott terv az indexek írása előtt elutasítandó. Eldobáskor nincs
+  visszagörgetendő maszkállapot. A közös commit írja a CPU-indexeket és
+  végzi a régi részleges SetIndexBufferData hívásokat, azonos tartományokkal.
+- Változatlan fedésnél nincs új diagnosztikai snapshot és natív feltöltés.
+  Legacy SetHidden megmarad prepare+apply kompozícióként; hibafallback
+  továbbra is visszaállítja a statikus fedést. A vízmaszk út nem változik.
+- Külön mérés: maszktervezés/snapshot előkészítése, CPU-alkalmazás, natív
+  indexfeltöltés, snapshot-publikálás és range-szám. A 7,95 ms csökkenése
+  csak élő mérésből állítható; a natív feltöltés még nem több frame-es.
+
+A mask-job is monolitikus, túllépheti a puha 2 ms-ot. Az ND-87 25,76 ms-os
+stageTarget-tüskéje külön nyitott kockázat, oka nincs izolálva. A teljes
+kéréskésés, mozgókamerás selection és élességi/proxyhiba továbbra is backlog.
+
+### ND-88 — Fizikai 1:1 függőleges relief a kilométer-lépték mellett
+
+**2026-09-12, felhasználói vizuális visszajelzés alapján.** Az ND-84 pontos
+vízszintes léptéke láthatóvá tette, hogy a scene korábbi domborzati beállítása
+nem fizikai skálát használt. A `radius=100`, `elevationScale=0.001` és
+`terrainReliefExaggeration=1.5` együtt a kanonikus 7 420 km-es bolygón
+111,3-szoros függőleges túlrajzolást jelentett. Emiatt egy körülbelül 1,8 km-es
+modellbeli tektonikus perem nagyjából 200 km magasnak látszhatott a léptékhez
+viszonyítva.
+
+A viewer új `usePhysicalReliefScale` kapcsolója alapból igaz. Ebben a módban
+az `elevationScale = radius / PlanetConstants.RadiusMeters`, a külön relief-
+szorzó pedig 1; a `Start` és az Inspector-változások `OnValidate` útja is
+szinkronizálja a szerializált értékeket. Kikapcsolva a korábbi művészi skála
+és függőleges túlrajzolás továbbra is használható. Ez kizárólag viewer-
+geometriai változás: a Core elevációt, tengerszintet, hidrológiát, seedet és
+world package-et nem módosítja.
+
+A mérés egy másik, valódi modellhiányt is feltárt: a deep-time erózió csak a
+legfeljebb 1500 m-es lemezhatár-upliftet relaxálja, miközben az óceáni
+(-4000 m) és kontinentális (+800 m) kéregbázis a legközelebbi lemez ID-jével
+diszkréten válthat. Ennek folytonos átmenete külön, seed-kompatibilitást és
+referenciavektorokat érintő Core-döntés; az ND-88 nem rejti el rendereroldali
+clamp-pal. Előbb az 1:1 megjelenítést kell élő Unityban ugyanazon a helyen
+ellenőrizni, utána a megmaradó fizikai peremmagasság mérhető és kalibrálható.
+
+### ND-91 — Helyi modellfelszínt követő orbitkamerakorlát, első kapu
+
+**2026-09-12, implementáció előtt.** Az upload után a felhasználói sorrend
+következő önálló tétele a felszínkövető kamerakorlát. A ND-89 logokban a
+natív terepmaszk maximuma 0,59 ms; további upload-átalakítást ebből nem
+indokolunk. A különböző relief/viewport miatt nincs kontrollált A/B mérés.
+
+- A kamera a nadír irányában az ND-84 meglévő modellfelszín-lekérdezését
+  használja (tenger vagy túlrajzolt szárazföld), nem új Core-algoritmust.
+  Pozitív, egyenletes target-skálát támogat; más transzformációnál fallback.
+- A zoom és forgás helyi felszín feletti magassággal arányos. A minimális
+  rés a korábbi `minDistance - surfaceRadius`, legalább 0,001 világ-egység
+  és a near clip 1,1-szerese. Ütközéskor kifelé korrekció történik; ha a
+  maxDistance ennél kisebb, a felszínkorlát élvez elsőbbséget.
+- A korlát minden transzformációra érvényes, beleértve a FlyTo-t és LateUpdate
+  újraellenőrzését. Nem módosítjuk a near clipet, scene-t vagy reliefet.
+- Pontosan azonos lokális irány + világ-snapshot esetén cache-találat;
+  puszta zoom nem indít ismételt modellmintavételt. Konfigurációváltás alatt
+  nincs kevert modellminta; átmenetileg az előző sugár/alapgömb a fallback.
+- Kapcsolható, alapból aktív. Külön log jelzi a modell/fallback forrást,
+  mintavételi időt, tényleges távolságot, magasságot és korrekciót.
+
+Ez **első, pontmintás kapu**, nem teljes rendergeometriai ütközésgarancia:
+a durva/morpholt háromszög, meredek oldal és a near-plane sarkainak
+ütközése eltérhet a nadír modellmagasságától. Tavak külön vízszintje sem
+része az ND-84 lekérdezésnek. Ezek, a forgás közbeni mintavételi költség és
+az élő zoom/FlyTo elfogadás nyitott. Nem tile-élesség- vagy selection-javítás.
+
+### ND-90 — Folytonos vegyes kéregátmenet és 1 km-es uplift-plafon
+
+**2026-09-12, döntés implementáció előtt, felhasználói élő megfigyelés
+alapján.** Az ND-88 megszünteti a 111,3-szoros megjelenítési túlrajzolást,
+de a Core elevációmezőjében is van falszerű lemezhatár. A legközelebbi lemez
+ID-jének átbillenésekor az óceáni és kontinentális kéreg teljes alap-elevációja
+(-4000/+800 m bázis és eltérő zajamplitúdó) egyetlen pontban válthat. A
+deep-time erózió eddig csak a külön uplift-bónuszt relaxálta, ezt a lépcsőt
+nem érintette.
+
+A két legközelebbi lemez gap értékét a báziselevációhoz is felhasználjuk.
+Csak eltérő kéregtípusnál, `0.005` gap-határzónán belül a nyertes és
+második lemez ugyanazon pozícióban számolt báziselevációját keverjük. A második
+lemez súlya a határon 0,5, a zóna külső szélén 0; a kettő között polinomiális
+smoothstep fut. Így a két oldal ugyanahhoz az átlaghoz tart, a zóna szélén a
+meredekség is folytonos, és nincs új transzcendens művelet. Az `isOceanic`
+továbbra is a legközelebbi lemez anyagtulajdonsága; a keverés csak az
+elevációt folytonosítja. A sáv szándékosan keskenyebb a `0.04` uplift-zónánál:
+elég széles a pontszerű 4,8 km-es lépcső megszüntetéséhez, de kevésbé írja át
+a kontinens- és fix víztérfogat-topológiát.
+
+A kanonikus level-6 fix víztérfogat-próba 250 Myr-nél 95,036% vizet ad.
+Ez a korábbi 95%-os durva összeomlásőr határát mindössze 0,036 százalékponttal
+lépi át, miközben a 0 szélességű (diszkontinuus) változat átmegy. A kapu felső
+határa ezért dokumentáltan 96%-ra módosul; nem termékcél vagy célzott vízarány,
+csak annak őre, hogy a megőrzött víztérfogat ne omoljon 100%-os borításba.
+
+A tektonikus „felgyűrődés” külön komponensének felső korlátja 1500 m-ről
+1000 m-re csökken. Ez pontosan érvényesíti a felhasználó által kért legfeljebb
+1 km-es upliftet; a teljes felszíni eleváció természetesen lehet magasabb a
+kontinentális alap és a valódi domborzati zaj miatt. Nem alkalmazunk
+tengerszinthez kötött renderer-clampet, mert az elrejtené a modellhibát és
+szétválasztaná a render/panel/hidrológia forrását.
+
+Ez numerikus világkép- és seed-kompatibilitást törő módosítás. A `.worldpkg`
+formátum 2-re emelkedik és az 1-es csomagok betöltése explicit hibát ad. A
+Python referencia az elsődleges orákulum; a crust/plate-boundary/deep-time,
+hidrológia, tavak, folyók, feature, vulkanizmus és state-hash downstream
+vektorait újra kell generálni, majd byte-szinten ellenőrizni. Külön regresszió
+igazolja a határon vett kétoldali folytonosságot, az 1 km-es uplift-plafont,
+a cache-elt/nem cache-elt út bitazonosságát és a világplauzibilitást. Élő Unity
+vizuális elfogadás továbbra is szükséges ugyanazon problémás peremnél.
+
+**Implementáció utáni ellenőrzés (2026-09-12):** a teljes Python downstream
+lánc újragenerálva; a level-5 lemezhatár-minta 16,4%-a kap upliftet, mért
+maximuma 726,6 m, míg a szintetikus határteszt egzakt 1000 m-es plafont
+igazol. A kanonikus level-6 világ 31 kontinenst és 421 legalább öt tile-os
+régiót ad, a state hash
+`dd685aac9df276053fcb6bb58cffa38100a725961065d0a7688b1aff19472f12`.
+A referencia- és tesztpéldányok bájtra azonosak; Core 384/384, CLI 8/8 és
+viewer-LOD 290/290 teszt zöld, a Release solution build 0 warning/0 error.
+
+### ND-92 — Teljes statikus terepmaszk-helyreállítás commit-hibánál
+
+**2026-09-12, javítás előtt.** Az ND-89 `ApplyPrepared` már átírja a CPU
+indexeket és a rejtett halmazt a részleges natív feltöltés előtt. Ha a
+feltöltés félbeszakad, a GPU még olyan régi rejtett quadot tartalmazhat,
+amelyet a CPU már visszaállítottnak tekint. A korábbi `SetHidden(empty)`
+hibaág ezt nem küldi újra: három eltérő megszakítási ponttal reprodukált
+tesztben maradnak degenerált GPU-indexek a statikus fallbackon.
+
+- Csak a commit hibaágában explicit `RestoreAll` állítja vissza a teljes
+  CPU-indexbuffert az eredeti másolatból, üríti a rejtett halmazt és új
+  revízióval érvényteleníti a függő terveket. A visszaadott teljes tartomány
+  akkor is feltöltendő, ha a CPU szerint már semmi sem rejtett.
+- A viewer ezt egy teljes natív indexfeltöltéssel publikálja. A diagnosztika
+  csak a sikeres feltöltés után válik teljesen láthatóvá. A szokásos sikeres
+  commit részleges feltöltése és annak költsége nem változik.
+- A vízmaszk ugyanazt a CPU-előbb / részleges GPU-utána protokollt használja,
+  ezért a közös commit hibaágában az is `RestoreAll`-t kap. A két réteget
+  egymástól függetlenül próbáljuk helyreállítani; egyik hibája nem állítja
+  meg a másik kísérletét. A víz normál commitja változatlan.
+- Ha a helyreállítás is hibázik, a félkész dinamikus célok kikapcsolása és
+  a korábbi cut-cache érvénytelenítése akkor is lefut; az eredeti és a
+  helyreállítási kivétel együtt megmarad. Tartós natív hiba esetén nincs
+  helyreállítási garancia vagy sikeres statikus fedést állító diagnosztika.
+
+Ez nézetoldali hibabiztonság, nem a normál zoomélesség/késés javítása.
+Core, relief, kamera és kiválasztási küszöb változatlan. A natív integráció
+Editor-tesztje külön futtatást igényel; a szimulált bufferpróba nem GPU-teszt.
+
+### ND-93 — Nem használt terep-renderer cache és mesh-életciklus
+
+**2026-09-12, implementáció előtt.** A felhasználó 2–3 feladat együttes
+átadását kérte. Első tétel a nyitott rendercache-erőforráskockázat: a
+`RemovedChunkRoots` csak kikapcsolta az objektumokat, a chunk- és spare-
+térkép világváltásig növekedhetett. GameObject törlése önmagában nem
+helyettesíti az általunk létrehozott runtime Mesh explicit felszabadítását.
+
+- Legfeljebb 128 nem használt chunk-kulcs megtartása a cél. A legrégebben
+  használaton kívülivé vált kulcsok kiürítése puha 0,5 ms / 8 kulcs/frame;
+  ez nem azonnali kemény memóriakorlát. Aktív/publikált fedés nem eviktálható.
+- Staging közben nincs cache-takarítás; worker közben kizárólag a Unity-
+  erőforrásokat érinti, a worker által olvasott CPU chunk-cache-t nem.
+  Újrahasználat kiveszi a kulcsot az inaktív sorból; megszakítás visszateszi
+  a nem publikált, már nem szükséges tartalékokat. Nincs teljes frame-enkénti
+  objektumtérkép-bejárás vagy rendezés.
+- Eviction eltávolítja a célobjektumot, saját runtime mesh-eit, tartalékát
+  és diagnosztikai hivatkozását. Külön tulajdonosi mesh-nyilvántartás védi
+  a megosztott asseteket, és Build/OnDestroy felszabadítja a saját mesh-eket
+  akkor is, ha egy célobjektum korábban már eltűnt.
+- Darabszám/eviction-idő naplózott; nem állítunk ezekből pontos GPU-byte-
+  költséget. Az aktív fedés, CPU-mintacache és aux-mesh memóriája külön marad.
+
+Várható hatás: hosszú területváltások után kevesebb megőrzött inaktív
+geometria. Kiürített területre visszatérés új mesh-t/objektumot készíthet,
+ami többletköltség; vizuális és memóriahatás élő próbával igazolandó.
+
+### ND-94 — Külön ütemezett terepmesh és rendercél-előkészítés
+
+**2026-09-12, implementáció előtt.** A csomag második feladata az ND-87
+monolitikus terep-job két részre bontása. Az ismert 7,10 ms-os staging-
+csúcs és a korábbi célkészítési tüskék nem tekinthetők megoldottnak.
+
+- Chunkenként mesh-feltöltés/anyag-előkészítés, majd külön rendercél/
+  diagnosztikai burkoló készül. A két lépés között is érvényesül a meglévő
+  2 ms puha időkeret; a normál mesh API-hívás továbbra sem megszakítható.
+- A legfeljebb 64 chunk/frame elméleti átvitelt 128 részfeladat/frame
+  tartja meg. Aux/maszk a sor végén marad, közös commit külön Update-ban.
+  Félkész mesh vagy cél nem kerül a rendererbe.
+- Megszakítás a fél pár után is biztonságos. Részfeladattípus és tényleges
+  legdrágább job-idő kerül a slice-logba, nem feltételezett terhelés.
+
+Ez finomabb főszálas ütemezés, nem csökkenti szükségszerűen az összmunkát,
+és nem oldja meg a mozgókamerás selectiont vagy az élességi küszöböt.
+Core/relief/scene és a kiválasztott tile-fedés mindkét tételben változatlan.
+
+### ND-95 — Három következő mérési/kamera/lépték korrekció
+
+**2026-09-12, implementáció előtt.** A felhasználó három következő feladatot
+kér egy csomagban. A korai élesség/selection halasztása megmarad.
+
+1. A kérésdiagnosztika `Stopwatch` monotón időbélyeget kap: kickoff,
+   worker belépés/kész, főszálas átvétel, commit eleje/vége. A frame-hez
+   kötött `Time.unscaledTime` nem mérhet tiszta kéréskort a Build közben.
+   Sorban állás, worker falióra, kész eredmény várakozása, staging falióra
+   és commit külön jelenik meg. A scheduling/cancellation küszöb nem változik.
+2. A km-lépték hitelessége kamera/target transzformációhoz, vetülethez,
+   viewporthoz és világ-revízióhoz kötött. A nyolc hibányi türelmi idő
+   csak ugyanazon mérési helyzetben őrizhet értéket; változáskor azonnal
+   érvénytelen. A közös felszínlekérdezés visszautasítja a függő világváltást,
+   nem keverhet régi snapshotot új relief/radius mezőkkel. Másik targethez
+   nem használhatjuk az előző vagy egy tetszőleges bolygó modelljét.
+3. A FlyTo interpoláció a helyi felszín feletti magasságot viszi át,
+   az út közben is az aktuális irány sugarával. Nem egyszer előre mért
+   cél-sugárból interpolált abszolút középponttávolságot. A min/near/max
+   korlát, kézi megszakítás és a kapcsolható alapgömb mód megmarad.
+
+Ez nem új Core/numerikus világmodell, nem teljes mesh-kamera ütközésvédelem,
+nem relief- vagy tile-küszöbhangolás. Tesztelés: mesterséges időbélyeges
+fázisösszeg, valódi viewer metódusok Editor-fixture-rel, meglévő regressziók;
+offline fordítás nem helyettesít natív/vizuális ellenőrzést.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

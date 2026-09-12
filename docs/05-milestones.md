@@ -9,13 +9,13 @@ enélkül nem derül ki időben, ha valami rossz irányba megy.
 | **M1** | **Determinisztikus alap** | PRNG, tesztvektorok | — | ✅ **Kész** |
 | **M2** | **Grid + első render** | Cubed sphere, TileId, LOD, szomszédság, nyers gömb-render | Szürke gömb, tile-határokkal | ✅ **Vizuálisan megerősítve** |
 | **M3** | **Csillagászat + világítás** | Csillagok, pálya, rotáció, insoláció | Megvilágított gömb, terminátorral | ✅ **Vizuálisan megerősítve** |
-| **M4** | **Geológia + domborzat** | Lemezek, kéreg, elevation, tengerszint | Kontinensek, óceánok, árnyékolt hegyek | ✅ **Vizuálisan megerősítve** — `TEST-EARTH-001` numerikusan is teljesítve (249/249 teszt). A §13.2 fraktál-zaj korábbi hiánya (Voronoi-cella-szerű szabályosság) ✅ **pótolva** (ND-31, térben koherens fBm). A lemez-Voronoi-HATÁR geometrikussága ✅ **pótolva** (ND-36, domain warping). A "part túl magas" panasz ✅ **megoldva** (ND-37 — `CrustElevation.DefaultOceanicProbability` decorrelálva a `SeaLevelCalibration.TargetWaterFraction`-től, 0.55→0.40; a parti sáv átlagos relatív magassága ~4072m→~242.6m, 94%-os csökkenés; cserébe a kontinensszám 6→44-re nő, dokumentált kompromisszum). Vizuális újra-ellenőrzés Unityben még hátra. |
+| **M4** | **Geológia + domborzat** | Lemezek, kéreg, elevation, tengerszint | Kontinensek, óceánok, árnyékolt hegyek | ✅ **Vizuálisan megerősítve** — `TEST-EARTH-001` numerikusan is teljesítve (249/249 teszt). A §13.2 fraktál-zaj korábbi hiánya (Voronoi-cella-szerű szabályosság) ✅ **pótolva** (ND-31, térben koherens fBm). A lemez-Voronoi-HATÁR geometrikussága ✅ **pótolva** (ND-36, domain warping). A "part túl magas" panasz első köre ND-37-tel javult; az új precíz km-lépték által feltárt falszerű vegyes kéregperem ✅ **Core-oldalon javítva** (ND-88/ND-90: 1:1 relief, folytonos `0.005` gap-sáv, 1000 m uplift-plafon, `.worldpkg` v2). Az új állapot élő Unity-vizuális ellenőrzése hátra. |
 | **M5** | **Klíma** | Hőmérséklet, szél, nedvesség, csapadék | Biome-színek, hó, jégsapkák | ✅ **Vizuálisan megerősítve** (hőmérséklet+biome-sáv, 138/138 teszt); szél/nedvesség/csapadék halasztva (ld. hatókör) |
 | M6 | Atmoszféra-render | Rayleigh-szórás, felhők, ciklonok | Planet nézet lényegében kész | Referenciakép 2 szintjén ~80% |
 | **M7** | **Hidrológia + erózió** | Folyók, tavak, gleccser, A1 eróziós pass | Folyók a kontinensnézeten, mikro-vízrajz | ✅ **Vizuálisan megerősítve** ("folyók hegyből tengerbe futnak" strukturálisan bizonyítva, 146/146 teszt); tavak/jég/erózió halasztva |
 | **M8** | **Features + panelek** | Szegmentálás, névadás, aggregált metrikák | World/Continent/Region panelek élesben | Kontinens/régió-szegmentálás + névgenerálás + aggregált metrikák (Area, BiomeDiversity, RiverMouthCount) ✅ **numerikusan kész** (190/190 teszt); a legtöbb panel-mező (Habitability, Coastal complexity stb.) halasztva; vizuális render hátra |
-| M9 | Continent + Region nézet | Magas LOD, displacement, kamera-átmenetek | Referenciakép 1, 3, 4 szintje | Adaptív kvadfa-LOD (9.1-9.4 alább) implementálva, felhasználói vizuális ellenőrzés + teljesítmény-hangolás (9.5) hátra; kamera-átmenetek (nézetszint-váltás/fly-to) még nem kezdődtek el |
-| **M10** | **Deep time** | Lemezmozgás, erózió, eljegesedés, tengerszint | Az időcsúszka él | Lemezmozgás ✅ **vizuálisan megerősítve** (163/163 teszt, TimestepInvariance egzakt; `deepTimeMyr` Unity idő-csúszka - domborzat ÉS biome egyaránt elmozdul, felhasználó által tesztelve). Dinamikus (térfogat-megmaradás alapú) tengerszint ✅ **numerikusan kész** (ND-38, 261/261 teszt; a víz-arány mérve `t=0`-nál 65%-ról 50 Myr alatt 41.8%-ra, 250 Myr alatt 93.7%-ra tolódik el, ahelyett hogy örökké pontosan 65% maradna); erózió/eljegesedés halasztva |
+| M9 | Continent + Region nézet | Magas LOD, displacement, kamera-átmenetek | Referenciakép 1, 3, 4 szintje | Adaptív terep/víz-LOD, chunk-csomagolás, több frame-es upload, nézetszint/FlyTo és pontmintás kamerakorlát implementált. A korai élesség és sima zoom nem elfogadott. [Újraértékelt, súlyozott állapot: kb. 55%](reviews/m9-progress-audit-2026-09-12.md), nem az előző becsléssel összevethető mérés. |
+| **M10** | **Deep time** | Lemezmozgás, erózió, eljegesedés, tengerszint | Az időcsúszka él | Lemezmozgás ✅ **vizuálisan megerősítve** (163/163 teszt, TimestepInvariance egzakt; `deepTimeMyr` Unity idő-csúszka - domborzat ÉS biome egyaránt elmozdul, felhasználó által tesztelve). Dinamikus (térfogat-megmaradás alapú) tengerszint ✅ **numerikusan kész** (ND-38). Az ND-90 a deep-time elevációs útba is bekötötte a folytonos vegyes kéregátmenetet és az 1000 m uplift-plafont; a teljes Python/KAT-lánc és 384/384 Core-teszt zöld, élő peremellenőrzés hátra. Az erózió/eljegesedés teljes spec-lefedettsége továbbra is halasztott. |
 | **M11** | **Események** | Becsapódás, vulkán, rift, split/merge | Kráterek, kitörések láthatók | Becsapódás ✅ **vizuálisan megerősítve**; szuper-vulkán (VEI8) ✅ **numerikusan kész** (220/220 teszt, ND-29); rift/split-merge halasztva — strukturálisan más (folytonos, nem diszkrét esemény-alapú) modellt igényelnek, önálló tervezést érdemelnek |
 | **M12** | **Perzisztencia + CLI** | Checkpoint, .worldpkg, state hash | — | State hash (`WorldStateHash`) ✅ **numerikusan kész** (227/227 teszt, ND-30); checkpoint/.worldpkg/CLI halasztva |
 | M13 | Polish | Volumetrikus felhő, AO, víz-shader, színkalibráció | Végleges látvány | Vizuális acceptance (spec §73). Víz-shader: a `PlanetGridMesh` mostantól a tile-rács `field`/`isOceanField`/`seaLevel` adatából épít egy külön vízfelszín-réteget (a kalibrált tengerszint sugaránál, mélységfüggő, telítődő szín-görbével) a korábbi, tile-rácstól független flat kék primitív gömb helyett; a tengerfenék is finom fényesség-variációt kapott a meglévő fraktál-zajból. Fresnel/csillanás, felhő, AO, végleges színkalibráció továbbra is halasztva — vizuális ellenőrzés Unityben hátra. |
@@ -590,13 +590,102 @@ Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → m�
 
 ## M9 — Következő, részletes terv (autonóm folytatás, "csináld magadtól")
 
+### Aktuális állapot — 2026-09-12-i becslési korrekció
+
+**ND-95, három korrekció implementált:** [mérési óra, lépték érvényessége,
+FlyTo helyi magassága](reviews/lod-navigation-measurement-batch-nd95-2026-09-12.md).
+707/707 .NET PASS, viewer Release 315/315; 17 új Editor-eset csak fordított.
+A víz/kamera/lépték korrekciós maradék 2–4 → 1–3 óra, teljes durva
+maradék **11–23 óra**. A súlyozott 55%-os bázis marad: a korrekciók
+nem helyettesítik az élő elfogadást. Ez felülírja a lentebbi korábbi
+ráfordítás-pillanatképeket, a korai élesség/selection továbbra is halasztott.
+
+A korábbi, sok bejegyzésben ismételt **60–70% / 8–20 óra nem volt
+újraszámolt becslés**. Aktuális előrejelzésként visszavonva; az alábbi régi
+bejegyzések történeti állapotok, nem újra felhasználható státuszsablonok.
+[Tételes audit és rögzített súlyozás](reviews/m9-progress-audit-2026-09-12.md):
+a szűkített M9 + jóváhagyott zoom-kiegészítések kész-definícióhoz viszonyított
+állapota **kb. 55% (durva 50–60%-os sáv)**. Nem visszafejlődés: most először
+explicit súlyozást használunk, az ND-k darabszáma helyett.
+
+Az upload/csomagolás/víz/kamera implementáció tényleges előrelépés;
+a korai részletesség, sima átmenet és teljes teljesítmény-elfogadás külön
+nyitott kapu. A 12:51-es log aktív ND-91-et mutat, de minimum 25,29 egység
+modellmagassággal, tehát nem tesztelte a 0,33-as közeli kamerakorlátot.
+Az új, tételes hátralévő ráfordítás-alapbecslés kezdetben 14–28 munkaóra;
+az ND-92 implementációs csomagja után 13–26, az ND-93/94 után **12–24 munkaóra**,
+felhasználói várakozás nélkül; nem mért idő és nem vállalt határidő.
+A részfeladatok lezárásával ezt a táblát frissítjük, nem a sávot másoljuk.
+
+**ND-93/94, két feladat egyben:** korlátos inaktív renderchunk-cache,
+saját runtime mesh-ek felszabadítása és két lépésre bontott terepstaging
+implementált. Kilenc új .NET-eset; viewer 304/304 Debug/Release, teljes
+solution teszt 696/696. Kilenc új Editor-eset csak fordított. A
+[közös ellenőrzési lista](reviews/lod-resource-staging-batch-nd93-94-2026-09-12.md)
+szerinti élő próba kell. A kb. 55%-os állapotbázis nem emelkedett: az
+új részfeladatok nem zárják le a teljes reakcióidő- és minőségi kaput.
+
+**ND-92:** a [részlegesen hibás upload utáni terep-/vízmaszk-helyreállítás](reviews/lod-mask-recovery-nd92-2026-09-12.md)
+implementált és reprodukciós tesztekkel ellenőrzött. A teljes indexállapot
+csak a hibaágban töltődik vissza; normál zoomköltség és élesség nem változik.
+Ez a hibabiztonsági részfeladat lezárása, nem a fő vizuális kapu elfogadása.
+Az új natív Editor-esetek futtatása még hátra van.
+
+### Korábbi lépések és átadási pillanatképek
+
+**2026-09-12, ND-91:** a tile/zoom sorrend következő önálló kapuja,
+a [helyi felszínkövető kamerakorlát](reviews/lod-camera-clearance-nd91-2026-09-12.md)
+implementált. 12 új .NET-eset; viewer-LOD 290/290 Debug/Release sikeres,
+Unity-forrás és három új Editor-eset fordítva, élőben még nem futott.
+Nem teljes mesh-ütközésvédelem vagy élességjavítás. A teljes solution
+tesztfutás külön Core referenciaeltéréseket jelez a párhuzamos modellmunka
+mellett; ezért nem minősítjük az egész projektet zöldnek. M9 durván 60–70%.
+
+**2026-09-12, ND-89:** az ND-87 log alapján a következő
+[maszk-előkészítési kapu](reviews/lod-prepared-mask-nd89-2026-09-12.md)
+implementált: előkészítéskor nincs élő indexváltozás, a commit tulajdonos- és
+revízióvédett. Hét célzott .NET-eset sikeres; az új natív indexbufferes
+Editor-teszt csak fordított. Maszk CPU/natív bontás és új élő próba kell.
+A 25,76 ms-os objektum-előkészítési tüske és a teljes zoomminőség nyitott;
+M9 tartalmilag továbbra is durván 60–70%.
+
+**2026-09-12, ND-87:** [terep-rendercél staging és publikációs részidők](reviews/lod-terrain-publication-nd87-2026-09-12.md)
+implementált, új élő próbára vár. Négy új valódi Unity stage/publish/discard
+teszteset fordított, Editorban még nem futott. A kép minősége, a ~669 ms-os
+kéréskésés és a teljes FPS-elfogadás nem lezárt; M9 tartalmilag 60–70%.
+
+**ND-86 élő visszamérés:** az [új log](reviews/lod-auxiliary-upload-live-2026-09-12.md)
+71 commitban igazolja az új utat. A vízpublikálás maximuma 0,50 ms, a
+commité 7,88 ms, de a teljes kérés mediánja még 669 ms. A minőségi és
+proxy-/geometriaeltérési backlog nem zárult le, teljes vizuális elfogadás
+nincs. Következő upload-javaslat a tereppublikálás részletes felbontása;
+most csak elemzés készült, M9 becslése marad 60–70%.
+
+**2026-09-12, ND-86:** az [ND-85 log és a következő upload-kapu](reviews/lod-auxiliary-upload-nd86-2026-09-12.md)
+alapján a víz-/határvonal-mesh is a tereppel közös előkészítési sorba került,
+a vízadatok összefűzése a workerre. A végső váltás továbbra is közös;
+külön terep-/vízmaszk- és publikálási időmérés készült. Öt új ütemezési
+teszteset sikeres, az összes aktuális .NET-teszt 659/659, LOD Release 271/271.
+A valódi vízadat-csomagolási Editor-teszt csak fordított, nem futtatott.
+Élő ND-86 teljesítmény-/vizuális elfogadás kell; a korai zoompanasz halasztva.
+M9 tartalmilag továbbra is durván 60–70%, nem teljes spec-lefedettség.
+
+**2026-09-12, ND-85:** a [több frame-es terep-upload első kapuja](reviews/lod-staged-upload-nd85-2026-09-12.md)
+implementált: láthatatlan tartalékok, 2 ms/64 mesh puha adagolás, külön
+commit-frame, konfiguráció-/Build-megszakítás, 14 új ütemezési teszteset.
+Az aux-feltöltés és a commit további bontása, az FPS-hatás és a teljes
+vizuális elfogadás még nyitott. M9 tartalmilag továbbra is durván 60–70%.
+
 **Aktuális felhasználói sorrend, ND-82 (2026-09-11):** az első zoomok
 akadását/küszöbét backlogra halasztottuk. Következő önálló feladat a
 [vízfelszín saját finomítása](reviews/water-lod-selection-nd82-2026-09-11.md).
 Első kapuja implementált: külön víz-cut, költségkeret, teljes base-fedés és
 illesztett geometriai terv, 24 új célzott teszttel. Teljes regresszió 617/617,
-LOD Release 229/229, Unity-forrásfordítás 0 hiba. **Runtime-aktiválás még
-nincs**, a vízmaszk/szín/mesh-publikáció bekötése a következő lépés.
+LOD Release 229/229, Unity-forrásfordítás 0 hiba az első kapunál.
+**ND-83: a vízmaszk/szín/mesh-publikáció már renderbe kötve**, hét új
+motorfüggetlen szerződésteszttel és egy külön Editor-maszkteszttel.
+[Átadás és ellenőrzési kapu](reviews/water-lod-render-nd83-2026-09-11.md).
+A vizuális és teljesítmény-elfogadás továbbra is élő Unity-próbára vár.
 Ez nem a zoomhiba megoldása vagy új vizuális elfogadás; M9 továbbra is
 durván 60–70%. A korábbi „következő prioritás” sorokat ez a döntés felülírja.
 
