@@ -49,8 +49,9 @@ NEM produkcios kod - csak orakulum, a python-reference skill szerint.
 import math
 import json
 
-from crust_elevation_ref import base_elevation
-from plate_boundary_ref import boundary_uplift, elevation_with_boundary
+from crust_elevation_ref import blended_base_elevation
+from domain_warp_ref import warp_position
+from plate_boundary_ref import boundary_uplift, elevation_with_boundary, two_best_dots_with_indices
 from plate_ref import generate_plate_seeds, assign_plate
 from morton_ref import tile_id
 from sphere_position_ref import position_from_tile
@@ -114,7 +115,10 @@ def elevation_at_time(world_seed, plate_id, position, seeds, time_myr,
     modellben), csak a lemezhatar uplift-bonusza relaxal az egyensulya
     fele. Bitre megegyezik plate_boundary_ref.elevation_with_boundary-
     val time_myr=0-nal (ld. __main__)."""
-    base, oceanic = base_elevation(world_seed, plate_id, position)
+    warped_position = warp_position(world_seed, position)
+    best, second, best_idx, second_idx = two_best_dots_with_indices(warped_position, seeds)
+    base, oceanic = blended_base_elevation(
+        world_seed, best, second, best_idx, second_idx, position)
     uplift_static = boundary_uplift(world_seed, position, seeds)
     uplift_t = uplift_relaxation_elevation(uplift_static, time_myr, tau, eq_fraction)
     return base + uplift_t, oceanic

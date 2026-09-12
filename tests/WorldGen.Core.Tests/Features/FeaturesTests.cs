@@ -201,8 +201,9 @@ public class FeatureSegmentationStructuralTests
         // harmadik, kozeli-zoom lepteku reszlet-zaj reteg bevezetve, majd
         // MEG UGYANAZNAP VISSZAVONVA (felhasznaloi visszajelzes: "nem lett
         // jobb... szeretnem visszavonni... mukodjon minden ugy ahogy
-        // ezelott") - visszaallitva 34-re.
-        Assert.Equal(34, checkedContinents);
+        // ezelott") - visszaallitva 34-re. ND-90 (2026-09-12): a vegyes
+        // keregperem folytonositasa utan a Python referencia 31-et ad.
+        Assert.Equal(31, checkedContinents);
 
         double oceanCoverage = FeatureMetrics.OceanCoverageFraction(isOcean);
         Assert.Equal(root.GetProperty("worldOceanCoverage").GetDouble(), oceanCoverage, 9);
@@ -235,8 +236,8 @@ public class FeatureSegmentationStructuralTests
         // ujra megvaltoztatta a regio-particiot 398-rol 412-re (a Python
         // referenciaval ujramerve). ND-56 (2026-09-09): a harmadik reteg
         // ideiglenesen 412-rol 402-re modositotta, majd VISSZAVONVA -
-        // visszaallitva 412-re.
-        Assert.Equal(412, checkedRegions);
+        // visszaallitva 412-re. ND-90 utan a referencia 421 regio.
+        Assert.Equal(421, checkedRegions);
     }
 
     [Fact]

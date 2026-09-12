@@ -26,11 +26,11 @@ hegyvidek/orogen ovezetek a szarazfold kisebbik reszet teszik ki).
 
 NEM produkcios kod - csak orakulum, a python-reference skill szerint.
 """
-from crust_elevation_ref import base_elevation, is_oceanic, mountain_mask
+from crust_elevation_ref import blended_base_elevation, is_oceanic, mountain_mask
 from domain_warp_ref import warp_position
 
 GAP_SCALE = 0.04
-UPLIFT_MAX_M = 1500.0
+UPLIFT_MAX_M = 1000.0  # ND-90: a felgyurodes kulon komponense legfeljebb 1 km
 OCEANIC_OCEANIC_UPLIFT_FACTOR = 0.15  # ND-32: oceani-oceani hataron csokkentett uplift
 # ND-35: felhasznaloi visszajelzes - a parti sav MINDIG maximalis
 # kiemelkedest kapott (az ocean-kontinens hatar is lemezhatar), irrealisan
@@ -102,7 +102,10 @@ def boundary_uplift(world_seed, position, seeds, gap_scale=GAP_SCALE, uplift_max
 
 def elevation_with_boundary(world_seed, plate_id, tile_id_value, position, seeds,
                              gap_scale=GAP_SCALE, uplift_max=UPLIFT_MAX_M):
-    base, oceanic = base_elevation(world_seed, plate_id, position)
+    warped_position = warp_position(world_seed, position)
+    best, second, best_idx, second_idx = two_best_dots_with_indices(warped_position, seeds)
+    base, oceanic = blended_base_elevation(
+        world_seed, best, second, best_idx, second_idx, position)
     uplift = boundary_uplift(world_seed, position, seeds, gap_scale, uplift_max)
     return base + uplift, oceanic
 

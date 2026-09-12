@@ -1,4 +1,5 @@
 using System;
+using WorldGen.Core.Terrain;
 
 namespace WorldGen.Core.Tectonics
 {
@@ -47,8 +48,18 @@ namespace WorldGen.Core.Tectonics
             double timeMyr, out bool isOceanic,
             double tau = OrogenicRelaxationTauMyr, double eqFraction = EquilibriumFraction)
         {
-            double baseElev = CrustElevation.BaseElevation(worldSeed, plateId, x, y, z, out isOceanic);
-            double upliftStatic = PlateBoundaryEffect.BoundaryUplift(worldSeed, x, y, z, seeds);
+            DomainWarp.WarpPosition(worldSeed, x, y, z, out double wx, out double wy, out double wz);
+            PlateBoundaryEffect.TwoBestDots(
+                wx, wy, wz, seeds,
+                out double best, out double second, out int bestIndex, out int secondIndex);
+            CrustElevation.ComputeNoiseBasis(
+                worldSeed, x, y, z,
+                out double primaryNoise, out double mountainMask, out double secondaryNoise);
+            double baseElev = CrustElevation.BlendedBaseElevationFromNoiseBasis(
+                worldSeed, best, second, bestIndex, secondIndex,
+                primaryNoise, mountainMask, secondaryNoise, out isOceanic);
+            double upliftStatic = PlateBoundaryEffect.BoundaryUpliftFromNearestPlates(
+                worldSeed, best, second, bestIndex, secondIndex, mountainMask);
             double upliftT = UpliftRelaxationElevation(upliftStatic, timeMyr, tau, eqFraction);
             return baseElev + upliftT;
         }

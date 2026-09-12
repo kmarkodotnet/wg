@@ -39,6 +39,10 @@ namespace WorldGen.Core.Tests.Tectonics;
 /// jobb... működjön minden úgy ahogy ezelőtt") - a réteg és minden
 /// paramétere törölve a Core-ból, a lenti értékek ismét a ND-52
 /// második körének (level=5/40 tile, 900m amplitúdó) eredményei.
+///
+/// ND-90 (2026-09-12): az eltérő kéregtípusú lemezperem `0.005`-ös
+/// gap-sávban folytonossá vált, az uplift plafonja 1000 m. A teljes Python
+/// újramérés szerint a kanonikus partíció 31 kontinensre változott.
 /// </summary>
 public class TestEarth001Tests
 {
@@ -85,9 +89,8 @@ public class TestEarth001Tests
         sizes.Sort((a, b) => b.CompareTo(a));
 
         Assert.Equal(new List<int> {
-            4254, 2960, 289, 220, 152, 87, 53, 38, 38, 35, 33, 30, 28, 19,
-            18, 16, 15, 15, 14, 12, 12, 11, 9, 8, 8, 7, 7, 6, 6, 6,
-            6, 5, 5, 5,
+            4171, 3452, 221, 84, 50, 48, 38, 36, 34, 31, 27, 26, 18, 17,
+            16, 14, 12, 12, 12, 10, 10, 10, 10, 9, 8, 8, 7, 7, 6, 5, 5,
         }, sizes);
     }
 }

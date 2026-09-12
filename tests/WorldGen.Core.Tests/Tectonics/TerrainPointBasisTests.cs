@@ -28,8 +28,15 @@ public class TerrainPointBasisTests
                     TileGeometry.ToPosition(id, out double x, out double y, out double z);
 
                     DomainWarp.WarpPosition(worldSeed, x, y, z, out double wx, out double wy, out double wz);
-                    int plateId = PlateGeneration.AssignPlate(wx, wy, wz, seeds);
-                    double expectedBase = CrustElevation.BaseElevation(worldSeed, plateId, x, y, z, out bool expectedOceanic);
+                    PlateBoundaryEffect.TwoBestDots(
+                        wx, wy, wz, seeds,
+                        out double best, out double second, out int bestIndex, out int secondIndex);
+                    CrustElevation.ComputeNoiseBasis(
+                        worldSeed, x, y, z,
+                        out double primaryNoise, out double mountainMask, out double secondaryNoise);
+                    double expectedBase = CrustElevation.BlendedBaseElevationFromNoiseBasis(
+                        worldSeed, best, second, bestIndex, secondIndex,
+                        primaryNoise, mountainMask, secondaryNoise, out bool expectedOceanic);
                     double expectedUplift = PlateBoundaryEffect.BoundaryUpliftFromWarped(
                         worldSeed, x, y, z, wx, wy, wz, seeds);
 

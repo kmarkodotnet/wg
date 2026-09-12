@@ -58,6 +58,12 @@ namespace WorldGen.Core.Tectonics
         // valtozatlanul teljesul (65.0% viz, tobb kontinens).
         public const double DefaultOceanicProbability = 0.40;
 
+        // ND-90: az óceáni/kontinentális kéreg teljes báziselevációja ezen a
+        // lemezhatár-gap tartományon belül folytonosan keveredik. Azonos a
+        // tektonikus uplift zónájával, de itt marad saját konstansként, hogy a
+        // kéregmodell ne függjön visszafelé a PlateBoundaryEffect osztálytól.
+        public const double DefaultBoundaryBlendGap = 0.005;
+
         // ND-34: az ocean-fenek szelidebb, mint a szarazfold.
         public const double OceanicNoiseFactor = 0.25;
 
@@ -201,6 +207,41 @@ namespace WorldGen.Core.Tectonics
             return baseValue + primaryNoise * mountainMask * amplitude + secondaryNoise * secondaryAmplitude;
         }
 
+        /// <summary>
+        /// ND-90: a két legközelebbi lemez között folytonos báziseleváció.
+        /// Eltérő kéregtípusnál a lemezhatáron 50/50 keverést, a zóna külső
+        /// szélén tisztán a legközelebbi lemez értékét adja. A smoothstep
+        /// polinom miatt mindkét végponton nulla a súly deriváltja; nincs új
+        /// transzcendens művelet. Az isOceanic továbbra is a nyertes lemez
+        /// anyagtulajdonsága, csak az eleváció válik folytonossá.
+        /// </summary>
+        public static double BlendedBaseElevationFromNoiseBasis(
+            ulong worldSeed,
+            double best, double second, int bestIndex, int secondIndex,
+            double primaryNoise, double mountainMask, double secondaryNoise,
+            out bool isOceanic,
+            double blendGap = DefaultBoundaryBlendGap)
+        {
+            double bestElevation = BaseElevationFromNoiseBasis(
+                worldSeed, bestIndex, primaryNoise, mountainMask, secondaryNoise,
+                out isOceanic);
+
+            double gap = best - second;
+            if (secondIndex < 0 || gap >= blendGap || !(blendGap > 0.0))
+                return bestElevation;
+
+            double secondElevation = BaseElevationFromNoiseBasis(
+                worldSeed, secondIndex, primaryNoise, mountainMask, secondaryNoise,
+                out bool secondOceanic);
+            if (isOceanic == secondOceanic)
+                return bestElevation;
+
+            double normalizedGap = gap / blendGap;
+            double smoothGap = normalizedGap * normalizedGap * (3.0 - 2.0 * normalizedGap);
+            double secondWeight = 0.5 * (1.0 - smoothGap);
+            return bestElevation + (secondElevation - bestElevation) * secondWeight;
+        }
+
         /// <summary>A tile alap-magassága méterben: kéreg-típus bázis + térben koherens, maszkolt ridged zaj.</summary>
         public static double BaseElevation(
             ulong worldSeed, int plateId, double x, double y, double z, out bool isOceanic,
@@ -261,8 +302,9 @@ namespace WorldGen.Core.Tectonics
             PlateBoundaryEffect.TwoBestDots(
                 WarpedX, WarpedY, WarpedZ, seeds,
                 out double best, out double second, out int bestIndex, out int secondIndex);
-            baseElevation = CrustElevation.BaseElevationFromNoiseBasis(
-                worldSeed, bestIndex, PrimaryNoise, MountainMask, SecondaryNoise, out isOceanic);
+            baseElevation = CrustElevation.BlendedBaseElevationFromNoiseBasis(
+                worldSeed, best, second, bestIndex, secondIndex,
+                PrimaryNoise, MountainMask, SecondaryNoise, out isOceanic);
             uplift = PlateBoundaryEffect.BoundaryUpliftFromNearestPlates(
                 worldSeed, best, second, bestIndex, secondIndex, MountainMask);
         }

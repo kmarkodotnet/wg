@@ -49,7 +49,7 @@ namespace WorldGen.Core.Tectonics
     public static class PlateBoundaryEffect
     {
         public const double DefaultGapScale = 0.04;
-        public const double DefaultUpliftMaxMeters = 1500.0;
+        public const double DefaultUpliftMaxMeters = 1000.0;
         public const double DefaultOceanicOceanicUpliftFactor = 0.15;
 
         /// <summary>A két legnagyobb dot-product egy pozíció és a lemez-magok között.</summary>
@@ -195,8 +195,18 @@ namespace WorldGen.Core.Tectonics
             out bool isOceanic,
             double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters)
         {
-            double baseElevation = CrustElevation.BaseElevation(worldSeed, plateId, x, y, z, out isOceanic);
-            double uplift = BoundaryUpliftFromWarped(worldSeed, x, y, z, wx, wy, wz, seeds, gapScale, upliftMax);
+            TwoBestDots(
+                wx, wy, wz, seeds,
+                out double best, out double second, out int bestIndex, out int secondIndex);
+            CrustElevation.ComputeNoiseBasis(
+                worldSeed, x, y, z,
+                out double primaryNoise, out double mountainMask, out double secondaryNoise);
+            double baseElevation = CrustElevation.BlendedBaseElevationFromNoiseBasis(
+                worldSeed, best, second, bestIndex, secondIndex,
+                primaryNoise, mountainMask, secondaryNoise, out isOceanic);
+            double uplift = BoundaryUpliftFromNearestPlates(
+                worldSeed, best, second, bestIndex, secondIndex, mountainMask,
+                gapScale, upliftMax);
             return baseElevation + uplift;
         }
     }

@@ -26,7 +26,9 @@ namespace WorldGen.Cli
         /// dob ismeretlen verzióra, nem próbál csendben értelmezni egy
         /// jövőbeli, inkompatibilis formátumot.
         /// </summary>
-        public int FormatVersion { get; set; } = 1;
+        public const int CurrentFormatVersion = 2;
+
+        public int FormatVersion { get; set; } = CurrentFormatVersion;
 
         public string WorldSeedHex { get; set; } = "";
         public int PlateCount { get; set; }
@@ -63,9 +65,11 @@ namespace WorldGen.Cli
             WorldPackage? pkg = JsonSerializer.Deserialize<WorldPackage>(json);
             if (pkg == null)
                 throw new InvalidDataException($"Érvénytelen .worldpkg fájl (üres/hibás JSON): {path}");
-            if (pkg.FormatVersion != 1)
+            if (pkg.FormatVersion != CurrentFormatVersion)
                 throw new NotSupportedException(
-                    $"Ismeretlen .worldpkg formátumverzió: {pkg.FormatVersion} (ez az eszköz csak 1-et ismer).");
+                    $"Nem támogatott .worldpkg formátumverzió: {pkg.FormatVersion} " +
+                    $"(ez az eszköz csak {CurrentFormatVersion}-t ismer; az 1-es világok " +
+                    "az ND-90 kéregátmenet miatt numerikusan inkompatibilisek).");
             return pkg;
         }
 

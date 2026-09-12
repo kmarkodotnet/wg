@@ -97,6 +97,8 @@ OCEANIC_PROBABILITY = 0.40  # ND-37: SZANDEKOSAN a TARGET_WATER_FRACTION (0.65)
 # atlagos relativ magassagat kb. 4072m-rol ~242.6m-re csokkentette (94%),
 # TEST-EARTH-001 valtozatlanul PASS (65.0% viz, tobb kontinens).
 
+BOUNDARY_BLEND_GAP = 0.005  # ND-90: folytonos oceanic/continental atmenet
+
 
 def _clamp01(v):
     return 0.0 if v < 0.0 else (1.0 if v > 1.0 else v)
@@ -164,6 +166,26 @@ def base_elevation(world_seed, plate_id, position, oceanic_probability=OCEANIC_P
     secondary_amplitude = SECONDARY_NOISE_AMPLITUDE_M * (OCEANIC_NOISE_FACTOR if oceanic else 1.0)
 
     return base + noise * mask * amplitude + secondary_noise * secondary_amplitude, oceanic
+
+
+def blended_base_elevation(world_seed, best, second, best_index, second_index,
+                           position, blend_gap=BOUNDARY_BLEND_GAP):
+    """ND-90: folytonos báziseleváció a ket legkozelebbi lemez kozott.
+    A hataron 50/50, a zona kulso szelen tisztan a nyertes lemez; a polinom
+    mindket vegponton nulla derivaltat ad."""
+    best_elevation, best_oceanic = base_elevation(world_seed, best_index, position)
+    gap = best - second
+    if second_index < 0 or gap >= blend_gap or not blend_gap > 0.0:
+        return best_elevation, best_oceanic
+
+    second_elevation, second_oceanic = base_elevation(world_seed, second_index, position)
+    if best_oceanic == second_oceanic:
+        return best_elevation, best_oceanic
+
+    normalized_gap = gap / blend_gap
+    smooth_gap = normalized_gap * normalized_gap * (3.0 - 2.0 * normalized_gap)
+    second_weight = 0.5 * (1.0 - smooth_gap)
+    return best_elevation + (second_elevation - best_elevation) * second_weight, best_oceanic
 
 
 if __name__ == "__main__":

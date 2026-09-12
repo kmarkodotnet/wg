@@ -159,6 +159,57 @@ public class PlateBoundaryEffectPlausibilityTests
 public class PlateBoundaryEffectEdgeCaseTests
 {
     [Fact]
+    public void MixedCrustBoundaryBaseIsContinuousFromBothSides()
+    {
+        ulong worldSeed = FindMixedCrustSeed();
+        const double best = 0.75;
+        const double boundaryEpsilon = 1e-9;
+        const double primaryNoise = 0.2;
+        const double mountainMask = 0.6;
+        const double secondaryNoise = -0.15;
+
+        double fromPlateZero = CrustElevation.BlendedBaseElevationFromNoiseBasis(
+            worldSeed, best + boundaryEpsilon, best, 0, 1,
+            primaryNoise, mountainMask, secondaryNoise, out bool zeroOceanic);
+        double fromPlateOne = CrustElevation.BlendedBaseElevationFromNoiseBasis(
+            worldSeed, best + boundaryEpsilon, best, 1, 0,
+            primaryNoise, mountainMask, secondaryNoise, out bool oneOceanic);
+
+        Assert.NotEqual(zeroOceanic, oneOceanic);
+        Assert.InRange(Math.Abs(fromPlateZero - fromPlateOne), 0.0, 1e-8);
+    }
+
+    [Fact]
+    public void MixedCrustBlendIsExactlyInactiveOutsideBoundaryZone()
+    {
+        ulong worldSeed = FindMixedCrustSeed();
+        const double primaryNoise = 0.2;
+        const double mountainMask = 0.6;
+        const double secondaryNoise = -0.15;
+        double expected = CrustElevation.BaseElevationFromNoiseBasis(
+            worldSeed, 0, primaryNoise, mountainMask, secondaryNoise, out bool expectedOceanic);
+
+        double actual = CrustElevation.BlendedBaseElevationFromNoiseBasis(
+            worldSeed, 0.8, 0.8 - CrustElevation.DefaultBoundaryBlendGap,
+            0, 1, primaryNoise, mountainMask, secondaryNoise, out bool actualOceanic);
+
+        Assert.Equal(expectedOceanic, actualOceanic);
+        Assert.Equal(BitConverter.DoubleToInt64Bits(expected), BitConverter.DoubleToInt64Bits(actual));
+    }
+
+    [Fact]
+    public void MixedCrustBoundaryUpliftNeverExceedsOneKilometer()
+    {
+        ulong worldSeed = FindMixedCrustSeed();
+
+        double uplift = PlateBoundaryEffect.BoundaryUpliftFromNearestPlates(
+            worldSeed, 0.75, 0.75, 0, 1, mountainMask: 1.0);
+
+        Assert.Equal(1000.0, PlateBoundaryEffect.DefaultUpliftMaxMeters);
+        Assert.Equal(1000.0, uplift);
+    }
+
+    [Fact]
     public void ExactSeedPositionGetsZeroUpliftWhenWellSeparated()
     {
         // Szintetikus, KEZZEL KONTROLLALT magpontok (nem a valodi
@@ -195,5 +246,16 @@ public class PlateBoundaryEffectEdgeCaseTests
         double a = PlateBoundaryEffect.BoundaryUplift(9UL, 0.3, 0.4, 0.5, seeds);
         double b = PlateBoundaryEffect.BoundaryUplift(9UL, 0.3, 0.4, 0.5, seeds);
         Assert.Equal(a, b);
+    }
+
+    private static ulong FindMixedCrustSeed()
+    {
+        for (ulong candidate = 1; candidate < 100000; candidate++)
+        {
+            if (CrustElevation.IsOceanic(candidate, 0) != CrustElevation.IsOceanic(candidate, 1))
+                return candidate;
+        }
+
+        throw new InvalidOperationException("Nem találtunk vegyes kéregtípusú determinisztikus seedet.");
     }
 }

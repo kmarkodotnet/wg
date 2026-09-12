@@ -38,6 +38,7 @@ public class WorldPackageTests
             WorldPackage loaded = WorldPackage.Load(path);
 
             Assert.Equal(original.FormatVersion, loaded.FormatVersion);
+            Assert.Equal(2, loaded.FormatVersion);
             Assert.Equal(original.WorldSeedHex, loaded.WorldSeedHex);
             Assert.Equal(original.PlateCount, loaded.PlateCount);
             Assert.Equal(original.Level, loaded.Level);
@@ -92,6 +93,22 @@ public class WorldPackageTests
         {
             File.WriteAllText(path, "{\"FormatVersion\": 999, \"WorldSeedHex\": \"0\", \"StateHashHex\": \"x\"}");
             Assert.Throws<NotSupportedException>(() => WorldPackage.Load(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void LoadRejectsVersionOneAfterBoundaryModelChange()
+    {
+        string path = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, "{\"FormatVersion\": 1, \"WorldSeedHex\": \"0\", \"StateHashHex\": \"x\"}");
+            NotSupportedException error = Assert.Throws<NotSupportedException>(() => WorldPackage.Load(path));
+            Assert.Contains("ND-90", error.Message);
         }
         finally
         {
