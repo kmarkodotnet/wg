@@ -592,6 +592,14 @@ Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → m�
 
 ### Aktuális állapot — 2026-09-12-i becslési korrekció
 
+**Aktuális Claude-visszaadás:** [kt_2_co2cl.md](../kt_2_co2cl.md).
+A 20:23-as új log részben igazolja az ND-96–98 aktív runtime útját,
+de a vége még finomítás közbeni állapot (64220 levél, pending=True),
+a teljes kérés p50/p90 746/1073 ms. Nem kész vizuális/FPS-elfogadás;
+M9 marad 61,25%. Az 5–11 órás maradék performance-sora újrabecslendő,
+ha a mért worker-költséghez új architektúra szükséges. Ez az aktuális
+pillanatkép felülírja a régi „nincs új log” állapotot.
+
 **ND-98 folytatás:** [stabil vízkiválasztás újrahasználata](reviews/lod-water-reuse-nd98-2026-09-12.md),
 18 új teszteset; viewer 373/373 Debug és Release. Az álló kamerás páros
 vízpróba 74% idő-/65% allokációcsökkenést adott pontos fedésegyezéssel.

@@ -1,5 +1,18 @@
 # M9 — Haladási és ráfordítás-becslés újraalapozása
 
+## Claude-visszaadáskor talált új élő adat — 20:23
+
+[Aktuális átadás, §8](../../kt_2_co2cl.md): új
+`PerfLog_20260912_202309.txt`, 64 kérésből 27 stabil víz-selection reuse,
+ND-96/97/98 aktív. Total p50/p90 746/1073 ms, worker 713/1021 ms;
+végén 64220 levél mellett 3770 deferred split és további feedback.
+Ez új működési bizonyíték, de nem végleges minőségi állapot vagy teljes
+felzárkózási/FPS-elfogadás. A csoportpontok és a 61,25% nem változnak.
+Az 5–11 óra maradékot feltételesen tartjuk: a selection/balance/resolve
+költség további vizsgálata elsődleges; új architektúra esetén indokolt
+újrabecslés kell, nem a sáv automatikus másolása. Nem kontrollált A/B
+a 14:02-es loghoz: más világidő, kameraút és viewport.
+
 ## Legújabb felülvizsgálat — ND-98
 
 [A stabil víz-cut ismételt munkája elhagyható](lod-water-reuse-nd98-2026-09-12.md),

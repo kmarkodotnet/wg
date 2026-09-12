@@ -2,6 +2,11 @@
 
 Ez a fájl a projekt működési szabályzata. Minden session elején olvasd el.
 
+Aktuális tudásátadás (2026-09-12): [Codex → Claude, Sonnet/Opus](kt_2_co2cl.md).
+Korábbi pillanatkép: [Claude → Codex](kt_1_cl2co.md), eredetileg
+`docs/07-handover-2026-09-10.md`. A lentebbi Állapot rész történeti;
+a tényleges branch, munkafa és az új átadás az aktuális kiindulópont.
+
 ## Mi ez a projekt
 
 Determinisztikus bolygó-világgenerátor. Egyetlen seedből teljes, fizikailag

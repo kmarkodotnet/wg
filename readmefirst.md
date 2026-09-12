@@ -8,6 +8,11 @@ sorrend prioritás szerinti: a **Kötelező** blokk nélkül ne kezdj érdemi mu
 
 ## 1. Kötelező (mindig, minden session elején)
 
+Claude-visszavételkor először az [aktuális Codex → Claude átadást](kt_2_co2cl.md)
+olvasd el, az ott megadott kód-/teszt-/logellenőrzési sorrenddel együtt.
+Az [első Claude → Codex átadás](kt_1_cl2co.md) történeti pillanatkép,
+nem aktuális branch-/teljesítményállapot. Az `AGENTS.md` is projektutasítás.
+
 | Fájl | Cél / mit ad |
 |---|---|
 | **`CLAUDE.md`** | A projekt működési szabályzata: a négy invariáns (I1-I4 determinizmus, tiszta random, pixel/panel a modellből), a lebegőpontos determinizmus-szabályok, a `src/` motorfüggetlensége (netstandard2.1 + C# 9), a munkamódszer (kód előtt referencia/dokumentáció), a tesztelési elvárások, a nyelv (kód angol, beszéd/komment magyar) és az aktuális **Állapot**. **Ez felülír minden alapértelmezett viselkedést.** |

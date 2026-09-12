@@ -9,7 +9,8 @@ fontos történeti és munkafolyamat-kontextus.
 Érdemi munka előtt olvasd el, ebben a sorrendben:
 
 1. `AGENTS.md` és `CLAUDE.md`;
-2. `docs/07-handover-2026-09-10.md` (beleértve a személyes Codex-üzenetet);
+2. `kt_2_co2cl.md` (aktuális átadás), majd `kt_1_cl2co.md` (korábbi
+   Claude → Codex átadás, beleértve a személyes Codex-üzenetet);
 3. `docs/05-milestones.md` és `docs/backlog.md` aktuális részei;
 4. a feladathoz tartozó részek a `docs/04-decisions.md` döntésnaplóból és a
    `docs/01-architecture.md` architektúrából;
