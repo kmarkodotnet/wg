@@ -60,9 +60,12 @@ namespace WorldGen.Viewer.Lod
         /// </summary>
         public WaterLodSelection Select(ProjectedLodView view, WaterLodSelection? previous,
             int maxLevel, double splitThresholdRadians, double mergeThresholdRadians,
-            int maxLeafCount, int maxNewSplits, CancellationToken cancellation = default)
+            int maxLeafCount, int maxNewSplits, CancellationToken cancellation = default,
+            LodTerrainEvaluationCache? evaluationCache = null, bool reuseStableSelection = true)
         {
             if (view == null) throw new ArgumentNullException(nameof(view));
+            if (evaluationCache != null && !evaluationCache.Matches(view, _surface))
+                throw new ArgumentException("Eltérő vízforrás vagy kameravetület a cache-ben.", nameof(evaluationCache));
             if (previous != null && !ReferenceEquals(previous.Source, this))
                 throw new ArgumentException("Új víz-snapshothoz új kiválasztás kell.", nameof(previous));
             if (maxLevel < BaseLevel || maxLevel > TileId.MaxLevel) throw new ArgumentOutOfRangeException(nameof(maxLevel));
@@ -73,8 +76,14 @@ namespace WorldGen.Viewer.Lod
             if (maxLeafCount < 1 || maxLeafCount > int.MaxValue / 3) throw new ArgumentOutOfRangeException(nameof(maxLeafCount));
             if (maxNewSplits < 1) throw new ArgumentOutOfRangeException(nameof(maxNewSplits));
             cancellation.ThrowIfCancellationRequested();
+            var key = new WaterLodSelection.SelectionKey(view, maxLevel, splitThresholdRadians,
+                mergeThresholdRadians, maxLeafCount, maxNewSplits);
+            // ND-98: csak igazolt fixpont. A víz normál metrikája nem kap terep-feedbacket.
+            bool plainMetric = evaluationCache == null || evaluationCache.Geometry.Revision == 0;
+            if (reuseStableSelection && plainMetric && previous != null && previous.CanReuse(key))
+                return previous.Reuse();
             var work = new LodSelectionWork(view, maxNewSplits, cancellation,
-                skipStaticBase: tile => !_waterRoots[TerrainIndexMask.DenseIndex(tile)]);
+                skipStaticBase: tile => !_waterRoots[TerrainIndexMask.DenseIndex(tile)], evaluationCache: evaluationCache);
             SurfacePoint camera = view.Camera;
             var cut = WaterRootCount == 0 ? new HashSet<TileId>() : AdaptiveQuadTree.BuildCut(
                 camera.X, camera.Y, camera.Z, SeaRadius,
@@ -89,12 +98,20 @@ namespace WorldGen.Viewer.Lod
             // később változna, nem publikálunk a keretet túllépő tervet.
             if (coverage.Leaves.Count > maxLeafCount)
                 throw new InvalidOperationException("A teljes vízfedés túllépte a levélkeretet.");
-            return new WaterLodSelection(this, coverage, work);
+            return new WaterLodSelection(this, coverage, work, key, previous, plainMetric);
         }
 
         // A resolver a határ másik oldalán az érintetlen víz-alapsíkra is
         // illeszt. Geometriát ott is kérhet, ahol nincs rajzolható víz-tile.
         internal SurfaceQuad QuadAt(TileId tile) => _surface.QuadAt(tile);
+
+        // A cache tulajdonosa a hívó worker; a forrás maga párhuzamosan is olvasható marad.
+        public LodTerrainEvaluationCache CreateEvaluationCache(ProjectedLodView view, LodTerrainEvaluationCache? previous)
+        {
+            if (previous == null || !previous.MatchesProxy(_surface)) return new LodTerrainEvaluationCache(view, _surface);
+            previous.ResetView(view);
+            return previous;
+        }
     }
 
     /// <summary>
@@ -104,6 +121,8 @@ namespace WorldGen.Viewer.Lod
     public sealed class WaterLodSelection
     {
         private readonly LodCoverage _coverage;
+        private readonly SelectionKey _key;
+        private readonly bool _stable;
         internal WaterLodSource Source { get; }
         public ReadOnlyCollection<TileId> Leaves { get; }
         public ReadOnlyCollection<TileId> ReplacedRoots { get; }
@@ -113,11 +132,39 @@ namespace WorldGen.Viewer.Lod
         public bool RefinementPending => DeferredSplits > 0;
         public double SelectionMs { get; }
         public double BalanceMs { get; }
+        public bool ReusedSelection { get; }
 
-        internal WaterLodSelection(WaterLodSource source, LodCoverage coverage, LodSelectionWork work)
+        internal readonly struct SelectionKey
+        {
+            private readonly ProjectedLodView _view;
+            private readonly int _maxLevel, _maxLeaves, _quota;
+            private readonly double _split, _merge;
+
+            internal SelectionKey(ProjectedLodView view, int maxLevel, double split, double merge, int maxLeaves, int quota)
+            { _view = view; _maxLevel = maxLevel; _split = split; _merge = merge; _maxLeaves = maxLeaves; _quota = quota; }
+
+            internal bool Matches(SelectionKey other) => _view.SameProjection(other._view)
+                && _maxLevel == other._maxLevel && _maxLeaves == other._maxLeaves && _quota == other._quota
+                && _split == other._split && _merge == other._merge;
+        }
+
+        internal bool CanReuse(SelectionKey key) => _stable && _key.Matches(key);
+        internal WaterLodSelection Reuse() => new WaterLodSelection(this);
+
+        private WaterLodSelection(WaterLodSelection previous)
+        {
+            Source = previous.Source; _coverage = previous._coverage; _key = previous._key; _stable = true;
+            Leaves = previous.Leaves; ReplacedRoots = previous.ReplacedRoots; DeepestLevel = previous.DeepestLevel;
+            // Az előző kérés splitjei és ideje nem az új kérésben végzett munka.
+            ReusedSelection = true;
+        }
+
+        internal WaterLodSelection(WaterLodSource source, LodCoverage coverage, LodSelectionWork work,
+            SelectionKey key, WaterLodSelection? previous, bool plainMetric)
         {
             Source = source;
             _coverage = coverage;
+            _key = key;
             Leaves = SortedSnapshot(coverage.Leaves);
             ReplacedRoots = SortedSnapshot(coverage.Roots);
             int deepest = source.BaseLevel;
@@ -125,6 +172,15 @@ namespace WorldGen.Viewer.Lod
             DeepestLevel = deepest;
             NewSplits = work.NewSplits; DeferredSplits = work.DeferredSplits;
             SelectionMs = work.SelectionMs; BalanceMs = work.BalanceMs;
+            _stable = plainMetric && !RefinementPending && previous != null && key.Matches(previous._key)
+                && SameLeaves(Leaves, previous.Leaves);
+        }
+
+        private static bool SameLeaves(ReadOnlyCollection<TileId> a, ReadOnlyCollection<TileId> b)
+        {
+            if (a.Count != b.Count) return false;
+            for (int i = 0; i < a.Count; i++) if (a[i].Value != b[i].Value) return false;
+            return true;
         }
 
         private static ReadOnlyCollection<TileId> SortedSnapshot(IEnumerable<TileId> values)

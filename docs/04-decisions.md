@@ -4115,6 +4115,84 @@ nem relief- vagy tile-küszöbhangolás. Tesztelés: mesterséges időbélyeges
 fázisösszeg, valódi viewer metódusok Editor-fixture-rel, meglévő regressziók;
 offline fordítás nem helyettesít natív/vizuális ellenőrzést.
 
+### ND-96 — Teljes tile/zoom zárócsomag, köztes kézi kapuk nélkül
+
+**2026-09-12, implementáció előtt.** A felhasználó a checkpoint commit
+után a fennmaradó teljes tile/zoom munkát kéri, egyetlen végső kézi próbával.
+Ez feloldja a selection és korai élesség korábbi halasztását, nem bővíti
+a feladatot új Core-mikrodomborzattal vagy a teljes M13-mal.
+
+- Kamerafüggetlen proxy-geometria cache megőrzése nézetváltáskor; a
+  vetített metrika továbbra is az aktuális kamerával számolandó. Korlátos,
+  egy worker tulajdonú cache, világváltáskor eldobva.
+- A kész CPU-terepquadok visszacsatolása a következő kiválasztáshoz,
+  új Core-minták nélkül. Az ismert terep kiterjedése az ősi cull-boundsot
+  is bővíti; a kész quad vetülete nem maradhat kisebb proxy mögé rejtve.
+  Új geometriai információ revízióváltással érvényteleníti a metrika-cache-t.
+  A korrekció progresszív és korlátos, nem folytonos terepmaximum-bizonyíték.
+- Balance: a kettős szomszédbejárás helyett egyszeri, determinisztikus
+  bejárás, változatlan rendezett split-sorrend és budget. Páros regresszió.
+- A korai minőség és a kész geometria ellenőrzése, kamera/víz/lépték/
+  upload életciklus regresszió és egységes végső próbalista egy csomag.
+  A natív/élő bizonyítékot külön kell kezelni a CLI-fordítástól.
+
+**Végrehajtás és visszamérés:** [ND-96 csomag és teljes próbalista](reviews/lod-final-batch-nd96-2026-09-12.md).
+A geometria újrafelhasználása a víz külön workerében is működik. Az emit
+megkapja a már feloldott saroklistát. Az Inspector 1-es/nem véges merge-
+faktora érvényes, pozitív hiszterézist ad. A végső pixelcél 8/7: a 8/6
+drágább korai hullámai miatt a base-célt 7-re módosítottuk. A mindenhol
+nyers mélységű proxy kísérletét 200 ezres túlosztás miatt visszavontuk.
+Az új cache gyorsulása nem egyenlő a sűrűbb teljes kép gyorsabb elérésével;
+az offline költségtáblázat és a végső élő kapu ezt külön kezeli.
+
+### ND-97 — Metrikatároló újrahasználata és helyi feedback-érvénytelenítés
+
+2026-09-12, implementáció előtt. A felhasználó kézi próba nélkül kér
+folytatást. Az ND-96 után is minden kameraváltás új metrika-szótárat épít,
+és minden egyes feedback-rekord az egész szótárat törli. A következő két
+költségcsökkentés változatlan 8/7 pixelcéllal és tile-/split-keretekkel:
+
+- Explicit, egy worker által használt nézet-reset megtartja a szótár
+  tárolóját, de minden régi vetített értéket töröl. A meglévő, új cache-t
+  készítő `Reproject` megmarad referenciának; a runtime az új resetet használja.
+  Régi request nem használhat tovább egy következő nézetre resetelt cache-t.
+- A geometria-revízió tile-onként, a visszacsatolt tile és ősei mentén
+  érvénytelenít. Független ág metrikája érvényben marad. Egy bejegyzés
+  vetületváltás után továbbra sem használható, geometriafrissítés után
+  pedig csak azonos helyi revíziónál cache-találat.
+- Pontos metrika-/cut-/split-egyezés, korlát- és nullallokációs próba,
+  valamint páros offline idő/allokációmérés szükséges. Nem ígérünk ebből
+  teljes FPS- vagy vizuális elfogadást; nincs Core-/relief-változás.
+
+Harmadik, méréssel azonosított részfeladat: a `SurfaceQuad` örökölt
+értéktípus-egyenlősége 1000 azonos feedbacknél 1368000 byte-ot allokált a
+Release reprodukcióban. A cache helyi, komponensenkénti, tolerancia nélküli
+összehasonlítást kap; a Core és az általános quad-típus nem változik.
+
+Átadás: [ND-97 mérések és tesztbizonyíték](reviews/lod-cache-allocation-nd97-2026-09-12.md).
+A közös későbbi kézi próbalista megmarad; nincs új minőségi cél vagy
+elfogadottnak jelentett FPS-eredmény.
+
+### ND-98 — Igazoltan stabil vízkiválasztás újrahasználata
+
+2026-09-12, implementáció előtt. A terep további finomítási körei jelenleg
+változatlan kameránál a már stabil víz-cutot is újraépítik. Az immutábilis
+vízforrás és az előző eredmény mellett explicit újrahasználatot vezetünk be:
+
+- Csak azonos teljes vetület, maxLevel, split-/merge-küszöb, levélkeret és
+  splitkvóta mellett; forrásváltás továbbra is új kiválasztást igényel.
+- Nem elég a `DeferredSplits == 0`: egy további teljes kiválasztásnak azonos
+  rendezett leveleket kell adnia. Ez igazolja a determinisztikus fixpontot,
+  a hiszterézis és a kiegyensúlyozás utóhatásait is figyelembe véve.
+- A megosztott fedés immutábilis; az új kérés statisztikái nullázottak,
+  külön `selectionReusePolicy=ND98 reusedSelection=True` naplójelöléssel.
+  Nincs régi munkaidő újramérése.
+- Az argumentum-/cache-validálás és a megszakítás ellenőrzése megelőzi a
+  gyors utat. Külső geometriafeedbacket tartalmazó cache-nél nincs gyors út.
+- Kikapcsolható újrahasználattal páros, pontos eredmény-összehasonlítás és
+  álló/módosuló nézetes regresszió igazolja a változatlan fedést. Ez csak a
+  vízkiválasztás költségét csökkenti; nem teljes FPS- vagy vizuális igazolás.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

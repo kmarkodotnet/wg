@@ -19,8 +19,9 @@ namespace WorldGen.Viewer
         private void PrepareTerrainEvaluationCache(TerrainLodProxy? proxy)
         {
             if (_requestedProjectedView == null || proxy == null) _terrainEvaluationCache = null;
-            else if (_terrainEvaluationCache == null || !_terrainEvaluationCache.Matches(_requestedProjectedView, proxy))
-                _terrainEvaluationCache = new LodTerrainEvaluationCache(_requestedProjectedView, proxy);
+            else if (_terrainEvaluationCache != null && _terrainEvaluationCache.MatchesProxy(proxy))
+                _terrainEvaluationCache.ResetView(_requestedProjectedView);
+            else _terrainEvaluationCache = new LodTerrainEvaluationCache(_requestedProjectedView, proxy);
         }
         private double _pendingSurfaceAltitude;
         private Dictionary<TileId, CachedLodChunk> _previousChunkCache = new Dictionary<TileId, CachedLodChunk>();
@@ -73,6 +74,48 @@ namespace WorldGen.Viewer
                 positions.Add(a); positions.Add(b); positions.Add(c); positions.Add(d);
             }
             return positions;
+        }
+
+        private void CaptureGeometryFeedback(AdaptiveMeshBuffers buffers, CancellationToken cancellation)
+        {
+            if (_terrainEvaluationCache == null || _requestedProjectedView == null || _requestedTerrainLodProxy == null) return;
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            SurfacePoint CorePoint(Vector3 point)
+            {
+                BodyFrameConversion.ToCore(point, out double x, out double y, out double z);
+                return new SurfacePoint(x, y, z);
+            }
+            void Measure(ConcatenatedMesh mesh)
+            {
+                if (mesh.TileIds == null) { buffers.GeometryFeedbackUnidentified++; return; }
+                for (int i = 0; i < mesh.TileIds.Length; i++)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    TileId tile = mesh.TileIds[i];
+                    if (tile.Level >= adaptiveMaxLevel) continue;
+                    buffers.GeometryFeedbackMeasured++;
+                    int start = i * 4;
+                    var quad = new SurfaceQuad(CorePoint(mesh.Vertices[start]), CorePoint(mesh.Vertices[start+1]),
+                        CorePoint(mesh.Vertices[start+2]), CorePoint(mesh.Vertices[start+3]));
+                    if (!_requestedProjectedView.EvaluateQuad(quad, out double actual)
+                        || actual <= _currentTargetAngularRadiusRadians * 1.01) continue;
+                    bool visible = _terrainEvaluationCache.EvaluateTerrain(_requestedTerrainLodProxy, tile, out double predicted, out _);
+                    if ((visible && predicted >= actual * .99) || !_terrainEvaluationCache.Geometry.Record(tile, quad)) continue;
+                    buffers.GeometryFeedbackAdded++;
+                }
+            }
+            // Csak a kész, tényleges emissziós mesh: nincs új modellminta és
+            // nincs frame-enkénti GPU-readback. A következő cut új nézettel is mérhet.
+            if (buffers.TerrainConcat != null) Measure(buffers.TerrainConcat);
+            else
+            {
+                var keys = new List<TileId>(buffers.ChunkCache.Keys);
+                keys.Sort((a,b) => a.Value.CompareTo(b.Value));
+                foreach (TileId key in keys) Measure(buffers.ChunkCache[key].Terrain);
+            }
+            buffers.GeometryRefinementPending = buffers.GeometryFeedbackAdded > 0
+                && buffers.Cut.Count + 4 <= adaptiveRenderBudget;
+            buffers.GeometryFeedbackMs = timer.Elapsed.TotalMilliseconds;
         }
 
         // A víz színe is függhet a morpholt terrain-pozíciótól, ezért csak a

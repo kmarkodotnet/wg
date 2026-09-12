@@ -618,6 +618,52 @@ világ-revízió mellett használható újra; érvénytelen világot a közös
 felszínminta is elutasít. A FlyTo helyi magasságot interpolál és minden
 animációs lépésen a közös `ApplyTransform` pontmintás korlátján halad át.
 
+### 3.28 Mozgókamerás geometria-cache és emissziós visszacsatolás (ND-96)
+
+A worker nézetfüggő metrika-cache-e mögött világfüggő, korlátos
+geometria-cache marad meg. A már kiszámolt, közösél-feloldott quaddal a
+következő cut korrigálhatja a bilineáris proxy alulbecslését. A diagnosztikai
+worker nem olvassa ezt a változó cache-t; a megosztott proxy immutábilis marad.
+A balance szomszédvizsgálata egyszeres; a split-sorrend és keretek maradnak.
+
+A CPU-mesh lokális Unity-sarkai explicit Y/Z tengelycserével kerülnek
+a Core koordinátájú kameravetületbe. A feedback revíziója érvényteleníti
+a nézet metrika-cache-ét; a bővített bounds az ősöket is lefedi. A következő
+request újravetít, nem régi pixelértéket őriz. A víz külön worker-cache-t
+használ. A cache-ek nem szálbiztosak; a vízforrás maga továbbra is immutábilis.
+Darabkorlát és telítettségi naplózás van, nem teljes RAM-/VRAM-garancia.
+
+A nyers tengerfenék-proxy kísérlete túlosztás miatt visszavonva. A korábbi
+tengerszintre korlátozott proxy és korai óceánkizárás marad. A scene és kód
+alapcélja 8/7 px (normál/első split). A sűrűbb teljes cut többletköltségét
+és a natív validáció hiányát az [ND-96 átadás](reviews/lod-final-batch-nd96-2026-09-12.md)
+rögzíti; ez nem szigorú pixelhibakorlát vagy kész vizuális elfogadás.
+
+### 3.29 Metrikatároló és helyi geometriarevízió (ND-97)
+
+A kizárólag egy workerhez tartozó metrika-cache explicit
+nézet-resetje megőrzi a Dictionary tárolóját, de törli a nézetfüggő
+értékeket. A geometria-feedback helyi revíziója a tile és ősei metrikáját
+érvényteleníti; a független ágak cache-e nem ürül minden sarokrekord után.
+Világváltás továbbra is új forrást és új cache-t követel.
+A cache-ek egy-egy befejezett request után resetelhetők, futó workkel
+nem oszthatók meg. A meleg szótár kapacitása megmarad: kevesebb átmeneti
+allokáció, nem feltétlenül kisebb rezidens memória. A cache-en belüli
+quad-egyenlőség komponensenkénti, tolerancia nélküli és allokációmentes.
+
+### 3.30 Stabil vízkiválasztás megőrzése (ND-98)
+
+Az immutábilis `WaterLodSelection` tárolja a kiválasztás teljes vetületét és
+LOD-paramétereit. Egy azonos paraméterű teljes újraszámolás azonos levél-
+sorozata, halasztott split nélkül, igazolja a fixpontot. A következő azonos
+kérés megosztja a fedést és a rendezett snapshotokat, de új, nullázott
+munkastatisztikát kap. Nincs előzménylánc vagy új, növekvő globális cache.
+Eltérő nézet, paraméter vagy forrás, illetve külső geometriafeedback esetén
+nincs gyors út. A bemenetellenőrzés és cancellation mindig megmarad.
+A runtime csak a ténylegesen alkalmazott vízkiválasztást adja előzményként;
+megszakított vagy eldobott háttérkérés nem módosítja a rajzolt fedést.
+`reuseStableSelection:false` a teljes számítás kontrollútja a páros próbákhoz.
+
 ## 4. Modultérkép (frissítve)
 
 ```

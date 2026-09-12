@@ -1145,73 +1145,24 @@ namespace WorldGen.Viewer.Lod
                     break;
                 changed = false;
 
-                // OLCSO ELOSZURES (kritikus nagy baseLevel-nel, pl. 8-nal a
-                // cut 393k+ elemet is tartalmazhat, de a finomitott resz
-                // csak nehany ezer): a TAVOLI, tisztan base-szintu tile-ok
-                // MINDIG egyensulyban vannak egymassal (0 a level-kulonbseg),
-                // tehat csak a level>baseLevel (finomitott) tile-okat ES az
-                // O SAME-LEVEL SZOMSZEDJAIKAT (a hatar, ahol egyensulytalansag
-                // egyaltalan felmerulhet) erdemes a draga TileNeighbors.
-                // Neighbor (tan/atan) hivasokkal ellenorizni. A `cut`
-                // teljes bejarasa itt megmarad (kell a level-szures miatt),
-                // de EZ csak egy OLCSO level-osszehasonlitas HashSet-be
-                // gyujtessel - a DRAGA resz (szomszed-keresés) mar csak a
-                // sokkal kisebb jelolt-halmazon fut.
-                var candidates = new HashSet<TileId>();
-                foreach (TileId t in cut)
+                // ND-96: minden finom levél már jelölt; a külön jelöltépítés
+                // ugyanazt a négy szomszédot kétszer kérdezte le. A base-levél
+                // nem mutathat baseLevel alatti aktív ősre, így nem ad új splitet.
+                var toSplit = new HashSet<TileId>();
+                foreach (TileId leaf in cut)
                 {
                     cancellation.ThrowIfCancellationRequested();
-                    if (t.Level <= baseLevel)
-                        continue;
-                    candidates.Add(t);
-                    for (int d = 0; d < 4; d++)
+                    if (leaf.Level <= baseLevel) continue;
+                    for (int dirIndex = 0; dirIndex < 4; dirIndex++)
                     {
-                        TileId neighbor = TileNeighbors.Neighbor(t, (TileDirection)d);
-                        if (TryFindCoveringAncestor(neighbor, cut, out TileId covering))
-                            candidates.Add(covering);
+                        TileId neighbor = TileNeighbors.Neighbor(leaf, (TileDirection)dirIndex);
+                        if (TryFindCoveringAncestor(neighbor, cut, out TileId covering)
+                            && leaf.Level - covering.Level > 1)
+                            toSplit.Add(covering);
                     }
                 }
 
-                // Parhuzamositas (gpu-calc): a SZOMSZED-KERESES (TileNeighbors.
-                // Neighbor, ami a ND-24 szerint dokumentaltan draga tan/atan
-                // hivasokat hasznal) es a fedo-os keresese TISZTAN OLVASSA a
-                // `cut`-ot ebben a fazisban (nincs meg mutacio) - ezert
-                // biztonsagosan parhuzamosithato. Csak a TENYLEGES felbontast
-                // (SplitOnce, ami ir a `cut`-ba) vegezzuk egyszalon, utana,
-                // mert a HashSet<T> nem szalbiztos irasra. Merve: ez a fazis
-                // volt a legdragabb resz (akar 80+ ms egy nagy cut-nal),
-                // dominalva a teljes adaptiv ujraepites koltseget.
-                var toSplit = new System.Collections.Concurrent.ConcurrentDictionary<TileId, byte>();
-                System.Threading.Tasks.Parallel.ForEach(candidates, leaf =>
-                {
-                    if (!cut.Contains(leaf))
-                        return; // korabbi iteracios lepesben mar kicserelodott (a szulo felbomlott)
-
-                    for (int dirIndex = 0; dirIndex < 4; dirIndex++)
-                    {
-                        TileId sameLevelNeighbor = TileNeighbors.Neighbor(leaf, (TileDirection)dirIndex);
-                        if (TryFindCoveringAncestor(sameLevelNeighbor, cut, out TileId coveringAncestor)
-                            && leaf.Level - coveringAncestor.Level > 1)
-                        {
-                            toSplit.TryAdd(coveringAncestor, 0);
-                        }
-                        // FAZIS 1 (ND-47): a DINAMIKUS<->STATIKUS hatart NEM
-                        // hidaljuk at itt. Indok: a statikus base-reteg
-                        // (BuildStaticBaseLayer) a gomb MINDEN pontjat MINDIG
-                        // lefedi (a dinamikus finomitas csak FOLE rajzolodik),
-                        // tehat a hatarnal SOHA nincs lyuk/rES - csak esetleges
-                        // vizualis LOD-ugras. A screen-space metrika terben
-                        // folytonos, ezert a legkulso dinamikus gyuru tipikusan
-                        // base+1 (a statikus base+0 mellett = 1 szint). A
-                        // maradek vizualis varrat-simitas (geomorph/skirt) a
-                        // Fazis 5 hatokore - ld. ND-47. (A korabbi "statikus os
-                        // promotalasa" athidalas atfedest okozott: mind a 4
-                        // gyereket hozzaadta, akkor is, ha nemelyik gyerek-regio
-                        // MAR finomitva volt a cut-ban.)
-                    }
-                });
-
-                var orderedSplits = new List<TileId>(toSplit.Keys);
+                var orderedSplits = new List<TileId>(toSplit);
                 orderedSplits.Sort((a,b) => a.Value.CompareTo(b.Value));
                 foreach (TileId ancestor in orderedSplits)
                 {

@@ -205,8 +205,8 @@ MonoBehaviour:
   useAdaptiveLod: 1
   adaptiveBaseLevel: 8
   adaptiveMaxLevel: 20
-  targetTilePixelSize: 12
-  initialRefinementPixelSize: 10
+  targetTilePixelSize: 8
+  initialRefinementPixelSize: 7
   useTerrainLodProxy: 1
   adaptiveTraversalRootLevel: 3
   adaptiveRenderBudget: 200000

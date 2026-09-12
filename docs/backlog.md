@@ -2,6 +2,41 @@
 
 ## Aktív sorrend — felhasználói döntés, 2026-09-11
 
+**ND-98, stabil víz-cut:** [ismételt kiválasztás kihagyása](reviews/lod-water-reuse-nd98-2026-09-12.md)
+implementált, 18 új regressziós esettel. Pontos fixpont-igazolás után a
+változatlan víz fedése újrahasználható; nézet/paraméter változáskor teljes
+számítás. A páros álló kamerás vízpróbában 74% idő- és 65% allokációcsökkenés,
+azonos fedés; mozgó kameránál nincs kihagyás. Nem teljes zoom/FPS-mérés.
+M9 61,25% és durva 5–11 óra maradék: az élő kapuk változatlanul nyitottak.
+
+**ND-97, további munka kézi kapu nélkül:** [három allokáció-/cache-javítás](reviews/lod-cache-allocation-nd97-2026-09-12.md).
+Metrikatároló újrahasználata terrain/víz nézetváltáskor, helyi őslánc-
+érvénytelenítés feedback után, allokációmentes azonos-quad összehasonlítás.
+15 új .NET-eset; 8/7 cél és keretek változatlanok. Az izolált tárolópróba
+52–61% kevesebb cut-allokációt és 5–9% kisebb cut-időt adott, azonos
+kiválasztással. A végső kézi lista megmarad, most nem kérünk ellenőrzést.
+M9 kb. 61%, durva maradék 5–11 óra: teljes reakcióidő/élő kapu még nincs.
+
+**Aktuális ND-96 átadás:** [összevont implementáció, mérések és teljes végső ellenőrzőlista](reviews/lod-final-batch-nd96-2026-09-12.md).
+A nézetváltásos geometria-cache, a kész mesh visszacsatolása, egyszeres
+balance, ismételt sarokfeloldás elhagyása, víz-cache/hiszterézis és a 8/7 px
+korai minőségi beállítás implementált. 732 .NET-eset részenként zöld,
+340 viewer-eset Debug/Release; 4 új Editor-eset csak fordított. A nyers
+mélység-proxy túl drága változata visszavonva. A sűrűbb teljes képnek
+kimért többletköltsége van, teljes zoomgyorsulást nem állítunk.
+**Most egyetlen összevont kézi/natív kapu marad**, és az ott igazolt hibák
+korrekciója: korai/közepes élesség és átmenet, víz/part, minimumkamera/
+FlyTo/lépték, világváltás, hosszú memória-/FPS-próba. Súlyozott M9 kb. 61%;
+durva maradék 5–11 óra, nem mért idő. Core/M13/natural-coast modellezés
+nem része ennek a lezárásnak. A korábbi „halasztva” állapotok történetiek.
+
+**2026-09-12, teljes folytatás engedélyezve:** checkpoint `99b3ac4`;
+a felhasználó egyetlen végső kézi próbát kér. A korai élesség/selection
+halasztását feloldotta. Aktív: nézetváltásos geometria-cache, valódi
+quad-visszacsatolás, balance/emisszió, korai finomodás, majd a teljes
+víz/kamera/lépték/upload regressziós és kézi átadás (ND-96). A lentebbi
+„halasztva/próbánként várunk” sorok történetiek. Core/M13 nem új hatókör.
+
 **ND-95, három korrekció közös átadása:** [részletek és próbasor](reviews/lod-navigation-measurement-batch-nd95-2026-09-12.md).
 Monotón kérés-/worker-/várakozási időmérés; kamera/világkontextushoz kötött,
 kevert modelladatot elutasító km-lépték; teljes útján helyi magasságot

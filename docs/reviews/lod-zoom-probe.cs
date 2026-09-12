@@ -77,8 +77,66 @@ internal static class Program
         return f * V.Dot(e2, q);
     }
 
+    private static void ProbeWaterReuse()
+    {
+        var roots = new List<TileId>();
+        for (int face=0;face<6;face++) for(uint u=0;u<256;u++) for(uint v=0;v<256;v++)
+            roots.Add(TileId.FromFaceLevelUV(face,8,u,v));
+        var source = new WaterLodSource(8,R,roots);
+        double split = AdaptiveViewState.AngularRadiusForPixelDiameter(8,Fov,688);
+        ProjectedLodView View(double d) => new ProjectedLodView(new SurfacePoint(d,0,0),
+            new SurfacePoint(0,0,1),new SurfacePoint(0,1,0),new SurfacePoint(-1,0,0),Fov,1238.0/688,.01,1000);
+        WaterLodSelection Step(ProjectedLodView view,WaterLodSelection previous,
+            LodTerrainEvaluationCache cache,bool reuse) => source.Select(view,previous,20,split,split/1.5,8192,256,
+                evaluationCache:cache,reuseStableSelection:reuse);
+        // JIT-bemelegítés, a forráskészítés és a kiértékelés-ellenőrzés nincs az időben.
+        var warmView=View(160);var warmCache=source.CreateEvaluationCache(warmView,null);
+        var warm=Step(warmView,null,warmCache,false);Step(warmView,warm,warmCache,true);
+        foreach(bool moving in new[]{false,true})
+        {
+            WaterLodSelection reference=null, reused=null;
+            LodTerrainEvaluationCache referenceCache=null,reusedCache=null;
+            long referenceBytes=0,reusedBytes=0;double referenceMs=0,reusedMs=0;
+            int reuseCount=0,maxLeaves=0,pendingCount=0;
+            var timer=new Stopwatch();
+            int pairs=moving?60:120;
+            for(int i=0;i<pairs;i++)
+            {
+                double d=moving?(i<30?200-i*3:113+(i-30)*3):new[]{300.0,160,120,105}[i/30];
+                var view=View(d);
+                referenceCache=source.CreateEvaluationCache(view,referenceCache);
+                reusedCache=source.CreateEvaluationCache(view,reusedCache);
+                void Run(bool fast)
+                {
+                    long before=GC.GetAllocatedBytesForCurrentThread();timer.Restart();
+                    if(fast) reused=Step(view,reused,reusedCache,true);
+                    else reference=Step(view,reference,referenceCache,false);
+                    timer.Stop();long bytes=GC.GetAllocatedBytesForCurrentThread()-before;
+                    if(fast){reusedMs+=timer.Elapsed.TotalMilliseconds;reusedBytes+=bytes;}
+                    else {referenceMs+=timer.Elapsed.TotalMilliseconds;referenceBytes+=bytes;}
+                }
+                // Külön előzménylánc; váltakozó sorrend a melegítési torzítás csökkentésére.
+                if(i%2==0){Run(false);Run(true);}else{Run(true);Run(false);}
+                if(!reference.Leaves.SequenceEqual(reused.Leaves)
+                    || !reference.ReplacedRoots.SequenceEqual(reused.ReplacedRoots)
+                    || reference.RefinementPending!=reused.RefinementPending)
+                    throw new InvalidOperationException($"ND98 water mismatch at {i}");
+                if(reused.ReusedSelection)reuseCount++;
+                if(reused.RefinementPending)pendingCount++;
+                maxLeaves=Math.Max(maxLeaves,reused.Leaves.Count);
+            }
+            Console.WriteLine($"ND98 WATER moving={moving} pairs={pairs} equal=True reused={reuseCount} pending={pendingCount} maxLeaves={maxLeaves} " +
+                $"referenceBytes={referenceBytes} reusedBytes={reusedBytes} referenceMs={referenceMs:F2} reusedMs={reusedMs:F2}");
+        }
+    }
+
     private static void Main(string[] args)
     {
+        if (args.Contains("--water-reuse")) { ProbeWaterReuse(); return; }
+        if (args.Contains("--moving-cache")) { ProbeShorelineMetric(movingCache:true); return; }
+        if (args.Contains("--storage-cache")) { ProbeShorelineMetric(movingCache:true,reuseStorage:true); return; }
+        if (args.Contains("--closure")) { ProbeShorelineMetric(closure:true); return; }
+        if (args.Contains("--closure-tuned")) { ProbeShorelineMetric(closure:true,tuned:true); return; }
         if (args.Contains("--work-cache")) { ProbeShorelineMetric(workCache:true); return; }
         if (args.Contains("--quality")) { ProbeShorelineMetric(true); return; }
         if (args.Contains("--shoreline")) { ProbeShorelineMetric(); return; }
@@ -162,7 +220,7 @@ internal static class Program
         Console.WriteLine($"MODEL_MISMATCH CPU secondary omitted only (NOT GPU execution): lostLand={lostLand}/{land} gainedLand={gainedLand}/{oceanParent}");
     }
 
-    private static void ProbeShorelineMetric(bool quality = false, bool workCache = false)
+    private static void ProbeShorelineMetric(bool quality = false, bool workCache = false, bool movingCache = false, bool closure = false, bool tuned = false, bool reuseStorage = false)
     {
         const int side=257;
         var radii=new double[6*side*side];
@@ -187,6 +245,8 @@ internal static class Program
         });
         bool Skip(TileId tile) { tile.GetUV(out uint u,out uint v);return excluded[tile.Face*256*256+(int)u*256+(int)v]; }
         if (workCache) { ProbeWorkCache(oldProxy, Skip); return; }
+        if (movingCache) { ProbeMovingCache(oldProxy, Skip,reuseStorage); return; }
+        if (closure) { ProbeClosure(oldProxy,newProxy,Skip,tuned); return; }
         if (quality) { ProbeQuality(oldProxy, Skip); return; }
         Console.WriteLine($"ND78 PREP sea={Sea:R} rawBytes={newProxy.StorageBytes} oldBytes={oldProxy.StorageBytes} newCoreSamplesDuringCut=0");
         double threshold=AdaptiveViewState.AngularRadiusForPixelDiameter(12,Fov,688);
@@ -288,6 +348,90 @@ internal static class Program
                 settled=cached.DeferredSplits==0;
             }
             Console.WriteLine($"ND81 TOTAL d={distance:F3} referenceCutMs={referenceMs:F2} cachedCutMs={cachedMs:F2} hits={hits} computed={computed} settled={settled}");
+        }
+    }
+
+    private static void ProbeMovingCache(TerrainLodProxy proxy, Func<TileId,bool> skip,bool reuseStorage=false)
+    {
+        V axis=new V(52.815,-79.658,88.120).Unit, forward=axis*-1;
+        V right=V.Cross(forward,new V(0,0,1)).Unit, up=V.Cross(right,forward).Unit;
+        SurfacePoint P(V v)=>new(v.X,v.Y,v.Z);
+        foreach(double pixels in new[]{12.0,8.0})
+        {
+            var coldTimes=new List<double>(); var reusedTimes=new List<double>();
+            LodTerrainEvaluationCache cache=null;
+            LodTerrainEvaluationCache referenceCache=null;
+            long referenceBytes=0,reusedBytes=0;
+            HashSet<TileId> previous=null;
+            int maxLeaves=0;
+            double threshold=AdaptiveViewState.AngularRadiusForPixelDiameter(pixels,Fov,688);
+            double baseScale=AdaptiveViewState.EarlierBaseSplitScale(threshold,threshold/1.5,
+                AdaptiveViewState.AngularRadiusForPixelDiameter(pixels==8?7:10,Fov,688));
+            for(int step=0;step<26;step++)
+            {
+                double distance=step<13?200-step*7:116+(step-13)*7;
+                V camera=axis*distance;
+                var view=new ProjectedLodView(P(camera),P(right),P(up),P(forward),Fov,1238.0/688,.01,10000);
+                referenceCache=referenceCache==null?new(view,proxy):
+                    referenceCache.Matches(view,proxy)?referenceCache:referenceCache.Reproject(view);
+                if(cache==null) cache=new(view,proxy);
+                else if(reuseStorage) cache.ResetView(view);
+                else cache=cache.Reproject(view);
+                // ND-81 referencia: nézetenkénti metrika-cache, nézetek közti geometriatárolás nélkül.
+                var cold=new LodSelectionWork(view,1024,skipStaticBase:skip,
+                    evaluationCache:reuseStorage?referenceCache:new(view,proxy,geometry:new LodGeometryCache(proxy,0)));
+                var warm=new LodSelectionWork(view,1024,skipStaticBase:skip,evaluationCache:cache);
+                HashSet<TileId> Cut(LodSelectionWork work)=>AdaptiveQuadTree.BuildCut(camera.X,camera.Y,camera.Z,R,previous,
+                    8,20,threshold,threshold/1.5,forward.X,forward.Y,forward.Z,1.13,200000,
+                    traversalRootLevel:3,staticBaseLevel:8,baseSplitScale:baseScale,terrainProxy:proxy,work:work);
+                HashSet<TileId> a,b;
+                HashSet<TileId> Measured(LodSelectionWork work,ref long bytes)
+                { long start=GC.GetAllocatedBytesForCurrentThread(); var result=Cut(work); bytes+=GC.GetAllocatedBytesForCurrentThread()-start; return result; }
+                if(step%2==0){a=Measured(cold,ref referenceBytes);b=Measured(warm,ref reusedBytes);}
+                else{b=Measured(warm,ref reusedBytes);a=Measured(cold,ref referenceBytes);}
+                if(!a.SetEquals(b) || cold.NewSplits!=warm.NewSplits || cold.DeferredSplits!=warm.DeferredSplits)
+                    throw new InvalidOperationException("ND96 moving cut mismatch");
+                coldTimes.Add(cold.SelectionMs+cold.BalanceMs);reusedTimes.Add(warm.SelectionMs+warm.BalanceMs);
+                maxLeaves=Math.Max(maxLeaves,b.Count);previous=b;
+            }
+            coldTimes.Sort();reusedTimes.Sort();
+            Console.WriteLine($"ND{(reuseStorage?97:96)} MOVING pixels={pixels} pairs=26 equal=True maxLeaves={maxLeaves} referenceBytes={referenceBytes} reusedBytes={reusedBytes} " +
+                $"coldTotalMs={coldTimes.Sum():F2} reusedTotalMs={reusedTimes.Sum():F2} coldP50={coldTimes[12]:F2} reusedP50={reusedTimes[12]:F2} " +
+                $"coldP90={coldTimes[22]:F2} reusedP90={reusedTimes[22]:F2} geometryHits={cache.Geometry.Hits} geometryComputed={cache.Geometry.Computed} geometryEntries={cache.Geometry.Count}");
+        }
+    }
+
+    private static void ProbeClosure(TerrainLodProxy clamped, TerrainLodProxy raw, Func<TileId,bool> skip, bool tuned)
+    {
+        V axis=new V(52.815,-79.658,88.120).Unit, forward=axis*-1;
+        V right=V.Cross(forward,new V(0,0,1)).Unit, up=V.Cross(right,forward).Unit;
+        SurfacePoint P(V v)=>new(v.X,v.Y,v.Z);
+        foreach(bool actualProxy in tuned?new[]{false}:new[]{false,true})
+        foreach(double pixels in new[]{12.0,8.0})
+        {
+            TerrainLodProxy proxy=actualProxy?raw:clamped;
+            LodTerrainEvaluationCache cache=null;
+            HashSet<TileId> previous=null;
+            double split=AdaptiveViewState.AngularRadiusForPixelDiameter(pixels,Fov,688);
+            double scale=AdaptiveViewState.EarlierBaseSplitScale(split,split/1.5,
+                AdaptiveViewState.AngularRadiusForPixelDiameter(pixels==8?(tuned?7:6):10,Fov,688));
+            foreach(double distance in new[]{300.0,210,160,127,105,160,300})
+            {
+                V camera=axis*distance;
+                var view=new ProjectedLodView(P(camera),P(right),P(up),P(forward),Fov,1238.0/688,.01,10000);
+                cache=cache==null?new(view,proxy):cache.Reproject(view);
+                int waves=0,deferred;double ms=0;
+                do
+                {
+                    var work=new LodSelectionWork(view,1024,skipStaticBase:skip,evaluationCache:cache);
+                    previous=AdaptiveQuadTree.BuildCut(camera.X,camera.Y,camera.Z,R,previous,
+                        8,20,split,split/1.5,forward.X,forward.Y,forward.Z,1.13,200000,
+                        traversalRootLevel:3,staticBaseLevel:8,baseSplitScale:scale,terrainProxy:proxy,work:work);
+                    ms+=work.SelectionMs+work.BalanceMs; waves++;deferred=work.DeferredSplits;
+                }while(deferred>0 && waves<256);
+                if(deferred>0 || previous.Count>200000) throw new InvalidOperationException("ND96 closure did not converge within budget");
+                Console.WriteLine($"ND96 CLOSURE tuned={tuned} raw={actualProxy} pixels={pixels} distance={distance} leaves={previous.Count} waves={waves} cutMs={ms:F2}");
+            }
         }
     }
 

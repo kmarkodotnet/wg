@@ -15,6 +15,7 @@ namespace WorldGen.Viewer
         private const int WaterLeafBudget = 8192, WaterSplitsPerRequest = 256;
         private const int WaterColorCacheLimit = 65536;
         private WaterLodSource? _waterLodSource;
+        private LodTerrainEvaluationCache? _waterEvaluationCache;
         private WaterLodSelection? _appliedWaterSelection;
         private TerrainIndexMask? _waterIndexMask;
         private Mesh? _staticWaterMesh;
@@ -28,6 +29,7 @@ namespace WorldGen.Viewer
         private void InitializeIndependentWater(StaticMeshBuckets? buckets, float seaRadius)
         {
             _waterLodSource = null;
+            _waterEvaluationCache = null;
             _waterIndexMask = null;
             _staticWaterMesh = null;
             if (buckets == null || seaRadius <= 0 || float.IsNaN(seaRadius) || float.IsInfinity(seaRadius)) return;
@@ -80,14 +82,16 @@ namespace WorldGen.Viewer
         {
             if (!_requestedIndependentWater) return;
             var timer = Stopwatch.StartNew();
+            _waterEvaluationCache = _waterLodSource!.CreateEvaluationCache(_requestedProjectedView!, _waterEvaluationCache);
             WaterLodSelection selection = _waterLodSource!.Select(_requestedProjectedView!, _appliedWaterSelection,
                 adaptiveMaxLevel, _currentTargetAngularRadiusRadians,
-                _currentTargetAngularRadiusRadians / Math.Max(mergeHysteresisFactor, 1),
-                WaterLeafBudget, WaterSplitsPerRequest, cancellation);
+                AdaptiveViewState.MergeThreshold(_currentTargetAngularRadiusRadians, mergeHysteresisFactor),
+                WaterLeafBudget, WaterSplitsPerRequest, cancellation, _waterEvaluationCache);
             target.WaterSelection = selection;
             target.WaterSelectionMs = timer.Elapsed.TotalMilliseconds;
             // A víz nem morphol: azonos cut és Build esetén az attribútumok is azonosak.
-            if (_appliedWaterSelection != null && selection.Leaves.SequenceEqual(_appliedWaterSelection.Leaves)) return;
+            if (selection.ReusedSelection || (_appliedWaterSelection != null
+                && selection.Leaves.SequenceEqual(_appliedWaterSelection.Leaves))) return;
             timer.Restart();
             _waterColorSamples = 0;
             AdaptiveMeshBuffers water = CreateAuxiliaryBuffers(target.WaterSurfaceRadius);
@@ -204,7 +208,8 @@ namespace WorldGen.Viewer
                 $"selectionTotal={b.WaterSelectionMs:F2}ms selection={b.WaterSelection.SelectionMs:F2}ms balance={b.WaterSelection.BalanceMs:F2}ms " +
                 $"emit={b.WaterEmitMs:F2}ms colorSamples={b.WaterColorSamples} colorCache={_waterCornerColors.Count} " +
                 $"upload={timer.Elapsed.TotalMilliseconds:F2}ms waterMask={waterMaskMs:F2}ms " +
-                $"staged={b.StagedIndependentWater != null} maskIndices={maskCount} reusedMesh={b.IndependentWaterGeometry == null}");
+                $"staged={b.StagedIndependentWater != null} maskIndices={maskCount} reusedMesh={b.IndependentWaterGeometry == null} " +
+                $"selectionReusePolicy=ND98 reusedSelection={b.WaterSelection.ReusedSelection}");
         }
 
         private void RestoreWaterCoverageAfterFailure()

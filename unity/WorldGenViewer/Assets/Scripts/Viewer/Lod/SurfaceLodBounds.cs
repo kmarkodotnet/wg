@@ -34,6 +34,15 @@ namespace WorldGen.Viewer.Lod
             return new SurfaceLodBounds(center.X, center.Y, center.Z, r, Math.Min(r, footprint));
         }
 
+        // ND-96: a kész quad vetítéséhez csak a befoglaló gömb kell, érintősík-metrika nem.
+        public static SurfaceLodBounds FromQuad(SurfaceQuad quad)
+        {
+            var center = (quad.P00 + quad.P10 + quad.P11 + quad.P01) * .25;
+            double radius = Math.Max(Math.Max(Distance(center, quad.P00), Distance(center, quad.P10)),
+                Math.Max(Distance(center, quad.P11), Distance(center, quad.P01)));
+            return new SurfaceLodBounds(center.X, center.Y, center.Z, radius);
+        }
+
         public double DistanceTo(double x, double y, double z)
             => Math.Sqrt((x - X) * (x - X) + (y - Y) * (y - Y) + (z - Z) * (z - Z));
 

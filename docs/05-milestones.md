@@ -14,7 +14,7 @@ enélkül nem derül ki időben, ha valami rossz irányba megy.
 | M6 | Atmoszféra-render | Rayleigh-szórás, felhők, ciklonok | Planet nézet lényegében kész | Referenciakép 2 szintjén ~80% |
 | **M7** | **Hidrológia + erózió** | Folyók, tavak, gleccser, A1 eróziós pass | Folyók a kontinensnézeten, mikro-vízrajz | ✅ **Vizuálisan megerősítve** ("folyók hegyből tengerbe futnak" strukturálisan bizonyítva, 146/146 teszt); tavak/jég/erózió halasztva |
 | **M8** | **Features + panelek** | Szegmentálás, névadás, aggregált metrikák | World/Continent/Region panelek élesben | Kontinens/régió-szegmentálás + névgenerálás + aggregált metrikák (Area, BiomeDiversity, RiverMouthCount) ✅ **numerikusan kész** (190/190 teszt); a legtöbb panel-mező (Habitability, Coastal complexity stb.) halasztva; vizuális render hátra |
-| M9 | Continent + Region nézet | Magas LOD, displacement, kamera-átmenetek | Referenciakép 1, 3, 4 szintje | Adaptív terep/víz-LOD, chunk-csomagolás, több frame-es upload, nézetszint/FlyTo és pontmintás kamerakorlát implementált. A korai élesség és sima zoom nem elfogadott. [Újraértékelt, súlyozott állapot: kb. 55%](reviews/m9-progress-audit-2026-09-12.md), nem az előző becsléssel összevethető mérés. |
+| M9 | Continent + Region nézet | Magas LOD, displacement, kamera-átmenetek | Referenciakép 1, 3, 4 szintje | Adaptív terep/víz-LOD, chunk-csomagolás, több frame-es upload, nézetszint/FlyTo és pontmintás kamerakorlát implementált. A korai élesség és sima zoom nem elfogadott. [Újraértékelt, súlyozott állapot: kb. 61%](reviews/m9-progress-audit-2026-09-12.md), nem az előző becsléssel összevethető mérés. |
 | **M10** | **Deep time** | Lemezmozgás, erózió, eljegesedés, tengerszint | Az időcsúszka él | Lemezmozgás ✅ **vizuálisan megerősítve** (163/163 teszt, TimestepInvariance egzakt; `deepTimeMyr` Unity idő-csúszka - domborzat ÉS biome egyaránt elmozdul, felhasználó által tesztelve). Dinamikus (térfogat-megmaradás alapú) tengerszint ✅ **numerikusan kész** (ND-38). Az ND-90 a deep-time elevációs útba is bekötötte a folytonos vegyes kéregátmenetet és az 1000 m uplift-plafont; a teljes Python/KAT-lánc és 384/384 Core-teszt zöld, élő peremellenőrzés hátra. Az erózió/eljegesedés teljes spec-lefedettsége továbbra is halasztott. |
 | **M11** | **Események** | Becsapódás, vulkán, rift, split/merge | Kráterek, kitörések láthatók | Becsapódás ✅ **vizuálisan megerősítve**; szuper-vulkán (VEI8) ✅ **numerikusan kész** (220/220 teszt, ND-29); rift/split-merge halasztva — strukturálisan más (folytonos, nem diszkrét esemény-alapú) modellt igényelnek, önálló tervezést érdemelnek |
 | **M12** | **Perzisztencia + CLI** | Checkpoint, .worldpkg, state hash | — | State hash (`WorldStateHash`) ✅ **numerikusan kész** (227/227 teszt, ND-30); checkpoint/.worldpkg/CLI halasztva |
@@ -591,6 +591,33 @@ Ugyanaz a minta, mint eddig mindig: **referencia → verifikálás → C# → m�
 ## M9 — Következő, részletes terv (autonóm folytatás, "csináld magadtól")
 
 ### Aktuális állapot — 2026-09-12-i becslési korrekció
+
+**ND-98 folytatás:** [stabil vízkiválasztás újrahasználata](reviews/lod-water-reuse-nd98-2026-09-12.md),
+18 új teszteset; viewer 373/373 Debug és Release. Az álló kamerás páros
+vízpróba 74% idő-/65% allokációcsökkenést adott pontos fedésegyezéssel.
+Mozgó nézetnél nincs gyors út. A teljes reakcióidő és élő elfogadás nincs
+igazolva: súlyozott M9 továbbra is 61,25%, durva maradék 5–11 óra.
+
+**ND-97 folytatás:** [metrikatároló, helyi feedback-revízió és összehasonlítás](reviews/lod-cache-allocation-nd97-2026-09-12.md).
+Három további költségcsökkentés, változatlan kiválasztási célokkal; 15 új
+.NET-eset. Páros offline tárolópróba: 52–61% kevesebb allokáció, 5–9%
+kisebb cut-idő. Nem teljes FPS-/felzárkózási mérés. M9 marad 61,25%,
+durva maradék 5–11 óra, mert a végső natív/vizuális kapuhoz nincs új adat.
+A kézi próbát a felhasználó későbbre hagyta; a közös lista továbbra is érvényes.
+
+**ND-96, aktuális összevont átadás:** [teljes implementációs csomag, mérés és végső próbalista](reviews/lod-final-batch-nd96-2026-09-12.md).
+Checkpoint `99b3ac4`, majd kameramozgáskor megőrzött geometria-cache,
+kész mesh visszacsatolása, egyszeres balance, közvetlen sarok-újrafelhasználás,
+víz-cache/hiszterézis, 8/7 px korai minőség. A nyers mélység-proxy kísérlete
+túlosztás miatt visszavonva; a nagyobb végső részletesség kimért többletmunkát
+kér, teljes zoomgyorsulás nem igazolt. 732 .NET-eset részenként zöld,
+viewer 340/340 Debug/Release; 4 új Editor-eset csak fordított. Natív,
+vizuális és memória/FPS ellenőrzés egyben következik, nem köztes kapukban.
+A korai minőségi csoport 25 → 50 pont: **súlyozott M9 61,25%, kb. 61%**.
+Durva maradék **5–11 óra**, nem mért munkaidő; a részbecslés az auditban.
+Ez felülírja a lentebbi ND-95/korábbi aktuális százalék- és órasorokat.
+
+#### Korábbi állapotok (történeti pillanatképek)
 
 **ND-95, három korrekció implementált:** [mérési óra, lépték érvényessége,
 FlyTo helyi magassága](reviews/lod-navigation-measurement-batch-nd95-2026-09-12.md).

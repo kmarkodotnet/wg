@@ -487,17 +487,17 @@ namespace WorldGen.Viewer
         private int adaptiveMaxLevel = 20;
 
         [SerializeField]
-        [Tooltip("A gömbös LOD-metrika pixelátmérő-célja, FOV/felbontás alapján. " +
+        [Tooltip("A vetített tile-metrika pixelátmérő-célja, FOV/felbontás alapján. " +
                  "Kisebb érték több tile-t és korábbi finomodást jelent, nagyobb számítási költséggel. " +
                  "Nem garantált maximum az eltolt terepen vagy telített budgetnél. " +
                  "ND-73: az első base-felosztás külön, korábbi célt kaphat.")]
-        private double targetTilePixelSize = 12.0;
+        private double targetTilePixelSize = 8.0;
 
         [SerializeField]
         [Tooltip("ND-73: csak a statikus alap ELSŐ felosztásának pixelcélja. " +
                  "A mélyebb szintek targetTilePixelSize értéke nem változik. " +
                  "A merge-küszöb és a normál split közé kell esnie; különben nincs előrehozás.")]
-        private double initialRefinementPixelSize = 10.0;
+        private double initialRefinementPixelSize = 7.0;
 
         [SerializeField]
         [Tooltip("ND-74: a kész statikus terepmintákból becsült felszíntávolság vezérli a CPU LOD-ot és morphot. " +
@@ -1140,7 +1140,7 @@ namespace WorldGen.Viewer
                 System.IO.File.AppendAllText(path,
                     $"=== PlanetGridMesh perf log started {DateTime.Now:O} ===\n" +
                     $"adaptiveBaseLevel={adaptiveBaseLevel} adaptiveMaxLevel={adaptiveMaxLevel} " +
-                    $"targetTilePixelSize={targetTilePixelSize} useGpuGeometry={useGpuGeometry} " +
+                    $"targetTilePixelSize={targetTilePixelSize} initialRefinementPixelSize={initialRefinementPixelSize} useGpuGeometry={useGpuGeometry} " +
                     $"useGpuClassification={useGpuClassification} radius={radius}\n");
                 _perfLogPath = path; // CSAK sikeres init utan
             }
@@ -2548,8 +2548,7 @@ namespace WorldGen.Viewer
             double screenHeightPixels = Math.Max(1, cam.pixelHeight);
             double targetAngularRadiusRadians = AdaptiveViewState.AngularRadiusForPixelDiameter(
                 effectiveTargetPixelSize, verticalFovRad, (int)screenHeightPixels);
-            double effectiveMergeHysteresisFactor = Math.Max(mergeHysteresisFactor, 1.0);
-            double mergeAngularRadiusRadians = targetAngularRadiusRadians / effectiveMergeHysteresisFactor;
+            double mergeAngularRadiusRadians = AdaptiveViewState.MergeThreshold(targetAngularRadiusRadians, mergeHysteresisFactor);
             _currentTargetAngularRadiusRadians = targetAngularRadiusRadians;
             double initialAngularRadius = AdaptiveViewState.AngularRadiusForPixelDiameter(
                 initialRefinementPixelSize, verticalFovRad, (int)screenHeightPixels);
@@ -2792,7 +2791,8 @@ namespace WorldGen.Viewer
             _appliedTraceFov = _pendingCutView.VerticalFovRadians;
             _lastAppliedCutView = _pendingCutView;
             _hasLastCutCameraPosition = true;
-            _lodRefinementPending = buffers.DeferredSplits > 0 || buffers.WaterSelection?.RefinementPending == true;
+            _lodRefinementPending = buffers.DeferredSplits > 0 || buffers.GeometryRefinementPending
+                || buffers.WaterSelection?.RefinementPending == true;
             _cutSupersededSinceApply = false;
             stopwatch.Stop();
             long committedTicks = Stopwatch.GetTimestamp();
@@ -2822,6 +2822,13 @@ namespace WorldGen.Viewer
                 $"skippedOceanic={buffers.SkippedOceanicCount} cut={buffers.CutMs:F2}ms " +
                 $"workCache=ND81 selection={buffers.SelectionMs:F2}ms balance={buffers.BalanceMs:F2}ms " +
                 $"metricHits={buffers.MetricCacheHits} metricComputed={buffers.MetricEvaluations} metricEntries={buffers.MetricCacheEntries} " +
+                $"geometryCache=ND96 geometryEntries={_terrainEvaluationCache?.Geometry.Count ?? 0} " +
+                $"metricStorage=ND97 metricViewResets={_terrainEvaluationCache?.ViewResets ?? 0} metricFeedbackRefreshes={_terrainEvaluationCache?.FeedbackRefreshes ?? 0} " +
+                $"geometryHits={_terrainEvaluationCache?.Geometry.Hits ?? 0} geometryComputed={_terrainEvaluationCache?.Geometry.Computed ?? 0} " +
+                $"feedbackEntries={_terrainEvaluationCache?.Geometry.ActualCount ?? 0} feedbackAdded={buffers.GeometryFeedbackAdded} " +
+                $"feedbackBounds={_terrainEvaluationCache?.Geometry.BoundsCount ?? 0} feedbackRejected={_terrainEvaluationCache?.Geometry.RejectedFeedback ?? 0} " +
+                $"feedbackMeasured={buffers.GeometryFeedbackMeasured} feedbackUnidentified={buffers.GeometryFeedbackUnidentified} " +
+                $"feedbackMs={buffers.GeometryFeedbackMs:F2} feedbackPending={buffers.GeometryRefinementPending} " +
                 $"filter={buffers.FilterMs:F2}ms classification={buffers.ClassificationMs:F2}ms " +
                 $"corners={buffers.CornersMs:F2}ms emit={buffers.EmitMs:F2}ms " +
                 $"resolveCheck={buffers.ResolveCheckMs:F2}ms auxiliaryCopy={buffers.AuxiliaryCopyMs:F2}ms tileEmit={buffers.TileEmitMs:F2}ms " +
@@ -2856,6 +2863,10 @@ namespace WorldGen.Viewer
         private sealed class AdaptiveMeshBuffers
         {
             public long WorkerStartedTicks, WorkerReadyTicks, WorkerObservedTicks;
+            public bool GeometryRefinementPending;
+            public int GeometryFeedbackAdded;
+            public int GeometryFeedbackMeasured, GeometryFeedbackUnidentified;
+            public double GeometryFeedbackMs;
             public HashSet<TileId> Cut;
             public Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> Vertices;
             public Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> Normals;
@@ -3048,12 +3059,14 @@ namespace WorldGen.Viewer
                         var trisByKey = new Dictionary<(RenderCategory, int), List<int>>();
                         var colorsByKey = new Dictionary<(RenderCategory, int), List<Color>>();
 
-                        foreach (TileId leaf in orderedLeaves)
+                        for (int leafIndex = 0; leafIndex < orderedLeaves.Count; leafIndex++)
                         {
+                            TileId leaf = orderedLeaves[leafIndex];
                             EmitAdaptiveTile(
                                 leaf, vertsByKey, normalsByKey, trisByKey, colorsByKey,
                                 auxiliary.WaterVertices, auxiliary.WaterNormals, auxiliary.WaterTriangles, auxiliary.WaterColors,
-                                auxiliary.BorderVerts, auxiliary.BorderIndices, b.WaterSurfaceRadius, dynamicLayerRadialBias, replaceStaticTerrain: true);
+                                auxiliary.BorderVerts, auxiliary.BorderIndices, b.WaterSurfaceRadius, dynamicLayerRadialBias,
+                                replaceStaticTerrain: true, resolvedPositions: resolved, resolvedStart: leafIndex * 4);
                         }
 
                         ConcatenatedMesh mesh = ConcatenateMultiMaterialBuckets(vertsByKey, normalsByKey, trisByKey, colorsByKey);
@@ -3099,6 +3112,7 @@ namespace WorldGen.Viewer
                 }
 
                 b.EmitMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+                CaptureGeometryFeedback(b, cancellation);
                 var diagnosticStopwatch = Stopwatch.StartNew();
                 CaptureNadirDiagnostic(b, coverage);
                 b.NadirDiagnosticMs = diagnosticStopwatch.Elapsed.TotalMilliseconds;
@@ -3509,7 +3523,8 @@ namespace WorldGen.Viewer
             Dictionary<int, List<Color>> waterColorsByBucket,
             List<Vector3> borderVerts, List<int> borderIndices,
             float waterSurfaceRadius, float radialBias, int staticDenseIndex = -1,
-            StaticMeshBuckets? staticBuckets = null, bool replaceStaticTerrain = false)
+            StaticMeshBuckets? staticBuckets = null, bool replaceStaticTerrain = false,
+            List<Vector3>? resolvedPositions = null, int resolvedStart = 0)
         {
             bool useStaticDenseData = staticDenseIndex >= 0
                 && id.Level == _staticRenderDataLevel
@@ -3568,7 +3583,12 @@ namespace WorldGen.Viewer
             }
             else
             {
-                GetAdaptiveCorners(id, out p00, out p10, out p11, out p01);
+                if (resolvedPositions != null)
+                {
+                    p00 = resolvedPositions[resolvedStart]; p10 = resolvedPositions[resolvedStart + 1];
+                    p11 = resolvedPositions[resolvedStart + 2]; p01 = resolvedPositions[resolvedStart + 3];
+                }
+                else GetAdaptiveCorners(id, out p00, out p10, out p11, out p01);
                 pn00 = GetOrComputePersistentCornerNormal(id.Face, lvl, u, v);
                 pn10 = GetOrComputePersistentCornerNormal(id.Face, lvl, u + 1, v);
                 pn11 = GetOrComputePersistentCornerNormal(id.Face, lvl, u + 1, v + 1);
@@ -4991,6 +5011,7 @@ namespace WorldGen.Viewer
             Transform legacyWater = transform.Find("DynamicWater");
             if (legacyWater != null) legacyWater.gameObject.SetActive(false);
             _waterLodSource = null;
+            _waterEvaluationCache = null;
             _waterIndexMask = null;
             _staticWaterMesh = null;
             _requestedIndependentWater = false;

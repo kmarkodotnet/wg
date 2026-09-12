@@ -154,9 +154,17 @@ public class RenderedTileDiagnosticsTests
     public void ScanDoesNotAllocatePerQuad()
     {
         var m=new RenderedTileDiagnostics(200,100);
-        Quad(m);
-        long before=GC.GetAllocatedBytesForCurrentThread();
-        for(int i=0;i<1000;i++) Quad(m,.5);
-        Assert.Equal(0,GC.GetAllocatedBytesForCurrentThread()-before);
+        long allocated=-1;
+        // Csak a szkennelés szálát mérjük, nem a párhuzamos tesztrunner munkaszálát.
+        // A Thread/closure és az assert a mérésen kívül van; a 0 byte-os feltétel marad.
+        var scan=new System.Threading.Thread(()=>
+        {
+            Quad(m);
+            long before=GC.GetAllocatedBytesForCurrentThread();
+            for(int i=0;i<1000;i++) Quad(m,.5);
+            allocated=GC.GetAllocatedBytesForCurrentThread()-before;
+        });
+        scan.Start(); scan.Join();
+        Assert.Equal(0,allocated);
     }
 }

@@ -10,6 +10,99 @@ namespace WorldGen.Viewer.Lod.Tests;
 
 public class TerrainEvaluationCacheTests
 {
+    [Theory]
+    [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)]
+    [InlineData(5)] [InlineData(6)] [InlineData(7)] [InlineData(8)]
+    public void ResetViewInvalidatesEveryProjectionChange(int variation)
+    {
+        var proxy=Proxy(); var view=View(variation);
+        var cache=new LodTerrainEvaluationCache(View(),proxy);
+        var tile=TileId.FromFaceLevelUV(0,4,8,8);
+        cache.EvaluateTerrain(proxy,tile,out _,out _);
+        cache.ResetView(view);
+        Assert.Equal(0,cache.Count);
+        Assert.Equal(1,cache.ViewResets);
+        bool expected=view.EvaluateTerrain(proxy,tile,out double error);
+        Assert.Equal(expected,cache.EvaluateTerrain(proxy,tile,out double actual,out bool hit));
+        Assert.False(hit); Assert.Equal(error,actual);
+        Assert.Throws<ArgumentException>(()=>new LodSelectionWork(View(),evaluationCache:cache));
+    }
+
+    [Fact]
+    public void IdenticalViewAndInvalidResetDoNotDiscardValidMetrics()
+    {
+        var proxy=Proxy(); var cache=new LodTerrainEvaluationCache(View(),proxy);
+        var tile=TileId.FromFaceLevelUV(0,4,8,8);
+        cache.EvaluateTerrain(proxy,tile,out _,out _);
+        cache.ResetView(View());
+        Assert.Equal(0,cache.ViewResets);
+        Assert.Throws<ArgumentNullException>(()=>cache.ResetView(null!));
+        cache.EvaluateTerrain(proxy,tile,out _,out bool hit); Assert.True(hit);
+    }
+
+    [Fact]
+    public void FeedbackInvalidatesOnlyItsTileAndAncestors()
+    {
+        var proxy=Proxy(); var view=View(); var cache=new LodTerrainEvaluationCache(view,proxy);
+        var leaf=TileId.FromFaceLevelUV(0,5,16,16); var other=TileId.FromFaceLevelUV(1,5,16,16);
+        foreach(var tile in new[]{leaf,leaf.Parent(),other}) cache.EvaluateTerrain(proxy,tile,out _,out _);
+        var quad=new SurfaceQuad(new(100,-10,-10),new(100,-10,10),new(100,10,10),new(100,10,-10));
+        Assert.True(cache.Geometry.Record(leaf,quad));
+        foreach(var tile in new[]{leaf,leaf.Parent(),other})
+        {
+            bool visible=cache.Geometry.Evaluate(view,tile,out double expected);
+            Assert.Equal(visible,cache.EvaluateTerrain(proxy,tile,out double actual,out bool hit));
+            Assert.Equal(tile==other,hit); Assert.Equal(expected,actual);
+        }
+        Assert.Equal(3,cache.Count);
+        Assert.Equal(2,cache.FeedbackRefreshes);
+        Assert.False(cache.Geometry.Record(leaf,quad));
+        cache.EvaluateTerrain(proxy,leaf,out _,out bool repeatedHit); Assert.True(repeatedHit);
+    }
+
+    [Theory]
+    [InlineData(0)] [InlineData(1)] [InlineData(7)]
+    public void FullCacheRefreshesStaleEntriesWithoutGrowing(int capacity)
+    {
+        var proxy=Proxy(); var view=View();
+        var cache=new LodTerrainEvaluationCache(view,proxy,capacity,new LodGeometryCache(proxy,100));
+        var tiles=Enumerable.Range(0,10).Select(i=>TileId.FromFaceLevelUV(0,5,(uint)i,16)).ToArray();
+        foreach(var tile in tiles) cache.EvaluateTerrain(proxy,tile,out _,out _);
+        foreach(var tile in tiles)
+        {
+            cache.Geometry.Record(tile,new SurfaceQuad(new(100,-1,-1),new(100,-1,1),new(100,1,1),new(100,1,-1)));
+            cache.Geometry.Evaluate(view,tile,out double expected);
+            cache.EvaluateTerrain(proxy,tile,out double actual,out bool hit);
+            Assert.False(hit); Assert.Equal(expected,actual);
+            Assert.Equal(capacity,cache.Count);
+        }
+    }
+
+    [Fact]
+    public void WarmViewResetAndEvaluationReuseStorageWithoutAllocating()
+    {
+        var proxy=Proxy(); var views=new[]{View(distance:120),View(distance:130),View(distance:140)};
+        var cache=new LodTerrainEvaluationCache(views[0],proxy);
+        var tiles=Enumerable.Range(0,6).SelectMany(f=>Enumerable.Range(0,16)
+            .Select(i=>TileId.FromFaceLevelUV(f,4,(uint)i,8))).ToArray();
+        void Scan()
+        { foreach(var view in views) { cache.ResetView(view); foreach(var tile in tiles) cache.EvaluateTerrain(proxy,tile,out _,out _); } }
+        long allocated=-1; Exception? failure=null;
+        var thread=new Thread(()=>
+        {
+            try
+            {
+                Scan();
+                long before=GC.GetAllocatedBytesForCurrentThread();
+                for(int i=0;i<10;i++) Scan();
+                allocated=GC.GetAllocatedBytesForCurrentThread()-before;
+            }
+            catch(Exception error) { failure=error; }
+        });
+        thread.Start(); thread.Join();
+        Assert.Null(failure); Assert.Equal(0,allocated);
+    }
+
     private static TerrainLodProxy Proxy() => new(3,
         Enumerable.Range(0, 6*9*9).Select(i => 100 + (i%9)*.1).ToArray(), 90);
 

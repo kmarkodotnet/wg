@@ -83,6 +83,10 @@ namespace WorldGen.Viewer.Lod
         public static double EarlierBaseSplitScale(double split, double merge, double requested)
             => requested > merge && requested < split ? requested / split : 1.0;
 
+        // Az Inspectorban megadható 1 sem okozhat érvénytelen víz-LOD kérést.
+        public static double MergeThreshold(double split, double factor)
+            => split / (double.IsNaN(factor) || double.IsInfinity(factor) ? 1.5 : Math.Max(1.01, factor));
+
         /// <summary>A splitnél 0, a tartomány végén 1; nincs születési pozícióugrás.</summary>
         public static double GeomorphAlpha(double distance, double splitDistance, double rangeFraction)
         {

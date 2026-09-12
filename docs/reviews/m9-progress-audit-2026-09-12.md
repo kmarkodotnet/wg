@@ -1,5 +1,64 @@
 # M9 — Haladási és ráfordítás-becslés újraalapozása
 
+## Legújabb felülvizsgálat — ND-98
+
+[A stabil víz-cut ismételt munkája elhagyható](lod-water-reuse-nd98-2026-09-12.md),
+18 új regressziós esettel, pontos páros fedésegyezéssel. Álló kamerás
+vízkiválasztásban 74% idő- és 65% allokációcsökkenés; mozgó kameránál nincs
+kihagyás. A reakcióidő/erőforrás csoport továbbra is 50 pont: részfolyamat-
+mérés nem teljes felzárkózási vagy élő FPS-igazolás. M9 **61,25% marad**.
+E csomag durva ráfordítás-egyenértéke 1–2 óra. Az **5–11 óra** maradékot
+újraértékelve megtartjuk: natív/vizuális kapu, teljes reakcióidő mérése és
+ott igazolt korrekciók, hosszú erőforráspróba maradt. Nem mért munkaidő;
+a részfolyamat-javítás nem csökkenti automatikusan a nyitott kapuk becslését.
+
+## Korábbi felülvizsgálat — ND-97
+
+[Három további, offline mérhető költségcsökkentés](lod-cache-allocation-nd97-2026-09-12.md)
+implementált, 15 új .NET-esettel. A metrikatároló újrahasználata a páros
+próbában 52–61%-kal kevesebb cut-allokációval járt; helyi feedback-revízió
+és nulla allokációs azonos-quad összehasonlítás is készült. Az erőforrás-
+csoport továbbra is 50 pont: a teljes reakcióidő/FPS és a sűrűbb cut
+felzárkózása nem lett élőben elfogadva. A súlyozott M9 így **61,25% marad**.
+
+E csomag durva ráfordítás-egyenértéke 1–3 óra. A lent tételesen megadott
+**5–11 órás maradékot újraértékelve megtartjuk**: továbbra is a natív,
+vizuális és teljes útvonalú mérés, valamint az ott igazolt korrekció a
+domináns nyitott feladat. Nincs új kézi bizonyíték, amely indokolná e kapuk
+órasávjának automatikus csökkentését. Egyik szám sem mért munkaidő.
+
+## Aktuális frissítés — ND-96, összevont végső átadás
+
+Checkpoint `99b3ac4`; utána [ND-96 implementáció és közös próbalista](lod-final-batch-nd96-2026-09-12.md).
+A felhasználó feloldotta a korai élesség/selection halasztását és csak
+a végén ellenőriz. Kész a mozgókamerás geometria-cache, a valódi mesh
+visszacsatolása, egyszeres balance, sarok-emisszió újrafelhasználás,
+víz-cache/hiszterézis és a 8/7 px beállítás. 25 új .NET-regresszió,
+4 új Editor-eset (csak fordított). A teljes viewer-suite 340/340 mindkét
+konfigurációban, a Core és CLI együtt további 392 sikeres eset.
+
+A lent rögzített súlyozás megmarad. A **korai részletesség/átmenet**
+csoport 25 → 50 pont: már célzott implementáció és regresszió is van,
+de a sűrűbb kép kifutása több munkát kér és nincs élő elfogadás. A többi
+csoport pontja változatlan. Így az összesen **61,25%, kerekítve kb. 61%**,
+durva bizonytalansági sáv 55–65%. Nem új felhasználói elfogadás.
+
+| Aktuális maradék | Durva ráfordítás-egyenérték | Miért marad? |
+|---|---:|---|
+| Natív Editor, minimumkamera/FlyTo/lépték és víz/part integrációs kapu | 1–3 óra | Forrásfordítás nem natív teszt; korrekció csak igazolt eredmény alapján |
+| Sűrűbb minőség és teljes felzárkózási késés visszamérése, esetleges célzott korrekció | 3–6 óra | A cache önmagában 22–26%-kal olcsóbb, de a kisebb pixelcél több hullám; nincs teljes zoomgyorsulási bizonyíték |
+| Hosszú útvonalú erőforrás/FPS és összevont végső regresszió | 1–2 óra | Nincs új élő ND-96 log, natív memória- vagy végső vizuális elfogadás |
+| **Összesen** | **5–11 óra** | A korábbi 11–23 órás implementációs maradékot felülírja |
+
+Nem mért munkaidő, nem garantált határidő; a kézi teszt közbeni várakozást
+nem tartalmazza. A csomag elkészítésének durva szakmai ráfordítás-egyenértéke
+6–12 óra, ez sem mért idő és nem az előző sávok egyszerű kivonása.
+Teljes új kameraütközési rendszer, Core-mikrodomborzat vagy új render-
+architektúra szükségessége esetén külön, indokolt újrabecslés kell.
+
+Az alábbi audit és régebbi óratáblázatok történeti pillanatképek; aktuális
+státuszként a jelen frissítés és az alábbi, frissített súlyozott táblázat érvényes.
+
 ## Miért nem változott a jelentett szám?
 
 A felhasználó jogosan jelezte, hogy sok egymást követő átadás ugyanazt a
@@ -23,7 +82,7 @@ hasonlítható közvetlenül a korábbi becsléshez: kisebb értéke nem új reg
 
 Forrás: `docs/05-milestones.md` M9 cél, szűkített hatókör és 9.1–9.5;
 az aktív backlog, ND-69–91 átadások és a tényleges viewer-források/tesztek.
-Branch `codex-handoff`, HEAD `0f9cd4b`, további nem commitolt fejlesztések.
+Branch `codex-handoff`, az audit eredeti HEAD-je `0f9cd4b`, az ND-96 checkpoint `99b3ac4`.
 A teljes M13 látvány, új mikro-domborzati frekvenciák és a Core ND-90
 nem része ennek az M9-mutatónak. A jóváhagyott kamera/lépték-kiegészítések igen.
 
@@ -38,12 +97,12 @@ nem objektív fizikai mérés; a súlyok változtatását külön dokumentálni 
 | Munkacsoport | Súly | Állapotpont | Súlyozott pont | Bizonyíték / hiány |
 |---|---:|---:|---:|---|
 | Terep-kiválasztás, fedés, közös élek | 25% | 75 | 18,75 | Kvadfa/budget/coverage/stitch tesztek, ND-70 pozitív zoom-visszazoom; teljes szélsőhelyzet-elfogadás nincs |
-| Korai részletesség és folyamatos átmenet | 25% | 25 | 6,25 | Ismert késői osztás és proxy/geometria eltérés, több elutasított próba; halasztott fő minőségi cél |
+| Korai részletesség és folyamatos átmenet | 25% | 50 | 12,50 | ND-96 mesh-feedback és 8/7 cél, célzott regresszió; teljes felzárkózási költség és élő élesség/átmenet-elfogadás nyitott |
 | Reakcióidő, főszálköltség és erőforráskeret | 20% | 50 | 10,00 | ND-80/81/85–94 implementált; ND-93 ürítés és ND-94 staging élő loggal igazolt. Teljes reakcióidő, memória/FPS és puha keret túllépése nyitott |
 | Víz és kapcsolódó rétegek LOD-együttállása | 15% | 75 | 11,25 | ND-82/83/86 kód, tesztek és aktív víz a logban; part/világváltás teljes vizuális elfogadása hiányzik |
 | Navigáció, FlyTo és felszínközeli kamerabiztonság | 10% | 50 | 5,00 | ND-91 pontminta és ND-95 teljes útvonalú FlyTo magasság implementált; near-plane oldalak, tavak, közeli élő próba hátra |
 | Tényleges rajzdiagnosztika és km-lépték | 5% | 75 | 3,75 | ND-75 mesh-mérés, ND-84 lépték és ND-95 kontextusvédelem/monotón kérésóra; teljes élő pontossági ellenőrzés hiányzik |
-| **Összesen** | **100%** | | **55,00** | **Kb. 55%, durva bizonytalansági sáv: 50–60%** |
+| **Összesen** | **100%** | | **61,25** | **Kb. 61%, durva bizonytalansági sáv: 55–65%** |
 
 Az „implementált” nem „elfogadott”, de nem is nulla előrelépés. A következő
 jelentésben a megváltozott csoportot és bizonyítékot kell megnevezni.

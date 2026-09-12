@@ -51,11 +51,23 @@ namespace WorldGen.Viewer.Lod
 
         public bool EvaluateTerrain(TerrainLodProxy proxy, TileId tile, out double angularRadius)
         {
-            if (!Evaluate(proxy.BoundsAt(tile),out angularRadius)) return false;
-            if (tile.Level < proxy.BaseLevel) return true;
+            if (!Evaluate(proxy.BoundsAt(tile), out angularRadius)) return false;
+            if (tile.Level >= proxy.BaseLevel) EvaluateVisibleQuad(proxy.QuadAt(tile), ref angularRadius);
+            return true;
+        }
+
+        internal bool EvaluateGeometry(SurfaceLodBounds bounds, SurfaceQuad q, bool useQuad, out double angularRadius)
+        {
+            if (!Evaluate(bounds,out angularRadius)) return false;
+            if (!useQuad) return true;
+            EvaluateVisibleQuad(q, ref angularRadius);
+            return true;
+        }
+
+        internal void EvaluateVisibleQuad(SurfaceQuad q, ref double angularRadius)
+        {
             // A gömb csak láthatósági bounds. Osztáskor a valódi alakú proxy-
             // quad vetületét mérjük: egy súroló lapot nem vastagítunk gömbbé.
-            SurfaceQuad q=proxy.QuadAt(tile);
             SurfacePoint Project(SurfacePoint p)
             {
                 p=p+_camera*-1;
@@ -69,7 +81,11 @@ namespace WorldGen.Viewer.Lod
             double diameterSquared=Math.Max(Math.Max(DistanceSquared(a,b),DistanceSquared(a,c)),
                 Math.Max(Math.Max(DistanceSquared(a,d),DistanceSquared(b,c)),Math.Max(DistanceSquared(b,d),DistanceSquared(c,d))));
             if (!double.IsNaN(diameterSquared)) angularRadius=Math.Atan(Math.Sqrt(diameterSquared)*.5);
-            return true;
+        }
+
+        public bool EvaluateQuad(SurfaceQuad quad, out double angularRadius)
+        {
+            return EvaluateGeometry(SurfaceLodBounds.FromQuad(quad), quad, true, out angularRadius);
         }
 
         private static SurfacePoint Unit(SurfacePoint p)
@@ -85,21 +101,40 @@ namespace WorldGen.Viewer.Lod
     public sealed class LodTerrainEvaluationCache
     {
         public const int DefaultCapacity = 262144;
-        private readonly ProjectedLodView _view;
+        private ProjectedLodView _view;
         private readonly TerrainLodProxy _proxy;
         private readonly int _capacity;
-        private readonly Dictionary<TileId, (bool Visible, double Error)> _values
-            = new Dictionary<TileId, (bool Visible, double Error)>();
+        public LodGeometryCache Geometry { get; }
+        private readonly Dictionary<TileId, (bool Visible, double Error, int Revision)> _values
+            = new Dictionary<TileId, (bool Visible, double Error, int Revision)>();
         public int Count => _values.Count;
+        public long ViewResets { get; private set; }
+        public long FeedbackRefreshes { get; private set; }
 
         public LodTerrainEvaluationCache(ProjectedLodView view, TerrainLodProxy proxy,
-            int capacity = DefaultCapacity)
+            int capacity = DefaultCapacity, LodGeometryCache? geometry = null)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _proxy = proxy ?? throw new ArgumentNullException(nameof(proxy));
             if (capacity < 0) throw new ArgumentOutOfRangeException(nameof(capacity));
             _capacity = capacity;
+            Geometry = geometry ?? new LodGeometryCache(proxy, capacity);
+            if (!Geometry.Matches(proxy)) throw new ArgumentException("Eltérő geometriavilág.", nameof(geometry));
         }
+
+        public LodTerrainEvaluationCache Reproject(ProjectedLodView view)
+            => new LodTerrainEvaluationCache(view, _proxy, _capacity, Geometry);
+
+        /// <summary>Csak lezárt request után, ugyanazon worker használhatja; régi workkel nem osztható meg.</summary>
+        public void ResetView(ProjectedLodView view)
+        {
+            if (view == null) throw new ArgumentNullException(nameof(view));
+            if (_view.SameProjection(view)) return;
+            _values.Clear();
+            _view = view;
+            ViewResets++;
+        }
+        public bool MatchesProxy(TerrainLodProxy proxy) => ReferenceEquals(_proxy, proxy);
 
         public bool Matches(ProjectedLodView view, TerrainLodProxy proxy)
             => ReferenceEquals(_proxy, proxy) && _view.SameProjection(view);
@@ -108,13 +143,16 @@ namespace WorldGen.Viewer.Lod
             out double angularRadius, out bool cacheHit)
         {
             if (!ReferenceEquals(proxy, _proxy)) throw new ArgumentException("Eltérő terep-proxy.", nameof(proxy));
-            if (_values.TryGetValue(tile, out var value))
+            int revision = Geometry.RevisionAt(tile);
+            bool present = _values.TryGetValue(tile, out var value);
+            if (present && value.Revision == revision)
             {
                 cacheHit = true; angularRadius = value.Error; return value.Visible;
             }
             cacheHit = false;
-            bool visible = _view.EvaluateTerrain(proxy, tile, out angularRadius);
-            if (_values.Count < _capacity) _values.Add(tile, (visible, angularRadius));
+            if (present) FeedbackRefreshes++;
+            bool visible = Geometry.Evaluate(_view, tile, out angularRadius);
+            if (present || _values.Count < _capacity) _values[tile] = (visible, angularRadius, revision);
             return visible;
         }
 

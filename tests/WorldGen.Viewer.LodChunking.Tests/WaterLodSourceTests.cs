@@ -11,6 +11,179 @@ namespace WorldGen.Viewer.Lod.Tests;
 
 public class WaterLodSourceTests
 {
+    private static WaterLodSelection Settle(WaterLodSource source)
+    {
+        WaterLodSelection? result = null;
+        for (int i = 0; i < 100; i++)
+        {
+            result = Select(source,result);
+            if (result.ReusedSelection) return result;
+        }
+        throw new InvalidOperationException("A teszt vízkiválasztása nem stabilizálódott.");
+    }
+
+    [Fact]
+    public void StableReuseRequiresAnotherFullSelectionAndReportsOnlyCurrentWork()
+    {
+        var source = new WaterLodSource(3,100,Array.Empty<TileId>());
+        var first = Select(source);
+        Assert.False(first.RefinementPending);
+        var second = Select(source,first);
+        Assert.False(second.ReusedSelection);
+        Assert.NotSame(first.Leaves,second.Leaves);
+        var third = Select(source,second);
+        Assert.True(third.ReusedSelection);
+        Assert.NotSame(second,third);
+        Assert.Same(second.Leaves,third.Leaves);
+        Assert.Same(second.ReplacedRoots,third.ReplacedRoots);
+        Assert.Equal(0,third.NewSplits); Assert.Equal(0,third.DeferredSplits);
+        Assert.Equal(0,third.SelectionMs); Assert.Equal(0,third.BalanceMs);
+    }
+
+    [Theory]
+    [InlineData(1)] [InlineData(32)] [InlineData(256)]
+    public void RepeatedAndMovingSelectionsExactlyMatchFullSelection(int quota)
+    {
+        var source = new WaterLodSource(3,100,Roots());
+        WaterLodSelection? previous = null;
+        LodTerrainEvaluationCache? cache = null;
+        int reuseCount = 0;
+        foreach (double distance in new[] {300.0,120,105,125,300})
+        for (int i = 0; i < 20; i++)
+        {
+            var view = View(distance);
+            cache = source.CreateEvaluationCache(view,cache);
+            var expected = source.Select(view,previous,7,.06,.04,4000,quota,reuseStableSelection:false);
+            var actual = source.Select(view,previous,7,.06,.04,4000,quota,evaluationCache:cache);
+            Assert.Equal(expected.Leaves,actual.Leaves);
+            Assert.Equal(expected.ReplacedRoots,actual.ReplacedRoots);
+            Assert.Equal(expected.DeepestLevel,actual.DeepestLevel);
+            Assert.Equal(expected.RefinementPending,actual.RefinementPending);
+            if (actual.ReusedSelection)
+            {
+                reuseCount++;
+                Assert.Same(previous!.Leaves,actual.Leaves);
+                Assert.Equal(0,actual.NewSplits);
+            }
+            else
+            {
+                Assert.Equal(expected.NewSplits,actual.NewSplits);
+                Assert.Equal(expected.DeferredSplits,actual.DeferredSplits);
+            }
+            previous = actual;
+        }
+        Assert.True(reuseCount > 0);
+    }
+
+    [Theory]
+    [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)]
+    [InlineData(5)] [InlineData(6)] [InlineData(7)] [InlineData(8)] [InlineData(9)]
+    [InlineData(10)] [InlineData(11)]
+    public void AnyChangedSelectionInputInvalidatesReuse(int change)
+    {
+        var source = new WaterLodSource(3,100,Roots());
+        var stable = Settle(source);
+        const double delta = 1e-10;
+        var view = new ProjectedLodView(new(120+(change==0?delta:0),0,0),
+            new(change==1?delta:0,0,1),new(change==2?delta:0,1,0),new(-1,change==3?delta:0,0),
+            Math.PI/3+(change==4?delta:0),1.8+(change==5?delta:0),
+            .01+(change==6?delta:0),1000+(change==7?delta:0));
+        int level = change==8?6:7, budget = change==11?3999:4000;
+        double split = .06+(change==9?delta:0), merge = .04+(change==10?delta:0);
+        var actual = source.Select(view,stable,level,split,merge,budget,32);
+        Assert.False(actual.ReusedSelection);
+        var expected = source.Select(view,stable,level,split,merge,budget,32,reuseStableSelection:false);
+        Assert.Equal(expected.Leaves,actual.Leaves);
+        Assert.False(source.Select(View(),stable,7,.06,.04,4000,33).ReusedSelection);
+    }
+
+    [Fact]
+    public void StableFastPathStillValidatesCancellationSourceCacheAndArguments()
+    {
+        var source = new WaterLodSource(3,100,Roots());
+        var stable = Settle(source);
+        using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
+        Assert.Throws<OperationCanceledException>(()=>source.Select(View(),stable,7,.06,.04,4000,32,cancellation.Token));
+        Assert.Throws<ArgumentOutOfRangeException>(()=>Select(source,stable,quota:0));
+        Assert.Throws<ArgumentNullException>(()=>source.Select(null!,stable,7,.06,.04,4000,32));
+        var other = new WaterLodSource(3,100,Roots());
+        Assert.Throws<ArgumentException>(()=>Select(other,stable));
+        Assert.Throws<ArgumentException>(()=>source.Select(View(),stable,7,.06,.04,4000,32,
+            evaluationCache:other.CreateEvaluationCache(View(),null)));
+        Assert.Throws<ArgumentException>(()=>source.Select(View(),stable,7,.06,.04,4000,32,
+            evaluationCache:source.CreateEvaluationCache(View(121),null)));
+        var cache = source.CreateEvaluationCache(View(),null);
+        var q = new SurfaceQuad(new(100,0,0),new(100,1,0),new(100,1,1),new(100,0,1));
+        cache.Geometry.Record(TileId.FromFaceLevelUV(0,3,4,4),q);
+        Assert.False(source.Select(View(),stable,7,.06,.04,4000,32,evaluationCache:cache).ReusedSelection);
+        Assert.True(Select(source,stable).ReusedSelection);
+    }
+
+    [Fact]
+    public void ReusedCoverageAndIndependentResolversRemainImmutableAcrossThreads()
+    {
+        var source = new WaterLodSource(3,100,Roots());
+        var stable = Settle(source);
+        var saved = stable.Leaves.ToArray();
+        var expected = source.Select(View(),stable,7,.06,.04,4000,32,reuseStableSelection:false);
+        var resolver = expected.CreateCornerResolver();
+        var corners = expected.Leaves.Select(t=>
+        {
+            t.GetUV(out uint u,out uint v); return resolver.Corner(t.Face,t.Level,u,v);
+        }).ToArray();
+        Parallel.For(0,4,_=>
+        {
+            var reused = Select(source,stable);
+            Assert.True(reused.ReusedSelection);
+            var actual = reused.CreateCornerResolver();
+            for (int i=0;i<saved.Length;i++)
+            {
+                var t=saved[i];t.GetUV(out uint u,out uint v);
+                var p=actual.Corner(t.Face,t.Level,u,v);
+                Assert.Equal(corners[i].X,p.X); Assert.Equal(corners[i].Y,p.Y); Assert.Equal(corners[i].Z,p.Z);
+            }
+        });
+        Assert.Equal(saved,stable.Leaves);
+    }
+
+    [Fact]
+    public void MovingWaterCachePreservesSelectionsAndCannotCrossWorlds()
+    {
+        var source = new WaterLodSource(3,100,Roots());
+        LodTerrainEvaluationCache? cache = null;
+        WaterLodSelection? previous = null;
+        foreach (double distance in new[] {180.0,150,120,110,125,180,300})
+        {
+            var view = View(distance);
+            var old = cache;
+            cache = source.CreateEvaluationCache(view,cache);
+            if (old != null) Assert.Same(old.Geometry,cache.Geometry);
+            Assert.Same(cache,source.CreateEvaluationCache(view,cache));
+            var expected = source.Select(view,previous,7,.06,.04,4000,32);
+            var actual = source.Select(view,previous,7,.06,.04,4000,32,evaluationCache:cache);
+            Assert.Equal(expected.Leaves,actual.Leaves);
+            Assert.Equal(expected.ReplacedRoots,actual.ReplacedRoots);
+            Assert.Equal(expected.NewSplits,actual.NewSplits);
+            Assert.Equal(expected.DeferredSplits,actual.DeferredSplits);
+            previous = actual;
+        }
+        var other = new WaterLodSource(3,100,Roots());
+        Assert.NotSame(cache!.Geometry,other.CreateEvaluationCache(View(),cache).Geometry);
+        Assert.Throws<ArgumentException>(()=>other.Select(View(),null,7,.06,.04,4000,32,evaluationCache:cache));
+        Assert.Throws<ArgumentException>(()=>source.Select(View(130),null,7,.06,.04,4000,32,evaluationCache:cache));
+    }
+
+    [Theory]
+    [InlineData(0)] [InlineData(1)] [InlineData(1.5)] [InlineData(double.NaN)] [InlineData(double.PositiveInfinity)]
+    public void InspectorHysteresisAlwaysProducesAValidWaterRequest(double factor)
+    {
+        var source = new WaterLodSource(3,100,Roots());
+        double merge = AdaptiveViewState.MergeThreshold(.06,factor);
+        Assert.InRange(merge,double.Epsilon,.06-double.Epsilon);
+        Assert.True(merge < .06);
+        Assert.NotEmpty(source.Select(View(),null,7,.06,merge,4000,32).Leaves);
+    }
+
     private static TileId[] Roots(int level=3) =>
         (from face in Enumerable.Range(0,6)
          from u in Enumerable.Range(0,1<<level)
