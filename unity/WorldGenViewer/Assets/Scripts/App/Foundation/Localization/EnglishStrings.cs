@@ -82,6 +82,36 @@ namespace WorldGen.App.Localization
             ["worldCreation.error.parameterOutOfRange"] = "The value is outside the allowed range.",
             ["worldCreation.error.parameterInvalid"] = "The value is not valid.",
             ["worldCreation.error.unknownPreset"] = "Unknown preset.",
+            ["worldCreation.error.nameInvalid"] = "The world name contains invalid characters.",
+
+            ["preset.earthLike"] = "Earth-like",
+            ["preset.oceanWorld"] = "Ocean World",
+            ["preset.dryWorld"] = "Dry World",
+            ["preset.highGravity"] = "High Gravity",
+            ["preset.lowGravity"] = "Low Gravity",
+            ["preset.geologicallyActive"] = "Geologically Active",
+            ["preset.random"] = "Random",
+            ["preset.custom"] = "Custom",
+
+            ["loading.crust"] = "Generating planetary crust...",
+            ["loading.plates"] = "Building tectonic plates...",
+            ["loading.climate"] = "Calculating climate...",
+            ["loading.oceans"] = "Generating oceans...",
+            ["loading.renderer"] = "Preparing renderer...",
+
+            ["profile.planet"] = "Planet",
+            ["profile.seed"] = "Seed",
+            ["profile.age"] = "Age",
+            ["profile.radius"] = "Radius",
+            ["profile.mass"] = "Mass",
+            ["profile.gravity"] = "Surface Gravity",
+            ["profile.oceanCoverage"] = "Ocean Coverage",
+            ["profile.meanTemperature"] = "Mean Temperature",
+            ["profile.pressure"] = "Atmospheric Pressure",
+            ["profile.continents"] = "Continents",
+            ["profile.plates"] = "Tectonic Plates",
+            ["profile.tectonicActivity"] = "Tectonic Activity",
+            ["unit.earthMasses"] = "Earth",
         };
 
         public static LocalizationTable CreateTable()
