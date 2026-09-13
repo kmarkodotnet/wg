@@ -287,3 +287,31 @@ data[]            a szekciók nyers bájtjai, a táblázat sorrendjében
 | 5 | Szimulációs állapot szerializálása | Core checkpoint API (ND-101 említi) vagy „seed + paraméter + idő újraszámolás”. Javaslat: először az utóbbi (olcsó, a determinizmus miatt helyes), checkpoint később gyorsításnak | **igen, a Save C réteghez** |
 | 6 | Simulation Quality jelentése | Core-döntés, seed-törő lehet; a mentés tárolja | nem (Foundation kész) |
 | 7 | Deep Time és a Loading állapot | teljes rebuild → Loading állapot vagy háttérfolyamat a Simulationben toasttal. Javaslat: 2,8 s-os rebuildnél Simulationben marad, progress-sávval | nem |
+| 8 | UI-technológia (WF-UI-009) | UI Toolkit / uGUI+TMP / a mostani IMGUI. Javaslat: UI Toolkit a menürendszerhez; új ND a U réteg előtt | **igen, a U réteghez** |
+
+## 14. Megvalósított állapot (2026-09-13)
+
+A Foundation (F réteg) teljes a fenti §1 modultérkép szerint; **378 xUnit-teszt**
+fut Unity nélkül (`tests/WorldGen.App.Foundation.Tests`), a netstandard2.1 / C# 9
+fordítási kapu 0 warninggal. Unity-ben még nem volt megnyitva: a `.meta` fájlokat
+a Unity az első importkor generálja, és azokat is commitolni kell.
+
+Eltérések / pontosítások a fenti tervhez képest:
+
+- `SaveHeader` kapott egy tartós `WorldId`-t (az autosave-rotáció kulcsa, Save As
+  után is azonos) és egy szabad `extensions` objektumot (kamera, overlay-állapot).
+- `SeedCodec`: a negatív decimális bemenet (`SignedDecimal`) bitre azonos `ulong`-ra
+  képződik, mert a viewer ma `long worldSeed`-et használ. A 64 bitnél nagyobb
+  decimális szám szövegként hash-elődik (nem hiba).
+- A betöltött settings-fájl újabb verziónál az első felülírás előtt
+  `settings.v{N}.json` másolatot kap; sérült fájl `settings.corrupt-<idő>.json`-ként marad meg.
+- A konfiguráció-import a tartományon kívüli értéket **nem** igazítja: az űrlap
+  validációja mutatja meg (nincs csendes módosítás).
+- Referencia-ellenőrzés: CRC-32 a Python `zlib.crc32` ellen; az FNV-1a 64
+  prímje és offset basise a definícióból (2^40 + 2^8 + 0xb3; FNV-0 az aláírás-stringen)
+  Pythonban levezetve, a tesztvektorok onnan.
+
+Következő (U réteg, a Core-tól függetlenül): ND a UI-technológiáról → Bootstrap
+scene + `AppBootstrap` kompozíciós gyökér → Settings képernyő (Graphics/Audio
+alkalmazása) → Main Menu. A `PlanetView` átemelése a WorldSimulation scene-be
+az első olyan lépés, ami meglévő viewer-kódhoz ér.
