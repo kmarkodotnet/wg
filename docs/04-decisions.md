@@ -4196,8 +4196,8 @@ vízforrás és az előző eredmény mellett explicit újrahasználatot vezetün
 ### ND-105 — Az alkalmazásréteg (App Shell) helye és függetlensége
 
 **2026-09-13. Megvalósítva (Foundation-rész).** Részletek:
-`docs/09-app-shell-architecture.md`. Az ND-105–109 blokk az app-rétegé;
-a párhuzamos Core-munka a következő szabad számtól (ND-110) folytassa.
+`docs/09-app-shell-architecture.md`. **Az ND-105–114 blokk az app-rétegé**
+(2026-09-13-án ND-105–109-ről bővítve); a párhuzamos Core-munka ND-115-től folytassa.
 
 **Döntés:** a motor- és Core-független alkalmazáslogika (állapotgép, session,
 settings, mentési konténer, UI-modellek, hang-matek) a
@@ -4262,6 +4262,57 @@ paraméterek újra felhasználhatók, az állapot nem töltődik).
 Határ: a szimulációba csak explicit, tárolt érték lép be (seed, paraméterek,
 szimulációs idő). A véletlen preset is konkrét értékeket sorsol, amik a
 kérésbe és a mentésbe kerülnek.
+
+### ND-110 — A menürendszer UI-technológiája (NYITOTT)
+
+**2026-09-13, nyitott, a menü-, settings-, dialog- és toast-NÉZETEK előfeltétele.**
+A modellek (Foundation) és a Unity-kötés nem-UI része nélküle is elkészült.
+
+A viewer ma kétféle UI-t használ: IMGUI (`PlanetGridMesh.DrawNavigationPanel`)
+és Canvas + TextMeshPro (`WorldGenPanelUI`).
+
+| Opció | Előny | Hátrány |
+|---|---|---|
+| **A: UI Toolkit (javaslat)** | stíluslap (USS), felbontás- és UI-scale-kezelés beépítve, billentyű-/egérnavigáció, jól illeszkedik a modell/nézet szétválasztáshoz | új technológia a projektben; world-space UI-ra gyengébb (itt nem kell) |
+| B: uGUI + TextMeshPro | a projektben már van; sok minta | prefab-alapú, a skálázás és a navigáció több kézi munka |
+| C: IMGUI | a navigációs panel már ilyen | kiadható menürendszerhez nem ajánlott (stílus, akadálymentesség, teljesítmény) |
+
+**Döntés kell a felhasználótól** (vizuális nyelv és karbantartás miatt).
+
+### ND-111 — Kiadási identitás és alkalmazásverzió (RÉSZBEN NYITOTT)
+
+**2026-09-13.**
+
+- **Megvalósítva:** az alkalmazásverzió és a kiadási identitás egyetlen fájlban
+  él: `tools/release/release-identity.json` (termék- és cégnév, SemVer
+  `0.1.0-alpha`). A repo-gyökér `VERSION` fájl emberi checkpoint marad
+  (a saját leírása szerint nem kiadási verzió), ezért NEM ebből jön az app-verzió.
+  A build-script az identitást csak a build idejére állítja be a
+  PlayerSettings-ben, utána visszaállítja (a ProjectSettings nem lesz koszos),
+  és `StreamingAssets/build-info.json`-t ír a futásidejű `BuildInfo`-hoz.
+- **Nyitott, felhasználói döntés:** a végleges **terméknév** és **cégnév**. Ez nem
+  kozmetika: a Unity `persistentDataPath` (`%USERPROFILE%\AppData\LocalLow\<Company>\<Product>`)
+  ebből képződik, tehát az első kiadás után a módosítása a mentések és beállítások
+  „eltűnését” okozza (migráció nélkül). Jelenleg `WorldGen` / `WorldGen`
+  helyőrzővel. A mostani `ProjectSettings` értékei (`Unity Technologies` /
+  `com.unity.template.hdrp-blank`) a sablonból maradtak.
+- Ikon és splash screen: asset kell a felhasználótól.
+
+### ND-112 — Windows-csomagolás: portable ZIP és Inno Setup
+
+**2026-09-13. Megvalósítva (scriptek), a telepítő fordítása Inno Setup 6
+telepítését igényli.**
+
+- Portable: `tools/release/package-portable.ps1` →
+  `WorldGen-<verzió>-win64.zip`, a Unity „DoNotShip” / „DontShip” mappái nélkül.
+- Telepítő: `tools/release/WorldGen.iss` (Inno Setup 6). Az `AppId` GUID
+  **rögzített, soha nem változhat** (különben a frissítés nem ismeri fel a
+  meglévő telepítést). Alapértelmezett könyvtár `{autopf}\WorldGen`, Start
+  menü, opcionális asztali ikon, indítás a telepítés végén.
+- Uninstall: a felhasználói adat a `LocalLow` alatt van, a telepítési
+  könyvtáron kívül, így alapból megmarad. Egy kérdés (alapértelmezett: **Nem**)
+  felajánlja a mentések, beállítások, képernyőképek és naplók törlését (WF-INSTALL-002).
+- Alternatíva: MSI (WiX). Elvetve az MVP-hez, mert az Inno egyszerűbb, és a roadmap is ezt javasolja.
 
 ### A többi nyitott döntés
 

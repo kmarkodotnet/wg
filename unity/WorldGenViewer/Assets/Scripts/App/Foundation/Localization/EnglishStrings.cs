@@ -112,6 +112,33 @@ namespace WorldGen.App.Localization
             ["profile.plates"] = "Tectonic Plates",
             ["profile.tectonicActivity"] = "Tectonic Activity",
             ["unit.earthMasses"] = "Earth",
+
+            ["dialog.error.title"] = "Unexpected Error",
+            ["dialog.error.message"] = "Something went wrong. You can keep using WorldGen; details were written to the log folder.",
+
+            ["input.back"] = "Back / Pause Menu",
+            ["input.screenshot"] = "Screenshot",
+            ["input.screenshotClean"] = "Screenshot without UI",
+            ["input.quickSave"] = "Quick Save",
+            ["input.quickLoad"] = "Quick Load",
+            ["input.help"] = "Help",
+            ["input.toggleDebugOverlay"] = "Debug Overlay",
+
+            ["help.controls.title"] = "Controls",
+            ["help.controls.camera.heading"] = "Camera",
+            ["help.controls.camera.body"] = "Drag with the left mouse button to orbit the planet.\nUse the mouse wheel to zoom in and out.\nDragging or zooming cancels an automatic camera flight.",
+            ["help.controls.navigation.heading"] = "Navigation",
+            ["help.controls.navigation.body"] = "Use the navigation panel to fly to a continent, region or area. Back returns one level up.",
+            ["help.controls.keys.heading"] = "Keyboard",
+            ["help.controls.keys.body"] = "{0}",
+
+            ["help.deepTime.title"] = "Deep Time",
+            ["help.deepTime.what.heading"] = "What is Deep Time?",
+            ["help.deepTime.what.body"] = "Deep Time moves the planet through geological time, from its formation up to one billion years. Plates drift, mountains rise and the sea level changes as the continents move.",
+            ["help.deepTime.determinism.heading"] = "Reproducibility",
+            ["help.deepTime.determinism.body"] = "The same seed, parameters and generator version always produce exactly the same planet at the same moment, on every computer. Jumping directly to a time gives the same result as stepping there gradually.",
+            ["help.deepTime.approximation.heading"] = "Simplifications",
+            ["help.deepTime.approximation.body"] = "Some processes are simplified: erosion, glaciation and some geological events are modeled only partially, so the planet is plausible rather than an exact replica of Earth's history.",
         };
 
         public static LocalizationTable CreateTable()
