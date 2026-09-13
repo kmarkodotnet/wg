@@ -359,8 +359,20 @@ mappa kimarad), `WorldGen.iss` + `build-installer.ps1` (Inno Setup nincs telepí
 **nem fordítva**, csak a hibaágak ellenőrizve), `README.md`. QA-lista:
 `docs/app_base_features/release-qa-checklist.md`.
 
+**Nézetmodellek (UI-technológiától függetlenül, ND-110 előtt):**
+`Settings/SettingsScreenModel` (mind a 28 beállítás leírója; teszt kényszeríti, hogy
+minden opció pontosan a saját kategóriáját módosítja), `Saves/SaveSlotRows` (Load World
+sorok). Licenc-vázlat: `tools/release/THIRD-PARTY-NOTICES.md` (jogi átnézés kell).
+
 **Ellenőrzés:** `tests/WorldGen.App.UnityBinding.Compile` a helyi Unity 6000.0.77f1
 DLL-jei ellen hibák és warningok nélkül fordul. Ez nem a Unity saját fordítása.
+
+**Tanulság (2026-09-13):** a futó Editor első importja CS0103 hibát adott
+(`ScreenCapture`), mert a projektben nincs bekapcsolva a ScreenCapture beépített
+modul, az offline kapu viszont hivatkozta a DLL-jét. Javítva (`abdfa7a`,
+`ReadPixels`); a kapu azóta csak a projektben ténylegesen elérhető modulokat
+hivatkozza (a Unity `Library/Bee/.../*.rsp` referencialistájával ellenőrizve).
+A javítás élő Unity-újrafordítása a szerkesztő következő frissítésekor igazolható.
 
 Megfigyelések a Unity-projektről, amikhez a kiadás előtt döntés kell:
 

@@ -168,3 +168,5 @@ Részletek: `docs/09-app-shell-architecture.md` §15.
 | WF-BUILD-002 | portable ZIP-script kész, kamu buildön kipróbálva |
 | WF-INSTALL-001/002 | Inno-script kész, **Inno Setup telepítése kell a fordításhoz** |
 | WF-QA-001…003 | ellenőrzőlista kész: `release-qa-checklist.md` |
+| Settings / Load World nézetek | a nézetmodellek készek (`SettingsScreenModel`, `SaveSlotRows`); maguk a nézetek ND-110-re várnak |
+| Credits / licencek | vázlat: `tools/release/THIRD-PARTY-NOTICES.md`, **jogi átnézés és a Random123-attribúció tisztázása kell** |
