@@ -11,6 +11,11 @@
     Másik Unity-verziónál: -p:UnityEditorDir="...\Editor\Data".
     Ez NEM helyettesíti a Unity saját fordítását (asmdef-szabályok, define-ok),
     csak az API-használat és a C# 9 / netstandard2.1 hibáit fogja meg korán.
+
+    CSAK a projektben bekapcsolt beépített modulok DLL-jeit hivatkozd (a
+    Packages/manifest.json és a Package Manager "Built-in" listája szerint)!
+    2026-09-13: a ScreenCaptureModule itt hivatkozva volt, a projektben nem -
+    az offline kapu átment, a Unity-fordítás elbukott.
   -->
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
@@ -38,7 +43,6 @@
   <ItemGroup>
     <Reference Include="UnityEngine.CoreModule" HintPath="$(UnityEngineDir)\UnityEngine.CoreModule.dll" Private="false" />
     <Reference Include="UnityEngine.AudioModule" HintPath="$(UnityEngineDir)\UnityEngine.AudioModule.dll" Private="false" />
-    <Reference Include="UnityEngine.ScreenCaptureModule" HintPath="$(UnityEngineDir)\UnityEngine.ScreenCaptureModule.dll" Private="false" />
     <Reference Include="UnityEngine.ImageConversionModule" HintPath="$(UnityEngineDir)\UnityEngine.ImageConversionModule.dll" Private="false" />
     <Reference Include="UnityEngine.IMGUIModule" HintPath="$(UnityEngineDir)\UnityEngine.IMGUIModule.dll" Private="false" />
     <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(UnityEngineDir)\UnityEngine.InputLegacyModule.dll" Private="false" />

@@ -59,7 +59,14 @@ namespace WorldGen.App.UnityBinding
             Texture2D? texture = null;
             try
             {
-                texture = ScreenCapture.CaptureScreenshotAsTexture(request.SuperSize);
+                // A projektben a ScreenCapture beépített modul nincs bekapcsolva, ezért a frame
+                // végén a back bufferből olvasunk (CoreModule). A SuperSize > 1 ehhez a modul
+                // bekapcsolása vagy kamerás RenderTexture-render kellene; addig natív felbontás.
+                int width = Screen.width;
+                int height = Screen.height;
+                texture = new Texture2D(width, height, TextureFormat.RGB24, false);
+                texture.ReadPixels(new Rect(0, 0, width, height), 0, 0, false);
+                texture.Apply(false);
                 byte[] png = texture.EncodeToPNG();
                 Directory.CreateDirectory(_directory);
                 string path = ScreenshotNaming.CreateUniquePath(_directory, DateTime.Now, !request.IncludeUi, File.Exists);
