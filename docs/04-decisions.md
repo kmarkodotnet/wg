@@ -4193,6 +4193,76 @@ vízforrás és az előző eredmény mellett explicit újrahasználatot vezetün
   álló/módosuló nézetes regresszió igazolja a változatlan fedést. Ez csak a
   vízkiválasztás költségét csökkenti; nem teljes FPS- vagy vizuális igazolás.
 
+### ND-105 — Az alkalmazásréteg (App Shell) helye és függetlensége
+
+**2026-09-13. Megvalósítva (Foundation-rész).** Részletek:
+`docs/09-app-shell-architecture.md`. Az ND-105–109 blokk az app-rétegé;
+a párhuzamos Core-munka a következő szabad számtól (ND-110) folytassa.
+
+**Döntés:** a motor- és Core-független alkalmazáslogika (állapotgép, session,
+settings, mentési konténer, UI-modellek, hang-matek) a
+`unity/WorldGenViewer/Assets/Scripts/App/Foundation/` alatt él,
+`WorldGen.App.Foundation` asmdef-fel (`noEngineReferences: true`, **nincs
+`WorldGen.Core` referencia**). Fordítási kapu: `tests/WorldGen.App.Foundation.Compile`
+(netstandard2.1, C# 9, linkelt forrás), tesztek: `tests/WorldGen.App.Foundation.Tests`.
+
+| Opció | Előny | Hátrány |
+|---|---|---|
+| **A: Unity Assets + noEngineReferences asmdef (választott)** | a viewer-LOD bevált mintája; Unity azonnal látja | a csproj a forrástól külön mappában |
+| B: `src/WorldGen.App` package | szimmetrikus a Core-ral | a `src/` a determinisztikus mag helye (CLAUDE.md), manifest-módosítás |
+
+**Verziózás:** nem seed-törő, szimulációt nem érint.
+
+### ND-106 — Saját minimál JSON az alkalmazásrétegben
+
+**2026-09-13. Megvalósítva.** A Unity alatt nincs `System.Text.Json`, a
+`JsonUtility` motorfüggő és nem kezeli a szótárakat, verziómigrációt.
+Döntés: saját, szigorú RFC 8259 parser/writer (`WorldGen.App.Serialization`),
+mélységkorláttal, pozíciós hibával; a szám eredeti szövegként is megmarad
+(64 bites seed pontosan). Alternatíva: `com.unity.nuget.newtonsoft-json`
+— elvetve, mert a Foundation így külső csomag nélkül, dotnet alatt is
+tesztelhető.
+
+### ND-107 — Mentési konténer, szöveges seed-leképezés
+
+**2026-09-13. Megvalósítva (Foundation), a szekciók tartalma Core-függő.**
+
+- Konténer: `WGSV` magic, u16 konténerverzió, UTF-8 JSON fejléc CRC32-vel,
+  szekciótábla (név, hossz, CRC32), nyers szekcióadatok. Little-endian.
+  A betöltési lista csak a fejlécet olvassa. Alternatíva: ZIP — elvetve
+  (lassabb fejléc-only listázás, nagyobb felület).
+- Atomi írás: ideiglenes fájl → flush lemezre → replace, előző változat `.bak`.
+- A szöveges seed (nem szám) → **FNV-1a 64** az UTF-8 bájtokon, normalizálás
+  nélkül. Ez stabil szerződés (megosztott szöveges seedek); módosítása
+  verzióemelés. A decimális és a `0x` hex seed változatlanul az `ulong` érték.
+
+### ND-108 — Generátorverzió a mentés kompatibilitásához (NYITOTT)
+
+**2026-09-13, nyitott, a Save Core-kötését blokkolja.**
+
+A mentés fejlécébe `worldGeneratorVersion` kerül. A Core-ban ma nincs ilyen
+azonosító (a `VERSION` fájl emberi checkpoint; a spec
+generator/simulation/schema verziói nem implementáltak).
+
+| Opció | Leírás |
+|---|---|
+| **A (javaslat)** | Core-konstans `WorldGeneratorVersion` (egész vagy SemVer), minden seed-törő ND-nél emelve |
+| B | A spec hármasa (generator / simulation / schema) külön mezőként |
+| C | `WorldStateHash` egy kanonikus seedre, mint ujjlenyomat (automatikus, de drága és nem mond migrálhatóságot) |
+
+Amíg nincs döntés: generátor-eltérés → `ConfigurationOnly` (a seed és a
+paraméterek újra felhasználhatók, az állapot nem töltődik).
+
+### ND-109 — Nem determinisztikus API-k az alkalmazásrétegben
+
+**2026-09-13. Megvalósítva.** A CLAUDE.md lebegőpontos és véletlen-tiltásai a
+**szimulációs kritikus útra** vonatkoznak. Az app-réteg használhat
+`DateTime`-ot (injektált `IClock`), `Guid`-ot (ideiglenes fájlnév),
+`Math.Log10`-et (hangerő-dB) és kriptográfiai entrópiát (új seed sorsolása).
+Határ: a szimulációba csak explicit, tárolt érték lép be (seed, paraméterek,
+szimulációs idő). A véletlen preset is konkrét értékeket sorsol, amik a
+kérésbe és a mentésbe kerülnek.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Forditasi kapu az alkalmazasreteg Foundation-reszehez (ND-105).
+    A forras a Unity-projektben el
+    (unity/WorldGenViewer/Assets/Scripts/App/Foundation/, asmdef:
+    noEngineReferences=true, NINCS WorldGen.Core-referencia), ez a projekt
+    LINKKENT veszi fel, egyetlen igazsagforrassal - ugyanaz a minta, mint a
+    viewer LOD-tesztjeinel.
+
+    netstandard2.1 + C# 9 szandekos: ez garantalja, hogy a kod Unity 6 alatt
+    is fordul (a teszprojekt net8.0 API-jai itt nem szivarognak be).
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>WorldGen.App.Foundation</AssemblyName>
+    <RootNamespace>WorldGen.App</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/App/Foundation/**/*.cs" LinkBase="Source" />
+  </ItemGroup>
+
+</Project>
