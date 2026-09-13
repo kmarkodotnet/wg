@@ -1,0 +1,16 @@
+{
+  "name": "WorldGen.App.UnityBinding",
+  "rootNamespace": "WorldGen.App.UnityBinding",
+  "references": [
+    "WorldGen.App.Foundation"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -1,0 +1,18 @@
+{
+  "name": "WorldGen.App.EditorTools",
+  "rootNamespace": "WorldGen.App.EditorTools",
+  "references": [
+    "WorldGen.App.Foundation"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

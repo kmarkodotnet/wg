@@ -315,3 +315,55 @@ Következő (U réteg, a Core-tól függetlenül): ND a UI-technológiáról →
 scene + `AppBootstrap` kompozíciós gyökér → Settings képernyő (Graphics/Audio
 alkalmazása) → Main Menu. A `PlanetView` átemelése a WorldSimulation scene-be
 az első olyan lépés, ami meglévő viewer-kódhoz ér.
+
+## 15. Megvalósított állapot — 2. kör (2026-09-13)
+
+**Foundation-bővítés** (433 teszt összesen):
+
+- `Flow/AppFlowController`: a menüakciók, megerősítések, állapotváltások,
+  session-határok, mentéskérések, autosave és kilépés egyetlen helye. Maga nem
+  generál és nem ment: eseményt küld (`NewWorldRequested`, `LoadRequested`,
+  `SaveRequested`, `QuitRequested`), és `Notify…` hívásokkal kapja vissza az
+  eredményt. Az ablak bezárása (`Application.wantsToQuit`) csak nem mentett
+  haladásnál kérdez. `WorldSessionHostSlot`: ide köti be később a Core-kötés a
+  valódi világot; cél nélkül nincs menthető állapot.
+- `Controls/KeyBindingMap`: alapkiosztás (Esc fix, F12, Shift+F12, F5, F9, F1, F3),
+  ütközésmentes átállítás, tűrő JSON (`Settings/keybindings.json`).
+- `Diagnostics/ExceptionThrottle`, `ErrorReport`, `DebugOverlayText`.
+- `Help/HelpPages`: Controls (a viewer tényleges egérvezérléséből és az aktuális
+  kiosztásból) és Deep Time. **A Deep Time szövegét a felhasználónak át kell néznie**
+  (a spec és a döntések alapján írtam, nem futó modellből mérve).
+- `Settings/QualityLevelMapper`: a HDRP-sablon 3 szintje („High Fidelity”,
+  „Balanced”, „Performant”, csökkenő sorrendben) ↔ 4 fokozat, név alapján.
+- `Versioning/BuildInfoCodec`, `ReleaseIdentity` (ND-111).
+
+**Unity-kötés** (`Assets/Scripts/App/UnityBinding/`, asmdef: `WorldGen.App.UnityBinding`),
+**scene-be kötés nélkül**:
+
+| Fájl | Tartalom |
+|---|---|
+| `AppBootstrap` | kompozíciós gyökér: user-data, napló (fájl + memória, 10 fájl megőrzése), rendszerinfó, Unity log-híd, settings betöltése és alkalmazása, állapotgép, dialog, toast, ESC-router, autosave, mentéslista, flow, billentyűk, videó-rollback dialógussal, screenshot, scene-flow, fókusz, kilépés, F3 debug overlay (IMGUI, fejlesztői eszköz) |
+| `UnityLogBridge` | `logMessageReceivedThreaded` → `AppLogger`, kivétel-ritkítás, egyszeri értesítés |
+| `UnityEnvironment` | `SystemInfo` → riport; `StreamingAssets/build-info.json` vagy Development-verzió |
+| `SettingsAppliers` | Screen / QualitySettings / vSync / targetFrameRate; AudioMixer exponált paraméterek (mixer nélkül `AudioListener.volume`) |
+| `UnityScreenshotService` | frame végi capture, atomi PNG; `IUiVisibility` a UI nélküli képhez (a viewer UI-ja még nem valósítja meg) |
+| `SceneFlow` | additív tartalom-scene csere a persistent Bootstrap mellett |
+| `AudioPlayers` | `AudioClipLibrary` ScriptableObject, `MusicPlayer` (két réteg), `UiSoundPlayer` |
+| `KeyBindingInput` | `KeyChord` → legacy Input, pontos módosító-egyezéssel |
+
+**Editor** (`Assets/Scripts/App/EditorTools/`): `WorldGenBuild` — menü és
+`-executeMethod` Windows x64 Release build; az identitás csak a build idejére kerül a
+PlayerSettings-be. **Kiadás** (`tools/release/`): `release-identity.json`,
+`package-portable.ps1` (egy kamu build-mappán kipróbálva: ZIP + SHA-256, a DoNotShip
+mappa kimarad), `WorldGen.iss` + `build-installer.ps1` (Inno Setup nincs telepítve,
+**nem fordítva**, csak a hibaágak ellenőrizve), `README.md`. QA-lista:
+`docs/app_base_features/release-qa-checklist.md`.
+
+**Ellenőrzés:** `tests/WorldGen.App.UnityBinding.Compile` a helyi Unity 6000.0.77f1
+DLL-jei ellen hibák és warningok nélkül fordul. Ez nem a Unity saját fordítása.
+
+Megfigyelések a Unity-projektről, amikhez a kiadás előtt döntés kell:
+
+- `EditorBuildSettings` scene-listája üres → a build a `fallbackScenes`-t használja.
+- `ProjectSettings`: `companyName: Unity Technologies`, `productName: com.unity.template.hdrp-blank`,
+  `runInBackground: 0` (a Bootstrap futásidőben igazra állítja), `resizableWindow: 0`.

@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    OFFLINE fordítási kapu a Unity-kötéshez (App/UnityBinding) és az Editor
+    build-scripthez (App/EditorTools), Unity Editor megnyitása nélkül.
+    A helyi Unity-telepítés Managed DLL-jei ellen fordít, ezért NINCS a
+    WorldGen.sln-ben (a CI-gépeken nincs Unity). Kézi futtatás:
+
+      dotnet build tests/WorldGen.App.UnityBinding.Compile
+
+    Másik Unity-verziónál: -p:UnityEditorDir="...\Editor\Data".
+    Ez NEM helyettesíti a Unity saját fordítását (asmdef-szabályok, define-ok),
+    csak az API-használat és a C# 9 / netstandard2.1 hibáit fogja meg korán.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>WorldGen.App.UnityBinding.CompileCheck</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <UnityEditorDir Condition="'$(UnityEditorDir)' == ''">C:\Program Files\Unity\Hub\Editor\6000.0.77f1\Editor\Data</UnityEditorDir>
+    <UnityEngineDir>$(UnityEditorDir)\Managed\UnityEngine</UnityEngineDir>
+  </PropertyGroup>
+
+  <Target Name="WorldGenCheckUnityInstall" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(UnityEngineDir)\UnityEngine.CoreModule.dll')"
+           Text="Unity nem található: $(UnityEditorDir). Add meg: -p:UnityEditorDir=..." />
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="../WorldGen.App.Foundation.Compile/WorldGen.App.Foundation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/App/UnityBinding/**/*.cs" LinkBase="UnityBinding" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/App/EditorTools/**/*.cs" LinkBase="EditorTools" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(UnityEngineDir)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.AudioModule" HintPath="$(UnityEngineDir)\UnityEngine.AudioModule.dll" Private="false" />
+    <Reference Include="UnityEngine.ScreenCaptureModule" HintPath="$(UnityEngineDir)\UnityEngine.ScreenCaptureModule.dll" Private="false" />
+    <Reference Include="UnityEngine.ImageConversionModule" HintPath="$(UnityEngineDir)\UnityEngine.ImageConversionModule.dll" Private="false" />
+    <Reference Include="UnityEngine.IMGUIModule" HintPath="$(UnityEngineDir)\UnityEngine.IMGUIModule.dll" Private="false" />
+    <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(UnityEngineDir)\UnityEngine.InputLegacyModule.dll" Private="false" />
+    <Reference Include="UnityEditor.CoreModule" HintPath="$(UnityEngineDir)\UnityEditor.CoreModule.dll" Private="false" />
+  </ItemGroup>
+
+</Project>

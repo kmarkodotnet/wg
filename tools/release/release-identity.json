@@ -1,0 +1,11 @@
+{
+  "format": "worldgen.release-identity",
+  "formatVersion": 1,
+  "productName": "WorldGen",
+  "companyName": "WorldGen",
+  "executableName": "WorldGen",
+  "version": "0.1.0-alpha",
+  "fallbackScenes": [
+    "Assets/PlanetView.unity"
+  ]
+}

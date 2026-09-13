@@ -144,3 +144,27 @@ Változatlan sorrendben: **Release Identity** (WF-REL-001) → **Windows Build**
 2. `Bootstrap` scene + `AppBootstrap` kompozíciós gyökér: registry, logger, settings betöltése, állapotgép.
 3. Settings képernyő + Graphics / Audio alkalmazása.
 4. Main Menu nézet és a meglévő `PlanetView` átemelése `WorldSimulation` scene-be. **Ez az első olyan lépés, ami meglévő viewer-kódhoz ér**, ezért egyeztessük a Core-munkáddal, hogy ne ütközzön.
+
+---
+
+## Állapotfrissítés — 2. kör (2026-09-13)
+
+Részletek: `docs/09-app-shell-architecture.md` §15.
+
+| Terület | Új állapot |
+|---|---|
+| WF-APP-001/002/003 | U-kód kész (`AppBootstrap`, `SceneFlow`), **scene-ek még nincsenek**, nincs bekötve |
+| WF-UI-001/006, WF-SAVE-002/004 flow | F kész: `AppFlowController` (433 teszt a Foundationben) |
+| WF-UI-008 ESC | F + U kész (`KeyBindingInput`, Bootstrap) |
+| WF-UI-009 | **ND-110, felhasználói döntés** |
+| WF-SET-002/004/006 alkalmazás | U kész (`UnityGraphicsApplier`, `UnityAudioApplier`, fókusz) — az AudioMixer asset hiányzik |
+| WF-SET-005 kiosztás | F kész (`KeyBindingMap`); rebinding UI: ND-110 után |
+| WF-AUDIO-002/003/004 | U kész (`MusicPlayer`, `UiSoundPlayer`) — **hangfájlok és licencük hiányzik** |
+| WF-HELP-001/003 | F kész; a Deep Time szöveg felhasználói átnézést igényel |
+| WF-SHOT-001/002 | U kész; a UI nélküli kép a viewer UI `IUiVisibility`-bekötésére vár |
+| WF-DIAG-001/002 | U kész (napló, log-híd, hibaritkítás, F3 overlay) |
+| WF-REL-001/002 | identitásfájl + build-info kész; **végleges név/cég, ikon, splash: ND-111, felhasználó** |
+| WF-BUILD-001 | build-script kész, élő Unity-build még nem futott |
+| WF-BUILD-002 | portable ZIP-script kész, kamu buildön kipróbálva |
+| WF-INSTALL-001/002 | Inno-script kész, **Inno Setup telepítése kell a fordításhoz** |
+| WF-QA-001…003 | ellenőrzőlista kész: `release-qa-checklist.md` |
