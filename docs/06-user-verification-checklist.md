@@ -1494,3 +1494,48 @@ részletek a `docs/backlog.md`-ben:
   tengerszint kövesse a térfogat-alapú számítást.
 - **Eljegesedés-ciklus** — a pólusi jégtakaró változzon a `deepTimeMyr`
   csúszkával periodikusan.
+
+---
+
+## 15. Pillanatnyi hőmérséklet-overlay (ND-100–104, 2026-09-13)
+
+**Mit módosítottam:** új Core hőmodell (`src/WorldGen.Core/Climate/`
+`SurfaceTemperatureField` és társai), új `PlanetGridMesh.ThermalOverlay.cs`,
+`Lod/ThermalOverlayPacking.cs`, a `VertexColorUnlit.shader` overlay-ága, a
+`SunController` publikus idő-lekérdezése, két hook a `PlanetGridMesh.cs`-ben
+(`Update` eleje, Rétegek doboz vége).
+
+**Mi a megoldás:** a Build utáni világból level-6 felszíntípus és eleváció;
+háttérszálon a pillanatnyi felszín- (Ts) és levegőhőmérséklet (Ta) a napállás,
+a hőtehetetlenség és a szél szerint; a kész állapot két fixpontos textúrába
+kerül, a shader csak palettáz. Python-referencia és 22 Core-, 6 viewer-.NET
+teszt zöld; élő Unityben még nem futott.
+
+**Hogyan teszteld:**
+
+1. Unity import után a Console-ban ne legyen új piros hiba (shader és C#).
+2. Play → Rétegek doboz alja: „Hőmérséklet: Ki / Felszín (Ts) / Levegő (Ta)”.
+   „Ki” állásban a −60 … +50 °C-os skála NEM látszik. Kapcsold „Felszín”-re:
+   ekkor megjelenik a skála. Az első snapshotig pár másodperc lehet („hőmező
+   számítása…” az állapotsorban).
+3. A bolygó egységes kék–semleges–piros színt kap, világítástól függetlenül;
+   a 0 °C-nál sötét kontúrvonal. Nincs varrat vagy ugrás a kockalap-éleken
+   és a pólusokon, zoomolás közben sem.
+4. `SunController` → Days Per Second = 0.1: a napsütötte oldal melegszik, a
+   maximum kicsit a helyi dél után jön; a terminátor nem éles hideg/meleg
+   határ; az óceán lassabban változik, mint a szárazföld.
+5. „Levegő (Ta)”: simább, elmosódottabb mező, amely a széllel lassan sodródik.
+6. „Részletek” bepipálva: a kurzor alatti cellára Ts, Ta, bázis, besugárzás,
+   napszög, hőcsere, advekció, magassági korrekció jelenik meg.
+7. Deep-time lépés (pl. +100my): az overlay rövid ideig a számítás állapotát
+   mutatja, majd az új világra frissül; a régi világ színei nem keverednek.
+8. PerfLog: `[ND-104 thermal]` sorok (`stepMs`, `packMs`, `uploadMs`) —
+   a feltöltés ne okozzon látható akadást.
+
+**Elvárt eredmény:** a fenti viselkedés; a sarki éjszaka sem 0 K közeli
+(várhatóan kb. −60 °C körüli minimum). **Ismert, öröklött korlát:** az
+egyenlítői óceán kb. +45…+48 °C-nak látszhat — ez a meglévő §28
+klímakalibráció (0,06 óceáni albedó + 33 K) következménye, nem az overlay
+hibája. Ideiglenes modellválasztások, megerősítésre várnak: M11 (szélcsend-
+alsóhatár 1 m/s), M12 (édesvíz/jég hőkapacitása), M13 (β = 0,5 radiatív
+simítás) — ld. `docs/reviews/thermal-parameters-sources-2026-09-13.md`.

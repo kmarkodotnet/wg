@@ -59,6 +59,18 @@ Shader "WorldGen/VertexColorUnlit"
             float _SpecStrength;
             float _Shininess;
 
+            // Pillanatnyi hőmérséklet-overlay (ND-104). Globális property-k,
+            // a PlanetGridMesh.ThermalOverlay állítja be. A shader NEM számol
+            // hőmérsékletet: a CPU-n fixpontosra kvantált, hat lapos 66×66-os
+            // atlaszból (egycellás gutterrel) mintavételez és palettáz. Ha a
+            // C# nem állítja be, _ThermalMode = 0, az overlay ki van kapcsolva.
+            sampler2D _ThermalSurfaceTex;
+            sampler2D _ThermalAirTex;
+            float _ThermalMode;
+            float _ThermalMinK;
+            float _ThermalMaxK;
+            float4x4 _ThermalWorldToPlanet;
+
             struct Attributes
             {
                 float4 positionOS : POSITION;
@@ -72,6 +84,7 @@ Shader "WorldGen/VertexColorUnlit"
                 float4 color : COLOR;
                 float3 normalWS : TEXCOORD0;
                 float3 positionWS : TEXCOORD1;
+                float3 positionPlanet : TEXCOORD2;
             };
 
             Varyings Vert(Attributes v)
@@ -81,7 +94,56 @@ Shader "WorldGen/VertexColorUnlit"
                 o.positionWS = mul(unity_ObjectToWorld, v.positionOS).xyz;
                 o.normalWS = UnityObjectToWorldNormal(v.normalOS);
                 o.color = v.color;
+                o.positionPlanet = mul(_ThermalWorldToPlanet, float4(o.positionWS, 1.0)).xyz;
                 return o;
+            }
+
+            // Core-irányból (Unity-lokál (x, z, y) tengelycserével) atlasz-UV.
+            // A TileGeometry lapkonvencióját és a tan-warp inverzét tükrözi;
+            // a CPU-oldali pár: ThermalOverlayPacking.AtlasCoordinate.
+            float2 ThermalAtlasUv(float3 planetLocal)
+            {
+                float3 u = normalize(planetLocal);
+                float3 p = float3(u.x, u.z, u.y);
+                float3 a = abs(p);
+                int axis = 0;
+                if (a.y > a.x) axis = 1;
+                if (a.z > (axis == 0 ? a.x : a.y)) axis = 2;
+                float dominant = axis == 0 ? p.x : (axis == 1 ? p.y : p.z);
+                int face = axis * 2 + (dominant >= 0.0 ? 0 : 1);
+                float inv = 1.0 / max(abs(dominant), 1e-6);
+                float wx, wy;
+                if (face == 0)      { wx = -p.z; wy = p.y; }
+                else if (face == 1) { wx = p.z;  wy = p.y; }
+                else if (face == 2) { wx = p.x;  wy = p.z; }
+                else if (face == 3) { wx = p.x;  wy = -p.z; }
+                else if (face == 4) { wx = p.x;  wy = p.y; }
+                else                { wx = -p.x; wy = p.y; }
+                float uc = atan(wx * inv) * 4.0 / UNITY_PI;
+                float vc = atan(wy * inv) * 4.0 / UNITY_PI;
+                float x = (66.0 * face + 1.0 + (uc + 1.0) * 32.0) / 396.0;
+                float y = (1.0 + (vc + 1.0) * 32.0) / 66.0;
+                return float2(x, y);
+            }
+
+            // Fix, abszolút skála: min → kék → cián → 0 °C világos semleges →
+            // sárga → piros ← max. A C# jelmagyarázat ugyanezt a függvényt
+            // tükrözi (ThermalOverlayPacking.Palette).
+            float3 ThermalPalette(float k)
+            {
+                const float zeroK = 273.15;
+                float3 cold0 = float3(0.08, 0.16, 0.62);
+                float3 cold1 = float3(0.20, 0.72, 0.92);
+                float3 neutral = float3(0.93, 0.93, 0.89);
+                float3 warm1 = float3(0.98, 0.80, 0.24);
+                float3 warm0 = float3(0.78, 0.12, 0.08);
+                if (k <= zeroK)
+                {
+                    float t = saturate((k - _ThermalMinK) / max(zeroK - _ThermalMinK, 1e-3));
+                    return t < 0.5 ? lerp(cold0, cold1, t * 2.0) : lerp(cold1, neutral, t * 2.0 - 1.0);
+                }
+                float w = saturate((k - zeroK) / max(_ThermalMaxK - zeroK, 1e-3));
+                return w < 0.5 ? lerp(neutral, warm1, w * 2.0) : lerp(warm1, warm0, w * 2.0 - 1.0);
             }
 
             // Biztonsagos normalize: nulla-kozeli (degeneralt) bemenetre a
@@ -95,6 +157,19 @@ Shader "WorldGen/VertexColorUnlit"
 
             fixed4 Frag(Varyings i) : SV_Target
             {
+                if (_ThermalMode > 0.5 && dot(i.positionPlanet, i.positionPlanet) > 1e-10)
+                {
+                    float2 uv = ThermalAtlasUv(i.positionPlanet);
+                    float normalized = _ThermalMode < 1.5 ? tex2D(_ThermalSurfaceTex, uv).r : tex2D(_ThermalAirTex, uv).r;
+                    float kelvin = normalized * 655.35 + 150.0;
+                    float3 thermal = ThermalPalette(kelvin);
+                    // 0 °C kontúr: képernyőtérben állandó vastagságú sötét vonal.
+                    float band = max(fwidth(kelvin) * 0.75, 1e-4);
+                    if (abs(kelvin - 273.15) < band)
+                        thermal *= 0.35;
+                    return fixed4(thermal, i.color.a);
+                }
+
                 float3 N = SafeNormalize(i.normalWS, float3(0, 1, 0));
                 float3 L = SafeNormalize(_SunDir.xyz, float3(0, 1, 0));
                 float ndotl = saturate(dot(N, L));

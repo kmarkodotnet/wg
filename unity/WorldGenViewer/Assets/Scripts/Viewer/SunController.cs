@@ -89,6 +89,18 @@ namespace WorldGen.Viewer
                  "(mindig a jelenlegi, 'Free' viselkedés fut).")]
         private PlanetGridMesh planetGridMesh;
 
+        /// <summary>
+        /// A megjelenített idő napokban. A pillanatnyi hőmodell (ND-104) ebből
+        /// képzi az egész tickes Core-időt (<c>SimulationTime.FromDaysFloor</c>),
+        /// így a fény és a hőtérkép ugyanazt az órát olvassa.
+        /// </summary>
+        public double CurrentTimeDays => currentTimeDays;
+        public double OrbitalPeriodDays => orbitalPeriodDays;
+        public double RotationPeriodDays => rotationPeriodDays;
+        public double AxialTiltDegrees => axialTiltDegrees;
+        public double OrbitalPhase0 => orbitalPhase0;
+        public double RotationPhase0 => rotationPhase0;
+
         private void OnEnable() => ApplySunDirection();
         private void OnValidate() => ApplySunDirection();
 
