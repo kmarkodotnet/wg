@@ -2545,7 +2545,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2056601216
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3137,11 +3137,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   planetGridMesh: {fileID: 283293246}
   orbitCamera: {fileID: 0}
-  flyToDurationSeconds: 1
-  flyToAltitude: 30
   worldPanelText: {fileID: 2069707960}
-  continentPanelText: {fileID: 2056601217}
-  regionPanelText: {fileID: 2140367922}
   viewLevelText: {fileID: 1712720135}
 --- !u!4 &2133670177
 Transform:
@@ -3175,7 +3171,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2140367921
 RectTransform:
   m_ObjectHideFlags: 0
