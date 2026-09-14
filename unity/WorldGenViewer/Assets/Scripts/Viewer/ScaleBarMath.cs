@@ -313,6 +313,130 @@ namespace WorldGen.Viewer
             return Math.Abs(solvedDistanceMeters - targetDistanceMeters) <= allowedError;
         }
 
+        /// <summary>
+        /// Mindig kerek (1/2/5) léptékérték, a csík szélessége igazodik hozzá.
+        ///
+        /// 2026-09-13-i élő hiba: 111× domborzat-túlrajzolás mellett a
+        /// képernyőpontok radiális felszínmetszése hegygerincen átugorhat, ezért
+        /// a távolság a pixelszélesség szerint nem folytonos, és a pontos
+        /// felezéses megoldás (<see cref="TrySolvePixelWidth"/>) nem létezik; a
+        /// lépték korábban üres maradt. Most legfeljebb
+        /// <paramref name="roundAttempts"/> egyre kisebb kerek értéket próbálunk.
+        /// Ha valamelyik pontosan megoldható, az a kimenet
+        /// (<paramref name="exact"/> = true). Különben a legkisebb relatív
+        /// eltérésű kerek érték és az ahhoz legközelebbi mért távolságú
+        /// csíkszélesség (<paramref name="relativeError"/> a mért és a kiírt
+        /// érték eltérése). A felirat (<paramref name="distanceMeters"/>) mindig
+        /// a kerek érték.
+        /// </summary>
+        internal static bool TrySolveScale(
+            DistanceForPixelWidth distanceForWidth,
+            double maximumPixelWidth,
+            double maximumDistanceMeters,
+            int roundAttempts,
+            out double pixelWidth,
+            out double distanceMeters,
+            out bool exact,
+            out int attemptsUsed,
+            out double relativeError)
+        {
+            pixelWidth = 0.0;
+            distanceMeters = 0.0;
+            exact = false;
+            attemptsUsed = 0;
+            relativeError = double.PositiveInfinity;
+            if (distanceForWidth == null || !(maximumPixelWidth > 0.0)
+                || !(maximumDistanceMeters > 0.0) || !IsFinite(maximumDistanceMeters))
+            {
+                return false;
+            }
+
+            double nice = NiceDistanceAtOrBelow(maximumDistanceMeters);
+            for (int i = 0; i < roundAttempts && nice > 0.0; i++)
+            {
+                attemptsUsed++;
+                if (TryBracketPixelWidth(distanceForWidth, maximumPixelWidth, maximumDistanceMeters, nice,
+                        out double width, out double measured, out bool isExact))
+                {
+                    double error = Math.Abs(measured - nice) / nice;
+                    if (isExact)
+                    {
+                        pixelWidth = width;
+                        distanceMeters = nice;
+                        exact = true;
+                        relativeError = error;
+                        return true;
+                    }
+                    if (error < relativeError)
+                    {
+                        pixelWidth = width;
+                        distanceMeters = nice;
+                        relativeError = error;
+                    }
+                }
+                nice = NiceDistanceAtOrBelow(nice * 0.999);
+            }
+
+            return distanceMeters > 0.0 && pixelWidth > 0.0;
+        }
+
+        /// <summary>
+        /// Felezés a <paramref name="targetDistanceMeters"/> körül; a sikertelen
+        /// mintavétel szűkíti a felső határt, nem szakítja meg a keresést. A két
+        /// végpont közül a célhoz közelebbi mért távolságú szélességet adja.
+        /// </summary>
+        private static bool TryBracketPixelWidth(
+            DistanceForPixelWidth distanceForWidth,
+            double maximumPixelWidth,
+            double maximumDistanceMeters,
+            double targetDistanceMeters,
+            out double bestWidth,
+            out double bestDistance,
+            out bool exact)
+        {
+            bestWidth = maximumPixelWidth;
+            bestDistance = maximumDistanceMeters;
+            exact = false;
+            if (maximumDistanceMeters + 1e-9 < targetDistanceMeters)
+                return false;
+
+            double low = 0.0, high = maximumPixelWidth;
+            double lowWidth = double.NaN, lowDistance = double.NaN;
+            double highWidth = maximumPixelWidth, highDistance = maximumDistanceMeters;
+            for (int i = 0; i < 24; i++)
+            {
+                double middle = (low + high) * 0.5;
+                if (!distanceForWidth(middle, out double distance) || !IsFinite(distance) || !(distance > 0.0))
+                {
+                    high = middle;
+                    continue;
+                }
+                if (distance < targetDistanceMeters)
+                {
+                    low = middle;
+                    lowWidth = middle;
+                    lowDistance = distance;
+                }
+                else
+                {
+                    high = middle;
+                    highWidth = middle;
+                    highDistance = distance;
+                }
+            }
+
+            bestWidth = highWidth;
+            bestDistance = highDistance;
+            if (!double.IsNaN(lowWidth)
+                && Math.Abs(lowDistance - targetDistanceMeters) < Math.Abs(highDistance - targetDistanceMeters))
+            {
+                bestWidth = lowWidth;
+                bestDistance = lowDistance;
+            }
+            exact = Math.Abs(bestDistance - targetDistanceMeters) <= Math.Max(0.01, targetDistanceMeters * 1e-5);
+            return bestWidth > 0.0;
+        }
+
         internal static bool TryFindMeasurableWidth(
             DistanceForPixelWidth distanceForWidth,
             double preferredPixelWidth,

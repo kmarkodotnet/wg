@@ -140,6 +140,91 @@ namespace WorldGen.Viewer
         }
 
         [Fact]
+        public void ScaleSolverKeepsFirstRoundValueOnContinuousSurface()
+        {
+            Assert.True(ScaleBarMath.TrySolveScale(
+                SquaredDistance, 50.0, 2500.0, 4,
+                out double width, out double distance, out bool exact, out int attempts, out double error));
+
+            Assert.True(exact);
+            Assert.Equal(1, attempts);
+            Assert.Equal(2000.0, distance);
+            Assert.InRange(width, 44.72, 44.73);
+            Assert.InRange(error, 0.0, 1e-5);
+        }
+
+        [Fact]
+        public void ScaleSolverUsesSmallerRoundValueAcrossRidgeJump()
+        {
+            // 2026-09-13-i élő hiba: hegygerincen átugró sugár miatt a távolság
+            // a 2000 km-es célnál ugrik (1500 km → 3000 km), pontos szélesség nincs.
+            Assert.True(RidgeJumpDistance(180.0, out double maximumDistance));
+            Assert.True(ScaleBarMath.TrySolveScale(
+                RidgeJumpDistance, 180.0, maximumDistance, 4,
+                out double width, out double distance, out bool exact, out int attempts, out _));
+
+            Assert.True(exact);
+            Assert.Equal(2, attempts);
+            Assert.Equal(1000000.0, distance);
+            Assert.InRange(width, 99.999, 100.001);
+        }
+
+        [Fact]
+        public void ScaleSolverKeepsRoundLabelAndAdjustsWidthWhenNoExactSolutionExists()
+        {
+            Assert.True(StaircaseDistance(180.0, out double maximumDistance));
+            Assert.True(ScaleBarMath.TrySolveScale(
+                StaircaseDistance, 180.0, maximumDistance, 4,
+                out double width, out double distance, out bool exact, out int attempts, out double error));
+
+            Assert.False(exact);
+            Assert.Equal(4, attempts);
+            Assert.Equal(10000000.0, distance);
+            Assert.InRange(width, 99.0, 101.0);
+            Assert.InRange(error, 0.0, 1e-3);
+            Assert.Equal(distance, ScaleBarMath.NiceDistanceAtOrBelow(distance), 12);
+        }
+
+        [Fact]
+        public void ScaleSolverContinuesPastFailedProbe()
+        {
+            Assert.True(ScaleBarMath.TrySolveScale(
+                FailsBetween130And140Pixels, 180.0, 1800000.0, 4,
+                out double width, out double distance, out bool exact, out int attempts, out _));
+
+            Assert.True(exact);
+            Assert.Equal(1, attempts);
+            Assert.Equal(1000000.0, distance);
+            Assert.InRange(width, 99.999, 100.001);
+        }
+
+        [Fact]
+        public void ScaleSolverRejectsInvalidInput()
+        {
+            Assert.False(ScaleBarMath.TrySolveScale(null!, 180.0, 1000.0, 4, out _, out _, out _, out _, out _));
+            Assert.False(ScaleBarMath.TrySolveScale(SquaredDistance, 0.0, 1000.0, 4, out _, out _, out _, out _, out _));
+            Assert.False(ScaleBarMath.TrySolveScale(SquaredDistance, 180.0, double.NaN, 4, out _, out _, out _, out _, out _));
+        }
+
+        private static bool RidgeJumpDistance(double width, out double distance)
+        {
+            distance = width < 150.0 ? width * 10000.0 : 3000000.0 + (width - 150.0) * 1000.0;
+            return true;
+        }
+
+        private static bool StaircaseDistance(double width, out double distance)
+        {
+            distance = Math.Floor(width) * 100000.0 + 3333.0;
+            return true;
+        }
+
+        private static bool FailsBetween130And140Pixels(double width, out double distance)
+        {
+            distance = width * 10000.0;
+            return width < 130.0 || width > 140.0;
+        }
+
+        [Fact]
         public void MeasurableWidthShrinksAwayFromSky()
         {
             Assert.True(ScaleBarMath.TryFindMeasurableWidth(

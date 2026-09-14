@@ -100,21 +100,26 @@ namespace WorldGen.Viewer
                 return;
             }
 
-            double niceDistance = ScaleBarMath.NiceDistanceAtOrBelow(maximumDistance);
-            if (!(niceDistance > 0.0)
-                || !ScaleBarMath.TrySolvePixelWidth(
-                    TryMeasureCenteredSurfaceDistance,
-                    maximumWidth,
-                    niceDistance,
-                    out double solvedWidth,
-                    out double solvedDistance))
+            // A felirat mindig kerek érték; meredek domborzaton (nem folytonos
+            // távolság, 2026-09-13) a csík szélessége a legközelebbi mért
+            // távolsághoz igazodik - ld. ScaleBarMath.TrySolveScale.
+            if (!ScaleBarMath.TrySolveScale(
+                TryMeasureCenteredSurfaceDistance,
+                maximumWidth,
+                maximumDistance,
+                4,
+                out double solvedWidth,
+                out double roundDistance,
+                out _,
+                out _,
+                out _))
             {
                 RegisterTransientScaleBarFailure();
                 return;
             }
 
             _scaleBarPixelWidth = (float)solvedWidth;
-            _scaleBarDistanceMeters = solvedDistance;
+            _scaleBarDistanceMeters = roundDistance;
             _scaleBarConsecutiveFailures = 0;
             _scaleBarValid = true;
             CaptureScaleBarContext();
