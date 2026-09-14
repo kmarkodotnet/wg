@@ -50,6 +50,10 @@ BIOME_SUFFIXES = {
     "Tundra": ["Tundra", "Barrens", "Waste"],
     "Temperate": ["Forest", "Woods", "Vale", "Downs"],
     "Tropical": ["Isles", "Verdant", "Reach", "Coast"],
+    # Tektonikuslemez-overlay (2026-09-13) - ld. features_ref.py-beli
+    # BiomeSuffixes doksijat a C# oldalon (NameGeneration.cs).
+    "OceanicCrust": ["Trench", "Abyss", "Rise", "Deep"],
+    "ContinentalCrust": ["Craton", "Shield", "Massif", "Plate"],
 }
 DEFAULT_SUFFIXES = ["Land", "Reach", "Expanse"]
 
@@ -131,6 +135,193 @@ def ocean_coverage_fraction(is_ocean):
     return ocean_count / len(is_ocean)
 
 
+def _canonical_key(tile, level):
+    """Ugyanaz a kanonikus sorrend, mint a C# TileId.Value - NEM a nyers
+    (face,u,v) tuple, mert a morton-interleaving mas sorrendet ad."""
+    face, u, v = tile
+    return tile_id(face, level, u, v)
+
+
+def _neighbors_in_set(tile, level, tile_set):
+    face, u, v = tile
+    result = []
+    for d in DIRECTIONS:
+        nb = neighbor(face, level, u, v, d)
+        if nb in tile_set:
+            result.append(nb)
+    return result
+
+
+def _connected_components(tiles, level):
+    """Osszefuggo komponensek a tile-halmaz 4-szomszedsagi grafjaban (a
+    halmazon BELUL - nem a teljes racson). Kanonikus bejarasi/eredmeny-
+    sorrend, hogy C#-ban ugyanaz a komponens-sorrend adodjon."""
+    tile_set = set(tiles)
+    visited = set()
+    components = []
+    for start in sorted(tile_set, key=lambda t: _canonical_key(t, level)):
+        if start in visited:
+            continue
+        comp = []
+        queue = deque([start])
+        visited.add(start)
+        while queue:
+            t = queue.popleft()
+            comp.append(t)
+            for nb in _neighbors_in_set(t, level, tile_set):
+                if nb not in visited:
+                    visited.add(nb)
+                    queue.append(nb)
+        components.append(comp)
+    return components
+
+
+def _bfs_distances(seeds, level, tile_set):
+    dist = {s: 0 for s in seeds}
+    queue = deque(seeds)
+    while queue:
+        t = queue.popleft()
+        d = dist[t]
+        for nb in _neighbors_in_set(t, level, tile_set):
+            if nb not in dist:
+                dist[nb] = d + 1
+                queue.append(nb)
+    return dist
+
+
+def _partition_component(component, level, target_area_tile_count):
+    """Egy OSSZEFUGGO tile-halmaz felosztasa kb. target_area_tile_count
+    meretu, osszefuggo 'terulet'-re - tobbforrasu BFS ('legtavolabbi pont'
+    magvalasztas + legkozelebbi-mag-hozzarendeles, kanonikus TileId.Value
+    dontetlen-eldontessel). 1:1 megfeleles a C#
+    FeatureSegmentation.PartitionComponent-tel."""
+    tile_set = set(component)
+    n = len(tile_set)
+    key = lambda t: _canonical_key(t, level)
+
+    if n <= target_area_tile_count or target_area_tile_count <= 0:
+        return [sorted(tile_set, key=key)]
+
+    k = max(1, round(n / target_area_tile_count))
+    if k <= 1:
+        return [sorted(tile_set, key=key)]
+
+    seeds = [min(tile_set, key=key)]
+    while len(seeds) < k:
+        dist = _bfs_distances(seeds, level, tile_set)
+        candidates = [t for t in tile_set if t not in seeds]
+        best = sorted(candidates, key=lambda t: (-dist.get(t, 1 << 30), key(t)))[0]
+        seeds.append(best)
+    seeds.sort(key=key)
+
+    owner = {s: s for s in seeds}
+    dist_by_tile = {s: 0 for s in seeds}
+    frontier = list(seeds)
+    d = 0
+    while frontier:
+        d += 1
+        proposals = {}
+        for t in frontier:
+            o = owner[t]
+            for nb in _neighbors_in_set(t, level, tile_set):
+                if nb in dist_by_tile:
+                    continue
+                if nb not in proposals or key(o) < key(proposals[nb]):
+                    proposals[nb] = o
+        if not proposals:
+            break
+        next_frontier = []
+        for nb, o in proposals.items():
+            dist_by_tile[nb] = d
+            owner[nb] = o
+            next_frontier.append(nb)
+        next_frontier.sort(key=key)
+        frontier = next_frontier
+
+    by_seed = {s: [] for s in seeds}
+    unassigned = []
+    for t in tile_set:
+        if t in owner:
+            by_seed[owner[t]].append(t)
+        else:
+            unassigned.append(t)
+
+    result = [sorted(by_seed[s], key=key) for s in seeds]
+    if unassigned:
+        result.append(sorted(unassigned, key=key))
+    return result
+
+
+def partition_region_into_areas(region_tiles, level, target_area_tile_count=40):
+    """Negyedik panelszint ("Terulet"/Area): egy regio (szarazfold-tile-
+    lista) felosztasa kb. target_area_tile_count meretu, osszefuggo
+    darabokra. ELOSZOR osszefuggo komponensekre bont (a vizgyujto-regio
+    definicioja NEM garantalja a terbeli osszefuggoseget), majd MINDEN
+    komponenst KULON oszt fel. 1:1 megfeleles a C#
+    FeatureSegmentation.PartitionRegionIntoAreas-szal."""
+    areas = []
+    for comp in _connected_components(region_tiles, level):
+        areas.extend(_partition_component(comp, level, target_area_tile_count))
+    return areas
+
+
+TINY_LANDMASS_TILE_THRESHOLD = 20
+
+
+def compute_landmass_distribution_stats(landmasses):
+    """3. problema (docs/backlog.md) - 1:1 megfeleles a C#
+    FeatureSegmentation.ComputeLandmassDistributionStats-szal."""
+    n = len(landmasses)
+    if n == 0:
+        return dict(landmassCount=0, totalLandTiles=0, largestLandmassShare=0.0,
+                     top2LandmassShare=0.0, medianLandmassSize=0.0, p90LandmassSize=0,
+                     tinyLandmassCount=0, giniCoefficient=0.0)
+
+    sizes_desc = sorted((len(lm) for lm in landmasses), reverse=True)
+    total = sum(sizes_desc)
+
+    largest_share = sizes_desc[0] / total if total > 0 else 0.0
+    top2_share = (sizes_desc[0] + (sizes_desc[1] if n > 1 else 0)) / total if total > 0 else 0.0
+
+    if n % 2 == 1:
+        median = float(sizes_desc[n // 2])
+    else:
+        median = (sizes_desc[n // 2 - 1] + sizes_desc[n // 2]) / 2.0
+
+    p90_index = max(0, int(0.1 * n) - 1)
+    p90 = sizes_desc[p90_index]
+
+    tiny = sum(1 for s in sizes_desc if s < TINY_LANDMASS_TILE_THRESHOLD)
+
+    sizes_asc = sorted(sizes_desc)
+    gini_numerator = sum((2.0 * (i + 1) - n - 1) * s for i, s in enumerate(sizes_asc))
+    gini = gini_numerator / (n * total) if total > 0 else 0.0
+
+    return dict(landmassCount=n, totalLandTiles=total, largestLandmassShare=largest_share,
+                top2LandmassShare=top2_share, medianLandmassSize=median, p90LandmassSize=p90,
+                tinyLandmassCount=tiny, giniCoefficient=gini)
+
+
+CONTINENT_LAND_SHARE_THRESHOLD = 0.05
+LARGE_ISLAND_LAND_SHARE_THRESHOLD = 0.005
+ISLAND_LAND_SHARE_THRESHOLD = 0.0005
+
+
+def classify_landmass(landmass_tile_count, total_land_tiles):
+    """2. problema (docs/backlog.md) - 1:1 megfeleles a C#
+    FeatureSegmentation.ClassifyLandmass-szal."""
+    if total_land_tiles <= 0 or landmass_tile_count <= 0:
+        return "Islet"
+    share = landmass_tile_count / total_land_tiles
+    if share > CONTINENT_LAND_SHARE_THRESHOLD:
+        return "Continent"
+    if share > LARGE_ISLAND_LAND_SHARE_THRESHOLD:
+        return "LargeIsland"
+    if share > ISLAND_LAND_SHARE_THRESHOLD:
+        return "Island"
+    return "Islet"
+
+
 def river_basin_count(tiles, regions):
     """Hany DISTINCT vizgyujto-regio metsz bele egy tile-halmazba."""
     tile_set = set(tiles)
@@ -200,6 +391,21 @@ if __name__ == "__main__":
         print(f"  {name}: {len(comp)} tile, {len(biomes_present)} biome, "
               f"dominans={dom}, {mouths} folyo-torkolat, {basins} vizgyujto")
 
+    print("\n--- Landmass osztalyozas (2. problema) ---")
+    total_land_tiles = sum(1 for v in is_ocean.values() if not v)
+    landmass_class_counts = {}
+    landmass_classifications = []
+    for i, comp in enumerate(sorted(continents, key=lambda c: (-len(c), min(c)))):
+        cls = classify_landmass(len(comp), total_land_tiles)
+        landmass_class_counts[cls] = landmass_class_counts.get(cls, 0) + 1
+        landmass_classifications.append({"continentIndex": i, "areaTiles": len(comp), "landmassClass": cls})
+    print(f"  Osszes szarazfold-tile: {total_land_tiles}")
+    for cls, count in sorted(landmass_class_counts.items(), key=lambda kv: -kv[1]):
+        print(f"  {cls}: {count} db")
+
+    distribution_stats = compute_landmass_distribution_stats(continents)
+    print(f"  Eloszlas-statisztika: {distribution_stats}")
+
     print("\n--- Regiok (top 10 meret szerint) ---")
     region_results = []
     # Explicit, hordozhato rendezes: meret csokkeno, majd a kifolyas
@@ -215,6 +421,60 @@ if __name__ == "__main__":
         region_results.append(result)
         if i < 10:
             print(f"  {name}: {len(tiles)} tile, dominans={dom}, kifolyas={root}, {mouths} torkolat")
+
+    print("\n--- Teruletek (negyedik panelszint, top 5 legnagyobb regiohoz) ---")
+    target_area_tile_count = 40
+    area_results = []
+    top_regions_for_areas = sorted(sized_regions.items(), key=lambda kv: (-len(kv[1]), kv[0]))[:5]
+    for region_index, (root, tiles) in enumerate(top_regions_for_areas):
+        areas = partition_region_into_areas(tiles, level, target_area_tile_count)
+
+        # Invariansok: minden regio-tile PONTOSAN EGY teruletben van, es
+        # minden terulet valoban osszefuggo (a sajat, tile-halmazon beluli
+        # szomszedsagi grafban BFS-sel elerheto a sajat elso tile-jabol).
+        covered = [t for area in areas for t in area]
+        assert set(covered) == set(tiles), "A teruletek nem fedik le pontosan a regio tile-jait"
+        assert len(covered) == len(tiles), "Egy tile tobb teruletben is szerepel (atfedes)"
+        for area in areas:
+            area_set = set(area)
+            reached = set()
+            queue = deque([area[0]])
+            reached.add(area[0])
+            while queue:
+                t = queue.popleft()
+                for nb in _neighbors_in_set(t, level, area_set):
+                    if nb not in reached:
+                        reached.add(nb)
+                        queue.append(nb)
+            assert reached == area_set, "Egy terulet NEM osszefuggo"
+
+        region_areas = []
+        for area_index, area in enumerate(areas):
+            dom = dominant_biome(area, biome_of)
+            name = generate_name(world_seed, feature_id=20000 + region_index * 1000 + area_index, dominant_biome=dom)
+            region_areas.append({
+                "name": name, "tileCount": len(area), "dominantBiome": dom,
+                "seedTileId": _canonical_key(min(area, key=lambda t: _canonical_key(t, level)), level),
+                "memberTileIds": sorted(_canonical_key(t, level) for t in area),
+            })
+        area_results.append({
+            "regionIndex": region_index, "regionOutlet": list(root), "regionTileCount": len(tiles),
+            "areaCount": len(areas), "areas": region_areas,
+        })
+        print(f"  Regio #{region_index} ({len(tiles)} tile) -> {len(areas)} terulet: "
+              + ", ".join(f"{a['name']} ({a['tileCount']})" for a in region_areas))
+
+    # Determinizmus: ugyanaz a bemenet -> bitre ugyanaz a particionalas.
+    repeat_areas = partition_region_into_areas(top_regions_for_areas[0][1], level, target_area_tile_count)
+    assert repeat_areas == partition_region_into_areas(top_regions_for_areas[0][1], level, target_area_tile_count), \
+        "A terulet-particionalas nem tiszta fuggveny!"
+    print("OK - determinisztikus terulet-particionalas")
+
+    # Elesetek: ures regio, 1 tile-os regio, pontosan a kuszobon levo meret.
+    assert partition_region_into_areas([], level, target_area_tile_count) == []
+    single = list(top_regions_for_areas[0][1])[:1]
+    assert partition_region_into_areas(single, level, target_area_tile_count) == [single]
+    print("OK - elesetek (ures/1-tile-os regio) rendben")
 
     # Plauzibilitas
     assert len(continents) >= 2, "Legalabb 2 kontinensnek kell lennie (TEST-EARTH-001 utan varhato)"
@@ -255,7 +515,11 @@ if __name__ == "__main__":
             "worldSeed": world_seed, "plateCount": plate_count, "level": level,
             "worldOceanCoverage": world_ocean_coverage,
             "continents": continent_results, "regions": region_results,
+            "targetAreaTileCount": target_area_tile_count, "areasByRegion": area_results,
+            "totalLandTiles": total_land_tiles, "landmassClassifications": landmass_classifications,
+            "landmassDistributionStats": distribution_stats,
             "nameVectors": name_vectors,
         }, f, indent=1)
     print(f"\n{len(continent_results)} kontinens + {len(region_results)} regio + "
+          f"{sum(a['areaCount'] for a in area_results)} terulet ({len(area_results)} regiobol) + "
           f"{len(name_vectors)} nev-tesztvektor elmentve")

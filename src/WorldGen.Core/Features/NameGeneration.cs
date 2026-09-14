@@ -33,6 +33,14 @@ namespace WorldGen.Core.Features
             ["Tundra"] = new[] { "Tundra", "Barrens", "Waste" },
             ["Temperate"] = new[] { "Forest", "Woods", "Vale", "Downs" },
             ["Tropical"] = new[] { "Isles", "Verdant", "Reach", "Coast" },
+
+            // Tektonikuslemez-overlay (2026-09-13, docs/backlog.md) -
+            // NEM biome, csak a MEGLÉVŐ biome-alapú utótag-kiválasztást
+            // hasznosítja újra (ld. PlatePresentation.PlateName) a
+            // kéreg-típushoz illő "hangulati" utótaggal, hogy ne a
+            // (ide nem is tartozó) biome-hangzású nevek jöjjenek ki.
+            ["OceanicCrust"] = new[] { "Trench", "Abyss", "Rise", "Deep" },
+            ["ContinentalCrust"] = new[] { "Craton", "Shield", "Massif", "Plate" },
         };
 
         private static readonly string[] DefaultSuffixes = { "Land", "Reach", "Expanse" };

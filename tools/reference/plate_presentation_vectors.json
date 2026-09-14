@@ -1,0 +1,166 @@
+{
+ "worldSeed": 184482873278464,
+ "plateCount": 20,
+ "plates": [
+  {
+   "plateId": 0,
+   "isOceanic": true,
+   "name": "Ausil Rise",
+   "r": 0.33440000000000003,
+   "g": 0.88,
+   "b": 0.3643869205207767
+  },
+  {
+   "plateId": 1,
+   "isOceanic": true,
+   "name": "Rinau Trench",
+   "r": 0.88,
+   "g": 0.33440000000000003,
+   "b": 0.4636170139075673
+  },
+  {
+   "plateId": 2,
+   "isOceanic": false,
+   "name": "Marka Plate",
+   "r": 0.33440000000000003,
+   "g": 0.622820948335912,
+   "b": 0.88
+  },
+  {
+   "plateId": 3,
+   "isOceanic": false,
+   "name": "Lighttide Shield",
+   "r": 0.782024882764256,
+   "g": 0.88,
+   "b": 0.33440000000000003
+  },
+  {
+   "plateId": 4,
+   "isOceanic": false,
+   "name": "Cypyr Plate",
+   "r": 0.8187711828074001,
+   "g": 0.33440000000000003,
+   "b": 0.88
+  },
+  {
+   "plateId": 5,
+   "isOceanic": true,
+   "name": "Pyrlight Trench",
+   "r": 0.33440000000000003,
+   "g": 0.88,
+   "b": 0.659567248379056
+  },
+  {
+   "plateId": 6,
+   "isOceanic": false,
+   "name": "Norpyr Plate",
+   "r": 0.88,
+   "g": 0.5003633139507134,
+   "b": 0.33440000000000003
+  },
+  {
+   "plateId": 7,
+   "isOceanic": false,
+   "name": "Frosion Plate",
+   "r": 0.34115937952236935,
+   "g": 0.33440000000000003,
+   "b": 0.88
+  },
+  {
+   "plateId": 8,
+   "isOceanic": true,
+   "name": "Mirthal Abyss",
+   "r": 0.4868445549059747,
+   "g": 0.88,
+   "b": 0.33440000000000003
+  },
+  {
+   "plateId": 9,
+   "isOceanic": true,
+   "name": "Pyrpyr Rise",
+   "r": 0.88,
+   "g": 0.33440000000000003,
+   "b": 0.6460484893343188
+  },
+  {
+   "plateId": 10,
+   "isOceanic": false,
+   "name": "Silmar Shield",
+   "r": 0.33440000000000003,
+   "g": 0.8052524237626627,
+   "b": 0.88
+  },
+  {
+   "plateId": 11,
+   "isOceanic": false,
+   "name": "Ionrel Plate",
+   "r": 0.88,
+   "g": 0.7955436418089932,
+   "b": 0.33440000000000003
+  },
+  {
+   "plateId": 12,
+   "isOceanic": false,
+   "name": "Osver Plate",
+   "r": 0.6363397073806492,
+   "g": 0.33440000000000003,
+   "b": 0.88
+  },
+  {
+   "plateId": 13,
+   "isOceanic": false,
+   "name": "Dorsil Shield",
+   "r": 0.33440000000000003,
+   "g": 0.88,
+   "b": 0.47713577295230225
+  },
+  {
+   "plateId": 14,
+   "isOceanic": true,
+   "name": "Verlu Rise",
+   "r": 0.88,
+   "g": 0.33440000000000003,
+   "b": 0.35086816147604183
+  },
+  {
+   "plateId": 15,
+   "isOceanic": false,
+   "name": "Lueast Plate",
+   "r": 0.33440000000000003,
+   "g": 0.510072095904386,
+   "b": 0.88
+  },
+  {
+   "plateId": 16,
+   "isOceanic": false,
+   "name": "Thalcy Shield",
+   "r": 0.66927603033273,
+   "g": 0.88,
+   "b": 0.33440000000000003
+  },
+  {
+   "plateId": 17,
+   "isOceanic": true,
+   "name": "Eastver Abyss",
+   "r": 0.88,
+   "g": 0.33440000000000003,
+   "b": 0.828479964761074
+  },
+  {
+   "plateId": 18,
+   "isOceanic": false,
+   "name": "Frosfros Massif",
+   "r": 0.33440000000000003,
+   "g": 0.88,
+   "b": 0.7723161008105819
+  },
+  {
+   "plateId": 19,
+   "isOceanic": false,
+   "name": "Eastnor Shield",
+   "r": 0.88,
+   "g": 0.6131121663822379,
+   "b": 0.33440000000000003
+  }
+ ]
+}

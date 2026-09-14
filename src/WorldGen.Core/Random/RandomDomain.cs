@@ -79,5 +79,15 @@ namespace WorldGen.Core.Random
         // Decorative (ld. RandomDomain.Decorative doksi - NEM a világmodell része)
         public const uint StarPosition = 40;
         public const uint StarBrightness = 41;
+
+        /// <summary>
+        /// A tektonikuslemez-overlay (docs/backlog.md, 2026-09-13) lemezenkénti
+        /// SZÍNÁRNYALAT-eltolása - tisztán renderelési/UI tulajdonság, nem a
+        /// lemez fizikai állapota (azt a <see cref="RandomDomain.Tectonics"/>
+        /// domain PlateSeedPoint/EulerPole/PlateVelocity/CrustType tulajdonságai
+        /// már meghatározzák) - ezért itt, a Decorative domainben van, ugyanúgy,
+        /// mint a csillagmező.
+        /// </summary>
+        public const uint PlateColorHue = 42;
     }
 }

@@ -138,5 +138,364 @@ namespace WorldGen.Core.Features
                 return LandformType.Plain;
             return LandformType.Lowland;
         }
+
+        /// <summary>
+        /// 2. probléma (docs/backlog.md "Continent és Island fogalmak
+        /// szétválasztása", 2026-09-13) - a <see cref="Tectonics.SeaLevelCalibration.CountContinents"/>
+        /// összefüggő szárazföld-komponensei ("landmass") közti SZEMANTIKAI
+        /// kategorizálás. A flood-fill maga VÁLTOZATLAN (ez a lépés nem
+        /// nyúl a domborzat-/tektonika-generáláshoz vagy a méreteloszláshoz -
+        /// ld. a 3. problémát arra) - csak a méret alapján egy meglévő
+        /// landmasst utólag ide-oda sorol.
+        /// </summary>
+        public enum LandmassClass { Continent, LargeIsland, Island, Islet }
+
+        /// <summary>
+        /// A küszöbök a landmass méretét a VILÁG TELJES SZÁRAZFÖLD-
+        /// tile-számához (nem a bolygó teljes tile-számához) viszonyítják -
+        /// ez a tengerszint-kalibráció víz-arányától (ND-37 target
+        /// water fraction) FÜGGETLEN, stabil mértéket ad. Ellenőrizve a
+        /// valós TestEarth001 világon (2026-09-13, 31 landmass, ~8600
+        /// szárazföld-tile): az 5%-os küszöb PONTOSAN a két domináns
+        /// szuperkontinenst (49.6% és 41.0%) választja el a harmadik
+        /// legnagyobbtól (2.6%) - nem önkényes vágás egy folytonos
+        /// eloszlás közepén. A 0.5%/0.05% küszöb a megmaradó hosszú farkat
+        /// nagyjából egyenlő nagyságrendű sávokra bontja (log-skálán). A
+        /// legalacsonyabb sáv (Islet) a JELENLEGI `CountContinents`
+        /// `minSize=5` mellett gyakorlatilag üres marad (ez SZÁNDÉKOS - a
+        /// 3. probléma foglalkozik azzal, hogy egyáltalán keletkezzenek-e
+        /// ilyen apró töredékek).
+        /// </summary>
+        public const double ContinentLandShareThreshold = 0.05;
+        public const double LargeIslandLandShareThreshold = 0.005;
+        public const double IslandLandShareThreshold = 0.0005;
+
+        /// <summary>Tiszta arányszámítás (osztás, összehasonlítás) - I1/I2-kompatibilis, nincs kerekítési bizonytalanság a küszöbök közelében (bitre reprodukálható IEEE-754 osztás).</summary>
+        public static LandmassClass ClassifyLandmass(int landmassTileCount, int totalLandTiles)
+        {
+            if (totalLandTiles <= 0 || landmassTileCount <= 0)
+                return LandmassClass.Islet;
+
+            double share = landmassTileCount / (double)totalLandTiles;
+            if (share > ContinentLandShareThreshold) return LandmassClass.Continent;
+            if (share > LargeIslandLandShareThreshold) return LandmassClass.LargeIsland;
+            if (share > IslandLandShareThreshold) return LandmassClass.Island;
+            return LandmassClass.Islet;
+        }
+
+        public static string LandmassClassName(LandmassClass c) => c switch
+        {
+            LandmassClass.Continent => "continent",
+            LandmassClass.LargeIsland => "large island",
+            LandmassClass.Island => "island",
+            _ => "islet",
+        };
+
+        /// <summary>
+        /// Negyedik panelszint ("Terület" / Area, docs/backlog.md "Navigációs
+        /// menü és panel-elrendezés" + docs/01-architecture.md §12): egy régió
+        /// (szárazföld-tile-halmaz) felosztása kb. <paramref name="targetAreaTileCount"/>
+        /// méretű, ÖSSZEFÜGGŐ darabokra.
+        ///
+        /// MÓDSZER (tiszta gráf-algoritmus, NINCS random, NINCS lebegőpontos
+        /// transzcendens - I1/I2-kompatibilis minden szálszámon/sorrenden):
+        /// 1. Először ÖSSZEFÜGGŐ KOMPONENSEKRE bont (4-szomszédsági BFS, a
+        ///    régió tile-halmazán belül) - a vízgyűjtő-régió DEFINÍCIÓJA
+        ///    (közös óceán-kifolyás) NEM garantálja a térbeli összefüggőséget
+        ///    (két külön szárazföld-darab is folyhat ugyanabba az óceán-
+        ///    tile-ba anélkül, hogy egymással szomszédosak lennének).
+        /// 2. Minden komponenst KÜLÖN, többforrású BFS-sel oszt fel: a magok
+        ///    kiválasztása "legtávolabbi pont" mintavétel (k-center jellegű,
+        ///    a kanonikus <see cref="TileId.Value"/> a determinisztikus
+        ///    döntetlen-eldöntő), majd minden tile a legközelebbi maghoz kerül
+        ///    (szinkronizált BFS-rétegek, döntetlennél a kisebb kanonikus
+        ///    <see cref="TileId.Value"/>-jú mag nyer) - ez egy Voronoi-jellegű,
+        ///    összefüggő, kb. egyenletes méretű particionálás a tile-
+        ///    szomszédsági gráfon.
+        ///
+        /// A visszaadott listák sorrendje kanonikus (komponens legkisebb
+        /// tile-ja, majd a komponensen belüli mag <see cref="TileId.Value"/>
+        /// sorrendje) - platform-/szálszámfüggetlen, mint minden más itteni
+        /// szegmentálás.
+        /// </summary>
+        public static List<List<TileId>> PartitionRegionIntoAreas(
+            IReadOnlyCollection<TileId> regionTiles, int targetAreaTileCount = 40)
+        {
+            if (regionTiles == null || regionTiles.Count == 0)
+                return new List<List<TileId>>();
+
+            var areas = new List<List<TileId>>();
+            foreach (List<TileId> component in FindConnectedComponents(regionTiles))
+                areas.AddRange(PartitionComponent(component, targetAreaTileCount));
+            return areas;
+        }
+
+        private static List<List<TileId>> FindConnectedComponents(IReadOnlyCollection<TileId> tiles)
+        {
+            var tileSet = new HashSet<TileId>(tiles);
+            var visited = new HashSet<TileId>();
+            var ordered = new List<TileId>(tileSet);
+            ordered.Sort((a, b) => a.Value.CompareTo(b.Value));
+
+            var components = new List<List<TileId>>();
+            foreach (TileId start in ordered)
+            {
+                if (visited.Contains(start)) continue;
+                var component = new List<TileId>();
+                var queue = new Queue<TileId>();
+                queue.Enqueue(start);
+                visited.Add(start);
+                while (queue.Count > 0)
+                {
+                    TileId t = queue.Dequeue();
+                    component.Add(t);
+                    foreach (TileId nb in NeighborsInSet(t, tileSet))
+                    {
+                        if (visited.Add(nb)) queue.Enqueue(nb);
+                    }
+                }
+                components.Add(component);
+            }
+            return components;
+        }
+
+        private static IEnumerable<TileId> NeighborsInSet(TileId t, HashSet<TileId> tileSet)
+        {
+            for (int d = 0; d < 4; d++)
+            {
+                TileId nb = TileNeighbors.Neighbor(t, (TileDirection)d);
+                if (tileSet.Contains(nb)) yield return nb;
+            }
+        }
+
+        /// <summary>Egyetlen (már összefüggő) komponens felosztása - ld. <see cref="PartitionRegionIntoAreas"/>.</summary>
+        private static List<List<TileId>> PartitionComponent(List<TileId> component, int targetAreaTileCount)
+        {
+            var tileSet = new HashSet<TileId>(component);
+            int n = tileSet.Count;
+            if (n <= targetAreaTileCount || targetAreaTileCount <= 0)
+                return new List<List<TileId>> { SortedByValue(tileSet) };
+
+            int k = Math.Max(1, (int)Math.Round(n / (double)targetAreaTileCount));
+            if (k <= 1)
+                return new List<List<TileId>> { SortedByValue(tileSet) };
+
+            // "Legtavolabbi pont" mag-mintavetel: a legkisebb kanonikus
+            // tile-lal kezdve, mindig azt a meg ki nem valasztott tile-t
+            // vesszuk fel, ami a MAR kivalasztott magoktol a legtavolabb van
+            // (BFS-tavolsag), dontetlennel a kisebb TileId.Value nyer.
+            var seeds = new List<TileId> { MinByValue(tileSet) };
+            while (seeds.Count < k)
+            {
+                Dictionary<TileId, int> dist = BfsDistances(seeds, tileSet);
+                TileId best = default;
+                bool haveBest = false;
+                int bestDist = -1;
+                foreach (TileId t in tileSet)
+                {
+                    if (seeds.Contains(t)) continue;
+                    int d = dist.TryGetValue(t, out int dv) ? dv : int.MaxValue;
+                    if (!haveBest || d > bestDist || (d == bestDist && t.Value < best.Value))
+                    {
+                        best = t;
+                        bestDist = d;
+                        haveBest = true;
+                    }
+                }
+                seeds.Add(best);
+            }
+            seeds.Sort((a, b) => a.Value.CompareTo(b.Value));
+
+            // Tobbforrasu, retegenkent szinkronizalt BFS: minden tile a
+            // legkozelebbi maghoz kerul, dontetlennel a kisebb TileId.Value-ju
+            // mag nyer - FUGGETLENUL a bejarasi sorrendtol (minden jeloltet
+            // explicit osszehasonlitunk, nem "elso nyer").
+            var owner = new Dictionary<TileId, TileId>();
+            foreach (TileId s in seeds) owner[s] = s;
+            var distByTile = new Dictionary<TileId, int>();
+            foreach (TileId s in seeds) distByTile[s] = 0;
+            List<TileId> frontier = new List<TileId>(seeds);
+            int depth = 0;
+            while (frontier.Count > 0)
+            {
+                depth++;
+                var proposals = new Dictionary<TileId, TileId>();
+                foreach (TileId t in frontier)
+                {
+                    TileId o = owner[t];
+                    foreach (TileId nb in NeighborsInSet(t, tileSet))
+                    {
+                        if (distByTile.ContainsKey(nb)) continue;
+                        if (!proposals.TryGetValue(nb, out TileId currentOwner) || o.Value < currentOwner.Value)
+                            proposals[nb] = o;
+                    }
+                }
+                if (proposals.Count == 0) break;
+                var nextFrontier = new List<TileId>();
+                foreach (KeyValuePair<TileId, TileId> kv in proposals)
+                {
+                    distByTile[kv.Key] = depth;
+                    owner[kv.Key] = kv.Value;
+                    nextFrontier.Add(kv.Key);
+                }
+                nextFrontier.Sort((a, b) => a.Value.CompareTo(b.Value));
+                frontier = nextFrontier;
+            }
+
+            var bySeed = new Dictionary<TileId, List<TileId>>();
+            foreach (TileId s in seeds) bySeed[s] = new List<TileId>();
+            var unassigned = new List<TileId>();
+            foreach (TileId t in tileSet)
+            {
+                if (owner.TryGetValue(t, out TileId o)) bySeed[o].Add(t);
+                else unassigned.Add(t);
+            }
+
+            var result = new List<List<TileId>>();
+            foreach (TileId s in seeds) result.Add(SortedByValue(bySeed[s]));
+            // Elvileg nem fordulhat elo (a komponens mar osszefuggo), de
+            // biztonsagi halo: ha megis maradna hozzarendeletlen tile, sajat
+            // teruletkent, kanonikus sorrendben hozzafuzzuk.
+            if (unassigned.Count > 0)
+                result.Add(SortedByValue(unassigned));
+            return result;
+        }
+
+        private static Dictionary<TileId, int> BfsDistances(List<TileId> seeds, HashSet<TileId> tileSet)
+        {
+            var dist = new Dictionary<TileId, int>();
+            var queue = new Queue<TileId>();
+            foreach (TileId s in seeds)
+            {
+                dist[s] = 0;
+                queue.Enqueue(s);
+            }
+            while (queue.Count > 0)
+            {
+                TileId t = queue.Dequeue();
+                int d = dist[t];
+                foreach (TileId nb in NeighborsInSet(t, tileSet))
+                {
+                    if (!dist.ContainsKey(nb))
+                    {
+                        dist[nb] = d + 1;
+                        queue.Enqueue(nb);
+                    }
+                }
+            }
+            return dist;
+        }
+
+        private static TileId MinByValue(IEnumerable<TileId> tiles)
+        {
+            TileId best = default;
+            bool have = false;
+            foreach (TileId t in tiles)
+            {
+                if (!have || t.Value < best.Value) { best = t; have = true; }
+            }
+            return best;
+        }
+
+        private static List<TileId> SortedByValue(IEnumerable<TileId> tiles)
+        {
+            var list = new List<TileId>(tiles);
+            list.Sort((a, b) => a.Value.CompareTo(b.Value));
+            return list;
+        }
+
+        /// <summary>
+        /// 3. probléma (docs/backlog.md "Extrém landmass méreteloszlás",
+        /// 2026-09-13) - DIAGNOSZTIKAI statisztikák egy generált világ
+        /// landmass-méreteloszlásához. Tiszta függvény a MÁR meglévő
+        /// <see cref="Tectonics.SeaLevelCalibration.CountContinents"/>
+        /// eredményén - nem változtat a generáláson, csak MÉRI azt.
+        /// </summary>
+        public readonly struct LandmassDistributionStats
+        {
+            public readonly int LandmassCount;
+            public readonly int TotalLandTiles;
+            public readonly double LargestLandmassShare;
+            public readonly double Top2LandmassShare;
+            public readonly double MedianLandmassSize;
+            public readonly int P90LandmassSize;
+            public readonly int TinyLandmassCount;
+            public readonly double GiniCoefficient;
+
+            public LandmassDistributionStats(
+                int landmassCount, int totalLandTiles, double largestLandmassShare, double top2LandmassShare,
+                double medianLandmassSize, int p90LandmassSize, int tinyLandmassCount, double giniCoefficient)
+            {
+                LandmassCount = landmassCount;
+                TotalLandTiles = totalLandTiles;
+                LargestLandmassShare = largestLandmassShare;
+                Top2LandmassShare = top2LandmassShare;
+                MedianLandmassSize = medianLandmassSize;
+                P90LandmassSize = p90LandmassSize;
+                TinyLandmassCount = tinyLandmassCount;
+                GiniCoefficient = giniCoefficient;
+            }
+        }
+
+        /// <summary>
+        /// A "tiny" landmass méretküszöbe (tile-ban) a diagnosztikában - NEM
+        /// azonos a régió/kontinens `minSize=5` szűréssel (ld. 1./2. probléma),
+        /// csak a méreteloszlás-riport egyik sávhatára.
+        /// </summary>
+        public const int TinyLandmassTileThreshold = 20;
+
+        /// <summary>
+        /// 1:1 megfeleles a Python referencia `landmass_sweep`-mintájú
+        /// statisztikájával - explicit, hordozható rendezés (méret szerint,
+        /// nincs a nyelv gyűjtemény-bejárási sorrendjére támaszkodó lépés).
+        /// </summary>
+        public static LandmassDistributionStats ComputeLandmassDistributionStats(IReadOnlyList<IReadOnlyCollection<TileId>> landmasses)
+        {
+            int n = landmasses.Count;
+            if (n == 0)
+                return new LandmassDistributionStats(0, 0, 0.0, 0.0, 0.0, 0, 0, 0.0);
+
+            var sizesDesc = new List<int>(n);
+            foreach (IReadOnlyCollection<TileId> lm in landmasses)
+                sizesDesc.Add(lm.Count);
+            sizesDesc.Sort((a, b) => b.CompareTo(a));
+
+            long total = 0;
+            foreach (int s in sizesDesc) total += s;
+
+            double largestShare = total > 0 ? sizesDesc[0] / (double)total : 0.0;
+            double top2Share = total > 0
+                ? (sizesDesc[0] + (n > 1 ? sizesDesc[1] : 0)) / (double)total
+                : 0.0;
+
+            double median;
+            if (n % 2 == 1)
+            {
+                median = sizesDesc[n / 2];
+            }
+            else
+            {
+                // sizesDesc CSOKKENO sorrendben van - a ket kozepso elem
+                // ugyanaz, mint novekvo sorrendben, csak forditott indexen.
+                median = (sizesDesc[n / 2 - 1] + sizesDesc[n / 2]) / 2.0;
+            }
+
+            int p90Index = System.Math.Max(0, (int)(0.1 * n) - 1);
+            int p90 = sizesDesc[p90Index];
+
+            int tiny = 0;
+            foreach (int s in sizesDesc)
+                if (s < TinyLandmassTileThreshold) tiny++;
+
+            // Gini egyutthato, diszkret kepletet - NOVEKVO sorrend kell hozza.
+            var sizesAsc = new List<int>(sizesDesc);
+            sizesAsc.Sort();
+            double giniNumerator = 0.0;
+            for (int i = 0; i < n; i++)
+                giniNumerator += (2.0 * (i + 1) - n - 1) * sizesAsc[i];
+            double gini = total > 0 ? giniNumerator / (n * (double)total) : 0.0;
+
+            return new LandmassDistributionStats(n, (int)total, largestShare, top2Share, median, p90, tiny, gini);
+        }
     }
 }

@@ -893,3 +893,92 @@ A kulcsváltozás: **a render nem a végén van**. Az M2-től kezdve minden fáz
 ND-01 továbbra is blokkoló, de a döntési helyzet változott: a render első osztályú kimenetté válásával a **Godot 4 + C#** kombináció mérlege érzékelhetően javult a nyers Rust ellen — a kész gömb-geometria, shader-pipeline, kamera- és UI-rendszer több hónapnyi munkát spórol, és a determinizmus a C# core-ban továbbra is megoldható.
 
 Ha ezt jóváhagyod, az első kódszállítás **M1 + M2 együtt**: determinisztikus PRNG tesztvektorokkal, cubed-sphere grid, és egy forgatható, LOD-olt gömb a képernyőn. Ez már mutat valamit, és minden további rá épül.
+---
+
+## 12. Terület (Area) — negyedik panelszint
+
+Terv + implementáció: 2026-09-13. Felhasználói kérés (docs/backlog.md
+"Navigációs menü és panel-elrendezés"): a bolygó → kontinens → régió
+hierarchia alá egy negyedik, "terület" szint kerül - a régió kisebb,
+névvel ellátott részei, hogy a navigációs menü tovább tudjon zoomolni.
+
+### 12.1 Mi a "Terület" - és mi NEM
+
+A régió (§2.3, `FeatureSegmentation.FindWatershedRegions`) DEFINÍCIÓ szerint
+egy vízgyűjtő-csoport: minden szárazföld-tile, ami ugyanabba az óceán-
+kifolyásba folyik. Ez térben **nem garantáltan összefüggő** (két külön
+szárazföld-darab is folyhat ugyanabba az óceán-tile-ba). A "terület" ezzel
+szemben egy TISZTÁN GEOMETRIAI további felosztás - **nem** új klíma-,
+biome- vagy tektonikai fogalom, és **nem** ír felül semmilyen meglévő
+mezőt. Csak egy negyedik, finomabb panel-/navigációs szint, ugyanazon az
+adatmodellen (I3/I4: a neve, mérete, domináns biome-ja és morfológiai
+típusa mind a MÁR MEGLÉVŐ per-tile mezőkből számolódik, ugyanúgy, mint a
+régióé).
+
+### 12.2 Algoritmus (`FeatureSegmentation.PartitionRegionIntoAreas`)
+
+Tiszta gráf-algoritmus, **nincs random, nincs lebegőpontos transzcendens**
+(I1/I2-kompatibilis minden szálszámon/sorrenden - csak egész `TileId.Value`
+összehasonlítás és BFS):
+
+1. **Összefüggő komponensekre bontás** (4-szomszédsági BFS a régió
+   tile-halmazán belül) - a fenti okból: a vízgyűjtő-régió nem garantáltan
+   egy darab.
+2. **Minden komponenst KÜLÖN** oszt fel kb. `targetAreaTileCount` (alapérték
+   40) méretű darabokra:
+   - **Mag-választás**: "legtávolabbi pont" mintavétel (k-center jellegű) -
+     a legkisebb kanonikus `TileId.Value`-jú tile-lal kezdve, mindig a már
+     kiválasztott magoktól (BFS-távolság) legtávolabbi, még ki nem
+     választott tile-t vesszük fel; `k = round(n / targetAreaTileCount)`.
+   - **Hozzárendelés**: rétegenként szinkronizált többforrású BFS - minden
+     tile a legközelebbi maghoz kerül, döntetlennél a kisebb kanonikus
+     `TileId.Value`-jú mag nyer (a jelölteket EXPLICIT összehasonlítjuk,
+     nem "első nyer" - így a bejárási sorrendtől függetlenül determinisztikus).
+
+Ez egy Voronoi-jellegű, összefüggő, kb. egyenletes méretű particionálás a
+tile-szomszédsági gráfon - ugyanaz a módszertani család, mint amit
+térképgenerátorok tartományi ("province") felosztásra szoktak használni,
+csak itt a bemenet a már meglévő cubed-sphere szomszédsági gráf.
+
+**Élesetek**: üres régió → üres lista; `targetAreaTileCount <= 0` vagy a
+régió mérete ≤ a célméret → egyetlen terület (az egész komponens); a
+komponens-bontás miatt hozzárendeletlen tile elvben nem fordulhat elő, de
+biztonsági hálóként saját (szingleton) területet kap.
+
+### 12.3 Névadás és featureId-tartomány
+
+Ugyanaz a `NameGeneration.GenerateName(worldSeed, featureId, dominantBiome[, landform])`,
+mint kontinensnél/régiónál - **nincs új `RandomProperty`**, tehát nem
+seed-törő. A featureId-tartományok (a meglévő kontinens=`i`, régió=
+`10000+i` minta folytatásaként): **terület = `20000 + regionIndex*1000 +
+areaIndexWithinRegion`** - `regionIndex` a panelen megjelenő régió-sorrend
+(méret szerint csökkenő, majd kanonikus kifolyás-tile másodlagos kulccsal),
+`areaIndexWithinRegion` a `PartitionRegionIntoAreas` visszaadási sorrendje.
+Max. 1000 terület/régió a tartományban - a jelenlegi világban a
+legnagyobb régió is jóval ez alatt marad.
+
+### 12.4 Panel-adat és Viewer-bekötés
+
+`AreaPanelData` (`RegionPanelData` mintájára): `Name`, `AreaTiles`,
+`DominantBiome`, `LandformType`, `CenterDirection`. **Lusta kiértékelés**:
+a navigáció csak a ténylegesen kiválasztott régióhoz kéri le a területeit
+(`PlanetGridMesh.ComputeAreaPanelData(regionIndex)`), nem minden régióhoz
+előre - a `ComputePanelData()` költsége (I4-kompatibilis, panelenkénti
+újraszámolás) így nem nő az összes régió összes területének előzetes
+kiszámolásával.
+
+### 12.5 Ellenőrzés
+
+Python referencia (`tools/reference/features_ref.py`:
+`partition_region_into_areas` + a hozzá tartozó `_connected_components`/
+`_partition_component` segédfüggvények) → determinizmus, kontiguitás és
+teljes/átfedésmentes lefedés invariáns-teszttel ellenőrizve → C#-port
+(`FeatureSegmentation.PartitionRegionIntoAreas`) a Python-vektorok
+(`features_vectors.json` `areasByRegion`) ellen BITPONTOSAN egyezik (csak
+egész aritmetika). `tests/WorldGen.Core.Tests/Features/AreaPartitioningTests.cs`:
+vektor-egyezés + tisztaság + paraméter-érzékenység + szétkapcsolt-komponens
++ élesetek + minden (≥5 tile-os) régióra teljes lefedés/kontiguitás
+invariáns. 393/393 Core-teszt zöld (9 új).
+
+**Élő Unity-ellenőrzés hátra**: a navigációs menü negyedik szintjének
+tényleges megjelenése és kattinthatósága.
