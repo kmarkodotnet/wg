@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using WorldGen.Core.Features;
 
 namespace WorldGen.Viewer
 {
@@ -39,6 +40,16 @@ namespace WorldGen.Viewer
         public int RiverMouthCount;
         public int RiverBasinCount;
 
+        /// <summary>
+        /// 2. probléma (docs/backlog.md "Continent és Island fogalmak
+        /// szétválasztása") - <see cref="FeatureSegmentation.LandmassClassName"/>,
+        /// a landmass méretének a világ TELJES szárazföldjéhez viszonyított
+        /// aránya alapján (<see cref="FeatureSegmentation.ClassifyLandmass"/>).
+        /// Tisztán utólagos kategorizálás - a flood-fill komponens maga
+        /// (`AreaTiles` stb.) VÁLTOZATLAN.
+        /// </summary>
+        public string LandmassClass;
+
         /// <summary>§2.2 "Coastal complexity" - FeatureMetrics.CoastalComplexity
         /// (part-tile-szám / sqrt(terület) alak-heurisztika, ld. ott).</summary>
         public double CoastalComplexity;
@@ -72,6 +83,22 @@ namespace WorldGen.Viewer
         public string LandformType;
 
         /// <summary>Ld. ContinentPanelData.CenterDirection doksi - ugyanaz a minta, régió-szinten.</summary>
+        public Vector3 CenterDirection;
+    }
+
+    /// <summary>
+    /// Negyedik panelszint ("Terület"/Area, docs/01-architecture.md §12,
+    /// docs/backlog.md "Navigációs menü és panel-elrendezés") - a régió
+    /// <see cref="FeatureSegmentation.PartitionRegionIntoAreas"/>-szal
+    /// kapott, kisebb, kanonikusan névvel ellátott része. UGYANAZ a minta,
+    /// mint <see cref="RegionPanelData"/> - lásd ott a mezők doksiját.
+    /// </summary>
+    public sealed class AreaPanelData
+    {
+        public string Name;
+        public int AreaTiles;
+        public string DominantBiome;
+        public string LandformType;
         public Vector3 CenterDirection;
     }
 

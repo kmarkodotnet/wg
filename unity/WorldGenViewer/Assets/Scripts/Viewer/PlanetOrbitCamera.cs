@@ -119,6 +119,24 @@ namespace WorldGen.Viewer
         public float AltitudeAboveSurface => distance - EffectiveSurfaceRadius;
 
         /// <summary>
+        /// FELHASZNÁLÓI KÉRÉS (2026-09-13, navigációs menü): a
+        /// "Vissza"/lista-kattintás mely magasságra repüljön az adott
+        /// nézetszinten - a MÁR MEGLÉVŐ continentViewAltitude/
+        /// regionViewAltitude küszöbökből származtatva, hogy a cél
+        /// magasság a <see cref="CurrentViewLevel"/> ÁLTAL IS annak a
+        /// szintnek minősüljön (nem csak közelítőleg). "Terület" (Area) -
+        /// a régió alatti negyedik szint, ami a ViewLevel enumban nincs
+        /// külön értékként - a hívó ilyenkor a Region-magasság további
+        /// felezését használja (ld. PlanetGridMesh navigációs kód).
+        /// </summary>
+        public float SuggestedAltitude(ViewLevel level)
+        {
+            if (level == ViewLevel.Planet) return continentViewAltitude * 2.5f;
+            if (level == ViewLevel.Continent) return (continentViewAltitude + regionViewAltitude) * 0.5f;
+            return regionViewAltitude * 0.5f;
+        }
+
+        /// <summary>
         /// A target-tól a kamera fele mutató, Unity-vilagteri, normalizalt
         /// irany - UGYANAZ a konvencio, amit a <see cref="FlyToDirection"/>
         /// bemenetkent var (ld. ott a doksit) - tehat egy `WorldGenPanelData.

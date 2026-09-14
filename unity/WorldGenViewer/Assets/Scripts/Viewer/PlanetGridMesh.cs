@@ -858,6 +858,18 @@ namespace WorldGen.Viewer
         private Dictionary<TileId, bool> _lastIsOcean;
         private Dictionary<TileId, Biome> _lastBiomeOf;
         private double _lastSeaLevel;
+        // A navigacios menu (docs/backlog.md "Navigacios menu es panel-
+        // elrendezes") negyedik szintjehez: az utolso ComputePanelData()
+        // hivas regio-listaja, UGYANABBAN a sorrendben, mint a
+        // data.Regions - hogy a kivalasztott regio indexebol lusta modon
+        // (csak akkor, amikor a felhasznalo tenylegesen bele-zoomol)
+        // lekerdezhetok legyenek a teruletei, a teljes flood/regio-
+        // szamitas ujra-futtatasa nelkul.
+        private FlowNetwork.FloodResult _lastFlood;
+        private HashSet<TileId> _lastRiverTilesForPanels;
+        private List<TileId> _lastPanelRegionRoots;
+        private Dictionary<TileId, List<TileId>> _lastSizedRegions;
+        private List<List<TileId>> _lastSortedContinents;
         // A legutobbi Build()-ben kiszamolt csapadek-mezo (vagy null, ha
         // egyik felhasznaloja - precipitationOverlay/showRivers/showClouds -
         // sem volt bekapcsolva) - ld. ApplyCloudOnlyRebuild doksi: ebbol
@@ -914,6 +926,7 @@ namespace WorldGen.Viewer
         private void Start()
         {
             SynchronizePhysicalReliefScale();
+            Built.AddListener(RefreshNavigationCache);
             Build();
         }
 
@@ -930,6 +943,9 @@ namespace WorldGen.Viewer
         /// </summary>
         private void Update()
         {
+            // ND-104: a hőmező háttérmunkája és snapshot-átvétele független a
+            // LOD-ág korai visszatéréseitől.
+            UpdateThermalOverlay();
             TickUnusedTerrainChunks();
             if (!useAdaptiveLod)
             {
@@ -1085,16 +1101,18 @@ namespace WorldGen.Viewer
         }
 
         private bool _colorCacheWindMode;
+        private bool _colorCacheTectonicMode;
 
         /// <summary>
-        /// A windSpeedOverlay valtozasakor a perzisztens sarok-szin-cache
-        /// (_persistentCornerColorCache) elavul (mas szamitasi ag adja a szint) -
-        /// egyszeri urites modvaltaskor. A sarok-POZICIO cache (_persistentCornerCache)
-        /// ervenyes marad, mert a geometria nem fugg az overlaytol.
+        /// A windSpeedOverlay (és a tektonikus overlay) valtozasakor a
+        /// perzisztens sarok-szin-cache (_persistentCornerColorCache) elavul
+        /// (mas szamitasi ag adja a szint) - egyszeri urites modvaltaskor. A
+        /// sarok-POZICIO cache (_persistentCornerCache) ervenyes marad, mert
+        /// a geometria nem fugg az overlaytol.
         /// </summary>
         private void InvalidateColorCacheIfModeChanged()
         {
-            if (_colorCacheWindMode != windSpeedOverlay)
+            if (_colorCacheWindMode != windSpeedOverlay || _colorCacheTectonicMode != tectonicPlateOverlay)
             {
                 _persistentCornerColorCache.Clear();
                 _previousChunkCache.Clear();
@@ -1104,6 +1122,7 @@ namespace WorldGen.Viewer
                 // elavult overlay-erteket.
                 _staticCornerColors = Array.Empty<Color>();
                 _colorCacheWindMode = windSpeedOverlay;
+                _colorCacheTectonicMode = tectonicPlateOverlay;
             }
         }
 
@@ -1195,18 +1214,153 @@ namespace WorldGen.Viewer
         private string _gyrInputText = "0.000";
         private double _gyrInputParsedValue;
 
+        /// <summary>
+        /// A jobb felső "Kamera állása" doboz (<see cref="DrawCameraStatePanel"/>)
+        /// forrása - ugyanaz az önfeloldó minta, mint a <see cref="WorldGenPanelUI"/>
+        /// EnsureOrbitCameraReference-je (Play közbeni hot-reload után is
+        /// pótolja magát, ld. ott a doksit).
+        /// </summary>
+        private PlanetOrbitCamera _hudOrbitCamera;
+
+        // ---- Navigációs menü (docs/backlog.md "Navigációs menü és
+        // panel-elrendezés", 2026-09-13) - bolygó/kontinens/régió/terület
+        // négy szintje, breadcrumb + lista + vissza-gomb. Ugyanaz az OnGUI
+        // (nem Canvas/EventSystem) alap, mint a Deep time doboz - valódi
+        // GUI.Button kattintás, nincs padded-link kompromisszum.
+        private enum NavigationLevel { Planet, Continent, Region, Area }
+
+        private NavigationLevel _navLevel = NavigationLevel.Planet;
+        private int _navContinentIndex = -1;
+        private int _navRegionGlobalIndex = -1;
+        private int _navAreaIndex = -1;
+        private string _navContinentName = "";
+        private string _navRegionName = "";
+        private string _navAreaName = "";
+
+        private WorldGenPanelData _navPanelData;
+        private readonly Dictionary<int, List<RegionPanelData>> _navRegionsByContinent = new Dictionary<int, List<RegionPanelData>>();
+        private readonly Dictionary<int, List<int>> _navRegionGlobalIndicesByContinent = new Dictionary<int, List<int>>();
+        private readonly Dictionary<int, List<AreaPanelData>> _navAreasByRegion = new Dictionary<int, List<AreaPanelData>>();
+        private Vector2 _navListScroll;
+
+        /// <summary>
+        /// Minden sikeres Build() után (ld. Start() - Built.AddListener) -
+        /// a navigációs gyorsítótárak a régi világra vonatkoznának, ezért
+        /// törlődnek, és a nézet visszaáll bolygó-szintre (a korábbi
+        /// kontinens-/régió-index egy ÚJ világon értelmetlen/érvénytelen
+        /// lenne).
+        /// </summary>
+        private void RefreshNavigationCache()
+        {
+            _navPanelData = ComputePanelData();
+            _navRegionsByContinent.Clear();
+            _navRegionGlobalIndicesByContinent.Clear();
+            _navAreasByRegion.Clear();
+            _navLevel = NavigationLevel.Planet;
+            _navContinentIndex = -1;
+            _navRegionGlobalIndex = -1;
+            _navAreaIndex = -1;
+        }
+
+        private List<RegionPanelData> GetRegionsForContinentCached(int continentIndex)
+        {
+            if (!_navRegionsByContinent.TryGetValue(continentIndex, out List<RegionPanelData> regions))
+            {
+                regions = ComputeRegionPanelDataForContinent(continentIndex, out List<int> globalIndices);
+                _navRegionsByContinent[continentIndex] = regions;
+                _navRegionGlobalIndicesByContinent[continentIndex] = globalIndices;
+            }
+            return regions;
+        }
+
+        private List<AreaPanelData> GetAreasForRegionCached(int globalRegionIndex)
+        {
+            if (!_navAreasByRegion.TryGetValue(globalRegionIndex, out List<AreaPanelData> areas))
+            {
+                areas = ComputeAreaPanelData(globalRegionIndex);
+                _navAreasByRegion[globalRegionIndex] = areas;
+            }
+            return areas;
+        }
+
+        private void NavigateToPlanet()
+        {
+            _navLevel = NavigationLevel.Planet;
+            _navContinentIndex = -1;
+            _navRegionGlobalIndex = -1;
+            _navAreaIndex = -1;
+            if (_hudOrbitCamera != null)
+                _hudOrbitCamera.FlyToDirection(
+                    _hudOrbitCamera.CurrentViewDirection,
+                    _hudOrbitCamera.SuggestedAltitude(PlanetOrbitCamera.ViewLevel.Planet));
+        }
+
+        private void NavigateToContinent(int continentIndex)
+        {
+            if (_navPanelData == null || continentIndex < 0 || continentIndex >= _navPanelData.Continents.Count) return;
+            _navLevel = NavigationLevel.Continent;
+            _navContinentIndex = continentIndex;
+            _navRegionGlobalIndex = -1;
+            _navAreaIndex = -1;
+            _navContinentName = _navPanelData.Continents[continentIndex].Name;
+            if (_hudOrbitCamera != null)
+                _hudOrbitCamera.FlyToDirection(
+                    _navPanelData.Continents[continentIndex].CenterDirection,
+                    _hudOrbitCamera.SuggestedAltitude(PlanetOrbitCamera.ViewLevel.Continent));
+        }
+
+        private void NavigateToRegion(int continentIndex, int globalRegionIndex)
+        {
+            List<RegionPanelData> regions = GetRegionsForContinentCached(continentIndex);
+            List<int> globalIndices = _navRegionGlobalIndicesByContinent[continentIndex];
+            int localIndex = globalIndices.IndexOf(globalRegionIndex);
+            if (localIndex < 0) return;
+            _navLevel = NavigationLevel.Region;
+            _navContinentIndex = continentIndex;
+            _navRegionGlobalIndex = globalRegionIndex;
+            _navAreaIndex = -1;
+            _navRegionName = regions[localIndex].Name;
+            if (_hudOrbitCamera != null)
+                _hudOrbitCamera.FlyToDirection(
+                    regions[localIndex].CenterDirection,
+                    _hudOrbitCamera.SuggestedAltitude(PlanetOrbitCamera.ViewLevel.Region));
+        }
+
+        private void NavigateToArea(int areaIndex)
+        {
+            List<AreaPanelData> areas = GetAreasForRegionCached(_navRegionGlobalIndex);
+            if (areaIndex < 0 || areaIndex >= areas.Count) return;
+            _navLevel = NavigationLevel.Area;
+            _navAreaIndex = areaIndex;
+            _navAreaName = areas[areaIndex].Name;
+            if (_hudOrbitCamera != null)
+                _hudOrbitCamera.FlyToDirection(
+                    areas[areaIndex].CenterDirection,
+                    _hudOrbitCamera.SuggestedAltitude(PlanetOrbitCamera.ViewLevel.Region) * 0.5f);
+        }
+
+        private void NavigateBack()
+        {
+            if (_navLevel == NavigationLevel.Area) NavigateToRegion(_navContinentIndex, _navRegionGlobalIndex);
+            else if (_navLevel == NavigationLevel.Region) NavigateToContinent(_navContinentIndex);
+            else if (_navLevel == NavigationLevel.Continent) NavigateToPlanet();
+        }
+
+        // FELHASZNALOI KERES (2026-09-13): teljes tizes-lepteku sor 1 evtol
+        // 100 millio evig - a korabbi sorbol hianyzott a "100ky" (a 10ky->1my
+        // lepes emiatt 100x-os volt, nem 10x-os).
         private static readonly string[] DeepTimeStepLabels =
         {
-            "1y", "10y", "100y", "1ky", "10ky", "1my", "10my", "100my"
+            "1y", "10y", "100y", "1ky", "10ky", "100ky", "1my", "10my", "100my"
         };
 
         // A deepTimeMyr belso egysege millio ev (Myr).
         private static readonly double[] DeepTimeStepMyr =
         {
-            0.000001, 0.00001, 0.0001, 0.001, 0.01, 1.0, 10.0, 100.0
+            0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0
         };
 
-        private const int DeepTimeButtonsPerRow = 8;
+        private const int DeepTimeButtonsPerRow = 9;
         private const int DeepTimeButtonRowCount = 1;
 
         private void SynchronizePhysicalReliefScale()
@@ -1251,7 +1405,7 @@ namespace WorldGen.Viewer
         private float _wcRadius;
         private double _wcDeepTime, _wcTargetWater, _wcRiverFrac, _wcWindMax, _wcPrecipMax;
         private double _wcDayT, _wcOrbital, _wcRotation, _wcAxialTilt, _wcRelief, _wcElevScale;
-        private bool _wcCraters, _wcRivers, _wcLakesIce, _wcErosion, _wcWindOverlay, _wcPrecipOverlay;
+        private bool _wcCraters, _wcRivers, _wcLakesIce, _wcErosion, _wcWindOverlay, _wcPrecipOverlay, _wcTectonicOverlay;
         private int _wcHydroLevel, _wcMinLakeTiles;
         private double _wcMinLakeDepth;
 
@@ -1268,6 +1422,7 @@ namespace WorldGen.Viewer
             _wcRelief = terrainReliefExaggeration; _wcElevScale = elevationScale;
             _wcCraters = showCraters; _wcRivers = showRivers; _wcLakesIce = showLakesIce;
             _wcErosion = showDeepTimeErosion; _wcWindOverlay = windSpeedOverlay; _wcPrecipOverlay = precipitationOverlay;
+            _wcTectonicOverlay = tectonicPlateOverlay;
             _wcHydroLevel = hydrologyLevel; _wcMinLakeTiles = minLakeTiles;
             _wcMinLakeDepth = minLakeDepthMeters;
         }
@@ -1314,6 +1469,7 @@ namespace WorldGen.Viewer
                 || _wcCraters != showCraters || _wcRivers != showRivers || _wcLakesIce != showLakesIce
                 || _wcErosion != showDeepTimeErosion || _wcWindOverlay != windSpeedOverlay
                 || _wcPrecipOverlay != precipitationOverlay || _wcPrecipMax != precipitationColorMax
+                || _wcTectonicOverlay != tectonicPlateOverlay
                 || _wcHydroLevel != hydrologyLevel || _wcMinLakeTiles != minLakeTiles
                 || _wcMinLakeDepth != minLakeDepthMeters;
         }
@@ -1449,22 +1605,49 @@ namespace WorldGen.Viewer
         /// (WorldConfigChangedSinceBuild) es epit ujra (fekezve). Fejlesztoi/
         /// diagnosztikai vezerlo - a showOnScreenControls kikapcsolja.
         /// </summary>
+        /// <summary>
+        /// FELHASZNÁLÓI KÉRÉS (2026-09-13, jóváhagyott mockup - ld.
+        /// docs/backlog.md "Navigációs menü és panel-elrendezés"): a
+        /// vezérlők BAL oldalon (Navigáció felül, alatta Deep time, alatta
+        /// Rétegek), az olvasók (kamera állása, kiválasztott elem infója)
+        /// JOBB oldalon - a korábbi, mindent jobbra tevő elrendezés helyett.
+        /// </summary>
         private void OnGUI()
         {
             if (!showOnScreenControls)
                 return;
 
-            const float pad = 12f, w = 600f, rowH = 22f;
-            // A bal oldalt a világ-/kontinens-/régiópanelek használják, ezért
-            // a deep-time vezérlők a jobb felső sarokba kerülnek. Keskeny
-            // Game View esetén se engedjük a panelt a képernyőn kívülre.
-            float x = Mathf.Max(pad, Screen.width - w - pad);
-            float y = pad;
-            // A széles panelen mind a nyolc pozitív lépték egy sorban, alattuk
-            // mind a nyolc negatív lépték egy második sorban fér el. Tartsuk a
-            // hátteret ugyanabból a sorszámból számolva, hogy egyetlen vezérlő
-            // se lógjon ki a panelből.
-            const float panelRowCount = 12f;
+            const float pad = 12f, w = 460f, rowH = 22f;
+            float xLeft = pad;
+            float xRight = Mathf.Max(pad, Screen.width - w - pad);
+            float yLeft = pad;
+            float yRight = pad;
+
+            yLeft += DrawNavigationPanel(xLeft, yLeft, w, rowH);
+            yLeft += 6f;
+            yLeft += DrawDeepTimePanel(xLeft, yLeft, w, rowH);
+            yLeft += 6f;
+            DrawLayersPanel(xLeft, yLeft, w, rowH);
+
+            yRight += DrawCameraStatePanel(xRight, yRight, w, rowH);
+            yRight += 6f;
+            yRight += DrawSelectedInfoPanel(xRight, yRight, w, rowH);
+
+            // Tektonikuslemez-overlay jelmagyarázat - csak akkor foglal helyet,
+            // ha az overlay be van kapcsolva (DrawTectonicPlateLegend 0-t ad
+            // vissza egyébként).
+            yRight += 6f;
+            DrawTectonicPlateLegend(xRight, yRight, w, rowH);
+        }
+
+        private float DrawDeepTimePanel(float x, float y, float w, float rowH)
+        {
+            float startY = y;
+            // A kilenc pozitiv leptek egy sorban, alattuk a kilenc negativ
+            // leptek egy masodik sorban fer el. Tartsuk a hatteret
+            // ugyanabbol a sorszambol szamolva, hogy egyetlen vezerlo se
+            // logjon ki a dobozbol.
+            const float panelRowCount = 6f;
             GUI.Box(new Rect(x - 6f, y - 6f, w + 12f, rowH * panelRowCount + 16f), "Deep time");
             y += rowH * 0.6f;
 
@@ -1528,19 +1711,54 @@ namespace WorldGen.Viewer
             }
             y += rowH;
 
+            return (y - startY) + 10f;
+        }
+
+        /// <summary>
+        /// A korábbi Deep time dobozból kiemelt overlay-/kamera-mód
+        /// kapcsolók, KÜLÖN dobozban (ld. docs/backlog.md "Navigációs menü
+        /// és panel-elrendezés" - "fenntartott hely" a jövőbeli hőmérséklet-
+        /// overlay blokknak, ami a hőmodell-terv 11./22. döntése szerint
+        /// SZINTÉN ide, ebbe a dobozba kerül majd).
+        /// </summary>
+        private void DrawLayersPanel(float x, float y, float w, float rowH)
+        {
+            float panelRowCount = 5f + ThermalOverlayPanelRows;
+            GUI.Box(new Rect(x - 6f, y - 6f, w + 12f, rowH * panelRowCount + 16f), "Rétegek");
+            y += rowH * 0.6f;
+
             showDeepTimeErosion = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), showDeepTimeErosion, " Erózió (kopás)");
-            windSpeedOverlay = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), windSpeedOverlay, " Szél-overlay");
+            bool windToggle = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), windSpeedOverlay, " Szél-overlay");
+            if (windToggle && !windSpeedOverlay)
+                tectonicPlateOverlay = false; // az overlay-ek kolcsonosen kizarjak egymast
+            windSpeedOverlay = windToggle;
             y += rowH;
             showLakesIce = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), showLakesIce, " Tavak+jég");
             showCraters = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), showCraters, " Kráterek");
             y += rowH;
             bool precipToggle = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), precipitationOverlay, " Csapadék-overlay");
             if (precipToggle && !precipitationOverlay)
+            {
                 windSpeedOverlay = false; // a ket overlay kolcsonosen kizarja egymast (a szel megy elobb)
+                tectonicPlateOverlay = false;
+            }
             precipitationOverlay = precipToggle;
             showClouds = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), showClouds, " Felhők (MVP)");
             y += rowH;
-            cloudDriftEnabled = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), cloudDriftEnabled, " Felhő-sodródás");
+            cloudDriftEnabled = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), cloudDriftEnabled, " Felhő-sodródás");
+
+            // Tektonikuslemez-overlay (2026-09-13, docs/backlog.md) - a tobbi
+            // felszin-szinezo overlay-vel (szel/csapadek/ho) kolcsonosen
+            // kizarja egymast, UGYANAZZAL a mintaval, mint a szel/csapadek
+            // par: csak az AKTIVALODO (false->true) valtasra reagalunk.
+            bool tectonicToggle = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), tectonicPlateOverlay, " Tektonikus lemezek");
+            if (tectonicToggle && !tectonicPlateOverlay)
+            {
+                windSpeedOverlay = false;
+                precipitationOverlay = false;
+                thermalOverlayMode = ThermalOverlayMode.Off;
+            }
+            tectonicPlateOverlay = tectonicToggle;
             y += rowH;
 
             // Kamera-mód: 3 kölcsönösen kizáró váltógomb (ugyanaz a minta,
@@ -1549,16 +1767,297 @@ namespace WorldGen.Viewer
             // sose lehessen mindet egyszerre kikapcsolni kattintással.
             bool freeToggle = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), cameraViewMode == CameraViewMode.Free, " Szabad kamera");
             bool axialToggle = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), cameraViewMode == CameraViewMode.AxialRotation, " Tengelyforgás");
-            y += rowH;
-            // Az OrbitalFollow még nincs implementálva. Ne kínáljunk olyan
-            // aktív módot, amely csendben ugyanazt csinálja, mint a Free.
-            bool guiEnabledBeforeOrbital = GUI.enabled;
-            GUI.enabled = false;
-            GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), false, " Pálya mentén (hamarosan)");
-            GUI.enabled = guiEnabledBeforeOrbital;
-            y += rowH;
             if (freeToggle && cameraViewMode != CameraViewMode.Free) cameraViewMode = CameraViewMode.Free;
             else if (axialToggle && cameraViewMode != CameraViewMode.AxialRotation) cameraViewMode = CameraViewMode.AxialRotation;
+            y += rowH;
+
+            // ND-104: pillanatnyi hőmérséklet-overlay blokk (PlanetGridMesh.ThermalOverlay.cs).
+            DrawThermalOverlayRows(x, y, w, rowH);
+        }
+
+        /// <summary>
+        /// A navigációs doboz: breadcrumb, "Vissza" gomb, gördíthető lista a
+        /// jelenlegi szint gyerekeiről (kontinensek / régiók / területek).
+        /// Valódi <see cref="GUI.Button"/> kattintás - NEM a Canvas/TMP
+        /// padded-link kompromisszum (ld. <see cref="WorldGenPanelUI"/>
+        /// doksija, miért kellett ott az; itt OnGUI-ban nincs
+        /// EventSystem/GraphicRaycaster-függés, tehát valódi gomb használható).
+        /// </summary>
+        private float DrawNavigationPanel(float x, float y, float w, float rowH)
+        {
+            EnsureNavigationCamera();
+            const int maxVisibleRows = 7;
+            float listHeight = rowH * maxVisibleRows;
+            float boxHeight = rowH * 2.6f + listHeight + 16f;
+            GUI.Box(new Rect(x - 6f, y - 6f, w + 12f, boxHeight), "Navigáció");
+
+            float rowY = y + rowH * 0.6f;
+            DrawBreadcrumb(x, rowY, w, rowH);
+            rowY += rowH;
+
+            if (_navLevel != NavigationLevel.Planet)
+            {
+                if (GUI.Button(new Rect(x, rowY, 90f, rowH), "‹ Vissza"))
+                    NavigateBack();
+            }
+            GUI.Label(new Rect(x + 100f, rowY, w - 100f, rowH), $"Szint: {NavigationLevelLabel(_navLevel)}");
+            rowY += rowH;
+
+            DrawNavigationList(new Rect(x, rowY, w, listHeight), rowH);
+
+            return boxHeight + 10f;
+        }
+
+        private void EnsureNavigationCamera()
+        {
+            if (_hudOrbitCamera == null)
+                _hudOrbitCamera = FindObjectOfType<PlanetOrbitCamera>();
+        }
+
+        private static string NavigationLevelLabel(NavigationLevel level) => level switch
+        {
+            NavigationLevel.Planet => "Bolygó",
+            NavigationLevel.Continent => "Kontinens",
+            NavigationLevel.Region => "Régió",
+            _ => "Terület",
+        };
+
+        private void DrawBreadcrumb(float x, float y, float w, float rowH)
+        {
+            float cx = x;
+            DrawCrumb(ref cx, y, rowH, "Bolygó", _navLevel == NavigationLevel.Planet, NavigateToPlanet);
+
+            if (_navLevel >= NavigationLevel.Continent && _navContinentIndex >= 0)
+            {
+                DrawCrumbSeparator(ref cx, y, rowH);
+                int capturedContinent = _navContinentIndex;
+                DrawCrumb(ref cx, y, rowH, _navContinentName, _navLevel == NavigationLevel.Continent,
+                    () => NavigateToContinent(capturedContinent));
+            }
+            if (_navLevel >= NavigationLevel.Region && HasSelectedRegion())
+            {
+                DrawCrumbSeparator(ref cx, y, rowH);
+                int capturedContinent = _navContinentIndex;
+                int capturedRegion = _navRegionGlobalIndex;
+                DrawCrumb(ref cx, y, rowH, _navRegionName, _navLevel == NavigationLevel.Region,
+                    () => NavigateToRegion(capturedContinent, capturedRegion));
+            }
+            if (_navLevel == NavigationLevel.Area && _navAreaIndex >= 0)
+            {
+                DrawCrumbSeparator(ref cx, y, rowH);
+                DrawCrumb(ref cx, y, rowH, _navAreaName, true, null);
+            }
+        }
+
+        private static void DrawCrumbSeparator(ref float cx, float y, float rowH)
+        {
+            const float sepWidth = 14f;
+            GUI.Label(new Rect(cx, y, sepWidth, rowH), "/");
+            cx += sepWidth;
+        }
+
+        private static void DrawCrumb(ref float cx, float y, float rowH, string label, bool isCurrent, Action onClick)
+        {
+            Vector2 size = GUI.skin.button.CalcSize(new GUIContent(label));
+            float width = Mathf.Max(40f, size.x);
+            var rect = new Rect(cx, y, width, rowH);
+            if (isCurrent || onClick == null)
+                GUI.Label(rect, label, GUI.skin.box);
+            else if (GUI.Button(rect, label))
+                onClick();
+            cx += width + 2f;
+        }
+
+        private void DrawNavigationList(Rect area, float rowH)
+        {
+            if (_navPanelData == null) return;
+
+            List<(string label, string meta, Action onClick)> items = BuildNavigationListItems();
+
+            float contentHeight = Mathf.Max(area.height, items.Count * rowH);
+            var viewRect = new Rect(0, 0, area.width - 20f, contentHeight);
+            _navListScroll = GUI.BeginScrollView(area, _navListScroll, viewRect);
+            for (int i = 0; i < items.Count; i++)
+            {
+                var (label, meta, onClick) = items[i];
+                var rowRect = new Rect(0, i * rowH, viewRect.width, rowH);
+                string display = string.IsNullOrEmpty(meta) ? label : $"{label}   ({meta})";
+                if (onClick != null && GUI.Button(rowRect, display))
+                    onClick();
+                else if (onClick == null)
+                    GUI.Label(rowRect, display);
+            }
+            GUI.EndScrollView();
+        }
+
+        /// <summary>
+        /// A lista MINDIG a jelenlegi szint GYEREKEIT mutatja (amire tovább
+        /// lehet zoomolni) - bolygón kontinensek, kontinensen régiók,
+        /// régión területek. A terület a legmélyebb (levél) szint, ott a
+        /// lista üres - a "Vissza" gomb és a breadcrumb innen is működik.
+        /// </summary>
+        private List<(string label, string meta, Action onClick)> BuildNavigationListItems()
+        {
+            var items = new List<(string, string, Action)>();
+            if (_navLevel == NavigationLevel.Planet)
+            {
+                for (int i = 0; i < _navPanelData.Continents.Count; i++)
+                {
+                    int captured = i;
+                    ContinentPanelData c = _navPanelData.Continents[i];
+                    items.Add((c.Name, $"{c.LandmassClass}, {c.DominantBiome}, {c.AreaTiles} tile", () => NavigateToContinent(captured)));
+                }
+            }
+            else if (_navLevel == NavigationLevel.Continent && _navContinentIndex >= 0)
+            {
+                List<RegionPanelData> regions = GetRegionsForContinentCached(_navContinentIndex);
+                List<int> globalIndices = _navRegionGlobalIndicesByContinent[_navContinentIndex];
+                for (int i = 0; i < regions.Count; i++)
+                {
+                    int capturedGlobal = globalIndices[i];
+                    RegionPanelData r = regions[i];
+                    items.Add((r.Name, $"{r.LandformType}, {r.AreaTiles} tile", () => NavigateToRegion(_navContinentIndex, capturedGlobal)));
+                }
+            }
+            else if (_navLevel == NavigationLevel.Region && HasSelectedRegion())
+            {
+                List<AreaPanelData> areas = GetAreasForRegionCached(_navRegionGlobalIndex);
+                for (int i = 0; i < areas.Count; i++)
+                {
+                    int captured = i;
+                    AreaPanelData a = areas[i];
+                    items.Add((a.Name, $"{a.LandformType}, {a.AreaTiles} tile", () => NavigateToArea(captured)));
+                }
+            }
+            // NavigationLevel.Area: nincs tovabbi gyerek - a lista ures marad.
+            return items;
+        }
+
+        /// <summary>
+        /// A jobb oldali "kiválasztott elem" doboz - a jelenlegi navigációs
+        /// szintnek megfelelő adatokat mutatja (bolygó/kontinens/régió/
+        /// terület), mind a Core-forrású <see cref="WorldGenPanelData"/>-ból.
+        /// </summary>
+        private float DrawSelectedInfoPanel(float x, float y, float w, float rowH)
+        {
+            const int rowCount = 6; // a legtobb sort hasznalo (Continent) ag hataroz
+            float boxHeight = rowH * (rowCount + 0.6f) + 16f;
+            string title = "Kiválasztott: " + NavigationLevelLabel(_navLevel);
+            GUI.Box(new Rect(x - 6f, y - 6f, w + 12f, boxHeight), title);
+            float rowY = y + rowH * 0.6f;
+
+            if (_navPanelData == null)
+            {
+                GUI.Label(new Rect(x, rowY, w, rowH), "Nincs adat - a Build() még nem futott le.");
+                return boxHeight + 10f;
+            }
+
+            string[] lines;
+            if (_navLevel == NavigationLevel.Planet)
+            {
+                WorldPanelData wd = _navPanelData.World;
+                lines = new[]
+                {
+                    $"Név: {wd.Name}",
+                    $"Óceán-borítottság: {wd.OceanCoveragePercent:F1}%",
+                    $"Élhetőség: {wd.HabitabilityPercent:F1}% ({wd.HabitabilityLevel})",
+                    $"Seed: {wd.SeedDisplay}",
+                };
+            }
+            else if (_navLevel == NavigationLevel.Continent && _navContinentIndex >= 0)
+            {
+                ContinentPanelData c = _navPanelData.Continents[_navContinentIndex];
+                lines = new[]
+                {
+                    $"Név: {c.Name}",
+                    $"Típus: {c.LandmassClass}",
+                    $"Terület: {c.AreaTiles} tile, {c.BiomeCount} biome",
+                    $"Domináns biome: {c.DominantBiome}",
+                    $"Folyótorkolat: {c.RiverMouthCount}, vízgyűjtő: {c.RiverBasinCount}",
+                    $"Part-tagoltság: {c.CoastalComplexity:F2} ({c.CoastalComplexityLevel})",
+                };
+            }
+            else if (_navLevel == NavigationLevel.Region && HasSelectedRegion())
+            {
+                List<RegionPanelData> regions = GetRegionsForContinentCached(_navContinentIndex);
+                List<int> globalIndices = _navRegionGlobalIndicesByContinent[_navContinentIndex];
+                int localIndex = globalIndices.IndexOf(_navRegionGlobalIndex);
+                RegionPanelData r = regions[localIndex];
+                lines = new[]
+                {
+                    $"Név: {r.Name}",
+                    $"Terület: {r.AreaTiles} tile",
+                    $"Domináns biome: {r.DominantBiome}",
+                    $"Morfológia: {r.LandformType}",
+                    $"Folyótorkolat: {r.RiverMouthCount}",
+                };
+            }
+            else if (_navLevel == NavigationLevel.Area && _navAreaIndex >= 0)
+            {
+                List<AreaPanelData> areas = GetAreasForRegionCached(_navRegionGlobalIndex);
+                AreaPanelData a = areas[_navAreaIndex];
+                lines = new[]
+                {
+                    $"Név: {a.Name}",
+                    $"Terület: {a.AreaTiles} tile",
+                    $"Domináns biome: {a.DominantBiome}",
+                    $"Morfológia: {a.LandformType}",
+                };
+            }
+            else
+            {
+                lines = new[] { "Nincs kiválasztott elem." };
+            }
+
+            foreach (string line in lines)
+            {
+                GUI.Label(new Rect(x, rowY, w, rowH), line);
+                rowY += rowH;
+            }
+
+            return boxHeight + 10f;
+        }
+
+        /// <summary>
+        /// FELHASZNÁLÓI KÉRÉS (2026-09-13, ld. docs/backlog.md "Navigációs
+        /// menü és panel-elrendezés"): a Deep time doboz fölé kerülő, önálló
+        /// "Kamera" doboz - nézetszint, felszín feletti magasság (Unity
+        /// egységben, NEM km - a km-es átváltás önálló, még nyitott feladat,
+        /// ld. "Precíz, kamerafüggő kilométeres léptékcsík" backlog-sor; itt
+        /// nem szabad hamis pontosságú km-számot mutatni) és a nézetirány.
+        /// Minden érték a MÁR MEGLÉVŐ <see cref="PlanetOrbitCamera"/> publikus
+        /// állapotából jön (I4) - nincs itt kitalált vagy újraszámolt adat.
+        /// Visszaadja a doboz teljes magasságát (a hívó ehhez képest tolja
+        /// lejjebb a Deep time dobozt).
+        /// </summary>
+        private float DrawCameraStatePanel(float x, float y, float width, float rowHeight)
+        {
+            if (_hudOrbitCamera == null)
+                _hudOrbitCamera = FindObjectOfType<PlanetOrbitCamera>();
+
+            const float headerGap = 0.6f;
+            const int rowCount = 2;
+            float boxHeight = rowHeight * (rowCount + headerGap) + 10f;
+            GUI.Box(new Rect(x - 6f, y - 6f, width + 12f, boxHeight), "Kamera állása");
+
+            float rowY = y + rowHeight * headerGap;
+            if (_hudOrbitCamera == null)
+            {
+                GUI.Label(new Rect(x, rowY, width, rowHeight), "Nincs PlanetOrbitCamera a jelenetben.");
+                return boxHeight + 10f;
+            }
+
+            Vector3 dir = _hudOrbitCamera.CurrentViewDirection;
+            GUI.Label(
+                new Rect(x, rowY, width, rowHeight),
+                $"Nézetszint: {_hudOrbitCamera.CurrentViewLevel}   " +
+                $"Magasság: {_hudOrbitCamera.AltitudeAboveSurface:F2} (Unity egység)");
+            rowY += rowHeight;
+            GUI.Label(
+                new Rect(x, rowY, width, rowHeight),
+                $"Nézetirány: ({dir.x:F3}, {dir.y:F3}, {dir.z:F3})");
+
+            return boxHeight + 10f;
         }
 
         private void DrawDeepTimeStepButtons(float x, float y, float width, float rowHeight, double direction)
@@ -5051,6 +5550,7 @@ namespace WorldGen.Viewer
             // A szin-cache-t is uritettuk (fent) - a mod-flaget szinkronban
             // tartjuk, kulonben a kovetkezo Update() feleslegesen ujra uritene.
             _colorCacheWindMode = windSpeedOverlay;
+            _colorCacheTectonicMode = tectonicPlateOverlay;
             // Uj referencia-allapot -> a korabbi dinamikus-chunk GameObject-ek
             // a REGI vilagot mutatnak - torolni kell oket, kulonben a chunk-diff
             // (ami csak az UJ cuthoz kepesti valtozast nezi) nem feltetlenul
@@ -5149,6 +5649,15 @@ namespace WorldGen.Viewer
                 int bySize = b.Count.CompareTo(a.Count);
                 return bySize != 0 ? bySize : CompareTileByFaceUV(MinTile(a), MinTile(b));
             });
+            _lastSortedContinents = sortedContinents;
+
+            // 2. problema (docs/backlog.md "Continent es Island fogalmak
+            // szetvalasztasa") - a landmass-osztalyozashoz a VILAG teljes
+            // szarazfold-tile-szama kell (a tengerszint-kalibraciotol
+            // fuggetlen, stabil mertek - ld. FeatureSegmentation doksija).
+            int totalLandTiles = 0;
+            foreach (bool isOceanTile in _lastIsOcean.Values)
+                if (!isOceanTile) totalLandTiles++;
 
             for (int i = 0; i < sortedContinents.Count; i++)
             {
@@ -5157,6 +5666,7 @@ namespace WorldGen.Viewer
                 string name = NameGeneration.GenerateName(_lastSeed, (ulong)i, dominant.ToString());
                 var compSet = new HashSet<TileId>(comp);
                 double coastalComplexity = FeatureMetrics.CoastalComplexity(compSet, _lastIsOcean);
+                FeatureSegmentation.LandmassClass landmassClass = FeatureSegmentation.ClassifyLandmass(comp.Count, totalLandTiles);
                 data.Continents.Add(new ContinentPanelData
                 {
                     Name = name,
@@ -5168,6 +5678,7 @@ namespace WorldGen.Viewer
                     CoastalComplexity = coastalComplexity,
                     CoastalComplexityLevel = OrdinalQuantization.LevelName(
                         OrdinalQuantization.Quantize(coastalComplexity, OrdinalQuantization.CoastalComplexityThresholds)),
+                    LandmassClass = FeatureSegmentation.LandmassClassName(landmassClass),
                     CenterDirection = CentroidDirection(comp),
                 });
             }
@@ -5178,6 +5689,14 @@ namespace WorldGen.Viewer
                 int bySize = sizedRegions[b].Count.CompareTo(sizedRegions[a].Count);
                 return bySize != 0 ? bySize : CompareTileByFaceUV(a, b);
             });
+
+            // ld. a mezok doksijat: a navigacios menu negyedik szintje ebbol
+            // dolgozik, a TELJES (nem csak a panelen megjelenitett top 10)
+            // sorrendben, hogy egy mely regioba is bele lehessen zoomolni.
+            _lastFlood = flood;
+            _lastRiverTilesForPanels = riverTilesForPanels;
+            _lastPanelRegionRoots = sortedRegionRoots;
+            _lastSizedRegions = sizedRegions;
 
             int regionLimit = Math.Min(10, sortedRegionRoots.Count);
             for (int i = 0; i < regionLimit; i++)
@@ -5210,6 +5729,186 @@ namespace WorldGen.Viewer
         /// sentinel (kontinensek 0..N, régiók 10000+ id-t kapnak).
         /// </summary>
         public const ulong PlanetFeatureId = 999_999_999UL;
+
+        /// <summary>docs/01-architecture.md §12 - a "terület" célmérete tile-ban.</summary>
+        private const int AreaTargetTileCount = 40;
+
+        /// <summary>
+        /// A navigációs menü (docs/backlog.md "Navigációs menü és panel-
+        /// elrendezés") számára: MELY globális régió-indexek (a
+        /// <see cref="ComputePanelData"/> régió-sorrendje, NEM csak a
+        /// panelen megjelenített top 10) tartoznak az adott kontinenshez.
+        /// HEURISZTIKA (dokumentált egyszerűsítés, mint a többi
+        /// FeatureMetrics-közelítés): egy régió tile-jainak ELSŐ eleme
+        /// alapján dönt - a vízgyűjtő-áramlás a gyakorlati esetek
+        /// túlnyomó többségében nem lép át kontinenshatáron, tehát ez a
+        /// régió tile-jainak túlnyomó részére is igaz.
+        /// </summary>
+        private List<int> GetRegionGlobalIndicesForContinent(int continentIndex)
+        {
+            var result = new List<int>();
+            if (_lastSortedContinents == null || _lastPanelRegionRoots == null) return result;
+            if (continentIndex < 0 || continentIndex >= _lastSortedContinents.Count) return result;
+
+            var continentTiles = new HashSet<TileId>(_lastSortedContinents[continentIndex]);
+            for (int i = 0; i < _lastPanelRegionRoots.Count; i++)
+            {
+                List<TileId> tiles = _lastSizedRegions[_lastPanelRegionRoots[i]];
+                if (tiles.Count > 0 && continentTiles.Contains(tiles[0]))
+                    result.Add(i);
+            }
+            result.Sort((a, b) => _lastSizedRegions[_lastPanelRegionRoots[b]].Count
+                .CompareTo(_lastSizedRegions[_lastPanelRegionRoots[a]].Count));
+            return result;
+        }
+
+        /// <summary>
+        /// HIERARCHIA-ROBUSZTUSSÁG (docs/backlog.md "Eltűnő Region/Area kis
+        /// landmass esetén", 2026-09-13, 1. javítás - GYÖKÉROK): a régió
+        /// (vízgyűjtő-csoport) létezésétől FÜGGETLENÜL a `Count &gt;= 5`
+        /// méretszűrést kapja (ld. <see cref="GetRegionGlobalIndicesForContinent"/>).
+        /// Egy kis (pl. ≤19 tile-os) landmass gyakran TÖBB, egymástól
+        /// független, kis helyi vízgyűjtőre esik szét, és ha EGYIK sem éri
+        /// el az 5 tile-t, a landmassnak nulla megjelenő régiója (és emiatt
+        /// nulla területe) lett. Ez sérti a navigációs menü alap-
+        /// invariánsát: egy navigálható landmassnak MINDIG legyen legalább
+        /// 1 régió-gyereke.
+        ///
+        /// A kis, biztonságos javítás: ha a normál (méretszűrt) régió-lista
+        /// üres, egyetlen FALLBACK régióként a landmass TELJES tile-
+        /// halmazát adjuk vissza - nem változtat a `FindWatershedRegions`/
+        /// `sizedRegions` Core-szemantikáján (I1/I2-kompatibilis, tiszta
+        /// függvény a MÁR meglévő adatokból), csak a navigáció soha nem
+        /// akad el 0 gyerekkel. A fallback régió negyedik szintje (Area)
+        /// automatikusan nem-üres, mert
+        /// <see cref="FeatureSegmentation.PartitionRegionIntoAreas"/> már
+        /// garantáltan legalább 1 területet ad bármely nem-üres bemenetre.
+        ///
+        /// FeatureId-tartomány (nem ütközik a normál régió 10000+i vagy a
+        /// terület 20000+ tartományával - ld. docs/01-architecture.md §12.3):
+        /// fallback régió = 900000+kontinensIndex, fallback régió területei
+        /// = 950000+kontinensIndex*1000+területIndex.
+        /// </summary>
+        private const ulong FallbackRegionFeatureIdBase = 900000;
+        private const ulong FallbackAreaFeatureIdBase = 950000;
+
+        /// <summary>
+        /// A régió-index NEGATÍV kódolása jelzi a fallback (egész-landmass)
+        /// régiót - `-1` marad "nincs kiválasztva" (a navigációs mezők
+        /// eredeti alapértéke), ezért a kódolás -2-től indul.
+        /// </summary>
+        private static int EncodeFallbackRegionIndex(int continentIndex) => -(continentIndex + 2);
+        private static bool IsFallbackRegionIndex(int index) => index <= -2;
+        private static int DecodeFallbackContinentIndex(int fallbackIndex) => -fallbackIndex - 2;
+
+        /// <summary>
+        /// Van-e ténylegesen kiválasztott régió - NEM `_navRegionGlobalIndex &gt;= 0`,
+        /// mert a fallback régió-index SZÁNDÉKOSAN negatív (ld. fent) - csak
+        /// a "nincs kiválasztva" alapérték (-1) számít üresnek.
+        /// </summary>
+        private bool HasSelectedRegion() => _navRegionGlobalIndex != -1;
+
+        /// <summary>
+        /// Egy adott kontinens ÖSSZES (nem csak a világ-panel top 10-es)
+        /// régiója - a navigációs menü régió-listájához. A visszaadott lista
+        /// indexe és a <paramref name="globalIndices"/> (kimenő paraméter)
+        /// PÁRHUZAMOS - a kettő együtt azonosítja, hogy egy listaelemre
+        /// kattintva melyik régió-indexre (normál VAGY fallback) kell
+        /// navigálni. GARANTÁLTAN nem-üres listát ad vissza minden
+        /// nem-üres landmass-ra - ld. a fallback-doksit fent.
+        /// </summary>
+        public List<RegionPanelData> ComputeRegionPanelDataForContinent(int continentIndex, out List<int> globalIndices)
+        {
+            globalIndices = GetRegionGlobalIndicesForContinent(continentIndex);
+            var result = new List<RegionPanelData>(Math.Max(1, globalIndices.Count));
+            foreach (int i in globalIndices)
+                result.Add(BuildRegionPanelData(i));
+
+            if (result.Count == 0 && _lastSortedContinents != null
+                && continentIndex >= 0 && continentIndex < _lastSortedContinents.Count
+                && _lastSortedContinents[continentIndex].Count > 0)
+            {
+                List<TileId> allTiles = _lastSortedContinents[continentIndex];
+                ulong featureId = FallbackRegionFeatureIdBase + (ulong)continentIndex;
+                result.Add(BuildRegionPanelDataFromTiles(allTiles, featureId));
+                globalIndices = new List<int> { EncodeFallbackRegionIndex(continentIndex) };
+            }
+            return result;
+        }
+
+        private RegionPanelData BuildRegionPanelData(int globalRegionIndex)
+        {
+            List<TileId> tiles = _lastSizedRegions[_lastPanelRegionRoots[globalRegionIndex]];
+            return BuildRegionPanelDataFromTiles(tiles, (ulong)(10000 + globalRegionIndex));
+        }
+
+        private RegionPanelData BuildRegionPanelDataFromTiles(List<TileId> tiles, ulong featureId)
+        {
+            Biome dominant = FeatureSegmentation.DominantBiome(tiles, _lastBiomeOf);
+            FeatureSegmentation.LandformType landform = FeatureSegmentation.ClassifyLandform(
+                tiles, _lastField, _lastIsOcean, _lastSeaLevel);
+            string name = NameGeneration.GenerateName(_lastSeed, featureId, dominant.ToString(), landform);
+            return new RegionPanelData
+            {
+                Name = name,
+                AreaTiles = FeatureMetrics.AreaTiles(tiles),
+                DominantBiome = dominant.ToString(),
+                RiverMouthCount = FeatureMetrics.RiverMouthCount(tiles, _lastFlood.Parent, _lastIsOcean, _lastRiverTilesForPanels),
+                LandformType = FeatureSegmentation.LandformTypeName(landform),
+                CenterDirection = CentroidDirection(tiles),
+            };
+        }
+
+        /// <summary>
+        /// Negyedik panelszint (docs/01-architecture.md §12): egy adott
+        /// régió (normál globális index VAGY fallback-kódolt landmass-index,
+        /// ld. <see cref="IsFallbackRegionIndex"/>) területei. LUSTA - csak
+        /// akkor számol, amikor a felhasználó ténylegesen bele-zoomol egy
+        /// régióba, nem minden régióhoz előre.
+        /// </summary>
+        public List<AreaPanelData> ComputeAreaPanelData(int regionIndexOrFallback)
+        {
+            if (IsFallbackRegionIndex(regionIndexOrFallback))
+            {
+                int continentIndex = DecodeFallbackContinentIndex(regionIndexOrFallback);
+                if (_lastSortedContinents == null || continentIndex < 0 || continentIndex >= _lastSortedContinents.Count)
+                    return new List<AreaPanelData>();
+                List<TileId> tiles = _lastSortedContinents[continentIndex];
+                ulong areaFeatureIdBase = FallbackAreaFeatureIdBase + (ulong)continentIndex * 1000;
+                return BuildAreaPanelDataFromTiles(tiles, areaFeatureIdBase);
+            }
+
+            if (_lastPanelRegionRoots == null || regionIndexOrFallback < 0 || regionIndexOrFallback >= _lastPanelRegionRoots.Count)
+                return new List<AreaPanelData>();
+
+            List<TileId> regionTiles = _lastSizedRegions[_lastPanelRegionRoots[regionIndexOrFallback]];
+            ulong normalAreaFeatureIdBase = (ulong)(20000 + regionIndexOrFallback * 1000);
+            return BuildAreaPanelDataFromTiles(regionTiles, normalAreaFeatureIdBase);
+        }
+
+        private List<AreaPanelData> BuildAreaPanelDataFromTiles(List<TileId> tiles, ulong areaFeatureIdBase)
+        {
+            var result = new List<AreaPanelData>();
+            List<List<TileId>> areas = FeatureSegmentation.PartitionRegionIntoAreas(tiles, AreaTargetTileCount);
+            for (int i = 0; i < areas.Count; i++)
+            {
+                List<TileId> area = areas[i];
+                Biome dominant = FeatureSegmentation.DominantBiome(area, _lastBiomeOf);
+                FeatureSegmentation.LandformType landform = FeatureSegmentation.ClassifyLandform(
+                    area, _lastField, _lastIsOcean, _lastSeaLevel);
+                ulong featureId = areaFeatureIdBase + (ulong)i;
+                string name = NameGeneration.GenerateName(_lastSeed, featureId, dominant.ToString(), landform);
+                result.Add(new AreaPanelData
+                {
+                    Name = name,
+                    AreaTiles = area.Count,
+                    DominantBiome = dominant.ToString(),
+                    LandformType = FeatureSegmentation.LandformTypeName(landform),
+                    CenterDirection = CentroidDirection(area),
+                });
+            }
+            return result;
+        }
 
         private static int CompareTileByFaceUV(TileId a, TileId b)
         {
@@ -7181,6 +7880,8 @@ namespace WorldGen.Viewer
         /// </summary>
         private Color ContinuousCornerColor(Vector3 displacedCornerPos, bool isOceanic, double seaLevelForColor, double axialTiltRadForColor)
         {
+            if (tectonicPlateOverlay)
+                return TectonicPlateColorAt(displacedCornerPos);
             if (windSpeedOverlay)
                 return WindSpeedColorAt(displacedCornerPos, isOceanic, seaLevelForColor, axialTiltRadForColor);
             if (precipitationOverlay)
@@ -7264,6 +7965,8 @@ namespace WorldGen.Viewer
         {
             // Overlay modban a vizfelszin is az overlayt mutatja (kulonben a kek
             // viz eltakarna az oceanok feletti reteget).
+            if (tectonicPlateOverlay)
+                return TectonicPlateColorAt(displacedLandCornerPos);
             if (windSpeedOverlay)
                 return WindSpeedColorAt(displacedLandCornerPos, true, seaLevelForColor, _adaptiveAxialTiltRad);
             if (precipitationOverlay)

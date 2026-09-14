@@ -313,6 +313,11 @@ vizuális ellenőrzés/döntés a megvalósításhoz: Igen/Részben/Nem).
 | M13/M9 | Fraktál domborzat-zaj nagyon közeli zoomnál lapos | Felhasználói kérés (2026-09-07): "fraktál zaj generálás nagyon közeli zoom esetén nem jó... vezess be egy másodlagos zajt, ami a tile-ok eredeti mérete szerint 40x40 tile-on ismétlődik... jóval alacsonyabb amplitúdóval". ✅ **KÓDBAN MEGVALÓSÍTVA (ND-52, ugyanaznap)**: diagnózis - az `AdaptiveQuadTree` subdivíziója TISZTÁN képernyő-téri/szögméret-alapú, NEM zaj-tartalom-érzékeny; a VALÓS ok, hogy az elsődleges `RidgedMultifractal` legfinomabb oktávja is tucat-km hullámhosszú, míg a renderelt LOD ennél sokkal mélyebbre bont, ezért a legmélyebb szinteken a domborzat gyakorlatilag sima. `CrustElevation.SecondaryDetailNoise` - UGYANAZ a verifikált `RidgedMultifractal` primitív, `SecondaryNoiseFrequency`-n (periódus = 40 × a `PlanetGridMesh.level=5` "eredeti" statikus rács-tile szögmérete), `SecondaryNoiseAmplitudeMeters=200` (az elsődleges ~1/15-e), külön koordináta-eltolással dekorrelálva, a `MountainMask`-ot SZÁNDÉKOSAN kihagyva (a sík régiókban a legfontosabb a közeli-zoom textúra). Ez SZÁMSZERŰEN megváltoztatja `BaseElevation` kimenetét minden pozícióra - a Python referencia (`crust_elevation_ref.py`) egyidejűleg frissült, és MINDEN rá épülő KAT-vektor (`crust_elevation`/`plate_boundary`/`erosion_glaciation_deep_time`/`hydrology`/`river_path`/`lakes_ice_erosion`/`moisture_transport`/`features`/`volcanism`/`state_hash`) újragenerálva, a `TestEarth001` kontinens-méret-listája frissítve (44→37 kontinens, víz-arány cél változatlan). Ld. ND-52 a teljes indoklásért. 6 új Core-teszt (tisztaság, paraméter-érzékenység, periodicitás, amplitúdó-arány). **Nyitott, dokumentált feltételezés**: "tile-ok eredeti mérete" = `PlanetGridMesh.level=5` (NEM az ND-02 Core-oldali level 6) - élő Unity-visszajelzés alapján a két konstans (`SecondaryNoiseReferenceLevel`, `SecondaryNoisePeriodTiles`) újrahangolható. **Élő Unity-ellenőrzés hátra** - ez a vizuális hatás csak Play-módban, legmélyebb zoomnál ellenőrizhető. ⚠️✅ **CODE REVIEW-BAN FELTÁRT 3 HIBA, JAVÍTVA (2026-09-07)**: (1) a GPU compute shader oldali `BaseElevationF` (`TileClassification.compute`) NEM kapta meg a másodlagos zajt - ha a `useGpuClassification`/`useGpuGeometry` kapcsolók bármelyike be van kapcsolva (a scene-ben `useGpuClassification=1` ÉPPEN aktív), a klasszifikáció és a geometria csendben eltérő elevációt használt volna a tengerszint/jég-küszöbök közelében - pótolva, 1:1 tükrözve a CPU-formulát; (2) a kontinens/régió-panel link-kattintás detektálása az ELSŐ egyező (nem a legközelebbi) sort választotta, és a padded kattint-sávok szomszédos sorok között ténylegesen kb. 2x-esen átfednek (mért font-metrikákkal) - ez valószínűleg a session egész hosszában visszatérő "rossz régióhoz repül" panaszok egyik valódi maradék oka volt; javítva: mostantól a klikk Y-koordinátájához LEGKÖZELEBBI sor közepét választja az összes egyező jelölt közül; (3) a tengerfenék-árnyalás normalizációja (`OceanRockBucket`/`ContinuousOceanRockColor`) nem számolt a másodlagos zaj amplitúdójával - pótolva. 375/375 Core-teszt zöld, Unity build-ellenőrizve (78 hiba, ugyanaz a baseline). ⚠️ **ÉLŐ UNITY-HIBA (2026-09-07)**: az (1) GPU shader javítás UTÁN a felhasználó "Compiler timed out" hibát kapott a `CSGenerateTerrainGeometry` kernelre. ELSŐ javítási kísérlet (3→1 oktáv + `[loop]` attribútum) NEM oldotta meg - a felhasználó UGYANAZT a hibát kapta újra. ✅ **VÉGLEGESEN JAVÍTVA, TELJES VISSZAVONÁSSAL**: mivel két egymást követő próbálkozás (3 oktáv, majd 1 oktáv+`[loop]`) is ugyanabba a fordítási-idő korlátba ütközött, ahelyett hogy tovább találgatnánk (amit nem tudok élőben ellenőrizni), a GPU-oldali `BaseElevationF` VISSZAÁLLÍTVA bájtra pontosan az ND-52 ELŐTTI, bizonyítottan működő formulára (nincs másodlagos zaj a GPU-porton) - ez a `git diff HEAD`-del ellenőrizve, a `BaseElevationF` függvény törzse változatlan, csak egy magyarázó kommentár maradt. **SZÁNDÉKOS, DOKUMENTÁLT KORLÁT**: a `useGpuClassification`/`useGpuGeometry` kapcsolók bekapcsolásakor a GPU-úton számolt eleváció a finom részlet-zaj NÉLKÜL, valamivel simább, mint a CPU-é - ez egy elfogadott tradeoff, amíg a shader-fordítási-idő költségvetés nem enged többet (pl. egy jövőbeli, a shader teljes szerkezetét érintő optimalizálással). ⚠️✅ **UJRAHANGOLÁS (2026-09-07, második felhasználói kör: "nem jött be... a másodlagos zaj... lehet e az egész síkra kiterjedő folytonos zajt hozzáadni?")**: utólagos számolás feltárta a tervezési hibát - a `SecondaryNoisePeriodTiles=40` × egy level=5 tile szögmérete együtt kb. 0.3125-szöröse egy teljes nagykörnek, tehát a "másodlagos zaj" SOHA nem is adott közeli-zoom finom részletet (a periódusa SZÉLESEBB, mint az elsődleges zaj bázis-oktávja is), csak egy alig észrevehető (200m amplitúdójú) regionális hullámzást - gyakorlatilag láthatatlan maradt minden zoom-szinten. Javítva: `SecondaryNoiseAmplitudeMeters` 200→900m-re emelve (az elsődleges 3000m kb. 30%-a), hogy ez a már eleve folytonos, egész-felszínes hullámzás láthatóvá váljon minden zoom-szinten (nem csak elméletileg a legmélyebb LOD-nál) - ez KÖZVETLENÜL válasz a "folytonos zaj az egész síkra" kérésre, mivel a jelenség már eleve ilyen jellegű volt, csak túl halvány. Emellett a `PlanetView.unity` scene-ben talált stale (a kód-alapértelmezés-változásokat nem követő, korábban szerializált) `surfaceAmbient`=0.35/`surfaceSpecularStrength`=0.3/`surfaceShininess`=24 értékek is közvetlenül 0.04/0.12/8-ra frissítve a scene-fájlban (ez magyarázza, miért "nem jött be" az éjszakai-sötétítés fix sem - a kód-alapérték-változás nem ír felül egy már létező, szerializált Inspector-értéket). Python referencia + MINDEN kapcsolódó KAT-vektor újragenerálva, kontinens-szám 37→34-re frissítve (Python-mérve), habitability-sáv Moderate→Low. 375/375 Core-teszt zöld, Unity build-ellenőrizve (78 hiba, baseline). ✅ **ND-56, HARMADIK RÉTEG (2026-09-09, felhasználói kérés: "olyat szeretnék ami a maximális felbontás esetén is minden tile-ra hatással van")**: `CrustElevation.TertiaryDetailNoise` - ugyanaz a `RidgedMultifractal`, harmadik koordináta-eltolással. GPU-ra tolás elvetve (Core motorfüggetlensége, ND-52 GPU-fordítási-időtúllépés-precedens, float32 pontosság finom zajnál rosszabb, nem jobb). ❌ **ELSŐ PRÓBÁLKOZÁS VISSZAVONVA ÉLŐ TESZT ELŐTT**: level=20 (elméleti max LOD)/3 tile periódus - felhasználói visszajelzés: "katasztrófa... a távoli zoom nézetet nagyban befolyásolja, ellenben az extrém közeli zoom esetén nem egyenletes a zaj eloszlása" - térbeli ALIASING (level=20 gyakorlatban szinte soha nem érhető el). ✅ JAVÍTVA: level 20→13 (~ND-18 cél-LOD-hoz közeli), periódus 3→8 tile (ugyanaz a minta, mint a másodlagos zajnál). Python referencia + teljes downstream KAT-vektor-lánc újragenerálva, kontinens-szám 34→37, régió-szám 412→402 frissítve, 375/375 Core-teszt zöld. Ld. ND-56 (docs/04-decisions.md) a teljes indoklásért. ❌ **TELJESEN VISSZAVONVA (2026-09-09): "nem lett jobb... működjön minden úgy ahogy ezelőtt"** - az újrahangolt verzió sem hozott érzékelhető javulást. A teljes ND-56 réteg törölve Python-ból és C#-ból, downstream KAT-vektor-lánc visszaregenerálva az ND-52 állapotra (kontinens-szám vissza 34, régió-szám vissza 412), 375/375 Core-teszt PASS. A `CrustElevation.BaseElevation` most a mai session ELŐTTI (ND-52 utáni) állapotot tükrözi. | Közepes | Közepes | Nem |
 
 | M4/M10 | Lemezhatár kéregátmenetének folytonosítása és fizikai peremkorlát | ✅ **Kódban megvalósítva (ND-88/ND-90, 2026-09-12):** a viewer alapból 1:1 fizikai függőleges skálát használ a korábbi 111,3× túlrajzolás helyett. A Core eltérő kéregtípusú lemezeinek -4000/+800 m bázisa a két legközelebbi lemez `0.005`-ös gap-sávjában folytonosan, smoothstep súllyal keveredik; a külön tektonikus uplift plafonja 1500→1000 m. A statikus, deep-time és cache-elt lekérdezési út közös formulát használ; rendereroldali clamp nincs. Numerikus világkép-változásként `.worldpkg` v2 és teljes downstream Python/KAT-frissítés tartozik hozzá. **Nyitott:** élő Unityban ugyanazon problémás hely, több időpont és zoom ellenőrzése; a teljes eleváció a kéregbázis és domborzati zaj miatt továbbra is lehet 1 km fölött, az 1 km-es korlát az uplift-komponensre vonatkozik. | Közepes | Kicsi (élő validáció) | Igen |
+| M4/M8/UI | Eltűnő Region/Area kis landmass esetén | ✅ **KÓDBAN MEGVALÓSÍTVA (2026-09-13)** — felhasználói jelentés: kis (≤19 tile-os) landmass-oknak nem volt megjelenő régiójuk/területük, mert a régió-szűrés (`Count >= 5`) minden helyi vízgyűjtőjükre külön-külön alkalmazódott. Javítás: ha egy landmass normál (méretszűrt) régió-listája üres, egyetlen fallback régióként a landmass TELJES tile-halmazát adja a Viewer (`ComputeRegionPanelDataForContinent`, negatív index-kódolás, disjunkt featureId-tartomány 900000+/950000+) — Core-szemantika (`FindWatershedRegions`) változatlan. Invariáns: minden nem-üres landmass-nak ≥1 régiója, minden régiónak ≥1 területe van (`PartitionRegionIntoAreas` már eleve garantálja ezt). 1 új Core-teszt (`EveryLandmassHasAtLeastOneRegionAfterFallback`, valódi világon gyakorolja a fallback-ágat). **Nem seed-törő.** Ld. `history/2026-09-13-navigation-menu-area-level.md` és a beszélgetés. | Magas | Kicsi | Nem |
+| M4/M8/UI | Continent és Island fogalmak szétválasztása | ✅ **KÓDBAN MEGVALÓSÍTVA (2026-09-13)** — minden összefüggő szárazföld-komponens azonos "kontinens" hierarchiaszinten jelent meg, 4000+ tile-os szuperkontinenstől 5 tile-os szigetig. Új `FeatureSegmentation.LandmassClass` (`Continent`/`LargeIsland`/`Island`/`Islet`), a landmass méretét a világ TELJES szárazföld-tile-számához viszonyítva (nem fix abszolút vagy bolygó-tile-arányos küszöb — a víz-arány kalibrációjától független, stabil mérték). Küszöbök a valós TestEarth001 eloszlásán ellenőrizve (5%-os határ pontosan a 2 szuperkontinenst választja el a 3. legnagyobbtól). Eredmény ezen a világon: 2 Continent, 4 LargeIsland, 25 Island, 0 Islet (az Islet sáv a jelenlegi `minSize=5` mellett szerkezetileg üres — ld. a 3. probléma sorát). `ContinentPanelData.LandmassClass` megjelenik a navigációs listában és a "Kiválasztott elem" panelen. A flood-fill komponens/hierarchia VÁLTOZATLAN, csak utólagos címkézés. 9 új Core-teszt, Python-vektor-egyezéssel. **Nem seed-törő.** | Magas | Kicsi | Nem |
+| M4/M10 | Extrém landmass méreteloszlás — diagnózis lezárva, javítás elhalasztva | 2026-09-13, felhasználói jelentés: néhány szuperkontinens dominál (a mért világon 2 db adja a szárazföld ~90%-át), miközben rengeteg apró sziget is keletkezik. **GYÖKÉROK (mérve, forrásból ellenőrizve, ld. `history/2026-09-13-landmass-distribution-investigation.md`):** a `CrustElevation` HATÓKÖRE dokumentáltan lemez-szintű BINÁRIS kéreg-típust ad (`IsOceanic` egy Bernoulli-próba plate-enként, "a spec §14.1 Plate struct-ja is így modellezi") — ez gráf-percolation viselkedést okoz: a TestEarth001 20 lemezéből 13 kontinentális, és ezek 12-je csak 2 óriás klaszterré olvad össze (mért, plate-hozzárendelési diagnózissal igazolva). **Két új diagnosztikai eszköz készült**: `FeatureSegmentation.ComputeLandmassDistributionStats` (LandmassCount/TotalLandTiles/LargestShare/Top2Share/Median/P90/TinyCount/Gini, Core, tesztelt, Python-vektor-egyezéssel) + 5 seedes empirikus sweep. **Két kísérlet lefuttatva és ELUTASÍTVA (mérve, nem találgatva):** (A) `oceanicProbability` 0.40→0.50 (a percolációs küszöb felé) — ROSSZABB lett (legnagyobb% variancia nőtt, néhol 93%-ig). (B) `plateCount` 20→60 (finomabb percolációs gráf) — csak enyhe javulás, továbbra is céltartományon kívül. **KRITIKUS forrás-ellenőrzés**: a felhasználó jóváhagyott egy harmadik kísérletet (a kéreg-típus elevációs résének szűkítése), de a `docs/04-decisions.md` ND-37 bejegyzése kiderítette, hogy ezt MÁR kipróbálták és elutasították ("irreálisan sekély óceánt eredményezne"), ÉS hogy a jelenlegi extrém eloszlás MAGA ND-37 2026-09-0x-i, tudatosan vállalt mellékhatása (a "falszerű part" hiba javításáért cserébe, akkor is mérve/dokumentálva). **Következtetés: a sima part-átmenet és a kiegyensúlyozott kontinensméret-eloszlás a jelenlegi bináris lemez-kéreg modell mellett strukturálisan ütköző célok** — csak egy nagyobb, plate-en belüli kevert-crust modell oldaná fel mindkettőt egyszerre. **Felhasználói döntés: a numerikus javítás elhalasztva, follow-up feladat.** Diagnosztika/mérőeszköz megmarad. | Alacsony (számítási) | Nagy (ha struktúrálisan javítjuk) | Igen |
+| M4/UI | Tektonikus lemez overlay (deep time mozgás, lemezenkénti szín+név) | ✅ **KÓDBAN MEGVALÓSÍTVA (2026-09-13)** — felhasználói kérés. Új Core `PlatePresentation` (determinisztikus szín arany-arány hue-elosztással, `RandomDomain.Decorative`/`PlateColorHue=42`; név a meglévő `NameGeneration`-t újrahasználva `OceanicCrust`/`ContinentalCrust` utótag-kulcsokkal) - NINCS új szimuláció, a lemez-hovatartozás és -mozgás a MÁR MEGLÉVŐ `PlateGeneration.AssignPlate`+`PlateMotion.MovedSeeds`/`_adaptiveSeeds`-ből jön. Viewer: `PlanetGridMesh.TectonicOverlay.cs` (új partial fájl), `tectonicPlateOverlay` kapcsoló a `DrawLayersPanel`-ben, a MEGLÉVŐ szél-/csapadék-/hő-overlay-mintát követve (`ContinuousCornerColor`/`ContinuousWaterCornerColor` hook), kölcsönösen kizárva a többi overlay-vel MINDKÉT irányban (a korábbi wind/precip pár egyirányú hézagát is bezárva), gördíthető jelmagyarázat-doboz (szín+név+kéregtípus lemezenként). **Nem seed-törő** (a szín/név csak renderelési tulajdonság, a Decorative domain szándékosan a világmodell-garanciákon kívül van). 9 új Core-teszt, 441/441 zöld. Ld. `history/2026-09-13-tectonic-plate-overlay.md`. **Élő Unity Play-teszt hátra.** | Közepes | Közepes | Igen (élő ellenőrzés) |
+| M8/M9/UI | Hierarchikus navigációs menü + breadcrumb (bolygó → kontinens → régió → terület) | Felhasználói kérés (2026-09-13). Play módban egy, a jelenlegi futásidejű panelekével (ld. "Deep time" doboz) egyező kinézetű navigációs menü: 1. szinten a kontinensek listája; kontinensre kattintva a kamera rázoomol, a menüben "Vissza" gomb jelenik meg, alatta a kontinens régiói listázva; régióra kattintva tovább zoom, "Vissza" gomb, alatta a régió kisebb területei (ÚJ, negyedik hierarchiaszint - jelenleg nincs Core-fogalma, névvel sem rendelkezik). Felül breadcrumb mutatja az útvonalat. Emellett a felhasználó kért egy javaslatot a MEGLÉVŐ futásidejű beállítás-panel (deep-time, erózió/szél/csapadék/felhő-overlay kapcsolók) csoportosítására/elhelyezésére, mert az új navigációs menü ugyanoda kerül vizuálisan. Részletes terv, nyitott kérdések és a panel-elrendezési javaslat a tábla alatti "Navigációs menü és panel-elrendezés — kidolgozott terv" szakaszban. **ÜTKÖZÉSVESZÉLY**: a párhuzamosan futó hőmérsékletmező-munka (ld. fenti sor, ND-100-104, 11/22. jóváhagyott döntés) SZINTÉN erre a közös panelre tervez új blokkot - a két munka layout-javaslatát össze kell hangolni, mielőtt a scene-fájl ténylegesen módosul. ✅ **Mockup jóváhagyva (2026-09-13)** - a felhasználó a Planet Navigator artifactot elfogadta 2 kiegészítéssel, mindkettő KÓDBAN MEGVALÓSÍTVA (ld. `history/2026-09-13-deep-time-step-and-camera-state.md`): (1) a Deep time léptetőgombokból hiányzó `100ky` lépés pótolva (teljes tizes-lépéskű sor `1y`-tól `100my`-ig, 9 gomb); (2) új "Kamera állása" doboz (nézetszint/magasság/nézetirány, a meglévő `PlanetOrbitCamera` állapotából) a Deep time doboz fölé, jobb felül. ✅✅ **Negyedik szint + teljes navigációs menü KÓDBAN MEGVALÓSÍTVA (2026-09-13)** - ld. `history/2026-09-13-navigation-menu-area-level.md` és `docs/01-architecture.md` §12 a teljes tervért/indoklásért. Core: `FeatureSegmentation.PartitionRegionIntoAreas` (tiszta BFS-particionálás, Python-referenciával bitpontosan egyező, 9 új Core-teszt, 393/393 zöld). Viewer: teljes `NavigationLevel`-állapotgép (Planet/Continent/Region/Area), valódi `GUI.Button`-breadcrumb + gördíthető lista + "Vissza" gomb, a jóváhagyott elrendezés szerint átrendezve (bal: Navigáció/Deep time/Rétegek; jobb: Kamera állása/Kiválasztott elem) - a `PlanetOrbitCamera.SuggestedAltitude` új segédfüggvénnyel konzisztens zoom-célmagasság minden szinten. **Tudatosan NEM módosítva**: a régi Canvas/TMP `WorldGenPanelUI` szöveglisták (most redundánsak) inaktiválása élő Unity-ellenőrzés nélkül kockázatos lett volna - következő lépésként javasolt. **Élő Unity Game view ellenőrzés MÉG HÁTRA** (kattinthatóság mind a 4 szinten, lista-görgetés, panel-átfedésmentesség keskeny nézetnél) - kódból nem nyilvánítható késznek. | Közepes | Nagy | Igen (élő Unity jóváhagyás hátra) |
 
 ## Látható hegységek, természetes partok — M4/M10 és M13 (2026-09-12)
 
@@ -350,7 +355,25 @@ feladatok sorrendjét, és most nem jár kód- vagy scene-változtatással.
 ## Pillanatnyi hőmérsékletmező és overlay — kidolgozott terv (2026-09-11)
 
 **Állapot:** a hatókör és a 29 architekturális/termékdöntés felhasználó által
-jóváhagyva; numerikus paraméterkalibráció és implementáció még nincs. Az
+jóváhagyva; numerikus paraméterkalibráció és implementáció még nincs.
+**2026-09-13:** az ND-62 ütközés rendezve (ND-99 fenntartva a testvérág
+tengeri-jég döntésének), az öt döntés rögzítve: ND-100 hőmodell, ND-101
+rács/idő/checkpoint, ND-102 széladvekció, ND-103 felszíntípus és autoritatív
+határ, ND-104 Viewer-adatút/UI. Architektúra: `01-architecture.md` §11.
+Baseline mérve (level 6: napi átlag gyorsúton 1,5 ms, Full 382 ms, szél
+156 ms / teljes rács). 2. fázis elkezdve: level-6 rácsmetrika mérve,
+paraméterforrások gyűjtve (`docs/reviews/thermal-parameters-sources-2026-09-13.md`,
+10 modellválasztás megerősítésre vár), egycellás mérés: Crank–Nicolson-IMEX
+javasolt, óránként középre igazított napi faktor. Gömbi advekció mérve:
+kompenzált upwind fluxusforma élközépponti széllel. M1–M10 jóváhagyva.
+**Implementálva (2026-09-13):** level-6 Python-referencia és vektorok (kétszeri
+futás bájtra azonos), Core `SurfaceTemperatureField` és társai (22 teszt),
+bázis-módosítás mérés alapján (M13, β = 0,5 radiatív simítás — a napi faktoros
+bázis sarki éjszakán ~29 K-t adott), Viewer-overlay (Rétegek doboz: Ki /
+Felszín / Levegő, jelmagyarázat, kurzor-bontás; R16 atlasz, shader-paletta).
+Élő Unity-ellenőrzés hátra: `docs/06-user-verification-checklist.md` 15. pont.
+Megerősítendő: M11–M13; öröklött korlát: egyenlítői óceán ~48 °C (§28 kalibráció).
+Hátralévő fázis: autoritatív átállás (6.) és kétirányú szélcsatolás (7.) — külön döntés. Az
 eredeti, rövid backlog-tétel az `experiment/full-temperature-model` testvérágon
 jelent meg napi átlagos felszíni színnézetként. A felhasználói pontosítás ennél
 nagyobb feladatot határoz meg: egy új, időben fejlődő hőmodell kell, amelynek az
@@ -663,6 +686,129 @@ wind -------->| near-surface air anomaly θa       |--> advekció + keveredés
 - Python referencia + újragenerált, byte-egyező vektorok, teljes solution és
   mindhárom tesztprojekt zöld. Élő Unity Editor képernyőkép, vizuális napszak-
   és szélteszt, valamint friss PerfLog nélkül a tétel nem jelölhető késznek.
+
+## Navigációs menü és panel-elrendezés — kidolgozott terv (2026-09-13)
+
+**Állapot:** felhasználói kérés rögzítve, tervezés folyamatban, implementáció
+még nincs. ND-szám szándékosan **nincs** kiosztva ebben a lépésben: a
+`docs/04-decisions.md` fájlt ugyanebben az időpontban egy másik feladat (a
+pillanatnyi hőmérsékletmező, ND-99–104) aktívan szerkeszti a közös
+munkafában - a konfliktus elkerülése érdekében az ND-kiosztás az
+implementáció megkezdésekor, friss fájlállapot mellett történik.
+
+### Cél
+
+Play módban egy, a meglévő "Deep time" panellel **azonos vizuális stílusú**
+navigációs menü, ami a bolygó → kontinens → régió → terület hierarchiában
+enged lefelé zoomolni kattintással, felfelé pedig "Vissza" gombbal és egy
+breadcrumb-sorral. A kattintás-a-névre → kamera-repülés mechanizmus MÁR
+LÉTEZIK (`WorldGenPanelUI`, `PlanetOrbitCamera.FlyToDirection`,
+`ContinentPanelData`/`RegionPanelData.CenterDirection`) - ez az alap, amit a
+menü kiterjeszt egy explicit szintállapot-géppel (jelenleg csak egy opcionális
+`viewLevelText` mutatja a legközelebbi nevet, nincs "vissza" navigáció és
+nincs negyedik szint).
+
+### Hierarchiaszintek és a hiányzó negyedik szint
+
+| Szint | Meglévő Core-forrás | Állapot |
+|---|---|---|
+| Bolygó | `WorldPanelData` | Kész (M8) |
+| Kontinens | `ContinentPanelData`, `NameGeneration.GenerateName` | Kész (M8), névvel |
+| Régió | `RegionPanelData`, `FeatureSegmentation.ClassifyLandform` | Kész (M8), névvel |
+| **Terület** (a régió "kisebb területei") | **Nincs** | Új Core-fogalom kell |
+
+A negyedik szint ("terület") jelenleg NEM létezik sem adatmodellben, sem
+névben - ezt kérte a felhasználó explicit módon ("a régió egyes kisebb
+területei is... ezeknek is kell külön megnevezést adni"). Ez tehát nem tiszta
+Viewer-feladat: a `FeatureSegmentation`-t egy harmadik, finomabb
+particionálási szinttel kell kiegészíteni (pl. a régió tile-jainak
+tovább-klaszterezése, hasonló módszerrel, mint kontinens→régió), és a
+`NameGeneration.GenerateName`-t (már paraméteres `featureId`-re, ld.
+`src/WorldGen.Core/Features/NameGeneration.cs`) erre a szintre is meg kell
+hívni, gondoskodva arról, hogy a terület-`featureId`-k ne ütközzenek a
+kontinens-/régió-szint azonosítóival ugyanabban a `RandomDomain.Naming`
+hívásban. **Ez docs-first Core-munka**: előbb `docs/01-architecture.md` §2
+bővítése egy "Terület" panelszinttel, utána Python-referencia
+(`features_ref.py`) egyeztetés, majd C#. Nem seed-törő, ha új, eddig nem
+használt featureId-tartományt kap (a meglévő kontinens/régió nevek bitre
+változatlanok maradnak).
+
+### UI-állapotgép
+
+- Egy explicit `NavigationLevel` enum (`Planet`/`Continent`/`Region`/`Area`)
+  és egy "kijelölt lánc" (aktuális kontinens-/régió-/terület-index), NEM csak
+  a legközelebbi név kitalálása kameratávolságból (a jelenlegi
+  `viewLevelText` heurisztikája erre nem elég pontos egy explicit menühöz).
+- Lista-elem kattintás → `PlanetOrbitCamera.FlyToDirection` a gyerek
+  `CenterDirection`-jére, ÉS a `NavigationLevel` eggyel lejjebb lép.
+- "Vissza" gomb → `FlyToDirection` a szülő (vagy a bolygó-nézet) felé, a
+  szint eggyel feljebb lép. A kamera-repülés célpontja/magassága ugyanaz a
+  mechanizmus, ami már működik kattintásra - nem kell új kamera-logika, csak
+  a hívás iránya fordul meg.
+- Breadcrumb: `Bolygó / <kontinens neve> / <régió neve> / <terület neve>`,
+  minden korábbi szegmens is kattintható (egyenes ugrás arra a szintre) -
+  ugyanazt a link-kattintás-mintát használva, mint a meglévő
+  `WorldGenPanelUI.TryGetClickedLinkIndex` (ld. ott a valódi Unity `Button`
+  helyett választott, indokolt padded-link megoldást - EZT a mintát a menü is
+  örökölje, ne vezessen be új `EventSystem`/`GraphicRaycaster`-függést élő
+  teszt nélkül).
+
+### Panel-elrendezési javaslat (a kért "hova kerüljön a képernyőn")
+
+A jelenlegi "Deep time" doboz (bal felső sarok, sötét félig-átlátszó háttér,
+egyszerű checkbox-lista + egy szám-input/Alkalmaz gomb) és a kontinens/régió
+szöveglista (jelenleg háttér nélkül, közvetlenül a 3D nézet fölé úsztatva)
+KÉT KÜLÖNÁLLÓ vizuális elem - az új navigációs menü ne öntsön mindent egy
+dobozba, hanem különítse el funkció szerint, azonos stílussal (sötét doboz,
+fehér szöveg, checkbox-sor, kis betűméret):
+
+| Zóna | Tartalom | Indoklás |
+|---|---|---|
+| **Bal felső, 1. doboz — Navigáció** | Breadcrumb sor + kattintható lista (kontinensek/régiók/területek) + "Vissza" gomb | Ez az elsődleges, gyakran használt interakció - a jelenlegi kontinens/régió szöveglista helyére kerül, de DOBOZOLVA (a jelenlegi háttér nélküli, a 3D nézet fölé úsztatott szöveg olvashatósági probléma is egyúttal - sötét doboz alatta javítja). |
+| **Bal felső, 2. doboz — Deep time** | Változatlan (Idő, Gyors kézi beállítás, Alkalmaz) | Ne mozgassuk el egy már megszokott, működő elemet feleslegesen. |
+| **Bal felső, 3. doboz — Rétegek/overlay-ek** | A jelenlegi 8 checkbox (Erózió, Szél-overlay, Tavak+jég, Kráterek, Csapadék-overlay, Felhők, Felhő-sodródás) + **fenntartott hely a jövőbeli hőmérséklet-overlay blokknak** (ld. a hőmodell-terv 11./22. jóváhagyott döntése - ugyanerre a panelre tervez saját, összecsukható blokkot) | Ma egy dobozban van a deep-time-mal keverve; szét kell választani "időlépték" és "mit lássak a felszínen" fogalmilag, hogy a hőmérséklet-blokk később ide illeszkedjen anélkül, hogy a deep-time dobozt kelljen újra átrendezni. |
+| **Jobb felső, kiválasztott elem panelje (World/Continent/Region adatok)** | A meglévő `WorldGenPanelData` számok (terület, biome, folyók stb.) | Ez MARADJON adatpanel, ne navigáció - a navigáció (bal oldal) és az adatmegjelenítés (jobb oldal) elválasztása egyértelműbbé teszi, hogy melyik dobozra kell kattintani navigáláshoz. |
+
+A három bal oldali doboz egymás ALATT, függőlegesen rendezve (nem egymás
+mellett) - ez illeszkedik a jelenlegi képernyő-elrendezéshez (a "Deep time"
+doboz ma is bal felül van, a checkbox-sor alatta). A Navigáció doboz kerüljön
+LEGFELÜLRE (leggyakoribb interakció), utána Deep time, legalul a Rétegek.
+
+**Nyitott kérdés (felhasználói jóváhagyást igényel implementáció előtt):**
+maradjon-e mindhárom doboz egyszerre látható (jelenlegi minta), vagy legyen
+a Navigáció doboz összecsukható/lebegő, hogy mélyebb hierarchiaszinteken
+(hosszú terület-lista) ne nyomja le a képernyőt? Javaslat: a lista görgethető
+legyen egy max-magasság fölött, doboz-összecsukás nélkül (kevesebb új UI-
+állapot, konzisztens a meglévő egyszerű stílussal).
+
+### Fázisterv
+
+1. **Terület-szint Core-tervezés** (`docs/01-architecture.md` §2 bővítés,
+   Python-referencia, C# `FeatureSegmentation`/`NameGeneration` kiterjesztés,
+   KAT-vektorok) - a döntés a hőmérséklet-munka `docs/04-decisions.md`
+   szerkesztésének lezárása UTÁN kap ND-számot.
+2. **Panel-adatmodell bővítés**: `AreaPanelData` (a `RegionPanelData` mintáján),
+   `WorldGenPanelData.Areas` lista.
+3. **Navigációs állapotgép + UI**: `NavigationLevel`, lista/vissza-gomb/
+   breadcrumb rendering a meglévő padded-link kattintás-mintával, a fenti
+   panel-elrendezés szerint dobozolva.
+4. **Élő Unity vizuális ellenőrzés**: kattintás minden szinten, vissza-gomb,
+   breadcrumb-ugrás, hosszú lista görgetése, stílus-egyezés a Deep time
+   dobozzal.
+
+### Kész-definíció
+
+- Mind a négy szint (bolygó/kontinens/régió/terület) neve a Core-modellből jön
+  (I4), kattintható, és a kamera a megfelelő `CenterDirection`-re repül.
+- "Vissza" gomb minden nem-bolygó szinten működik, a breadcrumb minden
+  szegmense kattintható.
+- A navigációs doboz vizuálisan a Deep time dobozzal egyező stílust követ
+  (szín, betűméret, elhelyezkedés-logika).
+- A meglévő Deep time/overlay-checkbox funkciók VÁLTOZATLANOK maradnak -
+  csak a dobozolás/csoportosítás változik.
+- Élő Unity Play-teszt: mind a négy szint közti oda-vissza navigáció
+  vizuálisan megerősítve, nincs regresszió a meglévő kattints-a-névre
+  funkción.
 
 ## Ebben a munkamenetben lezárt tételek (referenciaként)
 
