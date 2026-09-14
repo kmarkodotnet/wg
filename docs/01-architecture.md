@@ -893,6 +893,134 @@ A kulcsváltozás: **a render nem a végén van**. Az M2-től kezdve minden fáz
 ND-01 továbbra is blokkoló, de a döntési helyzet változott: a render első osztályú kimenetté válásával a **Godot 4 + C#** kombináció mérlege érzékelhetően javult a nyers Rust ellen — a kész gömb-geometria, shader-pipeline, kamera- és UI-rendszer több hónapnyi munkát spórol, és a determinizmus a C# core-ban továbbra is megoldható.
 
 Ha ezt jóváhagyod, az első kódszállítás **M1 + M2 együtt**: determinisztikus PRNG tesztvektorokkal, cubed-sphere grid, és egy forgatható, LOD-olt gömb a képernyőn. Ez már mutat valamit, és minden további rá épül.
+
+---
+
+## 11. Pillanatnyi hőmérsékletmező (ND-99–104)
+
+Terv: 2026-09-13, implementáció előtt. A termékdöntéseket a
+[backlog döntésjegyzéke](backlog.md) rögzíti (29 pont, 2026-09-11); a modellt és
+a nyitott numerikus kérdéseket az ND-100–104 írja le. Az ND-99 a testvérág
+ND-62 ütközését rendezi.
+
+### 11.1 Hatókör és sorrend
+
+A mező párhuzamos, diagnosztikai Core-modell: nem írja át a biome-ot, jeget,
+csapadékot, hidrológiát és a `WorldStateHash`-t (ND-103). A munka sorrendje:
+
+1. döntések és baseline-mérés (ND-99–104). **Baseline mérve (2026-09-13,
+   level 6, 24 576 cella, egy szál, .NET 8 Release, ismételt futás bitazonos):**
+   `TemperatureKelvin` cellánként 24 Nap-iránnyal 79 ms (3,2 µs/cella);
+   közös Nap-mintás `TemperatureKelvinFromSamples` 1,5 ms (60 ns/cella);
+   `TemperatureKelvinFull` 382 ms (15,6 µs/cella); `WindVector` 156 ms
+   (6,3 µs/cella). Következmény: az órás bázisfrissítéshez a Full modell
+   időfüggetlen tagjait (óceáni éves átlag, üvegház, ciklus) előre kell
+   számolni; a szélsnapshot drága, a `WindTick` ritka legyen;
+2. Python-orákulum: kétcellás → 1D → teljes level-6 gömb, stabilitás,
+   energiamérleg, paraméterforrások, csak ezután tesztvektorok;
+3. C# Core solver a régi napi átlagmező mellett, fogyasztók átírása nélkül;
+4. közös Core-idő és determinisztikus szélsnapshot bekötése;
+5. Viewer-overlay (ND-104);
+6. autoritatív átállás csak külön kapun.
+
+Az 1–3. fázis Unity nélkül, parancssori bizonyítékkal zárható.
+
+### 11.2 Adatfolyam
+
+```text
+seed, deep-time bucket, SimulationTime(tick)
+  │
+  ├─► lassú klímabázis (Bs, Ba)   ← TemperatureKelvinFull, weather tag nélkül,
+  │                                  pozíciófüggetlen tagok snapshotonként egyszer
+  ├─► SurfaceThermalKind[24576]   ← óceánmaszk, tavak, jégbesorolás (ND-103)
+  ├─► GridMetrics (level 6)       ← cellaterület, élhossz, élnormál (ND-101)
+  ├─► WindSnapshot(WindTick)      ← új determinisztikus szélút (ND-102)
+  └─► s(t) = SunDirectionBodyFrame(t)   (DeterministicMath)
+          │
+          ▼
+  SurfaceTemperatureField.Step(prev → next)   két puffer, fix tick
+     lokális tagok: ΔQsolar, λs, λa, ksa      (ND-100, ND-101 integrátor)
+     advekció: upwind élfluxus θa-ra          (ND-102)
+          │
+          ▼
+  Snapshot { Tick, θs[], θa[] }  →  Ts = Bs + θs,  Ta = Ba + θa
+          │
+          ├─► diagnosztikai checkpoint/cache (modellverzió + paraméterhash + tick)
+          └─► Viewer: fixpontos 6×64×64 textúra + gutter, overlay, panel (ND-104)
+```
+
+### 11.3 Tervezett Core-interfészek
+
+Mind `netstandard2.1`, C# 9, `double`, Unity-referencia nélkül. A nevek
+javaslatok; a végleges alak a Python-referencia után dől el.
+
+| Típus (javasolt hely) | Felelősség | Determinizmus-szerződés |
+|---|---|---|
+| `Grid/DenseGridMetrics` | Level-6 kanonikus index, cellaterület, élhossz, élnormál, szomszédindexek | Egyszer épül, immutábilis; előállítása csak `+ − × / sqrt` vagy verziózott determinisztikus függvény (ND-101/3) |
+| `Climate/SimulationTime` | Egész tick, `tickSeconds`, másodperc és nap | Egész aritmetika; a nap `seconds / 86400.0` |
+| `Climate/SurfaceThermalKind` | `Land`, `Ocean`, `Freshwater`, `Ice` | Enum, rögzített numerikus értékekkel |
+| `Climate/ThermalParameters` | Verziózott együtthatók (`Cs`, `Ca`, `ksa`, `λa`, `ε`, albedók, tick, spin-up) | Immutábilis; paraméterhash a cache-kulcs része |
+| `Climate/ThermalBaseline` | `Bs[]`, `Ba[]`, `dailyAverageFactor[]` egy bázisidőre | Tiszta függvény: (seed, bázisidő, maszkok) → tömbök |
+| `Climate/WindSnapshot` | Élenkénti normálsebesség egy `WindTick`-re | Tiszta függvény; két snapshot között lineáris interpoláció |
+| `Climate/SurfaceTemperatureField` | `Step(in ThermalInputs, ThermalSnapshot prev, ThermalSnapshot next)`, spin-up, `StateAt(tick)` | Két puffer, rögzített cella- és élsorrend; párhuzamos futás bitazonos a szekvenciálissal |
+
+### 11.4 Kötelező tesztek a Core-fázisban
+
+| Teszt | Mit fog meg |
+|---|---|
+| Python-KAT: kétcellás, 1D, level-6 vektorok | Algoritmus- és diszkretizációs hiba |
+| Ismételt `Step` azonos bemenettel bitazonos | Rejtett állapot |
+| Szekvenciális vs. párhuzamos futás bitazonos snapshot-hash | Sorrendfüggés |
+| Minden paraméter érdemben hat (`Cs`, `Ca`, `ksa`, `λa`, albedó, szél) | Kimaradt paraméter |
+| Szél nélküli napi ciklus: dél utáni maximum, óceán < szárazföld amplitúdó | Fizikai plauzibilitás |
+| Konstans mező kockalap-élen átlépő széllel változatlan; divergenciamentes széllel energiamegmaradás | Advekciós hiba |
+| Nulla besugárzás, nulla szél, szélsőséges tick, üres jégmaszk | Élesetek, stabilitás, NaN/Infinity |
+
+### 11.5 Nyitott kérdések összesítve
+
+| Kérdés | ND | Eldöntési mód |
+|---|---|---|
+| `Bs`/`Ba` viszonya, hőkapacitások, `ksa`, `λa`, albedók | ND-100 | Forrásgyűjtés kész (`docs/reviews/thermal-parameters-sources-2026-09-13.md`); modellválasztások megerősítésre várnak |
+| Tickben mintázott napi besugárzás vs. 24 mintás átlag | ND-100 | Mérve: ≤ 0,14 K napi átlagos torzítás; az évszakos driftet az óránként középre igazított faktor ≤ 0,09 K-re csökkenti |
+| IMEX vagy explicit integrátor, tickhossz, spin-up | ND-101 | Mérve: Crank–Nicolson IMEX másodrendű, szárazföldön 900 s-nál 0,025 K hiba; spin-up hossza még nyitott |
+| Rácsmetrika előállítása | ND-101 | Mérve: normalizált húrsokszög ≤ 5,6·10⁻⁵ relatív eltérés → javaslat: konstrukciós, `sqrt`-alapú tábla (ND-24 mintájára) |
+| Divergens szél: fluxusforma kompenzációval vagy vetítés | ND-102 | Mérve: kompenzált fluxusforma pontosan megőrzi a konstans mezőt, a tiszta fluxusforma 316-szorosra halmoz; élközépponti sebességgel a merevtest-forgás divergenciája ~10⁻¹⁵; az upwind diffúzió nagy, explicit keveredés nem kell |
+| Determinisztikus szélképlet, `WindTick` | ND-102 | Python-KAT a régi úttal összevetve |
+| Level-6 felszíntípus: többségi vagy területarányos | ND-103 | Python: part menti amplitúdó |
+| Kvantálás, paletta, snapshot-gyakoriság | ND-104 | Élő Unity-mérés |
+
+### 11.6 Megvalósított állapot (2026-09-13)
+
+| Réteg | Hely | Állapot |
+|---|---|---|
+| Python-referencia | `tools/reference/thermal_field_ref.py` → `thermal_field_vectors.json` | Kész; kétszeri futás bájtra azonos |
+| Core | `Grid/DenseGridMetrics`, `Climate/{SimulationTime, SurfaceThermalKind, ThermalModelParameters, ThermalBaseline, ThermalWind, SurfaceTemperatureField}` | Kész; `SurfaceTemperatureFieldTests` 22/22 |
+| Viewer, motorfüggetlen | `Assets/Scripts/Viewer/Lod/ThermalOverlayPacking.cs` | Kész; .NET `ThermalOverlayPackingTests` 6/6 |
+| Viewer, Unity | `PlanetGridMesh.ThermalOverlay.cs`, `Shaders/VertexColorUnlit.shader`, `SunController` publikus idő, hookok a `PlanetGridMesh.Update`-ben és a Rétegek dobozban | Offline fordítás; élő Unity-ellenőrzés hátra |
+
+Viewer-adatút: a Build után a level-6 cellaközepekből `ElevationAtDir` és a
+meglévő tó/jég-lekérdezés adja a felszíntípust (tengerszint alatt óceán, tó →
+édesvíz, állandó jég → jég, egyébként szárazföld); a solver háttérszálon,
+párhuzamos lokális lépéssel a `SunController.CurrentTimeDays`-ből képzett
+célticket éri el (kanonikus bucket, 10 napos spin-up); kész snapshotból két R16
+atlasz (Ts, Ta) készül, legfeljebb `thermalSnapshotHz` gyakorisággal feltöltve;
+a shader globális property-kből mintavételez és palettáz, világításfüggetlenül,
+0 °C-os kontúrral. A panel a Rétegek doboz végén: Ki / Felszín / Levegő,
+jelmagyarázat, állapot, kurzor alatti komponensbontás.
+
+Tudatos eltérések az ND-104 tervtől (az élő ellenőrzés után újraértékelendő):
+
+- A magas render-LOD magasságkorrekció (18. pont) csak a panel kurzorpontjában
+  jelenik meg; a textúra cellaszintű érték bilineáris interpolációja. A shader
+  nem számol hőképletet.
+- A `climateDayT` (a Build-kori biome-színezés napja) továbbra is külön mező;
+  a hőmező és a fény ugyanazt a `SunController`-időt olvassa.
+- A tengeri jég első változatban óceán típusú; a jég típust a meglévő
+  szárazföldi állandó-jég besorolás adja.
+- A folyó-, kráter-, határvonal- és felhőrétegek az overlay fölött is
+  látszanak (nem saját hőértékkel).
+- `tYears = deepTimeMyr · 10⁶` a klímaciklus-taghoz.
+
 ---
 
 ## 12. Terület (Area) — negyedik panelszint

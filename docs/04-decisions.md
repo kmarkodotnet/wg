@@ -4193,6 +4193,309 @@ vízforrás és az előző eredmény mellett explicit újrahasználatot vezetün
   álló/módosuló nézetes regresszió igazolja a változatlan fedést. Ez csak a
   vízkiválasztás költségét csökkenti; nem teljes FPS- vagy vizuális igazolás.
 
+### ND-99 — Fenntartva: a testvérág ND-62-je (tengeri jég) merge-kor ezt a számot kapja
+
+**2026-09-13, azonosító-ütközés feloldása.** Az ND-62 azonosító két ágon
+két különböző döntést jelöl:
+
+| Ág | ND-62 tartalma | Utána következő fővonali döntések |
+|---|---|---|
+| `codex-handoff` (fővonal) | Kameramód-kapcsoló, „Tengelyforgás megfigyelése” | ND-63–98 erre épülve, commitolva |
+| `experiment/full-temperature-model` (`e93b909`, nincs merge-elve) | Tengeri jég: mélységmodulált fagyási küszöb, folytonos sarok-blend | nincs |
+
+**Döntés:** a fővonal megtartja a kameramódos ND-62-t, mert arra 36 további,
+már commitolt döntés és számos dokumentum hivatkozik. A testvérág tengeri-jég
+döntése merge vagy cherry-pick esetén **ND-99** számot kap; a merge-commitban
+az ottani fejléc, a backlog-sor és a kódkommentek `ND-62` hivatkozásait
+ND-99-re kell írni. A testvérág ND-61-e a fővonalon nem létezik, ezért
+változatlanul megtarthatja a számát.
+
+A pillanatnyi hőmodell terve (backlog 24. döntés) a testvérág releváns
+Full-klímabázis-munkájának átvizsgálását kérte. A közös ős (`4b3ac02`) óta az
+ág `src/`, `tools/reference/` és `tests/` alatt egyetlen Core-változást hoz:
+`Temperature.TemperatureKelvinFullPrecomputed`. Ez a pozíciófüggetlen
+`tGreenhouse` és `tCycle` tagot kívülről fogadja, az eredeti
+`TemperatureKelvinFull` bitazonosan erre delegál. Nem új fizika, csak
+hívásonkénti ismételt számítás megszüntetése. Az ND-100 lassú klímabázisa
+ugyanezt a mintát követi (snapshotonként egyszer számolt pozíciófüggetlen
+tagok); ha a C#-ban szükséges, a függvény átvehető, de a merge nem feltétele
+az ND-100–104 munkának.
+
+Nem seed-törő, nincs kódváltozás. A testvérág vizuális tesztje a felhasználó
+2026-09-12-i döntése szerint jelenleg nincs napirenden.
+
+### ND-100 — Pillanatnyi kétállapotú hőmodell: lassú klímabázis + felszín- és levegőanomália
+
+**2026-09-13, implementáció előtt. Az irány a felhasználó által 2026-09-11-én
+jóváhagyva** ([backlog döntésjegyzék](backlog.md) 1, 9, 13, 14, 16, 17, 18,
+26, 27, 28. pont). Ez a bejegyzés rögzíti a modellt; a numerikus paraméterek
+nyitottak, csak forrás + Python-referencia + mérés után kerülhetnek be.
+
+**Kérdés.** A `Temperature.TemperatureKelvin` és `TemperatureKelvinFull` a
+radiatív tagot egy teljes forgás 24 mintájának átlagából számolja, ezért a
+nappali és éjszakai oldal ugyanazon a napon azonos értéket kap. A felhasználói
+cél pillanatnyi, hőtehetetlenséggel késleltetett nappal/éjszaka-hőmérséklet,
+amelyet a szél is szállít. Hogyan épüljön ez a meglévő klímára anélkül, hogy a
+napi átlagos besugárzást kétszer számolnánk?
+
+**Opciók:**
+
+| Opció | Előny | Hátrány |
+|---|---|---|
+| A: Teljes hőmérséklet-állapot saját energiamérleggel, a bázis nélkül | Egyetlen konzisztens egyenlet | Újrakalibrálandó a meglévő §28.1 egyensúly, üvegház, lapse rate és ciklus; a biome-/jég-kalibráció elszakad |
+| **B: Lassú bázis (`Bs`, `Ba`) + gyors anomália (`θs`, `θa`)** | A meglévő kalibrált klíma marad az egyensúly; a solver csak a napi eltérést integrálja | A két réteg határát pontosan kell definiálni (mi van a bázisban, mi az anomáliában) |
+| C: A meglévő napi átlagot pillanatnyi `max(0, n·s)`-re cserélni | Kevés kód | Nincs hőtehetetlenség, éles terminátor; ellentmond a felhasználói célnak |
+
+**Javaslat / jóváhagyott irány: B.**
+
+- `Ts = Bs + θs` (felszíni skin-hőmérséklet), `Ta = Ba + θa`
+  (felszínközeli levegő). Mindkettő Kelvin, `double`.
+- Referenciaegyenletek (egységek: `J m⁻² K⁻¹`, `W m⁻²`, `K`, `s`):
+
+  ```text
+  Cs(kind) · dθs/dt = ΔQsolar − λs·θs − ksa·(θs − θa)
+  Ca       · dθa/dt = ksa·(θs − θa) − λa·θa + advekció (ND-102) + keveredés
+  ΔQsolar  = F·(1 − albedo(kind))·( max(0, n·s(t)) − dailyAverageFactor )
+  λs       = 4·ε·σ·Bs³      (csak szorzás; a bázis körüli linearizálás)
+  ```
+
+- A `dailyAverageFactor` ugyanaz a 24 mintás függvény, amelyből a bázis
+  radiatív tagja készül, így a napi átlagos elnyelt sugárzás csak a bázisban
+  szerepel. Az `n` az ND-02 szerinti level-6 cella gömbi normálja (27. pont);
+  lejtő és hegyárnyék későbbi mikroklíma-réteg.
+- `s(t)` kizárólag `OrbitalMechanics.SunDirectionBodyFrame`-ből jön, amely
+  `DeterministicMath.SinCos`-t használ. A solver kritikus útján nincs nyers
+  `Math.Sin/Cos/Exp/Pow`; a `Bs³` és minden együttható szorzás/osztás.
+- A procedurális `T_weather` kimarad a bázisból (14. pont), a felhőproxy nem
+  árnyékol (17. pont), a jég albedója/hőtehetetlensége olvasható, de a jég nem
+  olvad és nem nő visszacsatoltan (16. pont).
+- Magas render-LOD-on egyszeri, determinisztikus magasságkorrekció:
+  `T(vertex) = T(cella) − Γ·(h(vertex) − h(cella))`. A cella saját magassága
+  csak a bázisban szerepel lapse rate-tel, így nincs kettős alkalmazás (18. pont).
+- A klímabázis pozíciófüggetlen tagjait (`tGreenhouse`, `tCycle`)
+  snapshotonként egyszer kell számolni (ND-99 átvizsgálás).
+
+**Nyitott kérdések — a Python-referencia és forrásolt értékek döntik el:**
+
+| # | Kérdés | Javaslat, amit mérni kell |
+|---:|---|---|
+| 1 | `Bs` és `Ba` viszonya | Első változatban `Bs = Ba = TemperatureKelvinFull` a weather tag nélkül; külön skin–levegő offset csak forrásolt értékkel |
+| 2 | `Cs` felszíntípusonként | Óceán: kevert réteg `ρ·cp·h`; szárazföld: napi hőbehatolási mélység; édesvíz és jég: forrásolt mélység/anyagérték. Mindegyik tartománnyal és hivatkozással |
+| 3 | `Ca` (felszínközeli levegőoszlop) | `ρair·cp·H`, a határréteg-vastagság forrásból |
+| 4 | `ksa`, `λa`, `ε` | Forrásolt nagyságrend; `λa` newtoni relaxációs időállandóként |
+| 5 | Jég és édesvíz albedója | A meglévő `AlbedoOcean`/`AlbedoLand` mellett forrásolt `Ice`, `Freshwater` érték |
+| 6 | A tickben mintázott `max(0, n·s)` napi átlaga eltér-e mérhetően a 24 mintás `dailyAverageFactor`-tól | **Mérve (2026-09-13, `tools/reference/thermal_anomaly_column_ref.py`):** 3600 s-os ticknél a mintaátlag a 24 mintás faktorral pontosan egyezik; 1800/900 s-nál 0,8·10⁻³ … 1,5·10⁻³ az eltérés (a 24 mintás átlag kvadratúrahibája), ami ~1–2 W m⁻² és a kiépült napi átlagos `θs`-ben ≤ 0,14 K. Elfogadható, ha a bázis és az anomália ugyanazt a 24 mintás faktort használja; nem nő időben |
+| 7 | Évszakos bázisváltozás kezelése a solver alatt | **Mérve:** egyszer, a kezdőnapra rögzített faktorral 30 nap alatt a napi átlagos `θs` 45°-on +2,3 K (óceán) / +8,3 K (szárazföld) — évszakos drift. Naponta, a nap elején újraszámolt faktorral ≤ 0,14 K, óránként, középre igazított 24 mintás ablakkal és lineáris interpolációval ≤ 0,09 K. **Javaslat: az óránként középre igazított faktor**; a bázis (`Bs`, `Ba`) frissítése ugyanehhez az órás rácshoz igazodjon |
+
+**Elfogadási feltétel (Python, még C# előtt):** kontrollált, szél nélküli
+esetben a napsütötte oldal melegebb, a maximum a helyi dél után jelentkezik,
+az óceán napi amplitúdója kisebb a szárazföldénél; nulla besugárzásnál
+fizikailag ésszerű tartomány felé hűl.
+
+**Verziózás:** additív, diagnosztikai mező (ND-103). Amíg más fogyasztó nem
+olvassa, nem seed-törő; a hőmodellnek saját modellverziója van.
+
+**Érintett fájlok:** `tools/reference/` (új hőanomália-orákulum),
+`src/WorldGen.Core/Climate/Temperature.cs` (bázis elérése), új
+`src/WorldGen.Core/Climate/SurfaceTemperatureField.cs`.
+
+**Módosítás mérés alapján (2026-09-13, implementáció közben).** A level-6
+referencia első futása (`tools/reference/thermal_field_ref.py`) két hibát
+mutatott a fenti bázis-definícióval:
+
+1. A napi faktoros `TemperatureKelvinFull`-szerkezet sarki éjszakán a radiatív
+   tag nullára esése miatt ~29 K-es bázist adott — sérti a kész-definíciót.
+2. A szél termikus tagja a sarki éjszaka határán a `T^(1/4)` végtelen
+   deriváltja miatt ~5700 m/s-os sebességet adott (a meglévő `WindVector`
+   ugyanezt a hibát hordozza).
+
+Két javítási irány egycellás mérése (`tools/reference/thermal_seasonal_column_ref.py`):
+
+| Változat | Eredmény | Döntés |
+|---|---|---|
+| A: éves átlagos bázis, az évszakot a solver integrálja | Az óceán ~40 napos memóriája miatt a kanonikus újraindítás hibája 60 nap spin-up után is 5,3 K (45°) / 11,9 K (80°); 80°-os óceán nyáron +22 °C | Elvetve |
+| **S: évszakos bázis, simított radiatív faktor** `f_eff = (1 − β)·f_napi + β·f_éves` | β = 0,5: 80°-os szárazföld −58 … +21 °C, 45° −18 … +37 °C; 10 napos spin-up hiba ≤ 0,18 K. β = 0,3: sarki minimum −80 °C | **Elfogadva, β = 0,5 (M13, ideiglenes)** |
+
+Érvényes definíció: `Bs = Ba = T_rad(f_eff) + T_greenhouse + T_ocean − T_alt + T_cycle`,
+ahol `T_ocean = 0,3·(mean_j T_rad(f_eff_j) − T_rad(f_eff))` csak óceánon; a
+forcing változatlanul `ΔQ = F·(1 − albedo)·(max(0, n·s) − f_napi)`. A szél
+termikus tagja a `T_rad(f_eff) + 33 − T_alt` pont-hőmérséklet gradienséből
+készül (level 6-on max. 61 m/s). A simítás a meridionális hőszállítás és a
+hőtehetetlenség proxyja, nem forrásolt mérés — megerősítendő.
+
+Ideiglenes, még megerősítendő további választások: **M11** — hőcserében
+`U_eff = max(U, 1 m/s)` (COARE gustiness-érv, Fairall et al. 2003); **M12** —
+édesvíz hőkapacitása az óceáni képlet, jégé a szárazföldi.
+
+Ismert, a meglévő §28-kalibrációból öröklött korlát: a 0,06-os óceáni albedó
+és a +33 K additív üvegház miatt az egyenlítői óceán bázisa ~48 °C. Ez nem a
+hőmodell hibája; a klímamodell kalibrációja külön feladat.
+
+Bizonyíték: Python-referencia kétszeri futása bájtra azonos
+(`thermal_field_vectors.json`); C# `SurfaceTemperatureFieldTests` 22/22
+(rács, bázis, szél, rövid és kanonikus futás a vektorokhoz mérve,
+determinizmus, párhuzamos = szekvenciális, konstansmegőrzés, energia,
+paraméterhatás, napi ciklus, sarki korlát, élesetek).
+
+### ND-101 — Hőmodell rács, idő, tick, spin-up és checkpoint
+
+**2026-09-13, implementáció előtt. Jóváhagyott irány** (backlog 3, 4, 5, 20,
+21. pont). Az ND-02 (fix level-6 szimulációs bázis) és ND-03 (köztes idő csak
+jelölt prezentációs interpoláció) alkalmazása a hőmodellre.
+
+**Döntés:**
+
+- Fix level-6 egészgömbös rács: `6 · 64 · 64 = 24 576` cella, sűrű `double[]`
+  mezők, kanonikus index `face · 64² + u · 64 + v` (az ND-66 sűrű rácsának
+  konvenciója). Átlagos cellaél ~168 km (mérve, ND-101 3. nyitott kérdés). A render-LOD nem módosítja az
+  állapotot és a költséget.
+- Egyetlen Core `SimulationTime`: egész tickszám (`long`), verziózott fix
+  tickhosszal. A másodperc `tick · tickSeconds` (egész), a csillagászati nap
+  `seconds / 86400.0`. Unity `deltaTime` csak az idősebesség-gyűjtőt táplálja,
+  solver-lépés soha.
+- Két puffer (előző → következő), tickenként csere. Minden cella csak az előző
+  pufferből és rögzített sorrendű szomszédokból számol, ezért szekvenciális és
+  párhuzamos futás bitazonos.
+- Fizikai tick nem hagyható ki. Lemaradáskor a legutóbbi kész snapshot látszik
+  időbélyeggel, és az időgyorsítás lassul.
+- Kezdőállapot: `θs = θa = 0` a cél-időbucket lassú bázisán, utána dokumentált,
+  egész forgásszámú determinisztikus spin-up. Nagy deep-time ugrásnál nem fut
+  milliónyi tick: az új bucket bázisából új, fix hosszú spin-up indul.
+- A hőmező verziózott, eldobható cache/checkpoint (modellverzió + paraméter-
+  hash + tick). Autoritatív world state/hash csak külön döntéssel (ND-103).
+
+**Nyitott kérdések:**
+
+| # | Kérdés | Opciók / javaslat |
+|---:|---|---|
+| 1 | Időintegrátor | A: teljesen explicit Euler — egyszerű, de a kis hőkapacitású szárazföldi cella stabilitása kis ticket kényszeríthet. B: IMEX, a cellánkénti lineáris tagok (`λs`, `λa`, `ksa`) implicit 2×2 megoldása csak `+ − × /` műveletekkel, az advekció explicit upwind. **Mérve (2026-09-13, egycellás, RK4 30 s referencia):** visszafelé Euler-IMEX (forcing a lépés végén) elsőrendű — szárazföldön (0,12 m) 2,0 K / 1,0 K max. hiba 1800 / 900 s-nál; **Crank–Nicolson-IMEX (forcing a lépés közepén) másodrendű — 0,16 K / 0,025 K**, 0,5 m-es szárazföldön 0,052 / 0,0072 K, óceánon ≤ 0,001 K. Mindkettő minden vizsgált ticknél stabil. **Javaslat: Crank–Nicolson-IMEX** |
+| 2 | Tickhossz | A lokális tagok a CN-IMEX-szel nem korlátozzák a ticket; 900 s mellett a szárazföldi hiba ≤ 0,025 K, 1800 s mellett ≤ 0,16 K (mérve). A végleges tick az advekció CFL-korlátjától függ (legkisebb cellaél / max. szélsebesség, ND-102), és a forgási periódus egész osztója legyen. Jelölt: 900 s |
+| 3 | Rácsmetrika (cellaterület, élhossz, élnormál) előállítása | **Mérve (2026-09-13, `tools/reference/thermal_grid_metrics_ref.py`):** level 6-on a húrsokszög-terület a pontos gömbi területtől −1,5·10⁻⁴ … −7,1·10⁻⁵ relatív eltérésű, a teljes összegre normalizálva −2,3·10⁻⁵ … +5,6·10⁻⁵; a húr és a gömbi ív élhossza 1,3·10⁻⁵ … 2,5·10⁻⁵ relatív eltérésű; a cellaterület max/min aránya 1,3969 (az ND-24 mért értékével egyező); átlagos cellaél ~168 km. A cellasarkok az ND-24 szerint konstrukciós (baked) `tan`-warp pozíciók, tehát a metrika is konstrukciós adat: egyszer épül, a szimuláció csak olvassa, a táblahash-t a CI platformmátrixa ellenőrzi. **Javaslat: B** — húrsokszög-terület és húr-élhossz csak `+ − × / sqrt` műveletekkel, a teljes területre normalizálva; nem vezet be új transzcendens függvényt az ND-24 `tan`-ján túl. A konzervativitáshoz antiszimmetrikusan használt, pozitív súly elegendő, a ~10⁻⁵ nagyságrendű eltérés a paraméterek bizonytalanságánál jóval kisebb |
+| 4 | Spin-up hossza | A leglassabb (óceáni) relaxációs időállandóból és a mért napi periodikus konvergenciából |
+| 5 | Időbucket és checkpoint-gyakoriság | Mérés után; a spin-up költsége határozza meg |
+
+**Verziózás:** a tickhossz, a spin-up és a rácsmetrika a hőmodell verziójának
+része; változásuk a hőmező-cache érvénytelenítését jelenti, a világ seedjét nem.
+
+### ND-102 — Egyirányú széladvekció a levegőanomáliára, külön `WindTick`
+
+**2026-09-13, implementáció előtt. Jóváhagyott irány** (backlog 2, 15, 19,
+26, 28. pont). A kétirányú hő→szél csatolás későbbi, külön ND.
+
+**Kérdés.** Hogyan szállítsa a szél a felszínközeli levegő hőjét determinisztikusan,
+a jelenlegi szélmodell megváltoztatása nélkül?
+
+**Döntés:**
+
+- A szél a levegőanomália energiatartalmát (`Ea = Ca · θa`) szállítja, nem a
+  talajt és nem a teljes kalibrált bázist (26. pont).
+- Véges térfogatú, upwind fluxus: élenként egyszer számolt normálsebesség
+  `u_e` és élhossz `L_e`; a fluxus a szél felőli cella értékét viszi. Rögzített
+  élsorrend (right, left, up, down), két puffer. Előbb a séma saját numerikus
+  diffúzióját mérjük; explicit fizikai keveredés csak forrásolt célértékhez
+  kerül be (28. pont).
+- Külön, ritkább `WindTick`; két kész wind snapshot között determinisztikus
+  lineáris interpoláció ugyanazon Core-időre (19. pont).
+- A jelenlegi `WindPrecipitation.WindVector` nyers `Math.Asin/Atan2/Sin/Cos/Tanh`
+  hívásokat használ, ezért a hőmodell kritikus bemeneteként változatlanul nem
+  vehető át. A hőmodellhez **új, determinisztikus szélsnapshot-út** készül.
+  A mostani csapadék- és biome-fogyasztók a régi úton maradnak; azok átállítása
+  seed-törő és külön döntés.
+
+**Nyitott kérdések:**
+
+| # | Kérdés | Opciók / javaslat |
+|---:|---|---|
+| 1 | Konzervativitás és konstans mező megőrzése divergens szélnél | A felszínközeli szél nem divergenciamentes, ezért a tiszta fluxusforma konvergenciazónában felhalmozza az energiát, a tiszta advektív forma pedig nem konzervatív. **A:** fluxusforma + `θa·div(u)` kompenzáció. **B:** a szél diszkrét divergenciamentes vetítése (iteratív Poisson, drága). **C:** tiszta fluxusforma. **Mérve (2026-09-13, `tools/reference/thermal_advection_ref.py`):** pólus felé összetartó széllel, level 4-en 200 lépés után a C-ben a konstans mező max. eltérése 316 (a pólusnál felhalmozódik), az A-ban pontosan 0. Merevtest-forgással, élközépponti sebességgel mindkét forma energiaváltozása ≤ 1,4·10⁻¹⁶ egy teljes körülfordulás alatt. **Javaslat: A** |
+| 1b | Numerikus diffúzió (28. döntés) | **Mérve:** elsőrendű upwind, merevtest-forgás 20 m s⁻¹-mal, egy teljes körülfordulás (~27 nap): a folt csúcsa level 4-en 0,151×, level 5-ön 0,266× (kockasarkokon áthaladó tengellyel level 4-en 0,082×); monoton, negatív érték nincs; tömegközéppont-hiba 22–76 km. A séma saját diffúziója nagy, ezért explicit keveredési tag nem kerül be. Ha az élő ellenőrzés túl elkenődött hőanomáliát mutat, egy másodrendű, limiteres séma külön döntés |
+| 2 | A determinisztikus szél képlete | A meglévő zonális sávok és Coriolis-proxy átírása `z = sin(lat)` alapú vagy `DeterministicMath` + új determinisztikus inverz függvényekkel; Python-KAT a régi úttal való eltérés mérésével |
+| 3 | `WindTick` hossza | A szélforrás (napi átlagos hőgradiens) változási sebességéből; kezdeti jelölt a forgási periódus egész osztója. **Költség mérve (2026-09-13):** a jelenlegi `WindVector` a teljes level-6 rácson 156 ms egy szálon (6,3 µs/cella), tehát egy snapshot a termikus ticknél nagyságrendekkel drágább; az új determinisztikus szélútnak ennél ne legyen lassabb |
+| 4 | Élnormál-sebesség | **Mérve (2026-09-13):** level 6-on merevtest-forgásnál (z és kockasarkokon áthaladó tengely) az élközépponti analitikus kiértékelés diszkrét divergenciája max. 6,9·10⁻¹⁵ (U·√A-hoz mérve), a két cellaközép átlaga 3,5·10⁻³ … 5,9·10⁻³ hamis divergenciát ad, és a kompenzált formában egy körülfordulás alatt 2,8·10⁻⁴ … 9,1·10⁻⁴ energiát veszít; tömegközéppont-hibája is nagyobb (39–133 km vs. 22–76 km). A két oldalról számolt élhossz max. 7,5·10⁻¹⁶ relatív eltérésű, ezért a fluxust élenként egyszer kell számolni. **Javaslat: élközépponti kiértékelés.** A legkisebb level-6 cellaél 128,8 km |
+
+**Elfogadási feltétel:** szél nélkül egy lokalizált `θa` anomália nem mozdul;
+egyenletes széllel a szélirányba mozdul és a felszínre hőcserével hat; konstans
+mező a kockalap-éleken átlépve sem változik; divergenciamentes széllel az
+energia a dokumentált numerikus tolerancián belül megmarad.
+
+### ND-103 — Termikus felszíntípus és a diagnosztikai/autoritatív határ
+
+**2026-09-13, implementáció előtt. Jóváhagyott irány** (backlog 6, 7, 16, 21. pont).
+
+**Döntés:**
+
+- Új `SurfaceThermalKind`: `Land`, `Ocean`, `Freshwater`, `Ice`, saját
+  albedóval és hőkapacitással (ND-100 nyitott 2. és 5. kérdés). A jelenlegi
+  `isOceanic` boolean nem elég.
+- Forrás: a meglévő óceánmaszk, tóazonosítás és jégbesorolás. A hőmodell a
+  jeget csak olvassa (16. pont).
+- A hőmező **párhuzamos diagnosztikai modell**: nem írja át a biome-ot, jeget,
+  csapadékot, hidrológiát, panelmetrikákat vagy a `WorldStateHash`-t. Más
+  fogyasztó csak külön validációs és modellverziós kapun állhat át rá.
+
+**Nyitott kérdések:**
+
+| # | Kérdés | Opciók / javaslat |
+|---:|---|---|
+| 1 | Level-6 cellatípus a finomabb maszkokból | **A:** többségi típus — egyszerű, de a part lépcsős. **B:** területarányos keverés (albedó és hőkapacitás súlyozott átlaga). Javaslat: B, ha a Python a part menti napi amplitúdót ésszerűbbnek méri |
+| 2 | A jég forrása deep-time és évszak mellett | A meglévő jégbesorolás időpillanata a hőmodell bázisidejével legyen azonos; nem a render-LOD-ból |
+
+**Verziózás:** amíg diagnosztikai, a world hash változatlan. Az autoritatív
+átállás modellverzió-, betöltési hiba-, checkpoint- és hash-frissítést igényel.
+
+### ND-104 — Hőoverlay adatút, UI és teljesítménycélok a Viewerben
+
+**2026-09-13, implementáció előtt. Jóváhagyott irány** (backlog 8, 9, 10, 11,
+12, 20, 22, 23. pont). A Core-fázisok (ND-100–103) után következik; élő Unity-
+ellenőrzést igényel.
+
+**Döntés:**
+
+- A Core számolja a teljes level-6 `double` mezőt. A GPU csak interpolál és
+  palettáz; HLSL-ben nincs második sugárzás-, szél- vagy hőképlet.
+- Adatút: hat szelet, face-enként 64×64, CPU-n explicit skálával fixpontosra
+  kvantált scalar textúra, egycellás, szomszédmezőből töltött gutterrel; a
+  terep- és vízvertexek face-UV-t kapnak. A prezentációs textúra byte-
+  reprodukálható.
+- A solver háttérszálon, kettős snapshot-pufferrel halad az overlay állapotától
+  függetlenül; a főszál csak kész, időbélyegzett snapshotot cserél.
+- A `SunController`, a szél, a solver és az overlay ugyanazt a Core
+  `SimulationTime`-ot olvassa; a `currentTimeDays` és a `climateDayT` nem
+  maradhat két független óra.
+- Egyetlen, kölcsönösen kizáró `SurfaceOverlayMode` (`None`,
+  `SurfaceTemperature`, `AirTemperature`, `WindSpeed`, `Precipitation`) a
+  mostani booleanok helyett, tesztelt migrációval. Overlay-váltás nem indít
+  `Build()`-et, hidrológiát vagy mesh-geometriát (az ND-50 invalidáció
+  általánosítása).
+- Világításfüggetlen alapszín, opcionális külön hillshade; fix abszolút °C
+  skála külön 0 °C jelöléssel, automatikus min/max nélkül.
+- A közös futásidejű panel kap összecsukható blokkot a kurzor alatti
+  komponensbontással (`Ts`, `Ta`, bázis, besugárzás, napszög, hőcsere,
+  advekció, keveredés, felszíntípus, magassági korrekció).
+- Teljesítménycél élő gépen mérve: kész snapshotnál egy képkockás váltás,
+  16,7 ms alatti főszálú csere/feltöltés, normál időhaladásnál legalább 5 Hz.
+
+**Nyitott kérdések:**
+
+| # | Kérdés | Javaslat |
+|---:|---|---|
+| 1 | Kvantálási skála és bitmélység | 16 bit, a fizikailag lehetséges tartományra és a panelen szükséges felbontásra méretezve; a Python P1/P99 burkoló alapján |
+| 2 | Paletta alapvégpontjai | Több seed, évszak, nappal/éjszaka és spin-up utáni P1/P99 alapján kalibrálva |
+| 3 | Snapshot-átvételi gyakoriság gyorsított időnél | Mérés az 5 Hz-es cél és a háttérszál terhelése alapján |
+
+**Implementáció (2026-09-13), élő Unity-ellenőrzés előtt.** Kvantálás:
+`q = floor((K − 150) / 0,01 + 0,5)` 16 biten (150,00 … 805,35 K, 0,01 K
+lépés). Atlasz: 396 × 66 R16 texel, lapanként 64×64 cella + egycellás, a
+topológiai szomszéddal töltött gutter; a gutter-sarok a legközelebbi belső
+cella. Paletta: fix alapvégpontok −60 °C / +50 °C (Inspectorban állítható),
+kék → cián → 0 °C világos semleges → sárga → piros, 0 °C-os kontúrvonal. A
+snapshot-feltöltés alapból legfeljebb 5 Hz, a solver háttérmunkája legfeljebb
+96 tick/munka, a lokális lépés párhuzamos (bitazonos a szekvenciálissal).
+Az idő forrása a `SunController.CurrentTimeDays` (egész tickre lefelé
+kerekítve); a `climateDayT` Build-kori biome-paraméter marad. Eltérések és
+nyitott pontok: `docs/01-architecture.md` §11.6. A nyitott kérdések 1–3.
+pontja (bitmélység és alapvégpontok véglegesítése, gyorsított idő) az élő
+PerfLog (`[ND-104 thermal]` sor) és vizuális próba után zárható.
+
 ### ND-105 — Az alkalmazásréteg (App Shell) helye és függetlensége
 
 **2026-09-13. Megvalósítva (Foundation-rész).** Részletek:
