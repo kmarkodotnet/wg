@@ -1790,8 +1790,8 @@ namespace WorldGen.Viewer
         /// A navigációs doboz: breadcrumb, "Vissza" gomb, gördíthető lista a
         /// jelenlegi szint gyerekeiről (kontinensek / régiók / területek).
         /// Valódi <see cref="GUI.Button"/> kattintás - NEM a Canvas/TMP
-        /// padded-link kompromisszum (ld. <see cref="WorldGenPanelUI"/>
-        /// doksija, miért kellett ott az; itt OnGUI-ban nincs
+        /// padded-link kompromisszum (az a megoldás 2026-09-13-án megszűnt,
+        /// ld. history/2026-09-13-legacy-panel-removal.md; itt OnGUI-ban nincs
         /// EventSystem/GraphicRaycaster-függés, tehát valódi gomb használható).
         /// </summary>
         private float DrawNavigationPanel(float x, float y, float w, float rowH)
@@ -5702,7 +5702,7 @@ namespace WorldGen.Viewer
             });
 
             // ld. a mezok doksijat: a navigacios menu negyedik szintje ebbol
-            // dolgozik, a TELJES (nem csak a panelen megjelenitett top 10)
+            // dolgozik, a TELJES (nem csak a WorldGenPanelData.Regions top 10-e)
             // sorrendben, hogy egy mely regioba is bele lehessen zoomolni.
             _lastFlood = flood;
             _lastRiverTilesForPanels = riverTilesForPanels;
@@ -5748,7 +5748,7 @@ namespace WorldGen.Viewer
         /// A navigációs menü (docs/backlog.md "Navigációs menü és panel-
         /// elrendezés") számára: MELY globális régió-indexek (a
         /// <see cref="ComputePanelData"/> régió-sorrendje, NEM csak a
-        /// panelen megjelenített top 10) tartoznak az adott kontinenshez.
+        /// `WorldGenPanelData.Regions` top 10-e) tartoznak az adott kontinenshez.
         /// HEURISZTIKA (dokumentált egyszerűsítés, mint a többi
         /// FeatureMetrics-közelítés): egy régió tile-jainak ELSŐ eleme
         /// alapján dönt - a vízgyűjtő-áramlás a gyakorlati esetek
@@ -5820,7 +5820,7 @@ namespace WorldGen.Viewer
         private bool HasSelectedRegion() => _navRegionGlobalIndex != -1;
 
         /// <summary>
-        /// Egy adott kontinens ÖSSZES (nem csak a világ-panel top 10-es)
+        /// Egy adott kontinens ÖSSZES (nem csak a `WorldGenPanelData.Regions` top 10-es)
         /// régiója - a navigációs menü régió-listájához. A visszaadott lista
         /// indexe és a <paramref name="globalIndices"/> (kimenő paraméter)
         /// PÁRHUZAMOS - a kettő együtt azonosítja, hogy egy listaelemre
@@ -5947,8 +5947,8 @@ namespace WorldGen.Viewer
         /// `BodyFrameConversion.ToUnity`-vel. Ez a gömbön egy ÉSSZERŰ
         /// közelítés a centroidra (nem egzakt gömbi súlypont, de egy
         /// kontinens/régió méretű, nem-antipodális tile-halmazra jól
-        /// működik) - PONTOSAN elég a "kattints a névre, a kamera
-        /// odaugrik" funkció (`PlanetOrbitCamera.FlyToDirection`)
+        /// működik) - PONTOSAN elég a navigációs menü "kattints a névre, a
+        /// kamera odaugrik" funkciójának (`PlanetOrbitCamera.FlyToDirection`)
         /// célpontjához, nem egy szimulációs mennyiség.
         /// </summary>
         private static Vector3 CentroidDirection(IEnumerable<TileId> tiles)

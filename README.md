@@ -19,6 +19,10 @@ cd tools/reference && python verify_kat.py
 
 Claude Code-dal: olvasd el a [KICKOFF.md](KICKOFF.md)-t.
 
+Codex és Claude felváltva dolgozik ezen a repón. A közösen kezelendő
+leíró/AI-instrukciós állományok listáját lásd:
+[common-ai-files.md](common-ai-files.md).
+
 ## Struktúra
 
 ```

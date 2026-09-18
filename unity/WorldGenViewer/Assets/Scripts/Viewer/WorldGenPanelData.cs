@@ -63,8 +63,8 @@ namespace WorldGen.Viewer
         /// terében, a `planetGridMesh.transform` forgatása/skálázása
         /// ELŐTT - ha a bolygó transform-ja el van forgatva, a hívónak
         /// `planetGridMesh.transform.TransformDirection`-t kell rá
-        /// alkalmaznia). A felhasználói kérésre bevezetett "kattints a
-        /// névre, a kamera odaugrik" funkció (ld.
+        /// alkalmaznia). A navigációs menü "kattints a névre, a kamera
+        /// odaugrik" funkciójának (ld.
         /// `PlanetOrbitCamera.FlyToDirection`) célpontja.
         /// </summary>
         public Vector3 CenterDirection;

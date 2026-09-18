@@ -163,6 +163,10 @@ nok
 
 ## 6. Kontinens/régió-panel kattintható nevek
 
+**ELAVULT (2026-09-13):** ez a kattintható kontinens/régió-panel megszűnt,
+helyette a navigációs menü (breadcrumb + lista + "Vissza") navigál. Az alábbi
+szakasz történeti ellenőrzési napló.
+
 **Mit módosítottam:** `WorldGenPanelUI.cs` — a kattintás-detektálás
 mostantól a SOR TELJES SZÉLESSÉGÉT figyeli (nem csak a név karaktereit).
 

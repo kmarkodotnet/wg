@@ -151,8 +151,10 @@ namespace WorldGen.Viewer
 
         // FELHASZNALOI KERES (2026-09-06): "a canvason megjelenitett info
         // (kontinensek/regiok neveire) kattintva odaugrik-e a kamera" - ld.
-        // WorldGenPanelUI (kattinthato link) + WorldGenPanelData.CenterDirection
-        // (a celpont-irany forrasa). Amig fut egy FlyTo-animacio, a kezi
+        // PlanetGridMesh navigacios menuje (DrawNavigationPanel / NavigateTo*)
+        // + WorldGenPanelData.CenterDirection (a celpont-irany forrasa). Az
+        // eredeti hivo a WorldGenPanelUI kattinthato listaja volt, ami
+        // 2026-09-13-an megszunt. Amig fut egy FlyTo-animacio, a kezi
         // egerbevitel (Update()) FELULIRJA a repulest (a felhasznalo barmikor
         // atveheti az iranyitast) - ld. Update() elejen a `_flyToCoroutine != null` ag.
         private Coroutine _flyToCoroutine;
@@ -192,7 +194,9 @@ namespace WorldGen.Viewer
             float currentAltitude = AltitudeAboveSurface;
             float targetAltitude = newAltitudeAboveSurface ?? currentAltitude;
 
-            // IDEIGLENES DIAGNOSZTIKA (2026-09-06): ld. WorldGenPanelUI [diag]
+            // IDEIGLENES DIAGNOSZTIKA (2026-09-06, a WorldGenPanelUI akkori
+            // [diag] naplozasanak a parja; az a naplozas 2026-09-13-an a
+            // kattinthato panellel egyutt megszunt)
             // - ez megmutatja, hogy a szamolt cel-szogek/tavolsag ertelmesek-e,
             // es hogy a korutin ENGEDELYEZVE van-e (StartCoroutine csendben
             // nem csinal semmit, ha a GameObject/komponens INAKTIV).
@@ -266,7 +270,8 @@ namespace WorldGen.Viewer
             // ez az a kattintas SORAN, amig az egergomb LENYOMVA marad (nem
             // csak `GetMouseButtonDown` az elso frame-ben), MINDEN kovetkezo
             // frame-ben IGAZ - tehat UGYANAZ a kattintas, ami a
-            // WorldGenPanelUI-n keresztul elinditotta a FlyToDirection-t,
+            // panel-kattintason keresztul elinditotta a FlyToDirection-t
+            // (akkor meg a WorldGenPanelUI listaja, ma a navigacios menu),
             // MAR A KOVETKEZO Update()-jeben (meg mielott az egergombot
             // felengednenk) megszakitotta a MEG EL SEM INDULT animaciot -
             // a kamera gyakorlatilag SOHA nem mozdulhatott, meg egyetlen
