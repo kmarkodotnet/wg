@@ -12,6 +12,13 @@ namespace WorldGen.Viewer
         internal int SurfaceMeasurementRevision => _cameraSurfaceRevision;
         internal double SurfaceMeasurementBaseRadius => radius;
 
+        // IDEIGLENES DIAGNOSZTIKA (2026-09-13, felhasznaloi keres: rotacio/zoom
+        // szaggatas - ld. history/2026-09-13-scale-bar-rugged-terrain-fix.md
+        // folytatasa). Szamolja, hanyszor fut le a draga ComputeElevationAtPoint
+        // egy-egy PlanetOrbitCamera.RecomputePhysicalScaleBar() hivas alatt.
+        internal int ScaleSurfaceEvaluationCount { get; private set; }
+        internal void ResetScaleSurfaceEvaluationCount() => ScaleSurfaceEvaluationCount = 0;
+
         internal bool TryGetCameraSurfaceRadius(Vector3 localDirection, out double surfaceRadius)
         {
             surfaceRadius = 0;
@@ -48,6 +55,7 @@ namespace WorldGen.Viewer
 
             localDirection.Normalize();
             BodyFrameConversion.ToCore(localDirection, out double x, out double y, out double z);
+            ScaleSurfaceEvaluationCount++;
             double elevation = ComputeElevationAtPoint(
                 x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters, _adaptiveErosionTimeMyr);
             if (double.IsNaN(elevation) || double.IsInfinity(elevation))
