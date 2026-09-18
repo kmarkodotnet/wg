@@ -530,8 +530,19 @@ namespace WorldGen.Viewer
                  "ertek = gyorsabb, de kevesebb finom reszlet a periferian; nagyobb " +
                  "= reszletesebb, de lassabb ujraepites. MEGJEGYZES: a valoban SIMA " +
                  "(60fps) mukodeshez a Fazis 3 (inkrementalis/aszinkron mesh) kell - " +
-                 "ez a koltsegvetes csak a hitch NAGYSAGAT csokkenti, nem szunteti meg.")]
-        private int adaptiveRenderBudget = 200000;
+                 "ez a koltsegvetes csak a hitch NAGYSAGAT csokkenti, nem szunteti meg. " +
+                 "2026-09-18: 200000 -> 8000. A korabbi 200000 GYAKORLATILAG SOSEM " +
+                 "lepett eletbe: a PerfLog_20260913_184215-ben a cut 52-rol 32795 " +
+                 "dinamikus levelre nott egy munkamenet alatt (hiszterezis: a mar " +
+                 "finomitott regio 'ragadosan' finom marad), es a keres-ido ezzel " +
+                 "egyutt 100-350ms-rol 1300-1900ms-ra - ez a felhasznalo altal " +
+                 "jelzett, munkamenet kozben ROSSZABBODO rotacio/zoom szaggatas. A " +
+                 "mert (levelszam, ido) parokbol linearisan extrapolalva ~8000 level " +
+                 "a ~400-500ms-os keres-idonek felel meg. EZ EGY KIINDULO ERTEK: a " +
+                 "mezo Play kozben is allithato (OnValidate -> _adaptiveConfigDirty " +
+                 "-> chunk-cache urites, azonnal hat), tehat elo munkamenetben " +
+                 "sweepelheto a simasag/reszletesseg kompromisszum.")]
+        private int adaptiveRenderBudget = 8000;
 
         [SerializeField]
         [Tooltip("FAZIS 3 (ND-47): a BuildCut (kvadfa-kivalasztas) egy WORKER " +
