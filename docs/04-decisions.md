@@ -4679,6 +4679,79 @@ csak a "budget > telítődés" tartományban dolgozik, tehát nagyobb plafon
 gyakrabban visz a drága esetbe.
 
 
+### ND-117 — Talaj/regolit (`RegolithProfile`) MVP-hatókör és a maradék mezők halasztása
+
+**2026-09-19.** A `docs/backlog.md` M8 sora és a
+`src/WorldGen.Core/Features/OrdinalQuantization.cs` doksija régóta jelzi:
+"Soil fertility TOVÁBBRA IS BLOKKOLT (nincs talaj-modul)". Részletes terv:
+`docs/01-architecture.md` §13.
+
+**Döntés — hatókör-szűkítés.** A spec §39 `RegolithProfile`-jának 10
+mezőjéből (Depth, Porosity, WaterRetention, MineralDiversity,
+PhosphorusAvailability, NitrogenAvailability, Iron, Sulfur, Salinity,
+pHProxy) az MVP **csak hármat** (Depth, Porosity, WaterRetention) számol
+— a `tools/reference/regolith_ref.py`-ban, C# nélkül (a C#-port külön
+lépés). A döntő szűrő: a spec 6 forrása (alapkőzet, vulkanizmus, erózió,
+üledék, víz, hőmérséklet) közül melyiknek van MÁR MOST valódi,
+tile-onként VÁLTOZÓ Core-kimenete.
+
+**Fedett forrás → felhasznált Core-kimenet:**
+- erózió/üledék → `LakesIceErosion.ApplyStaticErosionPass`
+  (`Erosion[]`/`DepositionGain[]`, M7, már KAT-vektoros);
+- víz → a csapadék-mező (`moisture_transport_ref.compute_precipitation_field`
+  / a C# oldalon `MoisturePrecipitation`, M5, már KAT-vektoros);
+- hőmérséklet → `LakesIceErosion.AnnualTemperatureStats` (éves átlag, már
+  KAT-vektoros).
+
+**NEM fedett forrás, és MIÉRT:**
+- **alapkőzet** — a Core-ban CSAK egy plate-szintű `isOceanic` bool létezik
+  (`CrustElevation.cs`); minden szárazföldi tile-on ez UGYANAZ, tehát nulla
+  tile-közi varianciát ad szárazföldön belül. Valódi kőzettípus/litológia
+  NINCS modellezve. Amit ebből felhasználtunk: a LEJTŐ (elevációgradiens)
+  mint csupasz-kőzet-kitettség proxy a `Depth`-hez — ez a MÁR dokumentált
+  biome-táblázati kapcsolatot (§5: "Csupasz szikla … lejtő > 25°") követi,
+  nem új feltalálás.
+- **vulkanizmus** — `VolcanicEruption.cs` (ND-29) csak epizodikus,
+  RITKA VEI8-eseményeket generál (várhatóan 1-2/millió év), nincs
+  PERZISZTÁLT, tile-onkénti hamu-/tefra-lerakódás mező, amit fel tudnánk
+  használni. Egy ilyen mező (távolság-alapú lecsengéssel, deep-time-ban
+  felhalmozva) ÖNÁLLÓ, jövőbeli feladat lenne.
+
+**Ezért a maradék 7 mező (`MineralDiversity`, `PhosphorusAvailability`,
+`NitrogenAvailability`, `Iron`, `Sulfur`, `Salinity`, `pHProxy`) MIND
+HALASZTVA marad** — mindegyik ténylegesen litológia/vulkanizmus-függő
+lenne. Az I4 invariáns szerint inkább hiányozzon a mező (a C#
+`RegolithProfile` struct egyelőre nem is tartalmazza őket), mint kitalált
+érték szerepeljen rajta. **Előfeltétel a feloldásukhoz:** (1) egy
+kőzettípus/litológia-modul, ami tile-szinten megkülönbözteti a
+szárazföldi alapkőzetet (jelenleg nincs ütemezve), ÉS (2) egy perzisztált,
+deep-time-ban felhalmozott vulkáni hamu-/tefra-lerakódás mező (a jelenlegi
+epizodikus `VolcanicEruption` kiterjesztése).
+
+**Nincs seed-törő hatás.** Ez a modul (`regolith_ref.py` +
+`compute_regolith_profile`) kizárólag a CLAUDE.md táblázata szerint
+garantáltan bitpontos műveleteket használ (`+ − × /`, `abs`, `min`, `max`
+— nincs `Sin`/`Cos`/`Exp`/`Log`/`Pow` a láncban) és **nem igényel új
+véletlenszám-mintavételt** (nincs új `RandomDomain`/`RandomProperty`) — a
+három kimenet tisztán a már verifikált Core-kimenetek (elevéció/lejtő,
+erózió, üledék, csapadék, hőmérséklet) algebrai függvénye. Ezért a C#-port
+(amikor elkészül) ELVBEN bitpontosan, tolerancia nélkül egyezhet a
+Python-referenciával — ezt a C#-implementáció dönti el véglegesen, nem ez
+a döntés.
+
+**Nyitva marad:** az MVP-konstansok (`DEPTH_MAX_M`, `FREEZE_THAW_HALF_RANGE_K`,
+`PRECIP_REFERENCE` stb., ld. `docs/01-architecture.md` §13.2) illusztratívak,
+vizuális kalibrálást igényelnek (ugyanaz a minta, mint az ND-41 szél/
+csapadék-konstansai) — csak Unity-render után finomíthatók érdemben. A
+§2.3 panel-táblázat "Soil fertility: mélység × minerality × nedvesség"
+képlete mostantól `Depth × WaterRetention`-re mutasson (a "minerality" tag
+kimarad, amíg a kémiai mezők blokkoltak — ld. `docs/01-architecture.md`
+§13.6 táblázata). Az ordinális "Soil fertility" panelmező tényleges
+kalibrálása (ND-09 mintájára, N≈500 világ, kvintilis-küszöbök) csak a
+C#-port elkészülte UTÁN lehetséges — ez NEM ennek a döntésnek a
+hatóköre.
+
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

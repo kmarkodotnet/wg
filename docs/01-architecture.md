@@ -101,7 +101,7 @@ A `Coastal complexity` fraktáldimenziója szép, mert **közvetlenül validálj
 | Seasonal rainfall | High | csapadék évszakos amplitúdója | ordinális |
 | River channels | 17 | `RiverGraph` élszám a régióban | db |
 | Flood frequency | Moderate | csapadék-csúcs / mederkapacitás arány | ordinális |
-| Soil fertility | Very High | `SoilLayer`: mélység × minerality × nedvesség | ordinális |
+| Soil fertility | Very High | `SoilLayer`: mélység × minerality × nedvesség — **2026-09-19: a `RegolithProfile` MVP-je (§13) csak `Depth`/`WaterRetention`-t adja, a "minerality" tag még blokkolt, az ordinális kalibráció is hátra van** | ordinális |
 | Biodiversity potential | Exceptional | élőhely-heterogenitás index | ordinális |
 
 A név `Delta` utótagja **nem véletlen** — a `Features` modul felismeri a morfológiai típust (delta, öböl, hegylánc, tundra, fennsík) és a névgenerátor ezt használja. Ezért lesz „Silvertide **Delta**", „Northwatch **Range**", „Halcyon **Basin**", „Frosthold **Tundra**" — pontosan úgy, ahogy a képeken.
@@ -1110,3 +1110,170 @@ invariáns. 393/393 Core-teszt zöld (9 új).
 
 **Élő Unity-ellenőrzés hátra**: a navigációs menü negyedik szintjének
 tényleges megjelenése és kattinthatósága.
+
+---
+
+## 13. Talaj / regolit (`RegolithProfile` MVP) — ND-117
+
+Terv: 2026-09-19, a C# implementáció ELŐTT (munkamódszer: "Kód előtt
+dokumentáció" + "Új numerikus algoritmusnál előbb referencia, aztán
+C#"). Ez a szakasz csak a Python-referenciáig terjed — a C#-port egy
+KÜLÖN, utólagos lépés (core-dev), a `tools/reference/regolith_ref.py`
+vektoraihoz mérve. Cél: a `docs/backlog.md` M8 sorában rögzített "Soil
+fertility TOVÁBBRA IS BLOKKOLT (nincs talaj-modul)" állapot feloldásának
+ELSŐ lépése — magának a `RegolithProfile`-nak (spec §39) a Core-ban való
+előállítása, NEM az ordinális "Soil fertility" panelmező kalibrálása (az
+egy KÉSŐBBI, ND-09-mintájú lépés, miután van C#-ban futtatható,
+folytonos metrika — ld. lent 13.6).
+
+### 13.1 Hatókör — MVP, tudatosan szűkítve
+
+A spec §39 `RegolithProfile`-ja 10 mezőt sorol fel:
+
+```text
+RegolithProfile { Depth, Porosity, WaterRetention, MineralDiversity,
+  PhosphorusAvailability, NitrogenAvailability, Iron, Sulfur, Salinity,
+  pHProxy }
+```
+
+és 6 forrást: **alapkőzet, vulkanizmus, erózió, üledék, víz, hőmérséklet**.
+
+**Ez az MVP CSAK 3 mezőt számol: `Depth`, `Porosity`, `WaterRetention`.**
+A döntő szempont: melyik forrásnak van MÁR MOST valódi, tile-onként
+VÁLTOZÓ Core-kimenete?
+
+| Forrás | Van-e valódi, tile-onként változó Core-kimenet? | Felhasználva |
+|---|---|---|
+| Erózió | Igen — `LakesIceErosion.ApplyStaticErosionPass` `Erosion[]` (M7, KAT-vektoros) | Igen (`Depth`) |
+| Üledék | Igen — ugyanaz, `DepositionGain[]` | Igen (`Depth`, `Porosity`) |
+| Víz | Igen — a `moisture_transport_ref`/`MoisturePrecipitation` csapadék-mező (M5, KAT-vektoros) | Igen (`WaterRetention`) |
+| Hőmérséklet | Igen — `LakesIceErosion.AnnualTemperatureStats` (éves átlag) | Igen (`Porosity`, fagyás-olvadás proxy) |
+| Alapkőzet | **RÉSZLEGES** — a Core csak PLATE-szintű `isOceanic` bool-t ismer (`CrustElevation.cs`); minden szárazföldi tile-ra ez UGYANAZ az érték, tehát **nulla tile-közi varianciát** ad szárazföldön belül. Amit használni tudunk: a LEJTŐ (elevációgradiens) mint csupasz-kőzet-kitettség proxy — ez MÁR dokumentált kapcsolat (§5 biome-táblázat: "Csupasz szikla … talajmélység < 0.1 m, lejtő > 25°"), nem új feltalálás. | Csak közvetve (`Depth`, lejtő-tag) |
+| Vulkanizmus | **NEM** — `VolcanicEruption.cs` (ND-29) csak epizodikus, ritka VEI8-eseményeket generál; nincs perzisztált, tile-onkénti hamu-/tefra-lerakódás mező | Nem |
+
+**Ezért a maradék 7 mező (`MineralDiversity`, `PhosphorusAvailability`,
+`NitrogenAvailability`, `Iron`, `Sulfur`, `Salinity`, `pHProxy`) MIND
+HALASZTOTT** — mindegyik ténylegesen litológia/ásványtan-függő (kőzettípus,
+vulkáni bemenet), amit a Core jelenleg nem modellez tile-szinten. Az I4
+invariáns szerint inkább hiányozzon a mező, mint kitalált érték szerepeljen
+rajta. Ld. ND-117 a pontos halasztási indoklásért és a jövőbeli
+előfeltételekért (litológia-modul, perzisztált vulkáni-lerakódás mező).
+
+### 13.2 Modell — csak garantáltan bitpontos műveletekkel
+
+A `regolith_ref.py` (docs mellékelve, ld. 13.5) mindhárom kimenetet
+**kizárólag** a CLAUDE.md táblázata szerint garantáltan bitpontos
+műveletekkel számolja (`+ − × /`, `abs`, `min`, `max` — nincs `Sin`/`Cos`/
+`Exp`/`Log`/`Pow` a láncban), és **nem igényel új véletlenszám-mintavételt**
+(nincs új `RandomDomain`/`RandomProperty` — mindhárom kimenet tisztán a már
+verifikált Core-kimenetek algebrai függvénye). Emiatt (a
+Temperature/WindPrecipitation/DeepTimeErosion mintától eltérően, amelyek
+nyers `Math.Sin`/`Exp`-et használnak és toleranciával mérendők) ennek a
+modulnak a C#-portja ELVBEN bitpontosan, tolerancia nélkül egyezhet a
+Python-referenciával — ezt a C#-implementáció dönti el véglegesen.
+
+```text
+Depth[m]          = clamp(DepthMax·(1−slopeNorm)²
+                           + DepositionGain·1.0 − Erosion·0.02,   0, 5)
+Porosity[0..1]    = clamp(0.35 + 0.25·FreezeThawTent(meanAnnualT)
+                           − 0.15·min(1, DepositionGain/DepthMax), 0, 1)
+WaterRetention    = clamp(0.5·Porosity + 0.3·(Depth/DepthMax)
+  [0..1]                    + 0.2·min(1, Precipitation/2.0),       0, 1)
+```
+
+`FreezeThawTent(T) = max(0, 1 − |T−273.15K| / 15K)` — a fagyás-olvadás
+okozta fizikai aprózódás a fagypont KÖRÜLI éves átlagnál a legintenzívebb
+(se nem tartósan fagyott, se nem tartósan meleg), ez a periglaciális
+mállás jól ismert kvalitatív mintázata — nem mért érték, illusztratív,
+kalibrálandó konstansokkal (ugyanaz a "dokumentált MVP-konstans" minta,
+mint az ND-41 szél/csapadék-modelljében).
+
+Óceáni tile-on mindhárom kimenet `0` — a regolit ebben az MVP-ben
+kifejezetten SZÁRAZFÖLDI fogalom.
+
+### 13.3 Adatfolyam
+
+```text
+world_seed, plate_count, level
+  │
+  ├─► elevation field + isOcean   ← hydrology_ref.compute_elevation_and_ocean_field (MÁR KAT-vektoros)
+  ├─► priority_flood → parent     ← hydrology_ref.priority_flood
+  ├─► flow_accumulation           ← hydrology_ref.flow_accumulation
+  ├─► Erosion[], DepositionGain[] ← lakes_ice_erosion_ref.apply_static_erosion_pass (MÁR KAT-vektoros)
+  ├─► Precipitation[]             ← moisture_transport_ref.compute_precipitation_field (MÁR KAT-vektoros)
+  └─► AnnualMeanTemperatureK[]    ← lakes_ice_erosion_ref.annual_temperature_stats (MÁR KAT-vektoros)
+          │
+          ▼
+  slopeNorm[k] = |elevation[k] − elevation[parent[k]]| / max(...)   (helyi, a modul saját belső segédfüggvénye)
+          │
+          ▼
+  compute_regolith_profile(isOcean, slopeNorm, Erosion, DepositionGain,
+                            AnnualMeanTemperatureK, Precipitation)
+          │
+          ▼
+  RegolithProfile MVP { Depth[m], Porosity[0..1], WaterRetention[0..1] }
+```
+
+Minden bemenet **már meglévő, verifikált** Core/referencia-kimenet — ez a
+modul nem vezet be új alap-adatforrást, csak összeköti a meglévőket.
+
+### 13.4 Tervezett Core-interfészek (a C#-fázishoz, javaslat)
+
+Mind `netstandard2.1`, C# 9, `double`, Unity-referencia nélkül. A nevek
+javaslatok, a végleges alak a core-dev döntése.
+
+| Típus (javasolt hely) | Felelősség | Determinizmus-szerződés |
+|---|---|---|
+| `Terrain/RegolithProfile.cs` (vagy `Hydrology/`, core-dev dönti el) | `struct RegolithProfile { double DepthMeters; double Porosity; double WaterRetention; }` | Immutábilis érték-típus |
+| `Terrain/RegolithModel` (static) | `ComputeProfile(bool isOcean, double slopeNorm, double erosionDepthM, double depositionGainM, double annualMeanTemperatureK, double precipitation) → RegolithProfile` | Tiszta függvény, csak `+ − × /`/`Math.Abs`/`Math.Min`/`Math.Max` |
+| ugyanaz + `ComputeSlopeNorm` segéd | A `LakesIceErosion`-ban MÁR meglévő `parent`/`field` bejárás újrafelhasználásával (ne duplikálja a szomszéd-gráf bejárást — ld. `LakesIceErosion.ApplyStaticErosionPass` mintája) | Explicit `(face,u,v)` sorrend, mint a `LakesIceErosion`-nál (ND-43 sorrend-függőségi megjegyzése) |
+
+### 13.5 Python-referencia és tesztvektorok
+
+- `tools/reference/regolith_ref.py` — `compute_regolith_profile` (tiszta
+  függvény) + `compute_regolith_field` (teljes-rács driver, a fenti
+  adatfolyamot köti össze).
+- `tools/reference/regolith_vectors.json` → másolat:
+  `tests/WorldGen.Core.Tests/testdata/regolith_vectors.json`.
+  Két vektorcsoport:
+  - `unitVectors` (500 db): széles, threefry-vel determinisztikusan
+    mintavett bemenet-tartomány `compute_regolith_profile`-hoz közvetlenül
+    (rács nélkül, gyors unit-teszt).
+  - `fieldVectors` (300 db): valódi világ (`world_seed=0xA7C944210000`,
+    `plate_count=20`, `level=4` — ugyanaz a választás/indoklás, mint a
+    `moisture_transport_ref.py`-ban: a csapadék-advekció tiszta Pythonban
+    `level=6`-nál már túl lassú lenne egy kétszer futtatott
+    determinizmus-ellenőrzéshez) threefry-vel mintavett tile-jai,
+    vég-az-elejétől-a-végéig integrációs ellenőrzéshez.
+- Önálló self-check (`if __name__ == "__main__":`): tisztaság, óceáni
+  nulla-profil szélsőséges bemenettel is, minden paraméter (`slopeNorm`,
+  `erosionDepth`, `depositionGain`, `annualMeanTemperature`,
+  `precipitation`, `isOcean`) érdemi/monoton hatása külön-külön
+  bizonyítva, élesetek (0, 1e18, negatív, üres/óceán-csak világ),
+  teljes-rács plauzibilitás, kétszeri futtatás bitre azonos.
+- **A CI `reference-oracle` job jelenleg NEM futtatja automatikusan** az
+  egyedi fizikai modulok (`*_ref.py`) self-check-jét — ugyanez igaz a MÁR
+  meglévő `moisture_transport_ref.py`/`lakes_ice_erosion_ref.py`/
+  `wind_precipitation_ref.py` stb. modulokra is (a job csak a Threefry
+  KAT-ot és az alap `testvectors.json`-t ellenőrzi, ld. `.github/
+  workflows/ci.yml`). Ez egy MEGLÉVŐ, ettől a feladattól független
+  hiányosság — nem ennek a lépésnek a hatóköre, csak dokumentálva, hogy ne
+  tűnjön véletlen kihagyásnak.
+
+### 13.6 Nyitott kérdések összesítve
+
+| Kérdés | ND | Javaslat / állapot |
+|---|---|---|
+| A maradék 7 `RegolithProfile`-mező (kémiai/ásványtani) forrás nélkül | ND-117 | Halasztva — előfeltétel: kőzettípus/litológia-modul (`alapkőzet`) ÉS perzisztált, deep-time-ban felhalmozott vulkáni hamu-/tefra-mező (`vulkanizmus`). Egyik sem létezik ma. Nem ütemezve. |
+| `Depth`/`Porosity`/`WaterRetention` MVP-konstansai (pl. `DEPTH_MAX_M=2.0`, `FREEZE_THAW_HALF_RANGE_K=15.0`, `PRECIP_REFERENCE=2.0`) | ND-117 | Illusztratív, vizuális kalibrálást igényelnek (ugyanaz a minta, mint ND-41 szél/csapadék-konstansai) — csak Unity-render után finomíthatók érdemben |
+| A §2.3 panel-táblázat "Soil fertility: `SoilLayer` mélység × minerality × nedvesség" mostantól mire mutasson | ND-117 | Javaslat: `Depth × WaterRetention` (a "minerality" tag amíg a kémiai mezők blokkoltak, kimarad — NE helyettesítsük kitalált értékkel, I4). Az ordinális "Soil fertility" panelmező kalibrálása (ND-09 mintájára, N≈500 világ, kvintilis-küszöbök) csak EZUTÁN, a C#-port elkészülte után lehetséges. |
+| A CI `reference-oracle` job nem futtatja az egyedi fizikai modulok self-check-jét | — (nem új ND, meglévő állapot) | Ld. 13.5 utolsó bekezdése — dokumentálva, nem ennek a lépésnek a hatóköre |
+
+### 13.7 Megvalósított állapot (2026-09-19)
+
+| Réteg | Hely | Állapot |
+|---|---|---|
+| Python-referencia | `tools/reference/regolith_ref.py` → `regolith_vectors.json` | Kész; önálló self-check zöld, kétszeri futtatás bitre azonos |
+| Tesztvektorok | `tests/WorldGen.Core.Tests/testdata/regolith_vectors.json` | Kész (500 unit + 300 teljes-rács vektor) |
+| C# (`WorldGen.Core`) | — | **Nincs elkezdve** — a KÖVETKEZŐ lépés, külön (core-dev) feladatként, a fenti vektorokhoz mérve |
+| Ordinális "Soil fertility" kalibráció | — | **Nincs elkezdve** — előfeltétele a C#-port |
