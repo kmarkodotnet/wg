@@ -18,15 +18,19 @@ public class RenderBudgetForViewportTests
     /// <summary>
     /// A konkrét eset, amiből a diagnózis született: a felhasználó 1196x710-es
     /// ablakában 849 160 / 64 = 13 269 levél a csupasz raszter-igény (felfelé
-    /// kerekítve), az 1,5-ös ráhagyással 19 903 - szemben a korábbi fix 8000-rel.
+    /// kerekítve), a 3,0-es ráhagyással 39 807 - szemben a korábbi fix 8000-rel.
+    ///
+    /// A szorzó 1,5-ről 3,0-ra nőtt, miután a horizont-vágás a selectiont 7-8x
+    /// olcsóbbá tette; az érték a naplóból VISSZASZÁMOLT levélszükséglet
+    /// (ld. AdaptiveQuadTree.DefaultRenderBudgetOverhead).
     /// </summary>
     [Fact]
-    public void MeasuredSessionViewportAsksForRoughlyTwoAndAHalfTimesTheOldBudget()
+    public void MeasuredSessionViewportAsksForFiveTimesTheOldBudget()
     {
         int budget = AdaptiveQuadTree.RenderBudgetForViewport(1196, 710, Target);
 
-        Assert.Equal(19903, budget);
-        Assert.True(budget > 2 * AdaptiveQuadTree.MinimumRenderBudget);
+        Assert.Equal(39807, budget);
+        Assert.True(budget > 4 * AdaptiveQuadTree.MinimumRenderBudget);
     }
 
     /// <summary>A képlet lényege: a képernyő befér-e cél-méretű tile-okkal.</summary>
@@ -54,10 +58,14 @@ public class RenderBudgetForViewportTests
         Assert.Equal(4 * coarse, fine);
     }
 
-    /// <summary>Kis ablaknál sem megyünk a korábbi kézi érték alá.</summary>
+    /// <summary>
+    /// Kis ablaknál sem megyünk a korábbi kézi érték alá. A 3,0-es szorzóval a
+    /// minimum 8000/3 * 64 = 170 667 képpontnál fordul át (16:9-ben ~551x310),
+    /// ezért itt ennél kisebb ablakok szerepelnek - 640x480 MÁR 14 400-at kap.
+    /// </summary>
     [Theory]
     [InlineData(320, 240)]
-    [InlineData(640, 480)]
+    [InlineData(480, 270)]
     [InlineData(1, 1)]
     public void SmallViewportsKeepTheHistoricMinimum(int width, int height)
         => Assert.Equal(AdaptiveQuadTree.MinimumRenderBudget,

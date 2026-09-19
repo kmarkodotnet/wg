@@ -157,16 +157,44 @@ namespace WorldGen.Viewer.Lod
         /// </summary>
         public const int DefaultMaxLeafCount = 200_000;
 
-        /// <summary>Ld. <see cref="RenderBudgetForViewport"/> - a raszter-igény szorzója.</summary>
-        public const double DefaultRenderBudgetOverhead = 1.5;
+        /// <summary>
+        /// A raszter-igény szorzója (ld. <see cref="RenderBudgetForViewport"/>).
+        ///
+        /// A 3,0 a felhasználó 2026-09-18-i naplójából VISSZASZÁMOLT érték.
+        /// A rajzolt tile-ok ott 8000 levéllel ekkorák voltak a 8 px-es célhoz
+        /// képest, és ennyi levél kellene a célhoz (a levélszám a lineáris
+        /// tile-méret NÉGYZETÉVEL skálázódik):
+        ///
+        ///   zoom-sáv   mért méret     szükséges levél
+        ///   30-100     1,40-1,69x     16 000 - 23 000
+        ///   10-30      2,13-2,32x     36 000 - 43 000
+        ///   3-10       3,76-4,08x    112 000 - 136 000
+        ///
+        /// A csupasz raszter-igény 1196x710 és 8 px mellett 13 269, tehát a
+        /// 3,0-es szorzó (39 807 levél) a két LEGGYAKRABBAN hasznalt savot
+        /// (kontinens- es regio-nezet) celra viszi. A legkozelebbi zoom ~8-10x
+        /// szorzot kerne; azt a felso korlat tudatosan nem engedi.
+        ///
+        /// Az eredeti 1,5 a horizont-vagas ELOTTI koltsegekkel szuletett; azota
+        /// a selection 7-8x olcsobb, ezert fert bele a nagyobb szorzo.
+        /// </summary>
+        public const double DefaultRenderBudgetOverhead = 3.0;
 
         /// <summary>A korábbi kézi érték; kis ablaknál sem megyünk ez alá.</summary>
         public const int MinimumRenderBudget = 8_000;
 
         /// <summary>
-        /// Felső korlát 4K-ra is: 48 000 levélnél a MÉRT worker-költség
-        /// selection+balance ~300 ms (8 000-nél ~155 ms). Efölött a
-        /// <c>EnforceRestrictedBalance</c> kezd dominálni.
+        /// Felső korlát. Két, egymástól független MÉRT ok tartja itt:
+        ///
+        /// 1. KÖLTSÉG-PARITÁS: 48 000 levélnél a worker-költség
+        ///    (selection+balance, meleg cache) 150-158 ms - pontosan annyi,
+        ///    amennyi a felhasználónak a változtatások ELŐTT volt 8000 levéllel
+        ///    (a naplóban selection p50 = 147 ms). Vagyis hatszoros részletesség
+        ///    a korábbi költségen; efölött már többe kerülne, mint eddig.
+        /// 2. BALANCE-SZAKADÉK: az <c>EnforceRestrictedBalance</c> nem szigorú
+        ///    korlátja <c>maxLeafCount*3</c>, és a költsége EZZEL nő, nem a
+        ///    tényleges levélszámmal. Mérve (D=103): 48 000-nél 56 ms,
+        ///    96 000-nél 327 ms. A 48 000 biztos távolságban marad ettől.
         /// </summary>
         public const int MaximumRenderBudget = 48_000;
 
@@ -180,32 +208,39 @@ namespace WorldGen.Viewer.Lod
         /// 7998-8000 levélnél telítődött, a kiugró tile-ok 79/95 arányban
         /// <c>stop=leaf-budget</c> okkal álltak meg.
         ///
-        /// Az extrapoláció téves volt. MÉRVE (2026-09-19, meleg metrika-cache,
-        /// azonos nézet, csak a budget változik):
+        /// Az extrapoláció téves volt: a bejárás költségét a LÁTOTT FELÜLET
+        /// hajtja, nem a budget. MÉRVE (2026-09-19, meleg metrika-cache, azonos
+        /// nézet D=103-nál, csak a budget változik, a horizont-vágás UTÁN):
         ///
-        ///   budget   levelek   selection   balance   összesen
-        ///     8 000    7 998     146 ms      9 ms     155 ms
-        ///    16 000   15 999     169 ms     19 ms     188 ms
-        ///    24 000   24 000     172 ms     26 ms     199 ms
-        ///    32 000   31 998     197 ms     35 ms     232 ms
-        ///    48 000   48 000     245 ms     57 ms     303 ms
+        ///   budget   levelek   selection   balance   összesen   (hideg cache)
+        ///     8 000    7 998       8 ms       9 ms      17 ms        34 ms
+        ///    20 000   19 998      51 ms      22 ms      73 ms        88 ms
+        ///    32 000   31 998      72 ms      36 ms     107 ms       143 ms
+        ///    48 000   48 000      94 ms      56 ms     150 ms       224 ms
+        ///    64 000   63 999     116 ms      77 ms     193 ms       315 ms
+        ///    96 000   66 900*     73 ms     327 ms     400 ms       558 ms
         ///
-        /// A bejárás költségét a LÁTOTT FELÜLET hajtja (a vágás ~200 000 tile-t
-        /// látogat meg 8 000 levélért), nem a budget - ezért 3x budget csak
-        /// +28% worker-idő. A főszálat ez nem érinti: a feltöltés az ND-85
-        /// szerint keretenként <c>TerrainUploadSliceMs = 2</c> ms-ra szeletelt,
-        /// tehát a nagyobb mesh több staging-frame, NEM nagyobb akadás.
+        /// (*) a levélszám itt telítődik - ennyit kér összesen a metrika ebben a
+        /// nézetben -, és a balance a <c>maxLeafCount*3</c>-as nem szigorú
+        /// korláttól robban meg, nem a tényleges levelektől. Ld.
+        /// <see cref="MaximumRenderBudget"/>.
+        ///
+        /// A főszálat mindez nem érinti: a feltöltés az ND-85 szerint
+        /// keretenként <c>TerrainUploadSliceMs = 2</c> ms-ra szeletelt, tehát a
+        /// nagyobb mesh több staging-frame, NEM nagyobb akadás. A nagyobb budget
+        /// ára latencia.
         ///
         /// A KÉPLET: a képernyő befér-e cél-méretű tile-okkal. 1196x710 és 8 px
-        /// mellett 849 160 / 64 = 13 268 levél a csupasz igény. A szorzó fedi a
-        /// cubed-sphere ~1,3-1,4x-es tile-terület-szórását (ND-24), a
-        /// perspektivikus rövidülést és a restricted-balance ráhagyását; az
-        /// 1,5-es alapérték a naplóból visszamérve is egybevág (a 30-100-as
-        /// zoom-sávban 1,40-1,69x-es tile-méret ~2,25x levélszámot kér).
+        /// mellett 849 160 / 64 = 13 269 levél a csupasz igény, a 3,0-es
+        /// szorzóval 39 807. A szorzó fedi a cubed-sphere ~1,3-1,4x-es
+        /// tile-terület-szórását (ND-24), a perspektivikus rövidülést és a
+        /// restricted-balance ráhagyását - az értéke viszont nem elméletből,
+        /// hanem a naplóból VISSZASZÁMOLT levélszükségletből jön, ld.
+        /// <see cref="DefaultRenderBudgetOverhead"/>.
         ///
         /// EZ NEM oldja meg a legközelebbi zoomot: ott a tile 3,8-4,1x a célnál,
-        /// ami ~16x levelet kérne. A metrika ebben a nézetben összesen ~58 000
-        /// levelet kér, tehát a maradék hézag a felső korlát tudatos ára.
+        /// ami ~8-10x szorzót (112 000-136 000 levelet) kérne. A maradék hézag a
+        /// felső korlát tudatos ára.
         /// </summary>
         public static int RenderBudgetForViewport(int pixelWidth, int pixelHeight,
             double targetTilePixelSize, double overhead = DefaultRenderBudgetOverhead,
