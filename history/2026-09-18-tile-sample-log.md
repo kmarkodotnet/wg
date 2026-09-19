@@ -347,3 +347,63 @@ Egy Play-munkamenet a zoom-skálán végig, forgatással. Utána a napló
 megmutatja, hogy adott zoomon és képernyő-pozíción a durva tile a budget
 miatt durva-e (`cutSaturated`, `starvedBudget`), vagy azért, mert a metrika
 szerint már elég finom (`skipSufficient`).
+
+---
+
+# Korrekció: a "B gyökérok" nem létezik (2026-09-19)
+
+## Mit állítottam
+
+A 2026-09-18-i kiértékelésben ezt írtam: *"Gyökérok B — a budget elosztása
+is hibás. A vágás valahol ~85 m-es tile-okig lefúr, miközben közvetlenül a
+kamera alatt 43/22 km-es tile marad."* Alapja a naplóbeli `nadirCutL=8` és
+`deepestCutL=20` **marginális** eloszlása volt, és ezt javasoltam első
+javítandónak, mert "ingyen van".
+
+## Mit mutat a mérés
+
+**Frissen számolt vágásban a nadír MINDIG a legmélyebb szintet kapja.**
+Offline, a LOD-tesztkörnyezetben (`AdaptiveQuadTree.BuildCut`) minden
+konfigurációban `nadirCutL == deepestCutL`:
+
+| próba | eredmény |
+|---|---|
+| tiszta gömb, 120 / 103 / 100,6 távolság | nadír = legmélyebb (9 / 11 / 13) |
+| terep-proxy 0% és 2% domborzattal | nadír = legmélyebb (9 / 12 / 14) |
+| `previousCut` hiszterézis, 0,05-5° forgatás után | nadír = legmélyebb (13) |
+| `previousCut` hiszterézis, zoom 100,3 → 100,02 | nadír = legmélyebb (14/16/18) |
+
+Három kézenfekvő magyarázatot így **cáfoltam**: nem a terep-proxy hibás
+metrikája, nem a hiszterézis, és nem is a kérés késése (a napló a
+`_pendingCutCamX`-et használja, vagyis azt a kamerát, amire a vágás
+KÉSZÜLT — ellenőriztem a hívási helyen, `PlanetGridMesh.cs:3373`).
+
+## A valódi ok: két HELYES viselkedés
+
+Amikor reprodukáltam a mintát, mindkétszer szándékos működés adta:
+
+1. **ND-78 óceán-előszűrés.** Ha a nadír base-tile-ját a `SkipStaticBase`
+   kihagyja, az eredmény pontosan `nadirCutL=8`, `deepestCutL=13`. A vizet
+   a saját víz-LOD-ja fedi, a terep-réteg helyesen nem finomít alatta.
+2. **Ferde kameraállás.** 75°-os dőlésnél `nadirCutL=8`, `deepestCutL=13`:
+   a nadír — a kamera ALATTI pont, **nem a képernyő közepe** — kiesik a
+   látókúpból, ahol helyesen nem finomodik.
+
+A valódi naplóban mind a **11** `nadirOceanBlocked=True` eset `nadirCutL=8`
+volt (hibátlan egyirányú implikáció, 68 vágásból). A maradék 21 sekély eset
+a ferde nézet számlájára írható — a pálya menti kamera alacsonyan épp
+ferdén néz.
+
+## Következmény
+
+`nadirCutL` **nem azt méri, amit nézünk**. Prioritás-hiba nincs; ha ezt
+"megjavítottam" volna, egy nem létező hibát írtam volna át, és közben
+elrontottam volna az ND-78-at. A `ShallowNadirIsCorrectWhenExcludedOrOffScreen`
+és a `FreshCutAlwaysRefinesTheNadirDeepest` teszt ezt rögzíti, hogy legközelebb
+se induljon el senki ezen az úton.
+
+**Az "A gyökérok" viszont ÁLL**, és közvetlen bizonyítékon nyugszik, nem
+marginális eloszláson: `stop=leaf-budget` a kiugró tile-ok 79/95 arányában,
+telítés 68 vágásból 44-nél pontosan 7998-8000 leafnél, és a mért
+tile-méret 1,4-4,1× a 8 px-es célhoz képest. A teendő tehát **kizárólag**
+a budget-plafon és a szelekció költsége — nem a prioritás.

@@ -178,6 +178,88 @@ public class CutWorkAccountingTests
     }
 
     /// <summary>
+    /// NEM-HIBA RÖGZÍTÉSE (2026-09-19). A `[async apply]` napló `nadirCutL=8`
+    /// / `deepestCutL=20` párosából azt a következtetést vontam le, hogy a
+    /// budget elosztása rossz: "valahol level 20-ig lefúr, miközben a kamera
+    /// alatt alapszint marad". **Ez téves volt.** Frissen számolt vágásban a
+    /// nadír MINDIG a legmélyebb szintet kapja — ezt a
+    /// <see cref="FreshCutAlwaysRefinesTheNadirDeepest"/> rögzíti —, és a
+    /// sekély nadírnak két HELYES oka van, amit ez a teszt reprodukál:
+    ///
+    ///  1. a nadír base-tile-ját az ND-78 óceán-előszűrés kihagyja (a vizet a
+    ///     saját víz-LOD-ja fedi), vagy
+    ///  2. ferde kameraállásnál a nadír — a kamera ALATTI pont, nem a képernyő
+    ///     közepe — egyszerűen kiesik a látómezőből.
+    ///
+    /// A valódi naplóban mind a 11 `nadirOceanBlocked=True` eset `nadirCutL=8`
+    /// volt (hibátlan implikáció). Aki ezt a mintát legközelebb látja, ne
+    /// prioritás-hibát javítson: `nadirCutL` nem azt méri, amit nézünk.
+    /// </summary>
+    [Fact]
+    public void ShallowNadirIsCorrectWhenExcludedOrOffScreen()
+    {
+        TileId nadirBase = TileGeometry.FromPosition(Ax, Ay, Az, BaseLevel);
+
+        // 1. eset: az ND-78 kihagyja a nadír base-tile-ját (óceán).
+        var oceanWork = new LodSelectionWork(null, int.MaxValue, default, false,
+            tile => tile.Equals(nadirBase));
+        HashSet<TileId> oceanCut = BuildCut(NearDistance, AmpleBudget, oceanWork,
+            -Ax, -Ay, -Az);
+        Assert.Equal(1, oceanWork.SkippedStaticBases);
+        Assert.Equal(BaseLevel, NadirLevel(oceanCut));
+        Assert.True(DeepestLevel(oceanCut) > BaseLevel,
+            "A kép többi része sem finomodott - akkor nem ezt a jelenséget mérjük.");
+
+        // 2. eset: erősen ferde nézet, a nadír kiesik a látókúpból.
+        var tiltWork = new LodSelectionWork(null);
+        double c = Math.Cos(75 * Math.PI / 180), s = Math.Sin(75 * Math.PI / 180);
+        double rl = Math.Sqrt(Ay * Ay + Ax * Ax);
+        double rx = -Ay / rl, ry = Ax / rl;
+        HashSet<TileId> tiltCut = BuildCut(NearDistance, AmpleBudget, tiltWork,
+            -Ax * c + rx * s, -Ay * c + ry * s, -Az * c);
+        Assert.Equal(BaseLevel, NadirLevel(tiltCut));
+        Assert.True(DeepestLevel(tiltCut) > BaseLevel);
+    }
+
+    /// <summary>Az alapeset, amihez a fenti kettőt hasonlítjuk.</summary>
+    [Fact]
+    public void FreshCutAlwaysRefinesTheNadirDeepest()
+    {
+        HashSet<TileId> cut = Cut(NearDistance, AmpleBudget, out _);
+        Assert.Equal(DeepestLevel(cut), NadirLevel(cut));
+    }
+
+    private static HashSet<TileId> BuildCut(double distance, int budget,
+        LodSelectionWork work, double fx, double fy, double fz)
+    {
+        double split = 6 * Fov / PixelHeight;
+        double half = Math.Atan(Math.Tan(Fov / 2) * Math.Sqrt(1 + Aspect * Aspect)) * 1.3;
+        return AdaptiveQuadTree.BuildCut(Ax * distance, Ay * distance, Az * distance, Radius,
+            Array.Empty<TileId>(), BaseLevel, MaxLevel, split, split / 1.5,
+            fx, fy, fz, half, budget,
+            traversalRootLevel: 3, staticBaseLevel: BaseLevel, work: work);
+    }
+
+    /// <summary>A kamera ALATTI pont szintje a vágásban (nem a képernyő közepe).</summary>
+    private static int NadirLevel(HashSet<TileId> cut)
+    {
+        TileId tile = TileGeometry.FromPosition(Ax, Ay, Az, MaxLevel);
+        while (tile.Level > BaseLevel)
+        {
+            if (cut.Contains(tile)) return tile.Level;
+            tile = tile.Parent();
+        }
+        return BaseLevel;
+    }
+
+    private static int DeepestLevel(HashSet<TileId> cut)
+    {
+        int deepest = BaseLevel;
+        foreach (TileId leaf in cut) deepest = Math.Max(deepest, leaf.Level);
+        return deepest;
+    }
+
+    /// <summary>
     /// A budget-plafon MÉRTÉKE: ugyanahhoz a nézethez a metrika sokszor annyi
     /// levelet kér, mint amennyit a szűk budget megenged. Ez az M9 munka
     /// kvantitatív kiindulópontja — ha a jövőbeli javítás ezt az arányt
