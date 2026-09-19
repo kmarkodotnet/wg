@@ -3163,6 +3163,10 @@ namespace WorldGen.Viewer
                     AdaptiveMeshBuffers buffers = ComputeAdaptiveMeshBuffersCpu(cut, cancellation);
                     buffers.NewSplits = selectionWork.NewSplits;
                     buffers.DeferredSplits = selectionWork.DeferredSplits;
+                    buffers.BudgetStops = selectionWork.BudgetStops;
+                    buffers.SufficientStops = selectionWork.BelowThresholdStops;
+                    buffers.MaxLevelStops = selectionWork.MaxLevelStops;
+                    buffers.InvisibleStops = selectionWork.InvisibleStops;
                     buffers.SelectionTrace = selectionWork.Trace;
                     buffers.SkippedSelectionBases = selectionWork.SkippedStaticBases;
                     buffers.CutMs = cutStopwatch.Elapsed.TotalMilliseconds;
@@ -3220,6 +3224,7 @@ namespace WorldGen.Viewer
             _cutSupersededSinceApply = false;
             _appliedSelectionTrace = null; // A szinkron tartalékút nem rögzít megállási trace-t.
             _appliedDiagnosticCoverage = null;
+            _appliedCutWork = default; // ...és munka-könyvelést sem: `cutWork=none`.
             stopwatch.Stop();
             PerfLog($"  TELJES (BuildCut+RebuildAdaptiveMesh) = {(buildCutStopwatch.Elapsed.TotalMilliseconds + stopwatch.Elapsed.TotalMilliseconds):F2}ms");
             if (buildCutStopwatch.Elapsed.TotalMilliseconds > adaptiveRebuildWarningMs
@@ -3290,6 +3295,14 @@ namespace WorldGen.Viewer
             var stopwatch = Stopwatch.StartNew();
             ApplyAdaptiveMeshBuffers(buffers);
             _currentCut = buffers.Cut;
+            _appliedCutWork = new AppliedCutWork(
+                buffers.Cut?.Count ?? 0, buffers.DynamicLeafCount,
+                buffers.WaterSelection?.Leaves.Count ?? 0, Math.Max(1, adaptiveRenderBudget),
+                buffers.NewSplits, buffers.ReusedLeaves,
+                buffers.MetricEvaluations, buffers.MetricCacheHits,
+                buffers.BudgetStops, buffers.DeferredSplits,
+                buffers.SufficientStops, buffers.MaxLevelStops, buffers.InvisibleStops,
+                buffers.SkippedSelectionBases, buffers.SkippedOceanicCount);
             _appliedSelectionTrace = buffers.SelectionTrace;
             _appliedDiagnosticCoverage = buffers.DiagnosticCoverage;
             _appliedTraceView = _requestedProjectedView;
@@ -3347,6 +3360,13 @@ namespace WorldGen.Viewer
                 $"chunkPacking={(buffers.BoundedChunks ? "ND80" : "fixed")} chunkMinLevel={buffers.MinimumChunkLevel} " +
                 $"chunkLeafLimit={buffers.ChunkLeafLimit} maxChunkLeaves={buffers.MaxChunkLeaves} grouping={buffers.GroupingMs:F2}ms " +
                 $"emittedLeaves={buffers.EmittedLeaves} reusedLeaves={buffers.ReusedLeaves} newSplits={buffers.NewSplits} deferredSplits={buffers.DeferredSplits} " +
+                // Munka-konyveles: elvont (starved*) vs szuksegtelen (skip*)
+                // megallasok - ld. LodSelectionWork doksija. A `deferredSplits`
+                // ES a `starvedQuota` UGYANAZ a szam, a masik nevvel a
+                // `[tilesample]` sorokhoz illeszkedik.
+                $"starvedBudget={buffers.BudgetStops} starvedQuota={buffers.DeferredSplits} " +
+                $"skipSufficient={buffers.SufficientStops} skipMaxLevel={buffers.MaxLevelStops} " +
+                $"skipInvisible={buffers.InvisibleStops} " +
                 $"earlyOceanExclusion=ND78 skippedSelectionBases={buffers.SkippedSelectionBases} " +
                 $"fallbackLeaves={buffers.FallbackLeafCount} replacedBase={buffers.ReplacedBaseTiles.Count} " +
                 $"maskIndices={buffers.MaskIndexCount} " +
@@ -3422,6 +3442,10 @@ namespace WorldGen.Viewer
             public double SelectionMs, BalanceMs, ResolveCheckMs, AuxiliaryCopyMs, TileEmitMs;
             public int MetricCacheHits, MetricEvaluations, MetricCacheEntries;
             public int EmittedLeaves, ReusedLeaves, NewSplits, DeferredSplits;
+            // A megallasok konyvelese - ld. LodSelectionWork doksija: elvont
+            // munka (BudgetStops + DeferredSplits) vs szuksegtelen munka
+            // (SufficientStops + MaxLevelStops + InvisibleStops + Skipped*).
+            public int BudgetStops, SufficientStops, MaxLevelStops, InvisibleStops;
             public int SkippedSelectionBases;
             public bool BoundedChunks;
             public int ChunkLeafLimit, MaxChunkLeaves, MinimumChunkLevel;
@@ -3671,6 +3695,7 @@ namespace WorldGen.Viewer
                     _previousChunkCache.Clear();
                     _appliedSelectionTrace = null;
                     _appliedDiagnosticCoverage = null;
+                    _appliedCutWork = default;
                     _hasLastCutCameraPosition = false;
                 }
                 if (errors.Count > 1)
@@ -5535,6 +5560,7 @@ namespace WorldGen.Viewer
             _terrainEvaluationCache = null;
             _appliedSelectionTrace = null;
             _appliedDiagnosticCoverage = null;
+            _appliedCutWork = default;
             _appliedTraceView = null;
             _drawnDiagnosticMeshes.Clear();
             _drawnHiddenStaticQuads = new HashSet<int>();

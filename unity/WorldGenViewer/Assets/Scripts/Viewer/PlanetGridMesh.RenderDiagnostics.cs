@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using WorldGen.Core;
 using WorldGen.Core.Grid;
 using WorldGen.Viewer.Lod;
 
@@ -17,6 +18,90 @@ namespace WorldGen.Viewer
                  "17×9 képernyőpontban. Pixelméret, zoom és függő LOD-kérés a PerfLogba. " +
                  "Diagnosztikai költsége külön mérve; nem változtatja a finomítást.")]
         private bool logDrawnTileSizes = true;
+
+        [SerializeField]
+        [Tooltip("FELHASZNALOI KERES (2026-09-18): a MAR MEGLEVO, 17x9-es egyenletes " +
+                 "kepernyo-raszter MINDEN talalatarol egy-egy GEPILEG OLVASHATO sor a " +
+                 "PerfLogba ([tilesample] ...), amiben egyutt van a zoom, a kepernyo- " +
+                 "pozicio, az egitest-beli pozicio (lat/lon), a tile szintje es a tile " +
+                 "merete pixelben ES kilometerben. Cel: utolagos kiertekeles - adott " +
+                 "zoom mellett adott kepernyo-pozicion mekkora a tile. A meglevo " +
+                 "[ND-75 row] terkep ember-olvasasra jo, de gepi feldolgozashoz a zoomot " +
+                 "kulon fejlecbol kellene hozza illeszteni, ezert kap minden sor sajat " +
+                 "zoom-erteket. 153 minta / meres, ~2 masodpercenkent - ha tul sok a " +
+                 "naplo, ezt kapcsold ki (a [ND-75 ...] osszefoglalo ettol fuggetlenul megy).")]
+        private bool logUniformTileSamples = true;
+
+        /// <summary>
+        /// A LEGUTÓBB ALKALMAZOTT vágás munka-könyvelése (felhasználói kérés,
+        /// 2026-09-19): "az aktuális összes tile számosság, plusz hány új tile
+        /// került kiszámolásra és hány tile kalkulálása lett abbahagyva".
+        ///
+        /// A három kérdés három blokkja, és a HARMADIKAT szándékosan KÉT
+        /// részre vágom, mert összevonva félrevezető lenne (ld.
+        /// <see cref="WorldGen.Viewer.Lod.LodSelectionWork"/> és a
+        /// CutWorkAccountingTests):
+        ///   * ELVONT munka (`BudgetStops` + `DeferredSplits`): a szelekció
+        ///     AKARTA, a limit nem engedte - ennyivel rosszabb a kép.
+        ///   * SZÜKSÉGTELEN munka (`SufficientStops`, `MaxLevelStops`,
+        ///     `InvisibleStops`, `SkippedBases`, `SkippedOceanic`): helyesen
+        ///     maradt abba, a kép NEM lett tőle rosszabb.
+        /// </summary>
+        private readonly struct AppliedCutWork
+        {
+            public readonly bool Valid;
+            /// <summary>Összes kirajzolt tile: a teljes vágás levélszáma.</summary>
+            public readonly int TotalLeaves;
+            public readonly int DynamicLeaves, WaterLeaves, Budget;
+            /// <summary>Újraszámolt: új felosztás és új metrika-kiértékelés.</summary>
+            public readonly int NewSplits, ReusedLeaves, MetricComputed, MetricHits;
+            /// <summary>Elvont munka.</summary>
+            public readonly int BudgetStops, DeferredSplits;
+            /// <summary>Szükségtelen, helyesen elhagyott munka.</summary>
+            public readonly int SufficientStops, MaxLevelStops, InvisibleStops,
+                SkippedBases, SkippedOceanic;
+
+            public AppliedCutWork(int totalLeaves, int dynamicLeaves, int waterLeaves, int budget,
+                int newSplits, int reusedLeaves, int metricComputed, int metricHits,
+                int budgetStops, int deferredSplits, int sufficientStops, int maxLevelStops,
+                int invisibleStops, int skippedBases, int skippedOceanic)
+            {
+                Valid = true;
+                TotalLeaves = totalLeaves; DynamicLeaves = dynamicLeaves;
+                WaterLeaves = waterLeaves; Budget = budget;
+                NewSplits = newSplits; ReusedLeaves = reusedLeaves;
+                MetricComputed = metricComputed; MetricHits = metricHits;
+                BudgetStops = budgetStops; DeferredSplits = deferredSplits;
+                SufficientStops = sufficientStops; MaxLevelStops = maxLevelStops;
+                InvisibleStops = invisibleStops; SkippedBases = skippedBases;
+                SkippedOceanic = skippedOceanic;
+            }
+        }
+
+        /// <summary>A legutóbb alkalmazott vágás könyvelése; a diagnosztika
+        /// 2 másodpercenként ezt olvassa ki a főszálon.</summary>
+        private AppliedCutWork _appliedCutWork;
+
+        /// <summary>
+        /// A <see cref="logUniformTileSamples"/> soraihoz tartozó, a FŐSZÁLON
+        /// kiolvasott kontextus (a worker Unity-objektumot nem olvashat).
+        /// </summary>
+        private readonly struct UniformSampleContext
+        {
+            public readonly bool Enabled;
+            public readonly int Frame;
+            public readonly double AltitudeUnits, ZoomRatio, Fov, UnitToKm, DeepTimeMyr;
+            public readonly string ViewClass;
+            public readonly AppliedCutWork Work;
+
+            public UniformSampleContext(bool enabled, int frame, double altitudeUnits, double zoomRatio,
+                double fov, double unitToKm, double deepTimeMyr, string viewClass, in AppliedCutWork work)
+            {
+                Enabled = enabled; Frame = frame; AltitudeUnits = altitudeUnits; ZoomRatio = zoomRatio;
+                Fov = fov; UnitToKm = unitToKm; DeepTimeMyr = deepTimeMyr; ViewClass = viewClass;
+                Work = work;
+            }
+        }
 
         private sealed class DrawnSurface
         {
@@ -179,12 +264,18 @@ namespace WorldGen.Viewer
                 + $"hiddenStaticWaterQuads={hiddenWater.Count} waterLod=ND83 independentWater={_appliedWaterSelection != null} waterLeaves={_appliedWaterSelection?.Leaves.Count ?? 0} "
                 + $"refinementPending={_lodRefinementPending} selectionTraceStops={trace.Trace?.Count ?? 0} terrainIdentity=ND77 "
                 + FormattableString.Invariant($"modelSeed={_adaptiveSeed} modelTimeMyr={deepTimeMyr:R} seaLevel={_adaptiveSeaLevel:R} physicalReliefScale={usePhysicalReliefScale} elevationScale={elevationScale:R} reliefExaggeration={terrainReliefExaggeration:R} plateCount={plateCount}");
+            // Egy Unity-egyseg hany kilometer: a bolygo fizikai sugara osztva a
+            // render-sugarral (radius). Igy a rajzolt elhossz km-re valtható.
+            double unitToKm = radius > 0 ? PlanetConstants.RadiusMeters / radius / 1000.0 : double.NaN;
+            var sampleContext = new UniformSampleContext(logUniformTileSamples, Time.frameCount,
+                altitude, zoom, cam.fieldOfView, unitToKm, deepTimeMyr,
+                orbit != null ? orbit.CurrentViewLevel.ToString() : "unknown", _appliedCutWork);
             // A worker értékmátrixokat, kész listákat és immutábilis proxy/
             // trace snapshotot kap. Nem olvassa a futó kérését vagy Unity objektumot.
-            _drawnDiagnosticTask=Task.Run(()=>MeasureDrawnSurfaces(surfaces,hidden,hiddenWater,width,height,header,trace));
+            _drawnDiagnosticTask=Task.Run(()=>MeasureDrawnSurfaces(surfaces,hidden,hiddenWater,width,height,header,trace,sampleContext));
         }
 
-        private static string MeasureDrawnSurfaces(List<DrawnSurfaceSnapshot> surfaces,HashSet<int> hidden,HashSet<int> hiddenWater,int width,int height,string header,DrawnTraceSnapshot trace)
+        private static string MeasureDrawnSurfaces(List<DrawnSurfaceSnapshot> surfaces,HashSet<int> hidden,HashSet<int> hiddenWater,int width,int height,string header,DrawnTraceSnapshot trace,UniformSampleContext sampleContext)
         {
             var timer=Stopwatch.StartNew();
             var measurement=new RenderedTileDiagnostics(width,height);
@@ -216,8 +307,128 @@ namespace WorldGen.Viewer
                 }
             }
             string outliers=FormatTerrainOutliers(measurement,surfaces,trace);
+            string samples=FormatUniformTileSamples(measurement,surfaces,sampleContext);
             timer.Stop();
-            return FormatDrawnMeasurement(measurement,header,timer.Elapsed.TotalMilliseconds,malformed)+outliers;
+            return FormatDrawnMeasurement(measurement,header,timer.Elapsed.TotalMilliseconds,malformed)+outliers+samples;
+        }
+
+        /// <summary>
+        /// FELHASZNÁLÓI KÉRÉS (2026-09-18): soronként EGY minta, gépi
+        /// feldolgozásra. Az egyenletes 17×9-es képernyő-raszter MINDEN
+        /// találatáról kiírja a zoomot, a képernyő-pozíciót, az égitest-beli
+        /// pozíciót, a tile szintjét és a tile méretét pixelben ÉS
+        /// kilométerben - így a napló utólag önmagában kiértékelhető
+        /// ("adott zoom mellett adott képernyő-pozíción mekkora a tile"),
+        /// fejléc-összeillesztés nélkül.
+        ///
+        /// A méretek KÉT forrásból jönnek, szándékosan:
+        ///  - pixel: a MÁR FELTÖLTÖTT quad vetítéséből (RenderedTileDiagnostics),
+        ///    ez a LOD-cél (`targetTilePixelSize`) közvetlen mértéke;
+        ///  - kilométer: UGYANANNAK a quadnak a rajzolt élhosszából, a
+        ///    bolygó fizikai sugarával átskálázva - tehát a tényleges
+        ///    geometriát méri, nem egy idealizált szögméret-formulát
+        ///    (a cubed-sphere tile-területek ~1,3-1,4x arányban változnak,
+        ///    ld. ND-24).
+        ///
+        /// Lat/lon a Core test-keretében: a pólus a Z tengely
+        /// (ld. BodyFrameConversion doksi), ezért lat=asin(z), lon=atan2(y,x).
+        /// Ez DIAGNOSZTIKA: a trigonometria itt nem esik az I1/ND-23
+        /// determinizmus-hatókörbe (nem a világmodell számítási útja).
+        /// </summary>
+        /// <summary>
+        /// A vágás munka-könyvelése MINDEN minta mellé (felhasználói kérés,
+        /// 2026-09-19). Szándékosan ismétlődik soronként: a `[tilesample]`
+        /// napló egész tervezési elve, hogy egy sor ÖNMAGÁBAN kiértékelhető
+        /// legyen, fejléc-összeillesztés nélkül.
+        ///
+        /// A `cutSaturated` az a származtatott jelzés, ami a leggyorsabban
+        /// megmondja, hogy a látott durva tile a budget miatt durva-e.
+        /// </summary>
+        private static void AppendCutWork(StringBuilder text, in AppliedCutWork w)
+        {
+            if (!w.Valid) { text.Append("cutWork=none "); return; }
+
+            // 1) Mennyi tile van most.
+            text.Append($"cutLeaves={w.TotalLeaves} dynLeaves={w.DynamicLeaves} ");
+            text.Append($"waterLeaves={w.WaterLeaves} cutBudget={w.Budget} ");
+            text.Append($"cutSaturated={(w.Budget > 0 && w.TotalLeaves + 4 > w.Budget)} ");
+            // 2) Mennyi szamolodott UJRA a zoom/forgatas miatt.
+            text.Append($"newSplits={w.NewSplits} reusedLeaves={w.ReusedLeaves} ");
+            text.Append($"metricComputed={w.MetricComputed} metricReused={w.MetricHits} ");
+            // 3a) Abbahagyva, mert ELVONTAK (a kep rosszabb lett tole).
+            text.Append($"starvedBudget={w.BudgetStops} starvedQuota={w.DeferredSplits} ");
+            // 3b) Abbahagyva, mert SZUKSEGTELEN (a kep nem lett rosszabb).
+            text.Append($"skipSufficient={w.SufficientStops} skipMaxLevel={w.MaxLevelStops} ");
+            text.Append($"skipInvisible={w.InvisibleStops} skipOceanBase={w.SkippedBases} ");
+            text.Append($"skipOceanLeaf={w.SkippedOceanic} ");
+        }
+
+        private static string FormatUniformTileSamples(RenderedTileDiagnostics m,
+            List<DrawnSurfaceSnapshot> surfaces, in UniformSampleContext ctx)
+        {
+            if (!ctx.Enabled) return string.Empty;
+            var text = new StringBuilder();
+            string F(double value) => value.ToString("F3", CultureInfo.InvariantCulture);
+            string F6(double value) => value.ToString("F6", CultureInfo.InvariantCulture);
+            string R(double value) => value.ToString("R", CultureInfo.InvariantCulture);
+            char Source(int kind) => kind == 1 ? 'S' : kind == 2 ? 'D' : kind == 3 ? 'W' : 'w';
+
+            for (int row = 0; row < m.Rows; row++)
+            {
+                for (int column = 0; column < m.Columns; column++)
+                {
+                    var hit = m.Hits[row * m.Columns + column];
+                    if (!hit.Found) continue;
+
+                    double px = m.SampleX(column), py = m.SampleY(row);
+                    text.Append("\n[tilesample] ");
+                    // Minden szam MAR invariansan formazott stringkent kerul be
+                    // (F/F6/R), ezert a sima interpolacio is kulturafuggetlen.
+                    text.Append($"frame={ctx.Frame} altitudeUnits={F6(ctx.AltitudeUnits)} ");
+                    text.Append($"zoomRatio={F(ctx.ZoomRatio)} viewClass={ctx.ViewClass} ");
+                    text.Append($"fov={F(ctx.Fov)} deepTimeMyr={R(ctx.DeepTimeMyr)} ");
+                    AppendCutWork(text, ctx.Work);
+                    text.Append($"col={column} row={row} sx={F(px / m.Width)} sy={F(py / m.Height)} ");
+                    text.Append($"px={F(px)} py={F(py)} ");
+                    text.Append($"source={Source(hit.Surface)} clippedDiameterPx={F(hit.DiameterPx)} ");
+                    text.Append($"clippedWidthPx={F(hit.WidthPx)} clippedHeightPx={F(hit.HeightPx)} ");
+                    text.Append($"fullQuadDiameterPx={F(hit.FullDiameterPx)} ");
+
+                    DrawnSurfaceSnapshot surface = surfaces[hit.Mesh];
+                    int start = hit.Quad * 4;
+                    if (surface.TileIds != null && hit.Quad < surface.TileIds.Length)
+                    {
+                        TileId tile = surface.TileIds[hit.Quad];
+                        tile.GetUV(out uint u, out uint v);
+                        text.Append($"tile={tile.Value:X16} face={tile.Face} level={tile.Level} u={u} v={v} ");
+                    }
+                    else text.Append("tile=unknown face=- level=-1 u=- v=- ");
+
+                    if (start + 3 < surface.Vertices.Count)
+                    {
+                        // A rajzolt quad NEGY sarka a bolygo LOKALIS tereben - ebbol
+                        // jon a kozeppont-irany (lat/lon) ES a tenyleges elhossz.
+                        Vector3 a = surface.ToBody.MultiplyPoint3x4(surface.Vertices[start]);
+                        Vector3 b = surface.ToBody.MultiplyPoint3x4(surface.Vertices[start + 1]);
+                        Vector3 c = surface.ToBody.MultiplyPoint3x4(surface.Vertices[start + 2]);
+                        Vector3 d = surface.ToBody.MultiplyPoint3x4(surface.Vertices[start + 3]);
+                        Vector3 center = (a + b + c + d) * 0.25f;
+                        BodyFrameConversion.ToCore(center, out double cx, out double cy, out double cz);
+                        double length = Math.Sqrt(cx * cx + cy * cy + cz * cz);
+                        double latDeg = length > 1e-9 ? Math.Asin(Math.Max(-1.0, Math.Min(1.0, cz / length))) * 180.0 / Math.PI : double.NaN;
+                        double lonDeg = Math.Atan2(cy, cx) * 180.0 / Math.PI;
+
+                        // Atlagos elhossz a negy oldalbol (a quad nem pontosan
+                        // negyzet a gombi vetites miatt).
+                        double edgeUnits = (Vector3.Distance(a, b) + Vector3.Distance(b, c)
+                            + Vector3.Distance(c, d) + Vector3.Distance(d, a)) * 0.25;
+                        text.Append($"lat={F(latDeg)} lon={F(lonDeg)} ");
+                        text.Append($"tileEdgeKm={F(edgeUnits * ctx.UnitToKm)} tileEdgeUnits={F6(edgeUnits)}");
+                    }
+                    else text.Append("lat=- lon=- tileEdgeKm=- tileEdgeUnits=-");
+                }
+            }
+            return text.ToString();
         }
 
         private static string FormatTerrainOutliers(RenderedTileDiagnostics measurement,

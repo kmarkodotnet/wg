@@ -380,6 +380,7 @@ namespace WorldGen.Viewer.Lod
                 if (grazeStop || !inView)
                 {
                     work?.Trace?.Record(node,grazeStop ? "grazing" : "outside-view",error);
+                    work?.CountInvisibleStop();
                     // Nem finomodik tovabb (surolo szog vagy latokupon kivul) -
                     // ha a base fole esik, vegleges level; egyebkent a statikus fed.
                     if (node.Level > staticBaseLevel)
@@ -420,7 +421,7 @@ namespace WorldGen.Viewer.Lod
                 if (node.Level >= staticBaseLevel
                     && result.Count + pendingDynamicLeaves + 4 > budget)
                 {
-                    if (wantSplit) stopReason = "leaf-budget";
+                    if (wantSplit) { stopReason = "leaf-budget"; work?.CountBudgetStop(); }
                     wantSplit = false;
                 }
 
@@ -435,6 +436,10 @@ namespace WorldGen.Viewer.Lod
                 if (!wantSplit)
                 {
                     work?.Trace?.Record(node,stopReason,error,threshold);
+                    // A "leaf-budget"/"split-quota" MAR sajat szamlalot kapott
+                    // fentebb; itt csak a SZUKSEGTELEN (helyes) megallas szamol.
+                    if (stopReason == "below-threshold" || stopReason == "max-level")
+                        work?.CountSufficientStop(stopReason == "max-level");
                     if (node.Level > staticBaseLevel)
                         result.Add(node);
                     continue;

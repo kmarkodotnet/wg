@@ -175,6 +175,39 @@ namespace WorldGen.Viewer.Lod
         public int SkippedStaticBases { get; private set; }
         public int NewSplits { get; private set; }
         public int DeferredSplits { get; private set; }
+
+        // A MEGALLASOK KONYVELESE (felhasznaloi keres, 2026-09-19): "hany tile
+        // kalkulalasa lett abbahagyva". Ket GYOKERESEN MAS ok, ezert KULON
+        // szamlalo - osszevonva a szam felrevezeto lenne:
+        //
+        //  ELVONT munka (a kep ROSSZABB lett tole, mint amit a metrika kert):
+        //   * BudgetStops    - a szelekcio fel akarta osztani, de a leaf-budget
+        //                      elfogyott (`stop=leaf-budget`). EDDIG SEMMI NEM
+        //                      SZAMOLTA, csak a trace rogzitette egyedileg.
+        //   * DeferredSplits - a keresenkenti uj-felosztas kvota fogyott el
+        //                      (`stop=split-quota`, MaxNewSplits).
+        //
+        //  SZUKSEGTELEN munka (helyesen maradt abba, a kep NEM lett rosszabb):
+        //   * BelowThresholdStops - a tile MAR eleg finom a kuszobhoz.
+        //   * MaxLevelStops       - elerte az adaptiveMaxLevel-t.
+        //   * InvisibleStops      - latokupon kivul vagy surolo szogben.
+        //   * SkippedStaticBases  - ND-78 ocean-eloszures.
+        public int BudgetStops { get; private set; }
+        public int BelowThresholdStops { get; private set; }
+        public int MaxLevelStops { get; private set; }
+        public int InvisibleStops { get; private set; }
+
+        /// <summary>Elvont munka: a leaf-budget blokkolta a kert felosztast.</summary>
+        internal void CountBudgetStop() => BudgetStops++;
+
+        /// <summary>Szuksegtelen munka: a tile nem is akart tovabb finomodni.</summary>
+        internal void CountSufficientStop(bool maxLevel)
+        {
+            if (maxLevel) MaxLevelStops++; else BelowThresholdStops++;
+        }
+
+        /// <summary>Szuksegtelen munka: nem lathato (latokup/surolo szog).</summary>
+        internal void CountInvisibleStop() => InvisibleStops++;
         public LodSelectionWork(ProjectedLodView? view, int maxNewSplits = int.MaxValue,
             CancellationToken cancellation = default, bool captureTrace = false, Func<TileId,bool>? skipStaticBase = null,
             LodTerrainEvaluationCache? evaluationCache = null)
