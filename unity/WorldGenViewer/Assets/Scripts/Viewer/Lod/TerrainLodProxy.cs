@@ -16,6 +16,20 @@ namespace WorldGen.Viewer.Lod
         public int BaseLevel { get; }
         public long StorageBytes { get; }
 
+        /// <summary>
+        /// A proxy legkisebb sugara (tengerszint vagy afölött). Horizont-
+        /// vágásnál EZ a takaró gömb: a legkisebb takaró a legkevesebbet
+        /// rejti el, tehát csak bizonyítottan nem látható csomópontot vágunk.
+        /// </summary>
+        public double MinimumRadius => _minimumRadius;
+
+        /// <summary>
+        /// A proxy legnagyobb sugara. Horizont-vágásnál a csomópontot ERRE a
+        /// burokra tesszük - egy hegycsúcs átkukucskálhat a horizonton, és
+        /// azt nem szabad kivágni.
+        /// </summary>
+        public double MaximumRadius { get; }
+
         public TerrainLodProxy(int baseLevel, double[] cornerRadii, double seaRadius)
         {
             if (baseLevel < 0 || baseLevel > 8) throw new ArgumentOutOfRangeException(nameof(baseLevel));
@@ -26,12 +40,15 @@ namespace WorldGen.Viewer.Lod
             if (cornerRadii.Length != 6 * side * side) throw new ArgumentException("Hiányos sarokrács.", nameof(cornerRadii));
             _radii = new double[cornerRadii.Length];
             _minimumRadius = double.PositiveInfinity;
+            double maximumRadius = 0.0;
             for (int i = 0; i < _radii.Length; i++)
             {
                 if (!PositiveFinite(cornerRadii[i])) throw new ArgumentOutOfRangeException(nameof(cornerRadii));
                 _radii[i] = Math.Max(seaRadius, cornerRadii[i]);
                 _minimumRadius = Math.Min(_minimumRadius, _radii[i]);
+                maximumRadius = Math.Max(maximumRadius, _radii[i]);
             }
+            MaximumRadius = maximumRadius;
             long count = _radii.Length;
             _maxima = new double[baseLevel + 1][];
             _maxima[baseLevel] = new double[6 * n * n];

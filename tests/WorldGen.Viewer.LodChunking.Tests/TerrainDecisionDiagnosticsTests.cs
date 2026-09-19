@@ -125,14 +125,26 @@ public class TerrainDecisionDiagnosticsTests
         Assert.Contains(cut,tile=>work.Trace!.TryFindStop(tile,out _,out var stop)&&stop.Reason==expected);
     }
 
+    /// <summary>
+    /// A teszt lényege változatlan: a KIVÁGOTT ŐS kap trace-bejegyzést, és
+    /// NEM találunk ki hozzá küszöböt (a küszöb NaN marad).
+    ///
+    /// 2026-09-19: a várt OK `outside-view`-ról `horizon`-ra módosult. Nem a
+    /// viselkedés romlott, hanem PONTOSABB lett: a vetített terep-ágon eddig
+    /// egyáltalán nem futott horizont-vizsgálat, ezért a túloldali csempe is
+    /// csak "a látókúpon kívül" minősítést kapott. Ez a csempe a +Y lap
+    /// közepe, a kamera (120,0,0)-ban áll - az ősök C·P értéke 37..2298 a
+    /// 10000-es horizont-küszöbhöz képest, tehát nagyságrenddel a bolygó
+    /// túloldalán vannak. Ld. HorizonCullTests.
+    /// </summary>
     [Fact]
-    public void OutsideViewRecordsCulledAncestorWithNoInventedThreshold()
+    public void CulledAncestorIsRecordedWithNoInventedThreshold()
     {
         var work=new LodSelectionWork(View(),100000,captureTrace:true);
         Cut(work);
         var tile=TileId.FromFaceLevelUV(2,8,128,128);
         Assert.True(work.Trace!.TryFindStop(tile,out _,out var stop));
-        Assert.Equal("outside-view",stop.Reason);
+        Assert.Equal("horizon",stop.Reason);
         Assert.True(double.IsNaN(stop.Threshold));
     }
 }

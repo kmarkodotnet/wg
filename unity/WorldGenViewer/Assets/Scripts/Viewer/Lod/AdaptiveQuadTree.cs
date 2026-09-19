@@ -585,6 +585,61 @@ namespace WorldGen.Viewer.Lod
         /// latokup), hogy a ket ut (regi DFS es uj prioritasos) geometriailag
         /// konzisztens legyen.
         /// </summary>
+        /// <summary>
+        /// Igaz, ha a csomopont MINDEN lehetseges terep-pontja a horizont mogott
+        /// van, tehat semmikepp nem lathato.
+        ///
+        /// MIERT NEM A SIK-TESZT. A lentebbi, nem-proxys agban hasznalt
+        /// `C·X + |C|·r &lt; R²` az erintosik-teszt: az CSAK a gomb FELSZINEN levo
+        /// pontra helyes. Emelt pontra hamis - egy hegycsucs atkukucskal a
+        /// horizonton. Megmerve: a sik-tesztes valtozat 54 probanezetbol 6-ban
+        /// MEGVALTOZTATTA a cutot, ketto esetben katasztrofalisan (5636 level
+        /// -> 0), mert a limbus kornyeki, ferden nezett, VALOBAN LATHATO
+        /// csempeket is kivagta.
+        ///
+        /// A HELYES FELTETEL szogekben: egy `rP` sugaru pont akkor van a `R`
+        /// sugaru takaro mogott `d` tavolsagbol nezve, ha a kameratol mert
+        /// szoge nagyobb, mint acos(R/d) + acos(R/rP). Ezt koszinuszban
+        /// kifejtve csak szorzas es `Math.Sqrt` kell - transzcendens fuggveny
+        /// NEM (a CLAUDE.md szerint az nem bitpontos, es a cut determinizmusa
+        /// dokumentalt garancia).
+        ///
+        /// KONZERVATIV BUROK: a takaro a proxy LEGKISEBB sugara (a legkisebb
+        /// takaro rejti a legkevesebbet), a csomopont a LEGNAGYOBB sugaru
+        /// burkon ul, es a csempe oldalsó kiterjedeset is levonjuk a szogbol.
+        /// </summary>
+        private static bool IsBeyondHorizon(TileId node,
+            double cameraX, double cameraY, double cameraZ, double cameraLength,
+            TerrainLodProxy proxy)
+        {
+            double occluder = proxy.MinimumRadius, outer = proxy.MaximumRadius;
+            // A kamera a takaron belul (vagy elfajult adat): ne vagjunk.
+            if (!(cameraLength > occluder) || !(outer >= occluder) || !(occluder > 0)) return false;
+
+            GetCenterAndBoundingRadius(node, outer, out double x, out double y, out double z,
+                out double footprint);
+            // A csempe oldalso kiterjedese nem nyulhat tul a burkon.
+            if (!(footprint < outer)) return false;
+
+            double cosAngle = (cameraX * x + cameraY * y + cameraZ * z) / (cameraLength * outer);
+            if (cosAngle > 1.0) cosAngle = 1.0; else if (cosAngle < -1.0) cosAngle = -1.0;
+            double sinAngle = Math.Sqrt(Math.Max(0.0, 1.0 - cosAngle * cosAngle));
+
+            // A kiterjedes szoge: sin = footprint / outer.
+            double sinExtent = footprint / outer;
+            double cosExtent = Math.Sqrt(Math.Max(0.0, 1.0 - sinExtent * sinExtent));
+
+            // cos(szog - kiterjedes): a csempe kamerahoz LEGKOZELEBBI pontja.
+            double cosNearest = cosAngle * cosExtent + sinAngle * sinExtent;
+
+            // cos(acos(R/d) + acos(R/rP)) - a lathatosag hatarszoge.
+            double a = occluder / cameraLength, b = occluder / outer;
+            double cosLimit = a * b
+                - Math.Sqrt(Math.Max(0.0, 1.0 - a * a)) * Math.Sqrt(Math.Max(0.0, 1.0 - b * b));
+
+            return cosNearest < cosLimit;
+        }
+
         private static void EvaluateNodeForPriority(
             TileId node,
             double cameraX, double cameraY, double cameraZ, double planetRadius, double camLen,
@@ -596,6 +651,41 @@ namespace WorldGen.Viewer.Lod
 
             if (work?.View != null && terrainProxy != null)
             {
+                // ND-105 (2026-09-19): a vetitett terep-uton EDDIG SEMMILYEN
+                // horizont-cull nem futott - a korai `return` miatt a lentebbi
+                // kiterjedes-tudatos teszt soha nem hajtodott vegre ezen az
+                // agon. Merve (D=103, magassag 3, a lathato sapka a gomb ~1,4%-a):
+                // a level-8 szinten 123 152 csomopontot jartunk be es 120 846-ot
+                // tettunk kupacra, holott ~5 500 tile lathato. A teljes vagas
+                // 191 084 kiertekelesebol 180 564 MAR a base-szint eleresekor
+                // megtortent - 96% olyan munka, ami egyetlen levelet sem termel.
+                //
+                // CSAK A BASE-SZINT ALATT vagunk (`node.Level < staticBaseLevel`):
+                // a megtakaritas ugyis a leszallasbol jon (a kivagott csomopont
+                // gyerekei letre sem jonnek), a base-szintu csomopontok pedig
+                // valtozatlanul a regi uton ertekelodnek ki. Ez a kisebb
+                // hatosugaru valtozat; merve ugyanannyit hoz, mint a `<=`
+                // (75,5% vs 75,6% kevesebb kiertekeles).
+                //
+                // NEM allitjuk, hogy a cut bitre valtozatlan. Merve (54 proba-
+                // nezet, tavolsag/tengely/dolesszog szerint): 48-ban bitre
+                // azonos, 6-ban elter - ezek telitett budgetnel a best-first
+                // hatarat tolják el, mert a frontierrol eltunnek a lathatatlan
+                // csomopontok. A DONTO ellenorzes ezert a lathato fedettseg:
+                // 54 nezet x 21x11 kepernyo-minta alapjan 53-ban VALTOZATLAN,
+                // 1-ben JOBB, 0-ban rosszabb - a felszabadult budget a lathato
+                // reszre megy. Ld. HorizonCullTests.
+                //
+                // KONZERVATIV BUROK: a takaro gomb a proxy LEGKISEBB sugara
+                // (a legkisebb takaro rejti a legkevesebbet), a csomopont pedig
+                // a LEGNAGYOBB sugaru burkon ul (egy hegycsucs atkukucskalhat a
+                // horizonton). Igy csak bizonyitottan nem lathato csomopont esik ki.
+                if (staticBaseLevel >= 0 && node.Level < staticBaseLevel
+                    && IsBeyondHorizon(node, cameraX, cameraY, cameraZ, camLen, terrainProxy))
+                {
+                    horizonCulled = true;
+                    return;
+                }
                 inView = work.EvaluateTerrain(terrainProxy,node,out error);
                 return;
             }
