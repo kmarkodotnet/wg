@@ -58,6 +58,75 @@ public class DeterministicMathVectorFileTests
         }
         Assert.Equal(500, checkedCount);
     }
+
+    // ---- ND-118: Atan / Atan2 / Asin / Acos / Tanh ----
+    //
+    // Ugyanaz az elv, mint fent: NINCS tolerancia. A Python és a C# UGYANAZT
+    // a műveleti sorrendet futtatja, csak IEEE-754 szerint bitpontos
+    // műveletekből (+ - * /, Math.Sqrt), ezért az egyezésnek bitre kell állnia.
+    // Ha ez valaha elbukik, az NEM "pontatlanság", hanem azt jelenti, hogy a
+    // két implementáció algoritmikusan szétcsúszott.
+
+    private static JsonElement Vectors(string key)
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "testdata", "deterministic_math_vectors.json");
+        JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        return doc.RootElement.GetProperty(key).Clone();
+    }
+
+    [Fact]
+    public void AtanMatchesPythonReferenceExactly()
+    {
+        int checkedCount = 0;
+        foreach (JsonElement v in Vectors("atan").EnumerateArray())
+        {
+            double x = v.GetProperty("x").GetDouble();
+            Assert.Equal(v.GetProperty("result").GetDouble(), DeterministicMath.Atan(x));
+            checkedCount++;
+        }
+        Assert.Equal(500, checkedCount);
+    }
+
+    [Fact]
+    public void AsinAndAcosMatchPythonReferenceExactly()
+    {
+        int checkedCount = 0;
+        foreach (JsonElement v in Vectors("asin").EnumerateArray())
+        {
+            double x = v.GetProperty("x").GetDouble();
+            Assert.Equal(v.GetProperty("asin").GetDouble(), DeterministicMath.Asin(x));
+            Assert.Equal(v.GetProperty("acos").GetDouble(), DeterministicMath.Acos(x));
+            checkedCount++;
+        }
+        Assert.Equal(500, checkedCount);
+    }
+
+    [Fact]
+    public void Atan2MatchesPythonReferenceExactly()
+    {
+        int checkedCount = 0;
+        foreach (JsonElement v in Vectors("atan2").EnumerateArray())
+        {
+            double y = v.GetProperty("y").GetDouble();
+            double x = v.GetProperty("x").GetDouble();
+            Assert.Equal(v.GetProperty("result").GetDouble(), DeterministicMath.Atan2(y, x));
+            checkedCount++;
+        }
+        Assert.Equal(500, checkedCount);
+    }
+
+    [Fact]
+    public void TanhMatchesPythonReferenceExactly()
+    {
+        int checkedCount = 0;
+        foreach (JsonElement v in Vectors("tanh").EnumerateArray())
+        {
+            double x = v.GetProperty("x").GetDouble();
+            Assert.Equal(v.GetProperty("result").GetDouble(), DeterministicMath.Tanh(x));
+            checkedCount++;
+        }
+        Assert.Equal(500, checkedCount);
+    }
 }
 
 public class DeterministicMathStructuralTests

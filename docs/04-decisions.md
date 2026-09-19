@@ -4654,6 +4654,61 @@ telepítését igényli.**
   felajánlja a mentések, beállítások, képernyőképek és naplók törlését (WF-INSTALL-002).
 - Alternatíva: MSI (WiX). Elvetve az MVP-hez, mert az Inno egyszerűbb, és a roadmap is ezt javasolja.
 
+### ND-118 — A determinisztikus matek kiterjesztése: Atan/Atan2/Asin/Acos/Tanh
+
+**2026-09-20. Megvalósítva (a függvények); a modulok átállítása KÜLÖN lépés.**
+
+**Előzmény.** Az ND-27 eldöntötte, hogy saját polinomiális implementációt
+írunk a transzcendens függvényekre, és a `DeterministicMath` meg is épült:
+`Sin`, `Cos`, `SinCos`, `Ln`, `Exp`, `Pow`. Nyolc Core-modul használja.
+
+**A feltárt hiányosság (2026-09-20).** A klíma-lánc
+(`WindPrecipitation`: `Asin`/`Atan2`/`Tanh` ×4), a folyó-nyomvonal
+(`RiverPathTracing`: `Acos`) és a csillagászat (`OrbitalMechanics.SubsolarPoint`:
+`Asin`/`Atan2`) máig NYERS `System.Math`-ot hív a kritikus úton — de NEM
+feledékenységből: **ezeknek a függvényeknek egyszerűen nem volt
+determinisztikus párjuk.** A `DeterministicMath` API-ja nem tartalmazta
+őket, tehát nem is lehetett mire cserélni.
+
+Ennek a következménye mérhető: **tizenkét KAT-teszt toleranciával mér**, nem
+bitpontosan (`OrbitalMechanics`, `Temperature`, `WindPrecipitation`,
+`MoisturePrecipitation`, `LakesIceErosion`, `DeepTimeErosionGlaciation`,
+`PlateMotion`, `TileGeometry`, `SeaLevelCalibration`,
+`SurfaceTemperatureField`, `RegolithModel`, `DeterministicMath` maga a
+plauzibilitásra). Vagyis az I1 ("bitre ugyanaz a világ minden platformon")
+ezekre a láncokra ma **nincs kikényszerítve**, csak ~1e-6-ig.
+
+**Döntés.** Megírjuk az öt hiányzó függvényt, ugyanazzal a módszerrel, mint
+az ND-27: csak garantáltan bitpontos műveletekből (`+ - * /`, `Math.Sqrt`),
+Python-orákulum → KAT-vektorok → C#.
+
+| Függvény | Módszer |
+|---|---|
+| `Atan` | reciprok-redukció (\|x\|>1), majd HÁROMSZOROS felezés `a/(1+sqrt(1+a²))`-vel \|t\|≤0,0985-ig, majd 10 tagú Taylor hátulról előre összegezve |
+| `Atan2` | kvadráns-logika az `Atan`-ra |
+| `Asin` | \|x\|≤0,5: `atan(x/sqrt(1-x²))`; \|x\|>0,5: félszög-azonosság, mert a naiv képlet a tartomány SZÉLÉN kioltana |
+| `Acos` | `pi/2 - Asin(x)` |
+| `Tanh` | `(1-e^{-2\|x\|})/(1+e^{-2\|x\|})` a determinisztikus `Exp`-ből, kis- és nagy-argumentumú átváltással |
+
+**Mért pontosság** (20 000 minta/függvény, a valódi `math.*`-hoz mérve):
+`atan` 3,3e-16 · `asin` 6,7e-16 · `acos` 8,9e-16 · `atan2` 4,4e-16 ·
+`tanh` 8,0e-13 (relatív). A kitűzött cél 1e-9 volt. A tartomány szélén
+(\|x\|→1) az `asin` hibája 2,2e-16 — ezért kell a félszög-ág.
+
+**A C# BITRE egyezik a Pythonnal**, tolerancia nélküli `Assert.Equal`-lal,
+2000 új vektoron (500 függvényenként). Ez azért lehetséges, mert mindkét
+oldal UGYANAZT a műveleti sorrendet futtatja, csak IEEE-754 szerint
+korrekt kerekítésű műveletekből.
+
+**AMI EBBŐL NEM KÖVETKEZIK.** Ez a lépés **önmagában semmit nem változtat a
+világon**: egyetlen meglévő modul sem állt át, a meglévő 1000
+`sinCos`/`pow` vektor bitre változatlan (ellenőrizve). A modulok átállítása
+**SEED-TÖRŐ**, mert minden ráépülő KAT-vektort újra kell generálni
+(domborzat, lemezhatár, hidrológia, folyók, tavak, nedvesség, features,
+vulkanizmus, state hash) — és az ND-52 tapasztalata szerint az **ordinális
+kalibrációt is** (ld. ND-09 v2, 2026-09-19: az ND-52 észrevétlenül tette
+elavulttá). Az átállás külön döntést és külön, összevont lépést igényel.
+
 ### ND-115 — Horizont-vágás a vetített terep-úton
 
 **2026-09-19. Megvalósítva.** Részletek és mérések:
