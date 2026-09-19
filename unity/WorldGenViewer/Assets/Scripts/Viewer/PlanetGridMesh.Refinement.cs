@@ -16,6 +16,22 @@ namespace WorldGen.Viewer
         // ND-81: csak a cut/emit worker írja; diagnosztikai task nem használja.
         private LodTerrainEvaluationCache? _terrainEvaluationCache;
 
+        /// <summary>
+        /// A vágás levél-költségvetése. <c>adaptiveRenderBudget == 0</c> esetén
+        /// a viewportból számoljuk (<see cref="AdaptiveQuadTree.RenderBudgetForViewport"/>
+        /// - ott a mérési tábla és az indoklás), egyébként a mezőt kézi
+        /// felülbírálásnak vesszük, hogy Play közben sweepelhető maradjon.
+        /// Érvénytelen viewportnál (0 pixel, pl. rejtett kamera) a korábbi
+        /// kézi alapértékre esünk vissza, nem dobunk kivételt a render-úton.
+        /// </summary>
+        private int ResolveRenderBudget(int pixelWidth, int pixelHeight)
+        {
+            if (adaptiveRenderBudget > 0) return adaptiveRenderBudget;
+            if (pixelWidth <= 0 || pixelHeight <= 0 || !(targetTilePixelSize > 0))
+                return AdaptiveQuadTree.MinimumRenderBudget;
+            return AdaptiveQuadTree.RenderBudgetForViewport(pixelWidth, pixelHeight, targetTilePixelSize);
+        }
+
         private void PrepareTerrainEvaluationCache(TerrainLodProxy? proxy)
         {
             if (_requestedProjectedView == null || proxy == null) _terrainEvaluationCache = null;

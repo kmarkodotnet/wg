@@ -541,8 +541,16 @@ namespace WorldGen.Viewer
                  "a ~400-500ms-os keres-idonek felel meg. EZ EGY KIINDULO ERTEK: a " +
                  "mezo Play kozben is allithato (OnValidate -> _adaptiveConfigDirty " +
                  "-> chunk-cache urites, azonnal hat), tehat elo munkamenetben " +
-                 "sweepelheto a simasag/reszletesseg kompromisszum.")]
-        private int adaptiveRenderBudget = 8000;
+                 "sweepelheto a simasag/reszletesseg kompromisszum.\n\n" +
+                 "2026-09-19: A FENTI LINEARIS EXTRAPOLACIO TEVES VOLT. Meres " +
+                 "szerint a bejaras koltseget a LATOTT FELULET hajtja, nem a " +
+                 "budget: 3x budget csak +28% worker-ido (155 -> 199 ms), mert a " +
+                 "vagas ugyis ~200 000 tile-t latogat meg 8000 levelert. A fix " +
+                 "8000 viszont 1,4-4,1x-re hizlalta a rajzolt tile-okat a 8 px-es " +
+                 "celhoz kepest. EZERT: 0 = AUTOMATIKUS, a viewportbol szamolva " +
+                 "(AdaptiveQuadTree.RenderBudgetForViewport - ott a teljes meresi " +
+                 "tabla). Pozitiv ertek = kezi felulbiralas, a regi viselkedes.")]
+        private int adaptiveRenderBudget;
 
         [SerializeField]
         [Tooltip("FAZIS 3 (ND-47): a BuildCut (kvadfa-kivalasztas) egy WORKER " +
@@ -3102,7 +3110,8 @@ namespace WorldGen.Viewer
             // BuildCut koltsege es a maxLeafCount-korlat mar NEM a 393216
             // base-gyokerhez van kotve (ld. AdaptiveQuadTree Fazis 1 doksi).
             int traversalRootLevel = Math.Min(adaptiveTraversalRootLevel, effectiveBaseLevel);
-            int renderBudget = Math.Max(1, adaptiveRenderBudget);
+            // 0 = automatikus, a viewportbol; pozitiv = kezi felulbiralas.
+            int renderBudget = ResolveRenderBudget(cam.pixelWidth, cam.pixelHeight);
             // ND-72: az ND-71 ágankénti terepmintázása élőben súlyos regresszió.
             // A gömbös ND-70 kiválasztás marad; csak EGY renderelt nadírt mérünk.
             _requestedLodLocalToCamera = cam.worldToCameraMatrix * transform.localToWorldMatrix;
@@ -3163,6 +3172,7 @@ namespace WorldGen.Viewer
                     AdaptiveMeshBuffers buffers = ComputeAdaptiveMeshBuffersCpu(cut, cancellation);
                     buffers.NewSplits = selectionWork.NewSplits;
                     buffers.DeferredSplits = selectionWork.DeferredSplits;
+                    buffers.RenderBudget = renderBudget;
                     buffers.BudgetStops = selectionWork.BudgetStops;
                     buffers.SufficientStops = selectionWork.BelowThresholdStops;
                     buffers.MaxLevelStops = selectionWork.MaxLevelStops;
@@ -3297,7 +3307,7 @@ namespace WorldGen.Viewer
             _currentCut = buffers.Cut;
             _appliedCutWork = new AppliedCutWork(
                 buffers.Cut?.Count ?? 0, buffers.DynamicLeafCount,
-                buffers.WaterSelection?.Leaves.Count ?? 0, Math.Max(1, adaptiveRenderBudget),
+                buffers.WaterSelection?.Leaves.Count ?? 0, buffers.RenderBudget,
                 buffers.NewSplits, buffers.ReusedLeaves,
                 buffers.MetricEvaluations, buffers.MetricCacheHits,
                 buffers.BudgetStops, buffers.DeferredSplits,
@@ -3364,6 +3374,7 @@ namespace WorldGen.Viewer
                 // megallasok - ld. LodSelectionWork doksija. A `deferredSplits`
                 // ES a `starvedQuota` UGYANAZ a szam, a masik nevvel a
                 // `[tilesample]` sorokhoz illeszkedik.
+                $"cutBudget={buffers.RenderBudget} budgetMode={(adaptiveRenderBudget > 0 ? "manual" : "viewport")} " +
                 $"starvedBudget={buffers.BudgetStops} starvedQuota={buffers.DeferredSplits} " +
                 $"skipSufficient={buffers.SufficientStops} skipMaxLevel={buffers.MaxLevelStops} " +
                 $"skipInvisible={buffers.InvisibleStops} " +
@@ -3446,6 +3457,8 @@ namespace WorldGen.Viewer
             // munka (BudgetStops + DeferredSplits) vs szuksegtelen munka
             // (SufficientStops + MaxLevelStops + InvisibleStops + Skipped*).
             public int BudgetStops, SufficientStops, MaxLevelStops, InvisibleStops;
+            /// <summary>A vagashoz TENYLEGESEN hasznalt level-budget (ResolveRenderBudget).</summary>
+            public int RenderBudget = AdaptiveQuadTree.MinimumRenderBudget;
             public int SkippedSelectionBases;
             public bool BoundedChunks;
             public int ChunkLeafLimit, MaxChunkLeaves, MinimumChunkLevel;

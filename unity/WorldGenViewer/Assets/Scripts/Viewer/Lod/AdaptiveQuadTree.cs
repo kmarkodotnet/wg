@@ -157,6 +157,76 @@ namespace WorldGen.Viewer.Lod
         /// </summary>
         public const int DefaultMaxLeafCount = 200_000;
 
+        /// <summary>Ld. <see cref="RenderBudgetForViewport"/> - a raszter-igény szorzója.</summary>
+        public const double DefaultRenderBudgetOverhead = 1.5;
+
+        /// <summary>A korábbi kézi érték; kis ablaknál sem megyünk ez alá.</summary>
+        public const int MinimumRenderBudget = 8_000;
+
+        /// <summary>
+        /// Felső korlát 4K-ra is: 48 000 levélnél a MÉRT worker-költség
+        /// selection+balance ~300 ms (8 000-nél ~155 ms). Efölött a
+        /// <c>EnforceRestrictedBalance</c> kezd dominálni.
+        /// </summary>
+        public const int MaximumRenderBudget = 48_000;
+
+        /// <summary>
+        /// A vágás levél-költségvetése a VIEWPORTBÓL számolva, nem kézi számból.
+        ///
+        /// MIÉRT: a korábbi fix 8000-es érték egy 2026-09-13-as mérés LINEÁRIS
+        /// extrapolációjából született ("8000 levél ~ 400-500 ms kérés-idő"), és
+        /// a 2026-09-18-i mintavételező napló szerint a rajzolt tile-ok emiatt
+        /// 1,4-4,1-szer nagyobbak a 8 px-es célnál: 68 vágásból 44 pontosan
+        /// 7998-8000 levélnél telítődött, a kiugró tile-ok 79/95 arányban
+        /// <c>stop=leaf-budget</c> okkal álltak meg.
+        ///
+        /// Az extrapoláció téves volt. MÉRVE (2026-09-19, meleg metrika-cache,
+        /// azonos nézet, csak a budget változik):
+        ///
+        ///   budget   levelek   selection   balance   összesen
+        ///     8 000    7 998     146 ms      9 ms     155 ms
+        ///    16 000   15 999     169 ms     19 ms     188 ms
+        ///    24 000   24 000     172 ms     26 ms     199 ms
+        ///    32 000   31 998     197 ms     35 ms     232 ms
+        ///    48 000   48 000     245 ms     57 ms     303 ms
+        ///
+        /// A bejárás költségét a LÁTOTT FELÜLET hajtja (a vágás ~200 000 tile-t
+        /// látogat meg 8 000 levélért), nem a budget - ezért 3x budget csak
+        /// +28% worker-idő. A főszálat ez nem érinti: a feltöltés az ND-85
+        /// szerint keretenként <c>TerrainUploadSliceMs = 2</c> ms-ra szeletelt,
+        /// tehát a nagyobb mesh több staging-frame, NEM nagyobb akadás.
+        ///
+        /// A KÉPLET: a képernyő befér-e cél-méretű tile-okkal. 1196x710 és 8 px
+        /// mellett 849 160 / 64 = 13 268 levél a csupasz igény. A szorzó fedi a
+        /// cubed-sphere ~1,3-1,4x-es tile-terület-szórását (ND-24), a
+        /// perspektivikus rövidülést és a restricted-balance ráhagyását; az
+        /// 1,5-es alapérték a naplóból visszamérve is egybevág (a 30-100-as
+        /// zoom-sávban 1,40-1,69x-es tile-méret ~2,25x levélszámot kér).
+        ///
+        /// EZ NEM oldja meg a legközelebbi zoomot: ott a tile 3,8-4,1x a célnál,
+        /// ami ~16x levelet kérne. A metrika ebben a nézetben összesen ~58 000
+        /// levelet kér, tehát a maradék hézag a felső korlát tudatos ára.
+        /// </summary>
+        public static int RenderBudgetForViewport(int pixelWidth, int pixelHeight,
+            double targetTilePixelSize, double overhead = DefaultRenderBudgetOverhead,
+            int minimum = MinimumRenderBudget, int maximum = MaximumRenderBudget)
+        {
+            if (pixelWidth <= 0) throw new ArgumentOutOfRangeException(nameof(pixelWidth));
+            if (pixelHeight <= 0) throw new ArgumentOutOfRangeException(nameof(pixelHeight));
+            if (!(targetTilePixelSize > 0) || double.IsInfinity(targetTilePixelSize))
+                throw new ArgumentOutOfRangeException(nameof(targetTilePixelSize));
+            if (!(overhead >= 1) || double.IsInfinity(overhead))
+                throw new ArgumentOutOfRangeException(nameof(overhead));
+            if (minimum < 1) throw new ArgumentOutOfRangeException(nameof(minimum));
+            if (maximum < minimum) throw new ArgumentOutOfRangeException(nameof(maximum));
+
+            // double-ban szamolunk: 8K-nal a pixelszam meg bosegesen pontos.
+            double perTile = targetTilePixelSize * targetTilePixelSize;
+            double wanted = Math.Ceiling((double)pixelWidth * pixelHeight / perTile) * overhead;
+            if (!(wanted > minimum)) return minimum;
+            return wanted >= maximum ? maximum : (int)wanted;
+        }
+
         /// <summary>
         /// ND-46 (2026-09-02, felhasznaloi screenshot-diagnozis: egy
         /// vizszintes SAV finomodott a kepernyon, felette/alatta durva
