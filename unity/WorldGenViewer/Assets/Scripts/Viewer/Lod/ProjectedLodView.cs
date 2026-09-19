@@ -208,6 +208,23 @@ namespace WorldGen.Viewer.Lod
 
         /// <summary>Szuksegtelen munka: nem lathato (latokup/surolo szog).</summary>
         internal void CountInvisibleStop() => InvisibleStops++;
+
+        // A 2:1 kiegyensulyozas munkaja. A `BalanceMs` eddig csak az IDOT
+        // mutatta, a szerkezetet nem: a fixpont-ciklus MINDEN korben vegig-
+        // szkenneli a TELJES cutot (|cut| x 4 szomszed), tehat a koltseg
+        // (korok szama) x |cut|. E ket szamlalo nelkul nem donthető el, hogy
+        // egy dragabb balance sok kort vagy nagy cutot jelent-e.
+        public int BalanceIterations { get; private set; }
+        public int BalanceSplits { get; private set; }
+        public long BalanceLeavesScanned { get; private set; }
+
+        internal void CountBalanceIteration(int leavesScanned)
+        {
+            BalanceIterations++;
+            BalanceLeavesScanned += leavesScanned;
+        }
+
+        internal void CountBalanceSplit() => BalanceSplits++;
         public LodSelectionWork(ProjectedLodView? view, int maxNewSplits = int.MaxValue,
             CancellationToken cancellation = default, bool captureTrace = false, Func<TileId,bool>? skipStaticBase = null,
             LodTerrainEvaluationCache? evaluationCache = null)

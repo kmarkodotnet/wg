@@ -191,10 +191,16 @@ namespace WorldGen.Viewer.Lod
         ///    amennyi a felhasználónak a változtatások ELŐTT volt 8000 levéllel
         ///    (a naplóban selection p50 = 147 ms). Vagyis hatszoros részletesség
         ///    a korábbi költségen; efölött már többe kerülne, mint eddig.
-        /// 2. BALANCE-SZAKADÉK: az <c>EnforceRestrictedBalance</c> nem szigorú
-        ///    korlátja <c>maxLeafCount*3</c>, és a költsége EZZEL nő, nem a
-        ///    tényleges levélszámmal. Mérve (D=103): 48 000-nél 56 ms,
-        ///    96 000-nél 327 ms. A 48 000 biztos távolságban marad ettől.
+        /// 2. BALANCE-SZAKADÉK: a kiegyensúlyozás akkor dolgozik érdemben, ha a
+        ///    metrika a budget ALATT telítődik, mert akkor marad fejtér a
+        ///    felosztásoknak. Mérve (D=103): a budget megkötésekor 0 ms (ND-106
+        ///    korai kilépés), de 96 000-es budgetnél - ahol a cut 66 900-nál
+        ///    telítődik - 4 kör, 108 felosztás, 320 ms, mert a fixpont-ciklus
+        ///    minden körben végigszkenneli a teljes cutot (~3 ms felosztásonként).
+        ///    A plafon EMELÉSE tehát nem olcsóbb, hanem drágább: nagyobb
+        ///    budgetnél nagyobb eséllyel kerülünk a "budget > telítődés"
+        ///    tartományba. Amíg a ciklus teljes újraszkennelés helyett nem
+        ///    munkalistával dolgozik, a 48 000 marad.
         /// </summary>
         public const int MaximumRenderBudget = 48_000;
 
@@ -405,7 +411,7 @@ namespace WorldGen.Viewer.Lod
                     traversalRootLevel, staticBaseLevel);
             if (work != null) { work.SelectionMs = phaseTimer!.Elapsed.TotalMilliseconds; phaseTimer.Restart(); }
             EnforceRestrictedBalance(cut, baseLevel, maxLeafCount, work != null,
-                work?.Cancellation ?? default);
+                work?.Cancellation ?? default, work);
             if (work != null) work.BalanceMs = phaseTimer!.Elapsed.TotalMilliseconds;
             return cut;
         }
@@ -1320,7 +1326,8 @@ namespace WorldGen.Viewer.Lod
         /// bonthato).
         /// </summary>
         internal static void EnforceRestrictedBalance(HashSet<TileId> cut, int baseLevel, int maxLeafCount = DefaultMaxLeafCount,
-            bool strictBudget = false, System.Threading.CancellationToken cancellation = default)
+            bool strictBudget = false, System.Threading.CancellationToken cancellation = default,
+            LodSelectionWork? work = null)
         {
             // MASODIK BIZTONSAGI KORLAT (2026-09-01, HARMADIK kor - a
             // Visit()-beli korlat (ld. ott a doksit) az EnforceRestrictedBalance-t
@@ -1337,6 +1344,23 @@ namespace WorldGen.Viewer.Lod
             // nem tokeletes - apro varratok lehetnek -, de SOSEM vezet
             // tobbszor-tizmilliós kaszkadhoz).
             int balanceSizeCap = maxLeafCount * 3;
+
+            // ND-106 (2026-09-19): ha a szoros budget MAR belepeskor blokkol,
+            // egyetlen felosztas sem tortenhet - a lentebbi ciklus ugyanezt a
+            // feltetelt minden split ELOTT ellenorzi, es a `cut.Count` CSAK NO
+            // (SplitOnce egyet kivesz, negyet betesz: netto +3). A teljes
+            // vegigszkennelesnek tehat nincs kimenete, csak koltsege.
+            //
+            // EZ A PRODUKCIOS ESET: a telitett vagasnal `cut.Count == budget`,
+            // es a felhasznalo 2026-09-18-i naplojaban 68 vagasbol 44 volt
+            // ilyen. Merve: 1 kor, 0 split, de |cut| levelet vegigjart -
+            // 20 000 levelnel 31 ms, 64 000-nel 78 ms, tiszta veszteseg.
+            //
+            // A kimenet BIZONYITHATOAN valtozatlan: ugyanaz a feltetel, csak
+            // hamarabb ertekelve. A megmarado szintkulonbseget - mint eddig is,
+            // amikor a budget blokkolt - a LodCornerResolver illeszti.
+            if (strictBudget && cut.Count + 3 > maxLeafCount) return;
+
             bool changed;
             do
             {
@@ -1344,6 +1368,7 @@ namespace WorldGen.Viewer.Lod
                 if (cut.Count > balanceSizeCap)
                     break;
                 changed = false;
+                work?.CountBalanceIteration(cut.Count);
 
                 // ND-96: minden finom levél már jelölt; a külön jelöltépítés
                 // ugyanazt a négy szomszédot kétszer kérdezte le. A base-levél
@@ -1380,6 +1405,7 @@ namespace WorldGen.Viewer.Lod
                     if (cut.Contains(ancestor))
                     {
                         SplitOnce(cut, ancestor);
+                        work?.CountBalanceSplit();
                         changed = true;
                     }
                 }
