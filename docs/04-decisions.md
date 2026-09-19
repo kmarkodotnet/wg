@@ -4566,10 +4566,46 @@ Határ: a szimulációba csak explicit, tárolt érték lép be (seed, paraméte
 szimulációs idő). A véletlen preset is konkrét értékeket sorsol, amik a
 kérésbe és a mentésbe kerülnek.
 
-### ND-110 — A menürendszer UI-technológiája (NYITOTT)
+### ND-110 — A menürendszer UI-technológiája: UI Toolkit
 
-**2026-09-13, nyitott, a menü-, settings-, dialog- és toast-NÉZETEK előfeltétele.**
-A modellek (Foundation) és a Unity-kötés nem-UI része nélküle is elkészült.
+**2026-09-13 nyitva, 2026-09-20 ELDÖNTVE (felhasználói döntés): UI Toolkit,
+az IMGUI megtartásával a fejlesztői overlayekhez.**
+
+**Hatókör.** A döntés CSAK a nézet-réteget érinti. A Foundation-modellek
+(`MenuModel`, `SettingsScreenModel`, `SaveSlotRows`, `Dialogs`, `ToastQueue`)
+szándékosan UI-technológia-függetlenek — a `SettingsScreenModel` doksija ezt
+ki is mondja —, ezért a 433 Foundation-teszt egyikét sem érinti, és a döntés
+később mérsékelt költséggel visszavonható.
+
+**Mi kapja az UI Toolkitet:** a kiadható héj — Main Menu, Settings,
+Load/Save, Pause, dialógusok, toastok.
+
+**Mi MARAD IMGUI-ban, szándékosan:** a fejlesztői overlayek — navigációs
+menü, réteg-kapcsolók, deep-time panel, F3 diagnosztika. Ezek működnek, nem
+részei a kiadható héjnak, és az átírásuk tiszta veszteség lenne. A
+`WorldGenPanelUI` (Canvas+TMP, 175 sor) sorsa a Main Menu munkájakor dől el.
+
+**A DÖNTŐ ÉRV — nem az esztétika, hanem a munkamegosztás.** A uGUI
+prefab-alapú: minden képernyő kézi Unity-Editor szerkesztés, amit CSAK a
+felhasználó tud elvégezni. A projekt története során ez többször beragadt
+("új Unity-Editor lépést igényel" → sokáig nyitva marad). Az UI Toolkit
+ezzel szemben UXML + USS SZÖVEGFÁJLOKON áll: ezeket az agent írja meg,
+verziókezeljük és offline ellenőrizzük; a felhasználóra scene-enként egyetlen
+`UIDocument` komponens beállítása marad.
+
+**Mérési alap a döntéshez (2026-09-20):** IMGUI 41 hívási hely a
+`PlanetGridMesh`-ben, Canvas+TMP 175 sor a `WorldGenPanelUI`-ban, UI Toolkit
+használat: NULLA. Unity 6000.0.77f1.
+
+**Vállalt hátrány:** új technológia a projektben, tehát az ELSŐ képernyő
+lassabb lesz a többinél; a USS-stíluslap miatt a másodiktól gyorsul. Az UI
+Toolkit world-space UI-ra gyengébb — a terv szerint ilyen nem kell; ha
+mégis felmerülne (a bolygó felszínéhez kötött, lebegő panelek), az ÚJ
+döntést igényel, nem ennek a kiterjesztését.
+
+---
+
+**Az eredeti mérlegelés (2026-09-13), megtartva:**
 
 A viewer ma kétféle UI-t használ: IMGUI (`PlanetGridMesh.DrawNavigationPanel`)
 és Canvas + TextMeshPro (`WorldGenPanelUI`).
@@ -4580,7 +4616,8 @@ A viewer ma kétféle UI-t használ: IMGUI (`PlanetGridMesh.DrawNavigationPanel`
 | B: uGUI + TextMeshPro | a projektben már van; sok minta | prefab-alapú, a skálázás és a navigáció több kézi munka |
 | C: IMGUI | a navigációs panel már ilyen | kiadható menürendszerhez nem ajánlott (stílus, akadálymentesség, teljesítmény) |
 
-**Döntés kell a felhasználótól** (vizuális nyelv és karbantartás miatt).
+(Az eredeti jegyzet itt "döntés kell a felhasználótól"-lal zárult; a döntés
+2026-09-20-án megszületett — ld. a szakasz elején.)
 
 ### ND-111 — Kiadási identitás és alkalmazásverzió (RÉSZBEN NYITOTT)
 
