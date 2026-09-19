@@ -896,6 +896,15 @@ namespace WorldGen.Viewer
         // a felho-parameterek valtoztak.
         private MoisturePrecipitation.PrecipitationField _lastPrecipField;
 
+        /// <summary>
+        /// ND-117: a szarazfold-tile-ok NYERS evi kozephomerseklete (jegesedesi
+        /// eltolas NELKUL), a jeg-klasszifikacio ciklusabol eltéve. A
+        /// `RegolithModel` ezt varja bemenetnek. URES, ha a `showLakesIce` ki
+        /// van kapcsolva - akkor a Soil fertility panel-mezo NEM jelenik meg
+        /// (I4: inkabb hianyozzon, mint hogy kitalalt homersekletbol szamoljuk).
+        /// </summary>
+        private Dictionary<TileId, double> _lastLandMeanTemperatureK = new Dictionary<TileId, double>();
+
         /// <summary>A BuildClouds() TISZTA (Unity API-t nem hívó) geometria-eredménye - háttérszálon is biztonságosan építhető, ld. ComputeCloudMeshData.</summary>
         private sealed class CloudMeshData
         {
@@ -2002,7 +2011,7 @@ namespace WorldGen.Viewer
                 List<int> globalIndices = _navRegionGlobalIndicesByContinent[_navContinentIndex];
                 int localIndex = globalIndices.IndexOf(_navRegionGlobalIndex);
                 RegionPanelData r = regions[localIndex];
-                lines = new[]
+                var regionLines = new List<string>
                 {
                     $"Név: {r.Name}",
                     $"Terület: {r.AreaTiles} tile",
@@ -2010,6 +2019,13 @@ namespace WorldGen.Viewer
                     $"Morfológia: {r.LandformType}",
                     $"Folyótorkolat: {r.RiverMouthCount}",
                 };
+                // ND-117: a talaj-termékenység CSAK akkor jelenik meg, ha
+                // ténylegesen kiszámolható (kell hozzá az évi középhőmérséklet,
+                // amit a jég-klasszifikáció ad - `showLakesIce`). Az I4 szerint
+                // inkább hiányzik a sor, mint hogy pótolt értéket mutasson.
+                if (r.SoilFertility.HasValue)
+                    regionLines.Add($"Talaj-termékenység: {r.SoilFertility.Value:F3} ({r.SoilFertilityLevel})");
+                lines = regionLines.ToArray();
             }
             else if (_navLevel == NavigationLevel.Area && _navAreaIndex >= 0)
             {
@@ -2362,6 +2378,7 @@ namespace WorldGen.Viewer
             // gyermekei kozott egyesek jegesnek, masok nem-jegesnek
             // minosulhetnek a referencia-szintu atlag KORUL.
             Dictionary<TileId, double> iceMeanK = new Dictionary<TileId, double>();
+            var landMeanTemperatureK = new Dictionary<TileId, double>();
             if (showLakesIce)
             {
                 foreach (KeyValuePair<TileId, bool> kv in isOceanField)
@@ -2373,8 +2390,17 @@ namespace WorldGen.Viewer
                         climateOrbitalPeriodDays, climateRotationPeriodDays, axialTiltRad,
                         false, field[t], seaLevel, out double meanK, out _, out _);
                     iceMeanK[t] = meanK + glaciationOffsetK;
+                    // ND-117: a NYERS evi kozephomerseklet (eltolas NELKUL) a
+                    // regolit-modell bemenete is. MERVE: ez a ciklus 8602
+                    // szarazfold-tile-ra 936 ms level=6-on - messze a legdragabb
+                    // resze a talaj-lancnak. Mivel a jeg-klasszifikacio ugyis
+                    // kiszamolja, ELTESSZUK, es a panel innen dolgozik: igy a
+                    // Soil fertility tenyleges tobbletkoltsege a Build()-ben
+                    // csak a statikus erozios passz (~36 ms), nem ~1000 ms.
+                    landMeanTemperatureK[t] = meanK;
                 }
             }
+            _lastLandMeanTemperatureK = landMeanTemperatureK;
             PerfLog($"Build() ice(iceTiles={iceMeanK.Count})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
             buildPhaseStopwatch.Restart();
 
@@ -5688,6 +5714,16 @@ namespace WorldGen.Viewer
             Dictionary<TileId, long> accumulation = FlowNetwork.FlowAccumulation(_lastField, flood.Parent, flood.FloodOrder);
             HashSet<TileId> riverTilesForPanels = FlowNetwork.SelectRiverTiles(_lastIsOcean, accumulation, riverTargetFraction);
 
+            // ND-117 (Soil fertility): a regolit-profilhoz erozio/uledek kell.
+            // A dragabb bemenetek MAR megvannak: az elevacio, a flood es az
+            // accumulation fent, az evi kozephomerseklet pedig a jeg-ciklusbol
+            // (`_lastLandMeanTemperatureK`). Igy a panel-mezo tenyleges
+            // tobbletkoltsege csak ez a passz - MERVE ~36 ms level=6-on.
+            // Ha nincs homerseklet (showLakesIce ki), a mezo elmarad.
+            LakesIceErosion.ErosionResult? soilErosion = _lastLandMeanTemperatureK.Count > 0
+                ? LakesIceErosion.ApplyStaticErosionPass(_lastField, flood.Parent, _lastIsOcean, accumulation)
+                : null;
+
             Dictionary<TileId, List<TileId>> regions = FeatureSegmentation.FindWatershedRegions(flood.Parent, _lastIsOcean);
             var sizedRegions = new Dictionary<TileId, List<TileId>>();
             foreach (KeyValuePair<TileId, List<TileId>> kv in regions)
@@ -5765,6 +5801,7 @@ namespace WorldGen.Viewer
                 FeatureSegmentation.LandformType landform = FeatureSegmentation.ClassifyLandform(
                     tiles, _lastField, _lastIsOcean, _lastSeaLevel);
                 string name = NameGeneration.GenerateName(_lastSeed, (ulong)(10000 + i), dominant.ToString(), landform);
+                double? soilFertility = ComputeRegionSoilFertility(tiles, soilErosion);
                 data.Regions.Add(new RegionPanelData
                 {
                     Name = name,
@@ -5773,10 +5810,58 @@ namespace WorldGen.Viewer
                     RiverMouthCount = FeatureMetrics.RiverMouthCount(tiles, flood.Parent, _lastIsOcean, riverTilesForPanels),
                     LandformType = FeatureSegmentation.LandformTypeName(landform),
                     CenterDirection = CentroidDirection(tiles),
+                    SoilFertility = soilFertility,
+                    SoilFertilityLevel = soilFertility.HasValue
+                        ? OrdinalQuantization.LevelName(OrdinalQuantization.Quantize(
+                            soilFertility.Value, OrdinalQuantization.SoilFertilityThresholds))
+                        : null,
                 });
             }
 
             return data;
+        }
+
+
+        /// <summary>
+        /// ND-117: egy régió "Soil fertility" folytonos értéke, a MÁR meglévő
+        /// Build-kimenetekből. Null, ha nincs évi középhőmérséklet
+        /// (`showLakesIce` kikapcsolva) vagy nincs eróziós eredmény - az I4
+        /// szerint ilyenkor a panel-mező HIÁNYZIK, nem kap pótolt értéket.
+        ///
+        /// A per-tile profil UGYANAZ a `RegolithModel.ComputeProfile`, amit a
+        /// Core-teszt 500/500 vektoron bitpontosan igazol a Python orákulum
+        /// ellen - itt nincs duplikált talaj-matek, csak a bemenetek összekötése.
+        /// </summary>
+        private double? ComputeRegionSoilFertility(
+            List<TileId> tiles, LakesIceErosion.ErosionResult? erosion)
+        {
+            if (erosion == null || _lastLandMeanTemperatureK.Count == 0) return null;
+            if (_lastPrecipField == null) return null;
+
+            var depth = new Dictionary<TileId, double>(tiles.Count);
+            var retention = new Dictionary<TileId, double>(tiles.Count);
+            Dictionary<TileId, double> slopeNorm = RegolithModel.ComputeSlopeNorm(
+                _lastField, _lastFlood.Parent, _lastIsOcean);
+
+            foreach (TileId t in tiles)
+            {
+                if (_lastIsOcean[t]) continue;
+                if (!_lastLandMeanTemperatureK.TryGetValue(t, out double meanK)) return null;
+                erosion.Erosion.TryGetValue(t, out double erosionDepth);
+                erosion.DepositionGain.TryGetValue(t, out double deposition);
+                _lastPrecipField.Precipitation.TryGetValue(t, out double precipitation);
+                slopeNorm.TryGetValue(t, out double slope);
+
+                RegolithProfile profile = RegolithModel.ComputeProfile(
+                    isOcean: false, slopeNorm: slope,
+                    erosionDepthM: erosionDepth, depositionGainM: deposition,
+                    annualMeanTemperatureK: meanK, precipitation: precipitation);
+                depth[t] = profile.DepthMeters;
+                retention[t] = profile.WaterRetention;
+            }
+
+            return FeatureMetrics.SoilFertility(
+                tiles, depth, retention, _lastIsOcean, RegolithModel.DepthAbsoluteCapM);
         }
 
         /// <summary>

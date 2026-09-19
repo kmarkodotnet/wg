@@ -84,6 +84,21 @@ namespace WorldGen.Viewer
 
         /// <summary>Ld. ContinentPanelData.CenterDirection doksi - ugyanaz a minta, régió-szinten.</summary>
         public Vector3 CenterDirection;
+
+        /// <summary>
+        /// §2.3 "Soil fertility" folytonos értéke (0..1),
+        /// <see cref="FeatureMetrics.SoilFertility"/> - a régió szárazföld-
+        /// tile-jain vett átlaga a regolit-vastagság és a vízmegtartó-kapacitás
+        /// szorzatának (ND-117).
+        ///
+        /// NULL, ha nem számolható (a `showLakesIce` kikapcsolva, így nincs évi
+        /// középhőmérséklet). Az I4 szerint ilyenkor a mező HIÁNYZIK a panelről,
+        /// nem kap helyettesítő értéket.
+        /// </summary>
+        public double? SoilFertility;
+
+        /// <summary>Az ordinális sáv (§2.4, ND-117 kalibráció) - null, ha <see cref="SoilFertility"/> is null.</summary>
+        public string? SoilFertilityLevel;
     }
 
     /// <summary>
