@@ -209,7 +209,7 @@ MonoBehaviour:
   initialRefinementPixelSize: 7
   useTerrainLodProxy: 1
   adaptiveTraversalRootLevel: 3
-  adaptiveRenderBudget: 8000
+  adaptiveRenderBudget: 0
   useAsyncMeshRebuild: 1
   useChunkedDynamicMesh: 1
   dynamicChunkLevel: 6

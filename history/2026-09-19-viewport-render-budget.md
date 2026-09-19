@@ -131,3 +131,13 @@ sorban, tehát utólag pontosan visszamérhető.
    tehát ND-döntést igényel, nem csendes változtatást.
 2. **A 25 látogatás/levél arány.** Ez a valódi strukturális tartalék; a
    budget-emelés csak megkerüli.
+
+## Utólagos fogás: a scene felülírta volna
+
+A `adaptiveRenderBudget` `SerializeField`, és a `PlanetView.unity` a
+korábbi `8000`-et TÁROLJA. Unity a szerializált értéket tölti be, felülírva
+a mező új `0` alapértékét — a változtatás tehát **néma no-op** lett volna az
+éles jelenetben. A scene-t is át kellett állítani `0`-ra.
+
+Tanulság: `SerializeField` alapértékének megváltoztatása NEM elég; a
+jelenetben/prefabban tárolt érték a tényleges.
