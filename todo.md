@@ -1,0 +1,54 @@
+# TODO — rövidített backlog
+
+A `docs/backlog.md` teljes, történeti; ez a kivonat csak azt mutatja, **mi van
+hátra**, két részre osztva: amit én el tudok végezni önállóan, és amihez te
+kellesz (élő Unity Play-menet, vizuális elfogadás).
+
+Állapot: 2026-09-19.
+
+---
+
+## 1. Az én feladataim (önállóan elvégezhetők)
+
+| # | Feladat | Leírás | Backlog-hivatkozás |
+|---|---|---|---|
+| 1 | Offline build helyreállítása | A `Directory.Build.props` `Nullable=enable` + `TreatWarningsAsErrors` beállítása beszivárog a Unity által **generált** csproj-ba, amit a Unity saját fordítása nem alkalmaz — innen a 180 „hiba" 8 osztályban. Következmény: a viewer-kód offline **soha nem fordul le**, tehát csak azt tudom ellenőrizni, hogy „ugyanannyi hiba, mint eddig". Kivétel a generált projektre → a „lefordul-e" valódi kapuvá válik. | Nincs a backlogban (2026-09-19-én találtam) |
+| 2 | GPU/CPU eleváció-eltérés számszerűsítése | A scene-ben `useGpuClassification: 1` **aktív**, de a `TileClassification.compute` `BaseElevationF`-je az ND-52 **előtti** képletre lett visszaállítva (nincs benne a másodlagos zaj), míg a Core-ban van. A klasszifikáció és a geometria tehát eltérő elevációt lát a tengerszint/jég-küszöb környékén. A shader javítása kockázatos (kétszer futott „Compiler timed out"-ba), de **offline meg tudom számolni, hány tile osztályozása fordul át** — ez döntés-minőségű szám, ami után vagy kikapcsoljuk a GPU-ágat, vagy ND-ben rögzítjük a tudatos eltérést. | `docs/backlog.md` → M13/M9 „Fraktál domborzat-zaj nagyon közeli zoomnál lapos" (ND-52) |
+| 3 | Balance munkalistás átírása | Az `EnforceRestrictedBalance` fixpont-ciklusa minden körben a TELJES cutot újraszkenneli: 108 felosztás 332 ms (~3 ms/felosztás). Munkalista ~108 × kis konstansra vinné. **Előfeltétel**, amit magam írtam elő: előbb tisztázni, hogy a fixpont egyértelmű-e a korlátok nélkül — a jelenlegi kimenet sorrend-függő. Siker esetén a `MaximumRenderBudget` is emelhetővé válik. | `docs/04-decisions.md` → ND-116 („NYITOTT marad") |
+| 4 | Deep-time: sűrű lake pipeline | Tömbindexelt `IdentifyLakes`, ami a dense field/fill/ocean tömböket és az újrahasznált topológiát olvassa. A Dictionary-út marad referencia-orákulumnak, mellette teljes eredmény-egyezési teszt. Nyereség: ~190 ms/újraépítés. | `docs/backlog.md` → M9/M10 „Deep-time exact folytatás — sűrű lake pipeline" |
+| 5 | Deep-time: invariáns csapadék-cache | A csapadékfázis minden deep-time Buildben 295 ms, miközben saját `t=0` mezőt számol és a deep-time értéket meg sem kapja. A backlog kiköti a sorrendet: **előbb tételesen rögzíteni a cache-kulcsot és minden invalidáló Inspector-paramétert**, csak utána implementálni. | `docs/backlog.md` → M9/M10 „Deep-time invariant csapadékmező cache" |
+| 6 | Chunk/feltöltés skálázódásának bemérése | A mai budget-emelés (8 000 → 39 807 levél) emit/feltöltés-hatását Unity-függőnek mondtam, de ez **részben túlzás volt**: a `DynamicMeshChunking` és a chunk-csomagolás benne van az offline tesztprojektben. Előre meg tudom mondani, mire számíts a Play-menetben, ahelyett hogy vakon próbálnád. | `docs/backlog.md` → M9 „Felszín-részletesség / nagy, »pixeles« tile-ok" |
+| 7 | ND-50: overlay ≠ teljes újraépítés | A `windSpeedOverlay`/`precipitationOverlay` kapcsolgatása **teljes `Build()`-et** indít, ami eldobja a háttérben futó, többmásodperces folyó-finomítást. A felhő és a folyó-vonal már kapott kivételt; ezek nem, mert nem külön réteg, hanem a fő terep-mesh színét cserélik. A **saját tektonikai overlayem is ezzel a hibával ment ki.** | `docs/04-decisions.md` → ND-50 (nyitott) |
+| 8 | Statikus mesh direct-array emit | A meleg statikus base-layer 1,602 s: klasszifikáció 483 ms, emit 664 ms. Irány: a klasszifikációval együtt számolt routing/bucket darabszámok és prefix offsetek alapján közvetlen végső tömbírás. Implementálható offline, az igazolás a te PerfLogod. | `docs/backlog.md` → M9/M10 „Statikus mesh direct-array / determinisztikus párhuzamos emit" |
+| 9 | Hideg Build terrain-bázis költsége | Az első Build 13,0 s, ebből a statikus sarok-terrain-bázis 6,9 s. Vizsgálandó egy algoritmus-/seed-/level-kulcsú, validált lemezcache. **A cache nem lehet world-state**, és eltérő algoritmusverziót nem tölthet be — méret-, I/O- és invalidációs terv kell hozzá. | `docs/backlog.md` → M9/M10 „Hideg Build terrain-bázis költsége" |
+| 10 | Talaj: maradék 7 regolit-mező | MineralDiversity, Phosphorus/Nitrogen, Iron, Sulfur, Salinity, pHProxy. **Nem ütemezhető**, amíg nincs kőzettípus/litológia-modul ÉS perzisztált vulkáni hamu-/tefra-mező — egyik sem létezik. Itt csak azért szerepel, hogy ne felejtődjön el, miért hiányzik. | `docs/04-decisions.md` → ND-117 |
+
+---
+
+## 2. A te feladataid (élő Unity Play kell hozzá)
+
+| # | Feladat | Leírás | Hogyan teszteld |
+|---|---|---|---|
+| 1 | LOD-részletesség visszamérése | A mai munka: a levél-budget 8 000 → **39 807** (a viewportból számolva), plusz horizont-vágás. A várakozás: a 30-100-as zoom-sáv célra kerül, a tile-ok ~1,6×-szal kisebbek. Az emit/feltöltés skálázódását **nem tudtam offline mérni** — ez a fő kockázat. | Play, zoomolj végig a skálán (bolygó → legközelebbi), közben forgass is. Figyeld, **szaggat-e**. Utána add ide a `unity/WorldGenViewer/Logs/PerfLog_*.txt` nevét: a `[tilesample]` sorokban már benne van a `cutBudget`, `budgetMode`, `balanceIterations`, `balanceSplits`, és a `python tools/analyze_tile_samples.py <fájl>` kiírja a tile-méretet zoom-sávonként. |
+| 2 | Talaj-termékenység panelsor | Új mező a **régió**-panelen: „Talaj-termékenység: 0.xxx (sáv)". Csak akkor jelenik meg, ha a `showLakesIce` be van kapcsolva (kell hozzá az évi középhőmérséklet). Offline ~36 ms többletet mértem a `Build()`-ben. | Play → navigálj le régió-szintre a menüben. Nézd meg, **ott van-e a sor**, és hogy az érték 0 és 1 közé esik. A `Build()` lassulását a PerfLog `Build() ice(...)` és a teljes Build sora mutatja — hasonlítsd a korábbi futáshoz. |
+| 3 | Navigációs menü jóváhagyása | Négyszintű hierarchia (bolygó → kontinens → régió → terület), breadcrumb, vissza gomb. Kódban kész, **élő jóváhagyás hátra**. | Play → kattints végig mind a négy szinten, oda-vissza. Figyeld, hogy a kamera a **helyes** területre ugrik-e, és a breadcrumb követi-e. |
+| 4 | Tektonikus lemez-overlay | Lemezenkénti szín és név, deep-time mozgással. Kódban kész. **FIGYELEM:** ez a réteg az ND-50 hibájával megy — a kapcsolgatása teljes `Build()`-et indít (ld. 1. táblázat 7. sora). | Play → kapcsold be az overlayt, mozgasd a deep-time csúszkát. Nézd, hogy a lemezek **mozognak-e** és a legenda stimmel-e. Mérd, mennyit vár a kapcsoló váltásakor. |
+| 5 | Folyó-blokkosodás és dendritikus hálózat | Két **Magas** prioritású vizuális panasz: a folyók blokkosak, és nem fa-szerűek. Kódban van rá javítás, vizuális elfogadás hátra. | Play → zoomolj rá egy nagy kontinens folyóhálózatára. Blokkos-e még? Elágazik-e fa-szerűen, a forrástól a torkolatig? |
+| 6 | Deep-time újraépítés sebessége | Cél <1 s, jelenleg ~2,8 s meleg (a 22,6 s-os kiindulásról). Ideiglenesen elfogadtad; a cél a backlogban marad. | Play → mozgasd a `deepTimeMyr` csúszkát, és olvasd ki a PerfLog „TELJES" sorát. |
+| 7 | Dinamikus tengerszint | A Core-oldali, térfogat-alapú mechanizmus (ND-38) kész és tesztelt, de Unityben időcsúszkával **még soha nem volt kipróbálva**. | Play → deep-time csúszka mozgatása közben figyeld, **változik-e a partvonal** értelmesen (nem ugrál, nem tűnik el). |
+| 8 | Léptékcsík | ND-84 szerint kódban kész; a mai stutter-javítás után is működnie kell (nem számol újra mozgás közben). | Play → zoomolj és forgass. A csík **eltűnik-e**, „ugrál-e", és a km-érték értelmes-e a zoom-szinthez? |
+| 9 | Klíma-konstansok kalibrálása | A szél/nedvesség/csapadék modell-konstansai (ND-41) **vizuális** kalibrálást igényelnek — nincs rá numerikus kritérium. Ugyanez a talaj MVP konstansaira (`DEPTH_MAX_M`, `FREEZE_THAW_HALF_RANGE_K`, `PRECIP_REFERENCE`, ND-117). | Play → kapcsold be a szél- és csapadék-overlayt. Hihető-e az eloszlás (sivatagok a passzátszél-övben, csapadék a hegyek szél felőli oldalán)? Ha nem, mondd meg, melyik irányba. |
+| 10 | M13 vizuális tételek | Éjszakai oldal sötétítése, folyó/jég spekuláris csillanás („villámlás"-szerű), pólusi jég partvonala, felhő-mozgás. Mind kódban kész, mind vizuális ítélet. | Play → forgasd a bolygót a terminátoron át, nézd az éjszakai oldalt és a vizek csillanását. Melyik zavaró még? |
+| 11 | Kameramódok | Két kért mód: felszíni ponthoz rögzítve (éves pályamozgás), illetve csillagokhoz rögzítve (tengelyforgás). **Nincs elkezdve**, és a másodiknál a doksi architekturális ütközést jelez a meglévő kamerarendszerrel — ez terv-döntést igényel tőled. | Nincs mit tesztelni; **döntés kell**: akarod-e, és ha igen, melyiket előbb. |
+
+---
+
+## Megjegyzés a sorrendhez
+
+Az 1. táblázatból az **1.** a legjobb befektetés (kicsi, mechanikus, és utána
+minden további viewer-munka ellenőrzése is jobb lesz), utána a **2.**, mert az
+nem teljesítmény, hanem **helyességi** eltérés, és most is aktív.
+
+A 2. táblázatból az **1.** a legsürgősebb: a mai budget-emelés ötszörös
+levélszámot jelent, és ha az emit/feltöltés rosszul viseli, azt előbb kell
+tudni, mint hogy bármi újat elkezdenék.
