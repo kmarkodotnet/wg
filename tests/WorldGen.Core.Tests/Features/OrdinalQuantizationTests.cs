@@ -131,3 +131,66 @@ public class OrdinalQuantizationIntegrationTests
         Assert.Equal(OrdinalLevel.Low, band);
     }
 }
+
+/// <summary>
+/// A KALIBRÁLT küszöb-táblák szerkezeti ellenőrzése.
+///
+/// FONTOS, mit véd és mit NEM: a darabszámot, a monotonitást és a tartományt
+/// igen — az ÉRTÉKEKET nem. Azokat csak egy N=500 világos kalibrációs futás
+/// igazolhatná (~30 perc), ami nem fér unit-tesztbe. Éppen ezért maradt
+/// észrevétlen, hogy az ND-52 (2026-09-07) az elevációs lánc megváltoztatásával
+/// elavulttá tette a v1 Habitability/CoastalComplexity kalibrációt: az
+/// integrációs teszt VÁRT SÁVJÁT akkor átírták (Moderate→Low), a kalibrációt
+/// viszont nem futtatták újra — 2026-09-19-ig. A kalibráció újrafuttatása KÉZI
+/// lépés, nem automatizált kapu.
+/// </summary>
+public class OrdinalCalibrationTableTests
+{
+    public static IEnumerable<object[]> CalibratedTables()
+    {
+        yield return new object[] { "Habitability", OrdinalQuantization.HabitabilityThresholds };
+        yield return new object[] { "CoastalComplexity", OrdinalQuantization.CoastalComplexityThresholds };
+        yield return new object[] { "SoilFertility", OrdinalQuantization.SoilFertilityThresholds };
+    }
+
+    [Theory]
+    [MemberData(nameof(CalibratedTables))]
+    public void CalibratedThresholdsAreFourAndStrictlyIncreasing(string name, double[] thresholds)
+    {
+        Assert.Equal(4, thresholds.Length);
+        for (int i = 1; i < thresholds.Length; i++)
+            Assert.True(thresholds[i] > thresholds[i - 1],
+                $"{name}: a {i}. vágópont nem nagyobb az előzőnél ({thresholds[i]} <= {thresholds[i - 1]}).");
+    }
+
+    [Theory]
+    [MemberData(nameof(CalibratedTables))]
+    public void CalibratedThresholdsSpanTheWholeScale(string name, double[] thresholds)
+    {
+        Assert.Equal(OrdinalLevel.Low,
+            OrdinalQuantization.Quantize(thresholds[0] - 1.0, thresholds));
+        Assert.Equal(OrdinalLevel.Exceptional,
+            OrdinalQuantization.Quantize(thresholds[3] + 1.0, thresholds));
+        Assert.True(OrdinalQuantization.Quantize(thresholds[3], thresholds) != OrdinalLevel.Low,
+            $"{name}: a legfelső vágóponton sem lépünk ki a Low sávból.");
+    }
+
+    /// <summary>
+    /// A Habitability és a Soil fertility is [0,1]-be eső arány-metrika, tehát
+    /// a küszöbeiknek is ott kell lenniük - egy elgépelt nagyságrend (pl.
+    /// tizedesvessző-csúszás a kalibrációs kimenet átmásolásakor) itt bukik.
+    /// A CoastalComplexity NEM arány (part-tile / sqrt(terület)), ezért az
+    /// kimarad ebből az őrből.
+    /// </summary>
+    [Theory]
+    [InlineData("Habitability")]
+    [InlineData("SoilFertility")]
+    public void RatioMetricThresholdsStayInTheUnitInterval(string name)
+    {
+        double[] thresholds = name == "Habitability"
+            ? OrdinalQuantization.HabitabilityThresholds
+            : OrdinalQuantization.SoilFertilityThresholds;
+        foreach (double t in thresholds)
+            Assert.InRange(t, 0.0, 1.0);
+    }
+}

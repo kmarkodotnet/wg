@@ -14,13 +14,14 @@ namespace WorldGen.Core.Features
     /// nem lenne összehasonlítható világok között).
     ///
     /// HATÓKÖR (ND-09, tudatosan szűkítve): a kalibráció CSAK a MÁR LÉTEZŐ
-    /// folytonos metrikákra készült - <see cref="FeatureMetrics.
-    /// HabitabilityFraction"/> (World) és <see cref="FeatureMetrics.
-    /// CoastalComplexity"/> (Continent). A spec többi ordinális mezője
-    /// (Climate variability, Tectonic activity, Volcanism, Population
-    /// support, Biodiversity potential, Flood frequency, Soil fertility
+    /// folytonos metrikákra készül - <see cref="FeatureMetrics.
+    /// HabitabilityFraction"/> (World), <see cref="FeatureMetrics.
+    /// CoastalComplexity"/> (Continent), és 2026-09-19 óta <see
+    /// cref="FeatureMetrics.SoilFertility"/> (Region, ND-117). A spec többi
+    /// ordinális mezője (Climate variability, Tectonic activity, Volcanism,
+    /// Population support, Biodiversity potential, Flood frequency
     /// stb.) BLOKKOLT marad, mert nincs még alattuk kiszámolható folytonos
-    /// metrika (soil-/légkör-/tektonika-aktivitás modul hiányzik) - ezekhez
+    /// metrika (légkör-/tektonika-aktivitás modul hiányzik) - ezekhez
     /// ÚJ kalibráció kell, amint a metrika elkészül.
     /// </summary>
     public static class OrdinalQuantization
@@ -52,7 +53,7 @@ namespace WorldGen.Core.Features
         }
 
         /// <summary>
-        /// ND-09 kalibráció v1 (2026-09-05): N=500 világ (seed=1..500),
+        /// ND-09 kalibráció **v2 (2026-09-19)**: N=500 világ (seed=1..500),
         /// plateCount=20, level=6, targetWaterFraction=0.65, Föld-analóg
         /// klíma (orbitalPeriodDays=365.25, rotationPeriodDays=1.0,
         /// axialTiltDegrees=23.44, dayT=0) - a
@@ -64,22 +65,68 @@ namespace WorldGen.Core.Features
         /// eloszlásán. ÚJRAKALIBRÁLANDÓ, ha a HabitabilityFraction
         /// képlete/sávhatárai vagy a fenti referencia-paraméterek
         /// (plateCount/level/targetWaterFraction) változnak.
+        ///
+        /// MIÉRT v2. A képlet NEM változott — a VILÁGOK igen. Az ND-52
+        /// (másodlagos domborzat-zaj, 2026-09-07) minden pozícióra
+        /// megváltoztatta a `BaseElevation` kimenetét, ami eltolta a
+        /// Habitability-eloszlást is. A v1 értékei ettől kezdve egy már nem
+        /// létező világgenerátorhoz tartoztak. Bizonyíték: ugyanaz a
+        /// CLI-parancs v1-ben 14947, most 14895 kontinens-mintát adott.
+        ///
+        /// v1 (2026-09-05): 0.715299, 0.753081, 0.782376, 0.816671
+        ///
+        /// FIGYELEM: ezt az elavulást SEMMILYEN teszt nem fogta meg, mert az
+        /// OrdinalQuantizationTests szintetikus küszöbökkel ({1,2,3,4})
+        /// dolgozik, a kalibrált értékeket pedig N=500 világ nélkül nem lehet
+        /// ellenőrizni (a futás ~30 perc). A kalibrációt ezért KÉZZEL kell
+        /// újrafuttatni minden olyan változás után, ami az elevációs láncot
+        /// érinti — ez nem automatizált kapu.
         /// </summary>
         public static readonly double[] HabitabilityThresholds =
         {
-            0.715299, 0.753081, 0.782376, 0.816671,
+            0.702860, 0.747966, 0.786213, 0.823878,
         };
 
         /// <summary>
-        /// ND-09 kalibráció v1 (2026-09-05): ugyanaz az N=500 világ, de a
+        /// ND-09 kalibráció **v2 (2026-09-19)**: ugyanaz az N=500 világ, de a
         /// MINTA minden (legalább 5 tile méretű) kontinens <see
         /// cref="FeatureMetrics.CoastalComplexity"/>-értéke (nem világonként
-        /// egy érték - kontinensenként, összesen 14947 kontinens-minta),
-        /// ugyanazzal a CLI-paranccsal.
+        /// egy érték - kontinensenként, összesen 14895 kontinens-minta),
+        /// ugyanazzal a CLI-paranccsal. Az újrakalibrálás oka ugyanaz, mint a
+        /// Habitability-nél (ld. ott).
+        ///
+        /// v1 (2026-09-05, 14947 minta): 2.449490, 2.828427, 3.544745, 5.467934
+        /// Az első két vágópont változatlan — a felső kettő mozdult.
         /// </summary>
         public static readonly double[] CoastalComplexityThresholds =
         {
-            2.449490, 2.828427, 3.544745, 5.467934,
+            2.449490, 2.828427, 3.528211, 5.239956,
+        };
+
+        /// <summary>
+        /// ND-117 kalibráció v1 (2026-09-19): ugyanaz az N=500 világ, a minta
+        /// minden (legalább 5 tile méretű) VÍZGYŰJTŐ-RÉGIÓ <see
+        /// cref="FeatureMetrics.SoilFertility"/>-értéke — összesen 192 337
+        /// régió-minta —, a
+        /// `dotnet run --project tools/WorldGen.Cli -- calibrate-ordinals
+        /// --count 500 --plates 20 --level 6 --water 0.65 --soil true`
+        /// paranccsal. Régió-szintű, mert a "Soil fertility" a §2.3 RÉGIÓ-
+        /// panel mezője.
+        ///
+        /// SZŰK ELOSZLÁS, tudatosan rögzítve: a négy vágópont 0.1946 és
+        /// 0.2596 közé esik, tehát a középső három sáv nagyon keskeny (a
+        /// p20..p80 tartomány szélessége 0.065). A panelen ez azt jelenti,
+        /// hogy a metrika kis változása is sávot lépthet — a kvintilis-
+        /// felosztás ettől még helyes (definíció szerint egyenlő gyakoriságú
+        /// sávokat ad), de a sáv-váltás NEM jelent nagy fizikai különbséget.
+        ///
+        /// ÚJRAKALIBRÁLANDÓ, ha a SoilFertility képlete, a RegolithProfile
+        /// MVP-je (ND-117) vagy az elevációs lánc változik. Ha a `minerality`
+        /// tag valaha bekerül a képletbe, ez a kalibráció ÉRVÉNYÉT VESZTI.
+        /// </summary>
+        public static readonly double[] SoilFertilityThresholds =
+        {
+            0.194567, 0.221114, 0.241362, 0.259604,
         };
     }
 }
