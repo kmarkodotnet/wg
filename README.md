@@ -21,7 +21,9 @@ Claude Code-dal: olvasd el a [KICKOFF.md](KICKOFF.md)-t.
 
 Codex és Claude felváltva dolgozik ezen a repón. A közösen kezelendő
 leíró/AI-instrukciós állományok listáját lásd:
-[common-ai-files.md](common-ai-files.md).
+[common-ai-files.md](common-ai-files.md). A kifejezetten Claude Code-specifikus
+állományok (agent/skill/command-definíciók, `CLAUDE.md`, session-indító
+doksik) listáját lásd: [claude-ai-files.md](claude-ai-files.md).
 
 ## Struktúra
 
