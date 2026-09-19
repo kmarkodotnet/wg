@@ -193,7 +193,7 @@ namespace WorldGen.Viewer.Lod
         ///    a korábbi költségen; efölött már többe kerülne, mint eddig.
         /// 2. BALANCE-SZAKADÉK: a kiegyensúlyozás akkor dolgozik érdemben, ha a
         ///    metrika a budget ALATT telítődik, mert akkor marad fejtér a
-        ///    felosztásoknak. Mérve (D=103): a budget megkötésekor 0 ms (ND-106
+        ///    felosztásoknak. Mérve (D=103): a budget megkötésekor 0 ms (ND-116
         ///    korai kilépés), de 96 000-es budgetnél - ahol a cut 66 900-nál
         ///    telítődik - 4 kör, 108 felosztás, 320 ms, mert a fixpont-ciklus
         ///    minden körben végigszkenneli a teljes cutot (~3 ms felosztásonként).
@@ -692,7 +692,7 @@ namespace WorldGen.Viewer.Lod
 
             if (work?.View != null && terrainProxy != null)
             {
-                // ND-105 (2026-09-19): a vetitett terep-uton EDDIG SEMMILYEN
+                // ND-115 (2026-09-19): a vetitett terep-uton EDDIG SEMMILYEN
                 // horizont-cull nem futott - a korai `return` miatt a lentebbi
                 // kiterjedes-tudatos teszt soha nem hajtodott vegre ezen az
                 // agon. Merve (D=103, magassag 3, a lathato sapka a gomb ~1,4%-a):
@@ -1345,7 +1345,7 @@ namespace WorldGen.Viewer.Lod
             // tobbszor-tizmilliós kaszkadhoz).
             int balanceSizeCap = maxLeafCount * 3;
 
-            // ND-106 (2026-09-19): ha a szoros budget MAR belepeskor blokkol,
+            // ND-116 (2026-09-19): ha a szoros budget MAR belepeskor blokkol,
             // egyetlen felosztas sem tortenhet - a lentebbi ciklus ugyanezt a
             // feltetelt minden split ELOTT ellenorzi, es a `cut.Count` CSAK NO
             // (SplitOnce egyet kivesz, negyet betesz: netto +3). A teljes

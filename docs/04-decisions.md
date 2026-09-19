@@ -4617,6 +4617,68 @@ telepítését igényli.**
   felajánlja a mentések, beállítások, képernyőképek és naplók törlését (WF-INSTALL-002).
 - Alternatíva: MSI (WiX). Elvetve az MVP-hez, mert az Inno egyszerűbb, és a roadmap is ezt javasolja.
 
+### ND-115 — Horizont-vágás a vetített terep-úton
+
+**2026-09-19. Megvalósítva.** Részletek és mérések:
+`history/2026-09-19-horizon-cull.md`.
+
+**Probléma:** az `AdaptiveQuadTree.EvaluateNodeForPriority` korán visszatér,
+ha vetített nézet ÉS terep-proxy is jelen van, ezért a lentebb álló,
+kiterjedés-tudatos horizont-teszt ezen az ágon soha nem futott le. Márpedig
+ez a produkciós ág. Következmény mérve: 3 egység magasságban, ahol a látható
+sapka a gömb ~1,4%-a, a vágás 123 152 level-8 csomópontot járt be ~5 500
+látható csempére; a 191 084 kiértékelésből 180 564 már a base-szint
+eléréséig megtörtént.
+
+**Döntés:** a proxy-ágon is fut horizont-vágás, `node.Level <
+staticBaseLevel` hatókörrel. A feltétel SZÖGALAPÚ, nem érintősíkos: egy
+`rP` sugarú pont akkor van az `R` sugarú takaró mögött `d` távolságból, ha
+szöge > `acos(R/d) + acos(R/rP)`. Koszinuszban kifejtve csak szorzás és
+`Math.Sqrt` kell, tehát a cut determinizmusa nem sérül (transzcendens
+függvény nem bitpontos, ld. CLAUDE.md).
+
+**Elvetett változat:** az érintősík-teszt (`C·X + |C|·r < R²`) átvétele a
+nem-proxys ágból. Az CSAK a gömb felszínén lévő pontra helyes; emelt pontra
+hamis, ezért 54 próbanézetből 6-ban megváltoztatta a cutot, kettőben
+katasztrofálisan (5 636 levél → 0), a limbus menti látható csempéket kivágva.
+
+**A garancia, amit vállalunk:** a cut NEM bitre azonos (48/54 nézet az, 6
+eltér, mert telített budgetnél a best-first határa eltolódik). Helyette a
+LÁTHATÓ FEDETTSÉG védett: 54 nézet × 21×11 képernyő-minta alapján a
+finomított látható minták száma 6621/9561 a vágás előtt ÉS után is,
+nézetenként pontosan egyezően, nulla romlott nézettel.
+
+**Hatás:** metrika-kiértékelés −75,5%, a hideg selection 482-689 ms-ról
+35-103 ms-ra, a meleg 157-183 ms-ról 7-22 ms-ra.
+
+### ND-116 — A 2:1 kiegyensúlyozás korai kilépése blokkolt budgetnél
+
+**2026-09-19. Megvalósítva.** Részletek és mérések:
+`history/2026-09-19-balance-early-exit.md`.
+
+**Probléma:** az `EnforceRestrictedBalance` fixpont-ciklusa minden körben
+végigszkenneli a teljes cutot (|cut| × 4 szomszéd). Szoros budgetnél az őr
+(`cut.Count + 3 > maxLeafCount`) minden felosztást blokkol, tehát a
+szkennelésnek nincs kimenete, csak költsége: 20 000 levélnél 31 ms,
+64 000-nél 78 ms. Ez a produkciós eset - a 2026-09-18-i naplóban 68
+vágásból 44 volt telített.
+
+**Döntés:** ugyanezt a feltételt belépéskor is ellenőrizzük. Ha igaz, örökre
+igaz marad (a `SplitOnce` nettó +3, a `cut.Count` csak nő), tehát a korai
+kilépés kimenete azonos. Igazolva 180 próbaeseten: nulla megváltozott cut,
+a balance összideje 9068 ms → 1832 ms.
+
+**NYITOTT marad:** ha a metrika a budget ALATT telítődik, van fejtér, és a
+teljes újraszkennelés miatt 108 felosztás 332 ms-ba kerül (~3 ms/felosztás).
+Munkalistás átírás megoldaná, DE a jelenlegi ciklus körönként gyűjt és
+`TileId.Value` szerint rendezve oszt, a budget-őrök mid-iterációban is
+blokkolhatnak - a kimenet tehát sorrend-függő. Az átírás előtt tisztázandó,
+hogy a fixpont egyértelmű-e a korlátok nélkül, és hogyan viselkedik azokkal.
+Ez egyben ok arra, hogy a `MaximumRenderBudget` NE emelkedjen: a balance
+csak a "budget > telítődés" tartományban dolgozik, tehát nagyobb plafon
+gyakrabban visz a drága esetbe.
+
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

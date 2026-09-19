@@ -3460,7 +3460,7 @@ namespace WorldGen.Viewer
             // munka (BudgetStops + DeferredSplits) vs szuksegtelen munka
             // (SufficientStops + MaxLevelStops + InvisibleStops + Skipped*).
             public int BudgetStops, SufficientStops, MaxLevelStops, InvisibleStops;
-            /// <summary>ND-106: a 2:1 kiegyensulyozas tenyleges munkaja.</summary>
+            /// <summary>ND-116: a 2:1 kiegyensulyozas tenyleges munkaja.</summary>
             public int BalanceIterations, BalanceSplits;
             /// <summary>A vagashoz TENYLEGESEN hasznalt level-budget (ResolveRenderBudget).</summary>
             public int RenderBudget = AdaptiveQuadTree.MinimumRenderBudget;

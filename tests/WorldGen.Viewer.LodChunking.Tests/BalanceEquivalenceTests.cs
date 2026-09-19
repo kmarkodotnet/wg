@@ -28,7 +28,7 @@ namespace WorldGen.Viewer.LodChunking.Tests
         }
 
         /// <summary>
-        /// ND-106: ha a szoros budget MÁR belépéskor blokkol, a kiegyensúlyozás
+        /// ND-116: ha a szoros budget MÁR belépéskor blokkol, a kiegyensúlyozás
         /// nem tud egyetlen felosztást sem végrehajtani - a `cut.Count` csak NŐ
         /// (SplitOnce nettó +3), tehát a feltétel többé nem oldódik fel. Eddig
         /// ilyenkor is végigszkennelte a TELJES cutot (|cut| × 4 szomszéd),
