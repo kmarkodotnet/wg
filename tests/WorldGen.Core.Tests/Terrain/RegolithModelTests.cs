@@ -77,14 +77,21 @@ public class RegolithModelFieldVectorFileTests
     // WaterRetention a csapadekon at). Csak az isOcean (diszkret) marad
     // egzakt.
     //
-    // A TENYLEGES ELTERES MERVE (2026-09-19, a toleranciat 1e-300-ra allitva):
-    // a legnagyobb elteres 3,410605e-13, az `annualMeanTemperatureK`-ban egy
-    // ~261,53 K-es ertekre - vagyis nehany ULP, relativ ~1,3e-15. Tehat az
-    // 1e-6-os konvencio itt ~7 nagysagrend tartalekkal all. Szandekosan NEM
-    // szorítjuk szukebbre: ez a szam EGY platformon (Windows x64) mert, a CI
-    // viszont Linux x64/ARM64-en es macOS-en is fut, ahol a Sin/Cos/Exp
-    // implementacio elterhet. A meglevo LakesIceErosionTests ugyanezt az
-    // 1e-6-ot hasznalja, es az mar atment mind a negy platformon.
+    // A TENYLEGES ELTERES MERVE (2026-09-19, a toleranciat 1e-300-ra allitva
+    // ES a per-ertek assertet kikapcsolva, hogy a MAXIMUM lathato legyen, ne
+    // csak az elso elteres): `max abs diff = 2,994838e-09`.
+    //
+    // FIGYELEM a jovobeli olvasonak: az elso bukó assert ennel NEGY
+    // nagysagrenddel kisebb (3,41e-13 az `annualMeanTemperatureK`-ban), mert a
+    // teszt ertekenkent all meg. Ha valaki az elso hibauzenetbol akarja a
+    // tartalekot megbecsulni, sulyosan felulbecsli - ezert all itt a MERT
+    // maximum. A valodi tartalek az 1e-6-hoz kepest ~2,5 nagysagrend.
+    //
+    // Szandekosan NEM szoritjuk szukebbre: ez a szam EGY platformon
+    // (Windows x64) mert, a CI viszont Linux x64/ARM64-en es macOS-en is fut,
+    // ahol a Sin/Cos/Exp implementacio elterhet. A meglevo
+    // LakesIceErosionTests ugyanezt az 1e-6-ot hasznalja, es az mar atment
+    // mind a negy platformon.
     private const double Tol = 1e-6;
 
     [Fact]
