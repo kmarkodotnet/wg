@@ -5,6 +5,7 @@ using WorldGen.Core.Features;
 using WorldGen.Core.Grid;
 using WorldGen.Core.Hydrology;
 using WorldGen.Core.Tectonics;
+using WorldGen.Core.Terrain;
 
 namespace WorldGen.Cli
 {
@@ -28,9 +29,21 @@ namespace WorldGen.Cli
         {
             public double[] HabitabilitySamples = Array.Empty<double>();
             public double[] CoastalComplexitySamples = Array.Empty<double>();
+
+            /// <summary>
+            /// ND-117: REGIO-szintu minta (a "Soil fertility" panel-mezo a §2.3
+            /// regio-tablaban all), vizgyujto-regionkent egy ertek.
+            /// </summary>
+            public double[] SoilFertilitySamples = Array.Empty<double>();
         }
 
-        public static Result Run(int worldCount, int plateCount, int level, double targetWaterFraction)
+        // `includeSoilFertility` (ND-117): a talaj-termekenyseg mintavetele a
+        // TELJES regolit-lancot igenyli (erozio + nedvesseg + evi homerseklet),
+        // ami MERVE ~3,2 s / vilag level=6-on, szemben a masik ket metrika
+        // toredek-masodpercevel. Ezert kulon kapcsolo: aki csak a regi ket
+        // metrikat szamolja ujra, annak ne lassuljon a futas a tobbszorosere.
+        public static Result Run(int worldCount, int plateCount, int level, double targetWaterFraction,
+            bool includeSoilFertility = false)
         {
             const double orbitalPeriodDays = 365.25;
             const double rotationPeriodDays = 1.0;
@@ -38,9 +51,13 @@ namespace WorldGen.Cli
             const double axialTiltRad = axialTiltDegrees * Math.PI / 180.0;
             const double dayT = 0.0;
             const int minContinentTiles = 5;
+            // ND-117: ugyanaz a kuszob-logika, mint a kontinensnel - egy-ket
+            // tile-os vizgyujto "regio" statisztikailag zaj, nem panel-alany.
+            const int minRegionTiles = 5;
 
             var habitabilitySamples = new List<double>(worldCount);
             var coastalComplexitySamples = new List<double>();
+            var soilFertilitySamples = new List<double>();
 
             for (int seedIndex = 1; seedIndex <= worldCount; seedIndex++)
             {
@@ -67,12 +84,35 @@ namespace WorldGen.Cli
                     var tileSet = new HashSet<TileId>(continent);
                     coastalComplexitySamples.Add(FeatureMetrics.CoastalComplexity(tileSet, isOcean));
                 }
+
+                if (!includeSoilFertility) continue;
+
+                // ND-117: a regolit-lanc SAJAT vilagot szamol (ComputeField), a
+                // fenti `field`/`isOcean` nem adhato at neki - a ket ut ugyanarra
+                // a seedre ugyanazt a domborzatot kapja, csak a ComputeField
+                // ezen felul eroziot/csapadekot/homersekletet is futtat.
+                RegolithModel.RegolithField regolith = RegolithModel.ComputeField(
+                    seed, plateCount, level,
+                    orbitalPeriodDays: orbitalPeriodDays,
+                    rotationPeriodDays: rotationPeriodDays,
+                    axialTiltDegrees: axialTiltDegrees);
+
+                Dictionary<TileId, List<TileId>> regions =
+                    FeatureSegmentation.FindWatershedRegions(regolith.Parent, regolith.IsOcean);
+                foreach (KeyValuePair<TileId, List<TileId>> region in regions)
+                {
+                    if (region.Value.Count < minRegionTiles) continue;
+                    soilFertilitySamples.Add(FeatureMetrics.SoilFertility(
+                        region.Value, regolith.DepthMeters, regolith.WaterRetention, regolith.IsOcean,
+                        RegolithModel.DepthAbsoluteCapM));
+                }
             }
 
             return new Result
             {
                 HabitabilitySamples = habitabilitySamples.ToArray(),
                 CoastalComplexitySamples = coastalComplexitySamples.ToArray(),
+                SoilFertilitySamples = soilFertilitySamples.ToArray(),
             };
         }
 

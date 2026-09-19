@@ -168,5 +168,54 @@ namespace WorldGen.Core.Features
             }
             return land == 0 ? 0.0 : (double)habitable / land;
         }
+
+        /// <summary>
+        /// "Soil fertility" (§2.3) folytonos metrikaja - a REGIO szarazfold-
+        /// tile-jain vett atlaga a regolit-vastagsag es a vizmegtarto-kapacitas
+        /// szorzatanak.
+        ///
+        /// HATOKOR (ND-117): az architektura §2.3 eredeti keplete "melyseg x
+        /// minerality x nedvesseg" volt. A `minerality` tag KIMARAD, mert a
+        /// `RegolithProfile` MVP-je nem szamolja (litologia-/vulkanizmus-modul
+        /// hianyaban) - az I4 szerint inkabb hianyzik a tenyezo, mint hogy
+        /// kitalalt ertekkel potoljuk. Ha a kemiai mezok elkeszulnek, EZ A
+        /// KEPLET ES A HOZZA TARTOZO ORDINALIS KALIBRACIO IS ERVENYET VESZTI.
+        ///
+        /// A melyseget a `depthReferenceMeters`-szel normalizaljuk es 1-re
+        /// vagjuk, hogy a kimenet dimenziomentes [0,1] legyen. FONTOS: ez a
+        /// skalazas MONOTON es minden tile-ra AZONOS, ezert az ordinalis savra
+        /// NINCS hatasa (ugyanazt a kvintilis-besorolast adja barmilyen monoton
+        /// atskalazassal) - csak a panelen megjelenő folytonos erteket teszi
+        /// ertelmezhetove.
+        ///
+        /// Determinisztikus, tile-szam-alapu (mint az "Area"); a hivo a mar
+        /// verifikalt <c>RegolithModel.ComputeField</c> kimeneteit adja at.
+        /// </summary>
+        public static double SoilFertility(
+            IEnumerable<TileId> tiles,
+            Dictionary<TileId, double> depthMeters,
+            Dictionary<TileId, double> waterRetention,
+            Dictionary<TileId, bool> isOcean,
+            double depthReferenceMeters)
+        {
+            if (!(depthReferenceMeters > 0))
+                throw new ArgumentOutOfRangeException(nameof(depthReferenceMeters));
+
+            int land = 0;
+            double sum = 0.0;
+            foreach (TileId t in tiles)
+            {
+                if (isOcean.TryGetValue(t, out bool ocean) && ocean)
+                    continue;
+                land++;
+                if (!depthMeters.TryGetValue(t, out double depth)) continue;
+                if (!waterRetention.TryGetValue(t, out double retention)) continue;
+                double normalizedDepth = depth / depthReferenceMeters;
+                if (normalizedDepth > 1.0) normalizedDepth = 1.0;
+                else if (normalizedDepth < 0.0) normalizedDepth = 0.0;
+                sum += normalizedDepth * retention;
+            }
+            return land == 0 ? 0.0 : sum / land;
+        }
     }
 }

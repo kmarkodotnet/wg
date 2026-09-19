@@ -133,9 +133,16 @@ namespace WorldGen.Cli
             int plates = opts.TryGetValue("plates", out string? p) ? int.Parse(p) : 20;
             int level = opts.TryGetValue("level", out string? l) ? int.Parse(l) : 6;
             double water = opts.TryGetValue("water", out string? w) ? double.Parse(w) : 0.65;
+            // ND-117: alapból KI, mert a regolit-lánc világonként ~3,2 s
+            // level=6-on (mérve), szemben a másik két metrika töredék-
+            // másodpercével. A közös ParseOptions MINDEN opcióhoz értéket vár,
+            // ezért `--soil true` az alak - és az értéket tényleg kiolvassuk,
+            // nehogy a `--soil false` is bekapcsolja.
+            bool soil = opts.TryGetValue("soil", out string? sv)
+                && bool.TryParse(sv, out bool soilValue) && soilValue;
 
-            Console.WriteLine($"Kalibráció: {count} világ, plates={plates}, level={level}, targetWaterFraction={water}...");
-            OrdinalCalibration.Result result = OrdinalCalibration.Run(count, plates, level, water);
+            Console.WriteLine($"Kalibráció: {count} világ, plates={plates}, level={level}, targetWaterFraction={water}, soil={soil}...");
+            OrdinalCalibration.Result result = OrdinalCalibration.Run(count, plates, level, water, soil);
 
             double[] habThresholds = OrdinalCalibration.QuintileThresholds(result.HabitabilitySamples);
             double[] coastThresholds = OrdinalCalibration.QuintileThresholds(result.CoastalComplexitySamples);
@@ -144,6 +151,14 @@ namespace WorldGen.Cli
             Console.WriteLine($"  p20={habThresholds[0]:F6} p40={habThresholds[1]:F6} p60={habThresholds[2]:F6} p80={habThresholds[3]:F6}");
             Console.WriteLine($"\nCoastalComplexity (N={result.CoastalComplexitySamples.Length} kontinens-minta):");
             Console.WriteLine($"  p20={coastThresholds[0]:F6} p40={coastThresholds[1]:F6} p60={coastThresholds[2]:F6} p80={coastThresholds[3]:F6}");
+
+            if (result.SoilFertilitySamples.Length > 0)
+            {
+                double[] soilThresholds = OrdinalCalibration.QuintileThresholds(result.SoilFertilitySamples);
+                Console.WriteLine();
+                Console.WriteLine($"SoilFertility (N={result.SoilFertilitySamples.Length} régió-minta):");
+                Console.WriteLine($"  p20={soilThresholds[0]:F6} p40={soilThresholds[1]:F6} p60={soilThresholds[2]:F6} p80={soilThresholds[3]:F6}");
+            }
             return 0;
         }
 

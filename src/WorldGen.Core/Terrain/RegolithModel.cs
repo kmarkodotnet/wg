@@ -131,6 +131,15 @@ namespace WorldGen.Core.Terrain
             public Dictionary<TileId, double> Elevation = new Dictionary<TileId, double>();
             public double SeaLevel;
             public Dictionary<TileId, bool> IsOcean = new Dictionary<TileId, bool>();
+
+            /// <summary>
+            /// A priority-flood lefolyas-szuloje. Nem a regolit-szamitas
+            /// bemenete - azert kerul ki, mert a vizgyujto-alapu regio-
+            /// szegmentalas (FeatureSegmentation.FindWatershedRegions) ezt
+            /// igenyli, es a driver ugyis kiszamolja. Enelkul a hivonak ujra
+            /// kellene futtatnia a teljes PriorityFlood-ot.
+            /// </summary>
+            public Dictionary<TileId, TileId?> Parent = new Dictionary<TileId, TileId?>();
             public Dictionary<TileId, double> Erosion = new Dictionary<TileId, double>();
             public Dictionary<TileId, double> DepositionGain = new Dictionary<TileId, double>();
             public Dictionary<TileId, double> Precipitation = new Dictionary<TileId, double>();
@@ -173,6 +182,7 @@ namespace WorldGen.Core.Terrain
                 Elevation = field,
                 SeaLevel = seaLevel,
                 IsOcean = isOcean,
+                Parent = flood.Parent,
                 Erosion = erosionResult.Erosion,
                 DepositionGain = erosionResult.DepositionGain,
                 Precipitation = precipField.Precipitation,

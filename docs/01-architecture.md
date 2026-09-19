@@ -101,7 +101,7 @@ A `Coastal complexity` fraktáldimenziója szép, mert **közvetlenül validálj
 | Seasonal rainfall | High | csapadék évszakos amplitúdója | ordinális |
 | River channels | 17 | `RiverGraph` élszám a régióban | db |
 | Flood frequency | Moderate | csapadék-csúcs / mederkapacitás arány | ordinális |
-| Soil fertility | Very High | `SoilLayer`: mélység × minerality × nedvesség — **2026-09-19: a `RegolithProfile` MVP-je (§13) csak `Depth`/`WaterRetention`-t adja, a "minerality" tag még blokkolt, az ordinális kalibráció is hátra van** | ordinális |
+| Soil fertility | Very High | `FeatureMetrics.SoilFertility`: a régió szárazföld-tile-jain `min(1, Depth/DepthAbsoluteCapM) × WaterRetention` átlaga, a `RegolithProfile` MVP-ből (§13, ND-117). **A "minerality" tag KIMARAD**, amíg a kémiai/ásványtani mezők forrás nélkül vannak — az I4 szerint inkább hiányozzon a tényező, mint kitalált érték. Ha a litológia-modul elkészül, a képlet ÉS az ordinális kalibráció is érvényét veszti. | ordinális |
 | Biodiversity potential | Exceptional | élőhely-heterogenitás index | ordinális |
 
 A név `Delta` utótagja **nem véletlen** — a `Features` modul felismeri a morfológiai típust (delta, öböl, hegylánc, tundra, fennsík) és a névgenerátor ezt használja. Ezért lesz „Silvertide **Delta**", „Northwatch **Range**", „Halcyon **Basin**", „Frosthold **Tundra**" — pontosan úgy, ahogy a képeken.
@@ -1275,5 +1275,6 @@ javaslatok, a végleges alak a core-dev döntése.
 |---|---|---|
 | Python-referencia | `tools/reference/regolith_ref.py` → `regolith_vectors.json` | Kész; önálló self-check zöld, kétszeri futtatás bitre azonos |
 | Tesztvektorok | `tests/WorldGen.Core.Tests/testdata/regolith_vectors.json` | Kész (500 unit + 300 teljes-rács vektor) |
-| C# (`WorldGen.Core`) | — | **Nincs elkezdve** — a KÖVETKEZŐ lépés, külön (core-dev) feladatként, a fenti vektorokhoz mérve |
-| Ordinális "Soil fertility" kalibráció | — | **Nincs elkezdve** — előfeltétele a C#-port |
+| C# (`WorldGen.Core`) | `Terrain/RegolithProfile.cs`, `Terrain/RegolithModel.cs` | **Kész** (2026-09-19). A tiszta `ComputeProfile` 500/500 vektoron BITPONTOSAN egyezik a Pythonnal (tolerancia nélküli `Assert.Equal`); a teljes-rács `ComputeField` 1e-6-tal, mert az upstream `Math.Sin/Cos/Exp/Pow` láncok nem bitpontosak (mért maximum: 2,994838e-09). 15 teszt. |
+| Folytonos "Soil fertility" metrika | `Features/FeatureMetrics.SoilFertility` | **Kész** (2026-09-19): a régió szárazföld-tile-jain vett átlaga a `min(1, Depth/DepthAbsoluteCapM) × WaterRetention` szorzatnak. A `minerality` tag kimarad (ld. 13.6). A normalizálás monoton, ezért az ordinális sávra nincs hatása — csak a panelen megjelenő folytonos értéket teszi dimenziómentessé. |
+| Ordinális "Soil fertility" kalibráció | `tools/WorldGen.Cli` `calibrate-ordinals --soil true` | Mintavétel **kész** (vízgyűjtő-régiónként, min. 5 tile); a küszöbök az N=500 futás után kerülnek az `OrdinalQuantization`-be. A kapcsoló azért külön, mert a regolit-lánc MÉRVE ~3,2 s/világ level=6-on, szemben a másik két metrika töredék-másodpercével. |
