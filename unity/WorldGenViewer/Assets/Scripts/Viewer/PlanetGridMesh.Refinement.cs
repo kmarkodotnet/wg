@@ -8,8 +8,36 @@ namespace WorldGen.Viewer
 {
     public partial class PlanetGridMesh
     {
-        // ND-76: új felosztásokra vonatkozó munkaadag, nem alacsonyabb végső LOD.
-        private const int NewSplitsPerRequest = 1024;
+        /// <summary>
+        /// ND-76: új felosztásokra vonatkozó munkaadag, nem alacsonyabb végső
+        /// LOD. 1024 -> 8192 (2026-09-20), a #1 felhasználói visszajelzés
+        /// ("közepes közelítésnél brutál nagyok a tile-ok") nyomán.
+        ///
+        /// A kvóta KÉSLELTETÉS-szabályzó, nem minőségi: a vágás ugyanoda
+        /// konvergál, csak több vagy kevesebb kérésből. Ezt az invariánst a
+        /// `SplitQuotaConvergenceTests` rögzíti — enélkül ennek a konstansnak
+        /// a hangolása csendben a KÉPET is átírhatná.
+        ///
+        /// MÉRVE (1920x1080, 8 px cél -> 48000 leaf-budget, level 8 alapszint,
+        /// üres előzményből konvergálásig; a végső vágás MINDEN kvótánál
+        /// azonos volt):
+        ///
+        /// | kvóta | kérés a konvergenciáig | összes idő | egy kérés |
+        /// |---|---|---|---|
+        /// | 1024  | 13-17 | 326-600 ms | 2,6-57 ms |
+        /// | 2048  | 7-9   | 169-260 ms | 4,8-25 ms |
+        /// | 4096  | 4-5   | 96-164 ms  | 9,4-30 ms |
+        /// | 8192  | 3     | 58-115 ms  | 17-40 ms  |
+        /// | 16384 | 2     | 47-73 ms   | 21-36 ms  |
+        /// | végtelen | 2  | 40-75 ms   | 19-35 ms  |
+        ///
+        /// Vagyis az emelés MINDKÉT irányban nyer: kevesebb kérés ÉS kevesebb
+        /// összes munka. A 8192 azért nem 16384/végtelen, mert a szelekció
+        /// worker-szálon fut és mozgó kameránál megszakad-újraindul: ott a
+        /// KÉRÉSENKÉNTI idő a felső korlát, amit 40 ms alatt tartunk. A 3 vs 2
+        /// kérés különbsége ehhez képest elhanyagolható.
+        /// </summary>
+        private const int NewSplitsPerRequest = 8192;
         private bool _lodRefinementPending, _cutSupersededSinceApply;
         private CancellationTokenSource? _cutCancellation;
         private ProjectedLodView? _requestedProjectedView;
