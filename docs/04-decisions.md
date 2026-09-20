@@ -5117,6 +5117,61 @@ SerializeField Play közben felülírható, tehát a felhasználó ki tudja pró
 
 **Verziózás:** nem seed-törő (a vágás megjelenítési döntés, nem világmodell).
 
+### ND-122 — A terrain-bázis lemez-gyorsítótár érvényesítése: újraszámolás, nem verziókonstans (LEZÁRVA)
+
+**2026-09-20.** A hideg Build statikus sarok-terrain-bázisa élesben mérve
+**7,4–8,5 s** (a `terrainBasis=` PerfLog-sor), level 8-on 54,4 MiB nyers adat.
+A todo.md 9. sora lemez-gyorsítótárat javasolt, három kikötéssel: **nem lehet
+world-state**, **eltérő algoritmusverziót nem tölthet be**, és kell
+méret-/I/O-/invalidációs terv.
+
+**A döntés, amit meghozni kellett:** miből tudja a betöltő, hogy a fájl a
+*mostani* algoritmussal készült?
+
+- **(A) Kézzel emelt verziókonstans.** A szokásos megoldás, és pont az a
+  törékeny: akkor bukik el, amikor valaki a `DomainWarp`-ot vagy a
+  `CrustElevation.ComputeNoiseBasis`-t módosítja és **elfelejti** emelni a
+  számot. A következmény csendes: egy másik világ domborzata töltődne be,
+  látható hibaüzenet nélkül. Ez az I1 (determinizmus) invariáns sérülése
+  lenne, a legrosszabb fajtából — észrevehetetlen.
+- **(B) A forrásfájlok hash-e.** Automatikus, de túl érzékeny (egy komment
+  átírása is érvénytelenít) ÉS nem elég pontos (a Core NuGet-/fordítóverzió
+  változását nem látja).
+- **(C) Újraszámolásos validáció.** Betöltéskor a fájlból vett, széles szórású
+  mintát ÚJRASZÁMOLJUK és bitre hasonlítjuk.
+
+**Választás: (C).** Ez az egyetlen, ami nem emberi figyelemre épít: az
+ellenőrzés *ugyanazt a függvényt* futtatja, amit a cache tárol, tehát bármely
+algoritmus-változás automatikusan érvényteleníti a fájlt.
+
+**Paraméter:** 1024 minta (`ValidationSampleCount`), Knuth-féle szorzóprím
+lépésközzel szórva, az első és utolsó indexszel kiegészítve. Mérve: a
+validáció ~18 ms a 7400–8500 ms helyett — 0,25% ráfordítás.
+
+**A maradék kockázat, kimondva.** Ha egy változás a bejegyzéseknek csak
+töredékét érinti, a mintavétel elvileg átengedheti. 1024 minta mellett egy
+1%-nyi bejegyzést érintő változás észlelési valószínűsége ~99,996%; egyetlen
+bejegyzést érintőé viszont elhanyagolható. A teljes újraszámolás elvenné a
+gyorsítótár értelmét, ezért ez **tudatos kompromisszum**, nem figyelmetlenség.
+Aki ennél szigorúbbat akar, emelje a mintaszámot — a költség lineáris.
+
+**A másik két kikötés.**
+- *Nem world-state:* a betöltés bármilyen kétségnél `null`-t ad; nincs
+  „javítás" útvonal és nincs részleges betöltés. A fájl törlése csak lassít.
+  Minden I/O-hiba elnyelt: a Build sosem bukhat el a gyorsítótáron.
+- *Méret/I/O:* a fájlméret előre kiszámítható (`ExpectedFileSize`); a
+  könyvtár kvótája 512 MiB (≈9 level-8-as világ), a legrégebben írt fájlok
+  esnek ki. Az írás ideiglenes fájlba megy, majd átnevezés — egy félbeszakadt
+  írás nem hagy hátra betölthető fél-fájlt.
+
+**Mérés (level 8, 396 294 bejegyzés, 54,4 MiB, memóriában):** szerializálás
+118 ms (ebből ellenőrzőösszeg 52 ms), visszaolvasás + ellenőrzés 99 ms.
+Ehhez jön a fizikai lemez-olvasás és a valós újraszámolásos validáció
+(~18 ms). Várható összes: **~120–230 ms a 7,4–8,5 s helyett.**
+
+**Verziózás:** nem seed-törő — a gyorsítótár származtatott adat, a világmodell
+nem függ tőle.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

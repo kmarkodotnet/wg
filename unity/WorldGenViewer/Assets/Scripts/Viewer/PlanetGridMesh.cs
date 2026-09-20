@@ -5210,10 +5210,13 @@ namespace WorldGen.Viewer
                 && _staticCornerVBasis.Length == count)
                 return true;
 
-            var centerBasis = new TerrainPointBasis[count];
-            var uBasis = new TerrainPointBasis[count];
-            var vBasis = new TerrainPointBasis[count];
-            System.Threading.Tasks.Parallel.For(0, count, index =>
+            // EGYETLEN geometria-fuggveny a szamolashoz ES a lemez-gyorsitotar
+            // ujraszamolasos ellenorzesehez. Szandekosan kozos: ha a ketto
+            // kulon lenne es elcsusznanak, az ellenorzes vagy MINDENT
+            // elutasitana (a gyorsitotar ertelmetlenne valna), vagy - rosszabb -
+            // mas ponton ellenorizne, mint amit betoltott.
+            void ComputeAt(int index, TerrainPointBasis[] center, TerrainPointBasis[] u, TerrainPointBasis[] v,
+                int centerSlot)
             {
                 int face = index / faceStride;
                 int faceIndex = index - face * faceStride;
@@ -5223,17 +5226,39 @@ namespace WorldGen.Viewer
                 double vc = (double)cornerV / n * 2.0 - 1.0;
 
                 TileGeometry.PositionFromFaceUV(face, uc, vc, out double x, out double y, out double z);
-                centerBasis[index] = TerrainPointBasis.Compute(_adaptiveSeed, x, y, z);
+                center[centerSlot] = TerrainPointBasis.Compute(_adaptiveSeed, x, y, z);
 
                 TileGeometry.PositionFromFaceUV(
                     face, uc + NormalSampleEpsilonUV, vc,
                     out double ux, out double uy, out double uz);
-                uBasis[index] = TerrainPointBasis.Compute(_adaptiveSeed, ux, uy, uz);
+                u[centerSlot] = TerrainPointBasis.Compute(_adaptiveSeed, ux, uy, uz);
 
                 TileGeometry.PositionFromFaceUV(
                     face, uc, vc + NormalSampleEpsilonUV,
                     out double vx, out double vy, out double vz);
-                vBasis[index] = TerrainPointBasis.Compute(_adaptiveSeed, vx, vy, vz);
+                v[centerSlot] = TerrainPointBasis.Compute(_adaptiveSeed, vx, vy, vz);
+            }
+
+            var cacheKey = new TerrainBasisDiskCache.Key(
+                _adaptiveSeed, adaptiveBaseLevel, NormalSampleEpsilonUV, count);
+            if (TryLoadStaticTerrainBasisFromDisk(cacheKey,
+                    (index, c, u, v) => ComputeAt(index, c, u, v, 0),
+                    out TerrainBasisDiskCache.Payload cached))
+            {
+                _staticCornerCenterBasis = cached.Center;
+                _staticCornerUBasis = cached.U;
+                _staticCornerVBasis = cached.V;
+                _staticTerrainBasisSeed = _adaptiveSeed;
+                _staticTerrainBasisLevel = adaptiveBaseLevel;
+                return false;
+            }
+
+            var centerBasis = new TerrainPointBasis[count];
+            var uBasis = new TerrainPointBasis[count];
+            var vBasis = new TerrainPointBasis[count];
+            System.Threading.Tasks.Parallel.For(0, count, index =>
+            {
+                ComputeAt(index, centerBasis, uBasis, vBasis, index);
             });
 
             _staticCornerCenterBasis = centerBasis;
@@ -5241,6 +5266,8 @@ namespace WorldGen.Viewer
             _staticCornerVBasis = vBasis;
             _staticTerrainBasisSeed = _adaptiveSeed;
             _staticTerrainBasisLevel = adaptiveBaseLevel;
+            SaveStaticTerrainBasisToDisk(cacheKey,
+                new TerrainBasisDiskCache.Payload(centerBasis, uBasis, vBasis));
             return false;
         }
 

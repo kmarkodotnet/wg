@@ -45,6 +45,7 @@
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/LodCornerResolver.cs" Link="Source/LodCornerResolver.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/TerrainIndexMask.cs" Link="Source/TerrainIndexMask.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/ThermalOverlayPacking.cs" Link="Source/ThermalOverlayPacking.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/TerrainBasisDiskCache.cs" Link="Source/TerrainBasisDiskCache.cs" />
   </ItemGroup>
 
 </Project>

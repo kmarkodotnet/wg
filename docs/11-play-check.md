@@ -79,6 +79,36 @@ Ez az **ND-121** döntés.
 
 ---
 
+## 3b. Hideg Build: terrain-bázis lemez-gyorsítótár (ND-122)
+
+**Az ELSŐ Play** (üres gyorsítótárral): a PerfLogban a `terrainBasis=` sor
+változatlanul **7,4–8,5 s**, utána viszont megjelenik egy új sor:
+
+```
+[terrain-basis cache] KIIRVA basis_....bin (54.4 MiB, ~150 ms)
+```
+
+**A MÁSODIK Play** (vagy `worldSeed`/`adaptiveBaseLevel` visszaállítás után):
+
+```
+[terrain-basis cache] TALALAT basis_....bin (54.4 MiB, ~150 ms)
+```
+
+és a `terrainBasis=` sornak **~0,2 s** körülinek kell lennie 7,4–8,5 s helyett.
+Az első Build így nagyjából 13–14 s-ról **6–7 s-ra** csökken.
+
+**A fájlok helye:** `Application.persistentDataPath/terrainBasisCache/`.
+Nyugodtan törölheted bármikor — a gyorsítótár **nem** világállapot, a törlése
+csak lassít.
+
+**Amit ellenőrizni érdemes:** a domborzatnak **pontosan ugyanolyannak** kell
+lennie, mint gyorsítótár nélkül. Ha kétséged van, kapcsold ki az
+Inspectorban a `useTerrainBasisDiskCache` mezőt, és hasonlítsd össze. Ha
+`ELUTASITVA` sort látsz, az nem hiba — azt jelenti, hogy a mentett fájl nem a
+mostani algoritmussal készült, és a rendszer helyesen újraszámolt.
+
+---
+
 ## 4. Mire számíts a nagyobb budgetnél — offline előrejelzés
 
 Ez a 6. feladat eredménye: a chunk-csomagolás és a feltöltés **offline
@@ -117,6 +147,7 @@ mérhető**, tehát nem kell vakon próbálgatni.
 
 ## Amit ezek után tőlem várhatsz
 
-Ha az Editor újraindul és a 0–2. pont rendben van, a maradék nyitott
+Ha az Editor újraindul és a 0–3b. pont rendben van, a maradék nyitott
 kérdésekre (**ND-119**, **ND-120**, **ND-121**) a döntésed kell. A
-`todo.md` első táblájából 3 tétel marad (8., 9. és a blokkolt 10.).
+`todo.md` első táblájából **2 tétel** marad: a 8. (statikus mesh
+direct-array emit) és a blokkolt 10. (maradék regolit-mezők).
