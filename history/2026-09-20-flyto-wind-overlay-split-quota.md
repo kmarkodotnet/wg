@@ -92,9 +92,12 @@ hívások működtek — tehát nem fagyás volt, hanem a player loop állt.
 `UnityEngine.Application.runInBackground = true` után azonnal futott.
 Ez magyarázza az előző kör „állott képernyőképeit" is.
 
-**A `console get` `types` szűrője nem szűr.** Hibákat kérve 95 warningot adott
-vissza és 55 KB-ot írt a kontextusba. Használj helyette `eval`-t célzott
-lekérdezéssel.
+**~~A `console get` `types` szűrője nem szűr.~~ HELYESBÍTÉS (2026-09-20 este):
+a szűrő MŰKÖDIK, én hívtam rosszul.** A paraméter neve `level`
+(minimum-súlyosság: `log`/`warn`/`error`) és `tail` — nem `types`/`count`.
+A rossz paraméternevekkel a szerver az alapértelmezést adta vissza, innen a
+95 warning és az 55 KB. Helyesen: `level: "error", tail: 10`. Tanulság: ha egy
+eszköz „nem működik", előbb a hívást ellenőrizd, mielőtt az eszközre fogod.
 
 **Az első mérés a JIT-et méri.** A split-kvóta első sora 103 ms-ot mutatott,
 bemelegítés után 57 ms — és a többi távolságnál 2,6–16 ms. Bemelegítés
