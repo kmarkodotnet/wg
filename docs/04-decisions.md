@@ -4959,6 +4959,77 @@ nem egy overlay-hiba mellékterméke.
 
 **Eldöntendő:** a felhasználó választ (A)/(B)/(C) közül. Addig (B) fut.
 
+### ND-120 — A GPU-osztályozó shader két algoritmus-generációval le van maradva (NYITOTT)
+
+**2026-09-20.** A todo.md úgy fogalmazott, hogy a jelenetben
+`useGpuClassification: 1` **aktív**, tehát a besorolás és a geometria eltérő
+elevációt lát. A vizsgálat ezt **részben cáfolta, részben súlyosbította.**
+
+**1. A GPU-ág ma ELÉRHETETLEN.** A `PrecomputeClassificationsInParallel`
+mindhárom hívója `forceCpu: true`-t ad (az ND-47 3. fázisa óta: worker
+szálról a GPU-dispatch tilos), a `BuildStaticBaseLayer` sűrű ága pedig eleve
+a tiszta CPU-s `PrecomputeStaticClassificationsInParallel`-t hívja. A 310
+PerfLog átvizsgálása megerősíti: `usedGpu=True` **utoljára 2026-09-11-én**
+fordult elő, azóta egyszer sem. Tehát **nincs élő CPU/GPU eltérés** — a
+jelenetbeli `1` egy halott kapcsoló volt, ami élőnek látszott.
+
+**2. Ha viszont bárki visszakapcsolná, az nem „gyorsítás" lenne.** A
+`TileClassification.compute` `BaseElevationF`-je **két** Core-újítást nem
+tartalmaz:
+- **ND-52** másodlagos részletzaj (`SecondaryNoiseAmplitudeMeters = 900`);
+- **ND-90** lemezhatár-keverés (`BlendedBaseElevationFromNoiseBasis`).
+
+**Mérés** (`GpuShaderElevationParityTests`, seed `0xA7C944210000`, 20 lemez,
+tengerszint mindkét oldalon a CPU-ból):
+
+| hiányzó tag | \|Δ\| átlag | \|Δ\| max | óceán/szárazföld átfordulás | biome-átfordulás |
+|---|---|---|---|---|
+| csak ND-52 (másodlagos zaj) | 282,0 m | 890 m | **21,83%** | 23,43% |
+| csak ND-90 (határkeverés) | 23,4 m | 3071 m | 0,39% | 0,40% |
+| **a shader tényleges állapota (mindkettő hiányzik)** | **300,8 m** | **3116 m** | **21,99%** | **23,60%** |
+
+Level 8-on (393 216 tile) gyakorlatilag ugyanez: 22,13% / 23,78% — az arány
+**skála-stabil**. A két tag jellege eltér: a másodlagos zaj GLOBÁLIS (mindent
+elmozdít, korlátos amplitúdóval), a határkeverés LOKÁLIS (kevés tile, de ott
+nagyobb ugrás).
+
+**A szám ALSÓ KORLÁT.** A mérés mindkét oldalon float64-gyel fut, tehát a
+shader float32-es pontosságvesztése és bármilyen egyéb elcsúszás **nincs
+benne**; kráter és deep-time erózió nélküli, t=0 alapdomborzatot hasonlít.
+
+**Amit most tettem (nem döntés):**
+- a jelenetbeli `useGpuClassification` 1 → **0** (ma viselkedésben semleges,
+  mert az ág elérhetetlen — pusztán megszünteti a félrevezető állapotot, és
+  összhangba hozza a C#-alapértékkel meg a shader saját kommentjével);
+- a mérés `GpuShaderElevationParityTests`-be zárva, hogy a szám ne avuljon el;
+- a mező mellé figyelmeztető blokk került a kóddal együtt olvasható helyre.
+
+**Opciók.**
+
+- **(A) A GPU-osztályozó út törlése** (shader, `GpuTileClassifier`, a mező és
+  a jelenetbeli kapcsoló). Indok: ma is halott kód; kétszer futott
+  „Compiler timed out"-ba; és amíg létezik, MINDEN jövőbeli Core-algoritmus-
+  változást kézzel kellene utánavezetni — ez állandó I1-kockázat (egy
+  elfelejtett port csendben más világot osztályozna). A klasszifikáció amúgy
+  is 453 ms, amit az ND-50 óta overlay-váltáskor már át is ugrunk.
+- **(B) A shader felzárkóztatása** (ND-52 + ND-90 portolása HLSL-be), majd
+  egy CPU/GPU egyezési teszt, ami CI-ban fut. Ez megtartja a jövőbeli
+  gyorsítási lehetőséget, de a fordítási időtúllépés kockázata megmarad, és
+  a tesztnek valódi GPU kell — a CI-gépeken nincs.
+- **(C) Marad úgy, ahogy most van**: halott kód, kikapcsolt kapcsoló,
+  figyelmeztető komment és a mérést rögzítő teszt.
+
+**Javaslat: (A).** A GPU-ág egy meg nem valósult optimalizáció maradványa,
+ami nem termel értéket, viszont folyamatos determinizmus-kockázatot igen. Ha
+a klasszifikáció később tényleg szűk keresztmetszet lesz, akkor érdemes
+újraírni — a mai, elavult shader nem alap ehhez. (C) elfogadható átmenet;
+(B) csak akkor védhető, ha valaki ténylegesen vállalja a folyamatos
+karbantartást ÉS van hol futtatni az egyezési tesztet.
+
+**Verziózás:** önmagában nem seed-törő (a GPU-ág ma nem fut, tehát egyetlen
+világ sem függ tőle). (B) viszont azzá tenné, ha a portolás közben a
+CPU-oldalt is hozzányúlnánk — nem szabad.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

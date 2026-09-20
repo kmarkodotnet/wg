@@ -705,6 +705,31 @@ namespace WorldGen.Viewer
                  "a GPU-ból hiányzó secondary detail miatt ott kötelező a teljes CPU-besorolás (ND-69).")]
         private bool useGpuClassification = false;
 
+        // ====================================================================
+        // ND-120 (2026-09-20) - OLVASD EL, MIELOTT EZT BEKAPCSOLOD.
+        //
+        // A GPU-ag JELENLEG ELERHETETLEN: a PrecomputeClassificationsInParallel
+        // MINDHAROM hivoja `forceCpu: true`-t ad (ND-47 3. fazisa ota, mert
+        // worker szalrol a GPU-dispatch tilos). A PerfLog tanusaga szerint
+        // `usedGpu=True` UTOLJARA 2026-09-11-en fordult elo, azota egyszer sem.
+        // A jelenetben (PlanetView.unity) ez a kapcsolo MEGIS 1-en allt - egy
+        // HALOTT kapcsolo, ami elonek latszott; 2026-09-20-an 0-ra allitva.
+        //
+        // MIERT NEM SZABAD csak ugy visszakapcsolni: a
+        // TileClassification.compute `BaseElevationF`-je KET Core-ujitast nem
+        // tartalmaz - az ND-52 masodlagos zajt es az ND-90 lemezhatar-keverest.
+        // OFFLINE MERVE (GpuShaderElevationParityTests, seed 0xA7C944210000,
+        // 20 lemez, level 6 es level 8 egyarant): |delta| atlag 301 m, max
+        // 3116 m, es a tile-ok ~22%-a MAS oldalra kerulne a tengerszinthez
+        // kepest, ~24%-a mas biome-ot kapna. Ez ALSO KORLAT: a meres float64-en
+        // fut, tehat a shader float32-es pontossagvesztese meg nem is szerepel
+        // benne.
+        //
+        // Vagyis a bekapcsolas nem "gyorsitas", hanem egy MASIK bolygo
+        // osztalyozasa a MOSTANI geometria alatt. A dontes (shader javitasa vs.
+        // a GPU-ut torlese) az ND-120-ban var - addig maradjon kikapcsolva.
+        // ====================================================================
+
         [SerializeField]
         [Tooltip("A TileClassification.compute shader asset - useGpuClassification " +
                  "esetén kötelező (üresen hagyva a GPU-út kikapcsolt módra esik vissza).")]
