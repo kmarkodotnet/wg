@@ -2841,13 +2841,13 @@ namespace WorldGen.Viewer
             // forras-kivalasztasi reteg, nem a vilagmodell resze.
             bool needsPrecipField = precipitationOverlay || showRivers || showClouds;
             MoisturePrecipitation.PrecipitationField precipField = needsPrecipField
-                ? MoisturePrecipitation.Compute(seed, plateCount, level,
-                    climateDayT, climateOrbitalPeriodDays, climateRotationPeriodDays,
-                    climateAxialTiltDegrees, targetWaterFraction: targetWaterFraction)
+                ? GetOrComputePrecipitationField(seed, plateCount, level, targetWaterFraction)
                 : null;
             _adaptivePrecip = precipField?.Precipitation;
             _lastPrecipField = precipField;
-            PerfLog($"Build() precipitation(enabled={needsPrecipField})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
+            PerfLog($"Build() precipitation(enabled={needsPrecipField}, "
+                + $"cacheHit={(needsPrecipField ? _precipCacheHit.ToString() : "n/a")})"
+                + $"={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
             buildPhaseStopwatch.Restart();
 
             // HIBAJAVITAS (code-review-ban feltart hianyossag, 2026-09-06): a
@@ -5848,6 +5848,95 @@ namespace WorldGen.Viewer
             // erinti mindet, es regi geometria maradna lathato.
             ClearAllDynamicChunks();
         }
+
+        // ====================================================================
+        // A csapadek-mezo CACHE-E (todo.md 1. tabla 5. sor, 2026-09-20).
+        //
+        // A MERES: a `Build() precipitation(enabled=True)` sor a naplokban
+        // 322-410 ms, MINDEN Build-ben ujra. Deep-time csuszkazasnal ez
+        // tisztan elvesztegetett ido, mert:
+        //
+        // A MoisturePrecipitation.Compute a deepTime erteket MEG SEM KAPJA.
+        // Sajat, t=0-as mezot szamol
+        // (SeaLevelCalibration.ComputeElevationField), krater es erozio
+        // nelkul - klima-kozelites, nem a deepTime-eltolt domborzat (ezt a
+        // hivas feletti komment is rogziti). Vagyis a deepTimeMyr valtozasa
+        // NEM valtoztatja meg az eredmenyt, csak ujraszamoltatja.
+        //
+        // A CACHE-KULCS TETELES LELTARA. A Core-fuggveny TISZTA (I2), tehat a
+        // kulcs PONTOSAN az atadott argumentumok halmaza - se tobb, se
+        // kevesebb. A hivas nyolc erteket ad at:
+        //
+        //   1. seed                       <- (ulong)worldSeed    [Inspector]
+        //   2. plateCount                 <- plateCount          [Inspector]
+        //   3. level                      <- level               [Inspector]
+        //   4. dayT                       <- climateDayT         [Inspector]
+        //   5. orbitalPeriodDays          <- climateOrbitalPeriodDays  [Inspector]
+        //   6. rotationPeriodDays         <- climateRotationPeriodDays [Inspector]
+        //   7. axialTiltDegrees           <- climateAxialTiltDegrees   [Inspector]
+        //   8. targetWaterFraction        <- targetWaterFraction  [Inspector]
+        //
+        // A tobbi Compute-parameter (iterations, precipBaseFraction,
+        // orographicCoeff, orographicElevScale) ALAPERTELMEZETT marad, tehat
+        // forditasi ideju konstans - nincs Inspector-mezo, ami invalidalna.
+        // HA valaki ezek barmelyiket kesobb Inspector-mezove teszi, ODA KELL
+        // VENNI A KULCSHOZ, kulonben a cache csendben elavult mezot ad.
+        //
+        // AMI SZANDEKOSAN NINCS A KULCSBAN:
+        //   - deepTimeMyr: a fuggveny meg sem kapja (ld. fent) - EPP EZ a
+        //     cache ertelme;
+        //   - showCraters / showDeepTimeErosion / terrainReliefExaggeration /
+        //     elevationScale / adaptiveBaseLevel / hydrologyLevel: a Core-ut
+        //     egyiket sem lathatja;
+        //   - precipitationOverlay / showRivers / showClouds: csak azt
+        //     dontik el, KELL-E a mezo, az erteket nem befolyasoljak.
+        //
+        // MEGOSZTOTT OBJEKTUM. A cache ugyanazt a PrecipitationField peldanyt
+        // adja vissza tobb Build-nek, tehat CSAK AKKOR helyes, ha senki nem
+        // IRJA a tartalmat. Ellenorizve (2026-09-20): a viewer minden
+        // felhasznalasa olvasas (TryGetValue / foreach / tovabbadas), es a
+        // RiverPathTracing.SelectRiverSources is csak sajat, lokalis
+        // gyujtemenyekbe ir. AKI EZT MEGVALTOZTATJA, annak a cache-t is
+        // masolora kell cserelnie.
+        //
+        // NINCS eletciklus-alapu uritese (nem torli a Build/ResetWorldState):
+        // a kulcs mindent tartalmaz, ami az erteket meghatarozza, tehat egy
+        // "regi" bejegyzes azonos kulcson azonos ertek. Ez szandekos - az
+        // eletciklus-alapu uritesnek epp az lenne a hibaja, amit elkerulunk.
+        // ====================================================================
+        private bool _hasPrecipCache;
+        private ulong _pcSeed;
+        private int _pcPlateCount, _pcLevel;
+        private double _pcDayT, _pcOrbital, _pcRotation, _pcAxialTilt, _pcTargetWater;
+        private MoisturePrecipitation.PrecipitationField _pcField;
+
+        private MoisturePrecipitation.PrecipitationField GetOrComputePrecipitationField(
+            ulong precipSeed, int precipPlateCount, int precipLevel, double precipTargetWater)
+        {
+            if (_hasPrecipCache && _pcField != null
+                && _pcSeed == precipSeed && _pcPlateCount == precipPlateCount && _pcLevel == precipLevel
+                && _pcDayT == climateDayT && _pcOrbital == climateOrbitalPeriodDays
+                && _pcRotation == climateRotationPeriodDays && _pcAxialTilt == climateAxialTiltDegrees
+                && _pcTargetWater == precipTargetWater)
+            {
+                _precipCacheHit = true;
+                return _pcField;
+            }
+
+            _precipCacheHit = false;
+            _pcField = MoisturePrecipitation.Compute(precipSeed, precipPlateCount, precipLevel,
+                climateDayT, climateOrbitalPeriodDays, climateRotationPeriodDays,
+                climateAxialTiltDegrees, targetWaterFraction: precipTargetWater);
+            _pcSeed = precipSeed; _pcPlateCount = precipPlateCount; _pcLevel = precipLevel;
+            _pcDayT = climateDayT; _pcOrbital = climateOrbitalPeriodDays;
+            _pcRotation = climateRotationPeriodDays; _pcAxialTilt = climateAxialTiltDegrees;
+            _pcTargetWater = precipTargetWater;
+            _hasPrecipCache = true;
+            return _pcField;
+        }
+
+        /// <summary>Diagnosztika a PerfLoghoz: az utolso keres talalat volt-e.</summary>
+        private bool _precipCacheHit;
 
         /// <summary>
         /// ND-38: a t=0 (statikus, percentilis-kalibrált) víztérfogat
