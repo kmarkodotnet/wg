@@ -32,6 +32,25 @@ namespace WorldGen.Viewer
             _waterEvaluationCache = null;
             _waterIndexMask = null;
             _staticWaterMesh = null;
+            // HIBAJAVITAS (2026-09-20). Ez a metodus UJ WaterLodSource-t hoz
+            // letre, a `_appliedWaterSelection` viszont a REGIRE mutat - a
+            // `WaterLodSource.Select` pedig ReferenceEquals-szel ellenorzi a
+            // forrast, es "Uj viz-snapshothoz uj kivalasztas kell" kivetelt dob.
+            //
+            // Eddig ez nem latszott, mert a Build() a sajat
+            // InvalidateAdaptiveCaches()-eben MAR nullazta - vagyis a helyes
+            // allapotot a HIVO tartotta fenn, nem az, aki az elavulast okozza.
+            // Amint az ND-50 overlay-utja (ApplyOverlayOnlyRebuild) a
+            // BuildStaticBaseLayer()-t a teljes Build NELKUL hivta meg, a
+            // kivetel azonnal jott, es a nezegeto TARTOSAN visszaallt a
+            // szinkron (fo szalu) ujraepitesre. Ezert a nullazas ODA kerult,
+            // AHOL az elavulas keletkezik - igy minden jovobeli hivo biztonsagos.
+            //
+            // A statikus viz-mesh ilyenkor UJRAIRODOTT, tehat a regi layout
+            // rejtett-quad halmazat sem szabad atvinni (ugyanaz az indok, mint
+            // az InvalidateAdaptiveCaches `restoreStaticIndices: false`-anal).
+            _appliedWaterSelection = null;
+            _drawnHiddenStaticWaterQuads = new HashSet<int>();
             if (buckets == null || seaRadius <= 0 || float.IsNaN(seaRadius) || float.IsInfinity(seaRadius)) return;
             GameObject target = transform.Find("WaterSurface").gameObject;
             if (!_drawnDiagnosticMeshes.TryGetValue(target, out DrawnSurface surface)) return;
