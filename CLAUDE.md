@@ -168,3 +168,23 @@ másolja. Aktív nyitott döntések a választás miatt: **ND-20** (Burst
 
 A kód, az azonosítók és a commit-üzenetek **angolul**. A kommentek, a
 dokumentáció és a beszélgetés **magyarul**.
+
+
+
+## Unity / WorldGenViewer
+
+Unity project path:
+F:\Claude\wg\unity\WorldGenViewer
+
+A Unity Editor is normally running with the Unity Pipeline package.
+
+For Unity-related work:
+- Prefer Unity CLI / Pipeline for interacting with the live Editor.
+- Use `unity status` before Editor operations.
+- Use `unity command` or `unity list` to discover available commands instead of guessing command names.
+- Target:
+  `--project-path "F:\Claude\wg\unity\WorldGenViewer"`
+- After C# changes, verify that Unity recompiles successfully.
+- Check Unity Console errors before considering a task complete.
+- When appropriate, run relevant Unity tests.
+- Do not edit Library/PackageCache manually.
