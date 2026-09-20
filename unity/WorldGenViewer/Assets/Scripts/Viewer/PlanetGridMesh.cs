@@ -1322,6 +1322,24 @@ namespace WorldGen.Viewer
             return areas;
         }
 
+        /// <summary>
+        /// A navigációs menü célpont-irányának BOLYGÓ-LOKÁLIS ->
+        /// UNITY-VILÁGTÉR konverziója. A <see cref="CentroidDirection"/> a
+        /// bolygó saját (forgatás előtti) terében ad irányt, a
+        /// <see cref="PlanetOrbitCamera.FlyToDirection"/> viszont
+        /// VILÁGTERI irányt vár. A kettő `CameraViewMode.Free`-ben
+        /// megegyezik (a SunController identitáson tartja a bolygó
+        /// forgatását), de `CameraViewMode.AxialRotation`-ben a bolygó
+        /// TÉNYLEGESEN forog (tengelydőlés * spin, ld. SunController) -
+        /// enélkül a kamera a forgásszöggel elvétve, rossz helyre repül.
+        /// Csak a FORGATÁST alkalmazzuk (nem TransformDirection-t), hogy
+        /// egy esetleges nem-egységnyi skála ne torzítsa az irányt.
+        /// </summary>
+        private Vector3 ToWorldDirection(Vector3 planetLocalDirection)
+        {
+            return transform.rotation * planetLocalDirection;
+        }
+
         private void NavigateToPlanet()
         {
             _navLevel = NavigationLevel.Planet;
@@ -1344,7 +1362,7 @@ namespace WorldGen.Viewer
             _navContinentName = _navPanelData.Continents[continentIndex].Name;
             if (_hudOrbitCamera != null)
                 _hudOrbitCamera.FlyToDirection(
-                    _navPanelData.Continents[continentIndex].CenterDirection,
+                    ToWorldDirection(_navPanelData.Continents[continentIndex].CenterDirection),
                     _hudOrbitCamera.SuggestedAltitude(PlanetOrbitCamera.ViewLevel.Continent));
         }
 
@@ -1361,7 +1379,7 @@ namespace WorldGen.Viewer
             _navRegionName = regions[localIndex].Name;
             if (_hudOrbitCamera != null)
                 _hudOrbitCamera.FlyToDirection(
-                    regions[localIndex].CenterDirection,
+                    ToWorldDirection(regions[localIndex].CenterDirection),
                     _hudOrbitCamera.SuggestedAltitude(PlanetOrbitCamera.ViewLevel.Region));
         }
 
@@ -1374,7 +1392,7 @@ namespace WorldGen.Viewer
             _navAreaName = areas[areaIndex].Name;
             if (_hudOrbitCamera != null)
                 _hudOrbitCamera.FlyToDirection(
-                    areas[areaIndex].CenterDirection,
+                    ToWorldDirection(areas[areaIndex].CenterDirection),
                     _hudOrbitCamera.SuggestedAltitude(PlanetOrbitCamera.ViewLevel.Region) * 0.5f);
         }
 
