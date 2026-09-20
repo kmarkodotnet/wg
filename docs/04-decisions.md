@@ -2252,6 +2252,53 @@ körül - felhasználói megerősítést igényel, mielőtt hozzákezdenénk.
 
 **Verziózás:** nem seed-törő (tisztán teljesítmény-/UX-kérdés).
 
+---
+
+**LEZÁRVA (2026-09-20): A) megvalósítva, lényegesen olcsóbban, mint a fenti
+becslés.**
+
+A bejegyzés azt feltételezte, hogy A)-hoz "a mesh-építési kódot mélyen érintő
+refaktor" kell. Ez **tévedés volt**: a `BuildStaticBaseLayer()` már akkor is
+önálló volt, és kizárólag a CACHE-ELT világállapotból dolgozik
+(`_adaptiveSeed` / `_adaptiveSeeds` / `_adaptiveCraters` / `_adaptiveSeaLevel`
++ a terrain-bázis cache) — **szimulációt nem futtat**. Elég volt tehát:
+
+1. az öt overlay-mezőt (`windSpeedOverlay`, `precipitationOverlay`,
+   `tectonicPlateOverlay`, `windSpeedColorMaxMs`, `precipitationColorMax`)
+   kivenni a `WorldConfigChangedSinceBuild()`-ből egy saját
+   `OverlayConfigChangedSinceBuild()` / `SnapshotOverlayConfig()` párba —
+   ugyanaz a minta, mint a felhőnél és a folyó-vonalnál;
+2. egy `ApplyOverlayOnlyRebuild()`, ami üríti a szín-gyorsítótárakat és
+   **csak** a statikus alapréteget építi újra, a dinamikus chunkokat pedig az
+   `_adaptiveConfigDirty` viszi;
+3. a klasszifikáció újrahasznosítása (`BuildStaticBaseLayer(reuseClassifications: true)`):
+   a tile-besorolás az elevációból/tengerszintből/biome-ból jön, overlay-től
+   független — ez önmagában 453 ms volt.
+
+**Mérve élő Editorban** (level 8 alapszint, 396 294 statikus sarok):
+
+| overlay-váltás | régi (teljes `Build()`) | új (overlay-út) | folyó-generáció |
+|---|---|---|---|
+| tektonikus / csapadék / overlay ki | 3147–3826 ms | **897–1595 ms** | régen bumpolt, most **változatlan** |
+| szél-overlay be (drága színezés) | 5718 ms | **2986 ms** | **változatlan** |
+
+A sebesség a kisebbik nyereség. A lényeg, hogy a folyó- és felhő-generáció
+**érintetlen marad**, tehát az overlay kapcsolgatása többé nem dobja el a
+háttérszálon futó, többmásodperces folyó-finomítást — ez volt a bejegyzés
+eredeti panasza.
+
+**Egy meglévő rés is bezárult.** A `_waterCornerColors` (a vízfelszín
+sarok-színei, szintén overlay-függő) eddig CSAK a teljes világ-reset során
+ürült. Amíg minden overlay-változás teljes `Build()`-et indított, ez nem
+látszott; az olcsó úton látszana. Most az `InvalidateOverlayColorCaches()`
+egy helyen üríti az összes overlay-függő szín-cache-t.
+
+**B) TOVÁBBRA IS ÉRDEMES, de már nem sürgős.** A mostani javítás a KONKRÉT
+öt mezőt kezeli. Ha valaki a jövőben új, tisztán vizuális paramétert vesz fel
+a `WorldConfigChangedSinceBuild()`-be, a hibaosztály visszatér. B) (a
+generáció-invalidálást a finomítás TÉNYLEGES bemeneteihez kötni) ezt
+szerkezetileg zárná ki.
+
 ### ND-51 — Csillagos háttér + látható Nap: determinisztikus, de NEM a világmodell része
 
 **Kérdés (felhasználói kérés, 2026-09-06).** "mi a helyzet azzal hogy a

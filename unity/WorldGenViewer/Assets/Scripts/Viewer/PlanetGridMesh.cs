@@ -1056,6 +1056,19 @@ namespace WorldGen.Viewer
                 return;
             }
 
+            // ND-50: csak a SZINEZES valtozott (overlay ki/be vagy egy
+            // szin-skala hatara). Ez NEM indit teljes Build()-et, tehat nem
+            // szamol ujra mezot/hidrologiat, es nem dobja el a hatterszalon
+            // futo folyo-finomitast - ld. ApplyOverlayOnlyRebuild.
+            if (OverlayConfigChangedSinceBuild())
+            {
+                if (Time.unscaledTime - _lastAdaptiveRebuildRealtime < minSecondsBetweenAdaptiveRebuilds)
+                    return;
+                _lastAdaptiveRebuildRealtime = Time.unscaledTime;
+                ApplyOverlayOnlyRebuild();
+                return;
+            }
+
             // Csak a felho-reteg PARAMETEREI valtoztak (a vilag tobbi resze
             // nem) - ld. ApplyCloudOnlyRebuild doksi: ez NEM inditja a
             // teljes Build()-et, tehat NEM dobja el a hatterszalon futo
@@ -1152,17 +1165,32 @@ namespace WorldGen.Viewer
         private void InvalidateColorCacheIfModeChanged()
         {
             if (_colorCacheWindMode != windSpeedOverlay || _colorCacheTectonicMode != tectonicPlateOverlay)
-            {
-                _persistentCornerColorCache.Clear();
-                _previousChunkCache.Clear();
-                // ND-66: a tombos base-szin ugyanugy modfuggo, mint a
-                // Dictionary-cache. A statikus mesh mar feltoltott szineit ez
-                // nem irja at, de kesobbi base-sarok lekerdezes nem kaphat
-                // elavult overlay-erteket.
-                _staticCornerColors = Array.Empty<Color>();
-                _colorCacheWindMode = windSpeedOverlay;
-                _colorCacheTectonicMode = tectonicPlateOverlay;
-            }
+                InvalidateOverlayColorCaches();
+        }
+
+        /// <summary>
+        /// MINDEN overlay-fuggo szin-gyorsitotar uritese egy helyen.
+        ///
+        /// 2026-09-20: a `_waterCornerColors` KORABBAN HIANYZOTT innen - a
+        /// vizfelszin sarok-szinei ugyanugy overlay-fuggoek
+        /// (ContinuousWaterCornerColor), de csak a TELJES ujraepites
+        /// (ResetWorldState) uritette oket. Amig minden overlay-valtozas
+        /// teljes Build()-et inditott, ez nem latszott; most, hogy az
+        /// <see cref="ApplyOverlayOnlyRebuild"/> olcso agon megy, latszana -
+        /// ezert ide kerult.
+        /// </summary>
+        private void InvalidateOverlayColorCaches()
+        {
+            _persistentCornerColorCache.Clear();
+            _waterCornerColors.Clear();
+            _previousChunkCache.Clear();
+            // ND-66: a tombos base-szin ugyanugy modfuggo, mint a
+            // Dictionary-cache. A statikus mesh mar feltoltott szineit ez
+            // nem irja at, de kesobbi base-sarok lekerdezes nem kaphat
+            // elavult overlay-erteket.
+            _staticCornerColors = Array.Empty<Color>();
+            _colorCacheWindMode = windSpeedOverlay;
+            _colorCacheTectonicMode = tectonicPlateOverlay;
         }
 
         private float _lastAdaptiveRebuildRealtime = float.NegativeInfinity;
@@ -1460,9 +1488,9 @@ namespace WorldGen.Viewer
         private bool _hasWorldConfigSnapshot;
         private long _wcWorldSeed; private int _wcPlateCount, _wcLevel, _wcAdaptiveBaseLevel;
         private float _wcRadius;
-        private double _wcDeepTime, _wcTargetWater, _wcRiverFrac, _wcWindMax, _wcPrecipMax;
+        private double _wcDeepTime, _wcTargetWater, _wcRiverFrac;
         private double _wcDayT, _wcOrbital, _wcRotation, _wcAxialTilt, _wcRelief, _wcElevScale;
-        private bool _wcCraters, _wcRivers, _wcLakesIce, _wcErosion, _wcWindOverlay, _wcPrecipOverlay, _wcTectonicOverlay;
+        private bool _wcCraters, _wcRivers, _wcLakesIce, _wcErosion;
         private int _wcHydroLevel, _wcMinLakeTiles;
         private double _wcMinLakeDepth;
 
@@ -1473,13 +1501,11 @@ namespace WorldGen.Viewer
             _wcWorldSeed = worldSeed; _wcPlateCount = plateCount; _wcLevel = level;
             _wcAdaptiveBaseLevel = adaptiveBaseLevel; _wcRadius = radius;
             _wcDeepTime = deepTimeMyr; _wcTargetWater = targetWaterFraction; _wcRiverFrac = riverTargetFraction;
-            _wcWindMax = windSpeedColorMaxMs; _wcPrecipMax = precipitationColorMax;
             _wcDayT = climateDayT; _wcOrbital = climateOrbitalPeriodDays;
             _wcRotation = climateRotationPeriodDays; _wcAxialTilt = climateAxialTiltDegrees;
             _wcRelief = terrainReliefExaggeration; _wcElevScale = elevationScale;
             _wcCraters = showCraters; _wcRivers = showRivers; _wcLakesIce = showLakesIce;
-            _wcErosion = showDeepTimeErosion; _wcWindOverlay = windSpeedOverlay; _wcPrecipOverlay = precipitationOverlay;
-            _wcTectonicOverlay = tectonicPlateOverlay;
+            _wcErosion = showDeepTimeErosion;
             _wcHydroLevel = hydrologyLevel; _wcMinLakeTiles = minLakeTiles;
             _wcMinLakeDepth = minLakeDepthMeters;
         }
@@ -1520,15 +1546,89 @@ namespace WorldGen.Viewer
             return _wcWorldSeed != worldSeed || _wcPlateCount != plateCount || _wcLevel != level
                 || _wcAdaptiveBaseLevel != adaptiveBaseLevel || _wcRadius != radius
                 || _wcDeepTime != deepTimeMyr || _wcTargetWater != targetWaterFraction || _wcRiverFrac != riverTargetFraction
-                || _wcWindMax != windSpeedColorMaxMs || _wcDayT != climateDayT || _wcOrbital != climateOrbitalPeriodDays
+                || _wcDayT != climateDayT || _wcOrbital != climateOrbitalPeriodDays
                 || _wcRotation != climateRotationPeriodDays || _wcAxialTilt != climateAxialTiltDegrees
                 || _wcRelief != terrainReliefExaggeration || _wcElevScale != elevationScale
                 || _wcCraters != showCraters || _wcRivers != showRivers || _wcLakesIce != showLakesIce
-                || _wcErosion != showDeepTimeErosion || _wcWindOverlay != windSpeedOverlay
-                || _wcPrecipOverlay != precipitationOverlay || _wcPrecipMax != precipitationColorMax
-                || _wcTectonicOverlay != tectonicPlateOverlay
+                || _wcErosion != showDeepTimeErosion
                 || _wcHydroLevel != hydrologyLevel || _wcMinLakeTiles != minLakeTiles
                 || _wcMinLakeDepth != minLakeDepthMeters;
+        }
+
+        // ND-50 LEZARASA (2026-09-20). Az overlay-mezok KORABBAN a teljes
+        // WorldConfigChangedSinceBuild-en mentek at, tehat egy overlay
+        // ki-/bekapcsolasa TELJES Build()-et inditott: ujraszamolta a mezot, a
+        // tengerszintet, a hidrologiat, az eroziot es a csapadekot, majd
+        // bumpolta a folyo-finomitasi generaciot - vagyis ELDOBTA a
+        // hatterszalon futo, tobb masodperces folyo-finomitast. Ez UGYANAZ a
+        // hibaosztaly, amit a felhore (ApplyCloudOnlyRebuild) es a folyo-
+        // vonalra mar kijavitottunk.
+        //
+        // Az ND-50 azert maradt nyitva, mert ezek NEM kulon reteg, hanem a FO
+        // terep-mesh szinet cserelik. A megoldas viszont nem igenyelt mely
+        // mesh-refaktort: a BuildStaticBaseLayer() MAR ONALLO es kizarolag a
+        // CACHE-ELT vilagallapotbol (_adaptiveSeed/_adaptiveSeeds/
+        // _adaptiveCraters/_adaptiveSeaLevel + a terrain-bazis cache) dolgozik
+        // - szimulaciot NEM futtat. Eleg tehat az overlay-mezoket sajat agra
+        // tenni, a szin-cache-eket uriteni, es CSAK a statikus alapreteget
+        // ujraepiteni; a dinamikus chunkokat az _adaptiveConfigDirty viszi.
+        private bool _hasOverlayConfigSnapshot;
+        private bool _ocWindOverlay, _ocPrecipOverlay, _ocTectonicOverlay;
+        private double _ocWindMax, _ocPrecipMax;
+
+        private void SnapshotOverlayConfig()
+        {
+            _hasOverlayConfigSnapshot = true;
+            _ocWindOverlay = windSpeedOverlay;
+            _ocPrecipOverlay = precipitationOverlay;
+            _ocTectonicOverlay = tectonicPlateOverlay;
+            _ocWindMax = windSpeedColorMaxMs;
+            _ocPrecipMax = precipitationColorMax;
+        }
+
+        private bool OverlayConfigChangedSinceBuild()
+        {
+            if (!_hasOverlayConfigSnapshot) return true;
+            return _ocWindOverlay != windSpeedOverlay || _ocPrecipOverlay != precipitationOverlay
+                || _ocTectonicOverlay != tectonicPlateOverlay
+                || _ocWindMax != windSpeedColorMaxMs || _ocPrecipMax != precipitationColorMax;
+        }
+
+        /// <summary>
+        /// Csak a SZINEZES valtozott (overlay ki/be, vagy egy szin-skala
+        /// felso hatara) - a geometria, a mezok es a hidrologia valtozatlan.
+        /// Uriti a szin-cache-eket es ujraepiti a statikus alapreteget a MAR
+        /// kiszamolt vilagallapotbol; a dinamikus chunkokat a kovetkezo
+        /// Update() szinezi ujra (_adaptiveConfigDirty). A folyo-finomitasi
+        /// es a felho-generacio ERINTETLEN marad.
+        ///
+        /// KET DEGENERALT ESET esik vissza teljes Build()-re:
+        ///  - meg SOHA nem futott Build (nincs mibol ujraepiteni);
+        ///  - a csapadek-overlayt kapcsoljak be, de csapadek-mezo meg nem
+        ///    szamolodott (`_adaptivePrecip == null`, mert eddig sem
+        ///    showRivers, sem showClouds, sem ez az overlay nem kellett).
+        ///    Enelkul az overlay CSENDBEN nulla csapadekot rajzolna mindenhova
+        ///    - ugyanaz a csapda, amit az ApplyCloudOnlyRebuild is kezel.
+        /// </summary>
+        private void ApplyOverlayOnlyRebuild()
+        {
+            if (!_hasWorldConfigSnapshot || _staticRenderDataLevel < 0)
+            {
+                Build();
+                return;
+            }
+            if (precipitationOverlay && _adaptivePrecip == null)
+            {
+                Build();
+                return;
+            }
+
+            InvalidateOverlayColorCaches();
+            BuildStaticBaseLayer(reuseClassifications: true);
+            // A dinamikus (kamera-vezerelt) chunkok szinei is elavultak: a
+            // kovetkezo Update ezt latva epiti ujra oket.
+            _adaptiveConfigDirty = true;
+            SnapshotOverlayConfig();
         }
 
         // FELHASZNALOI IGENY (2026-09-06, egy masik vizsgalat feltarta): a
@@ -2814,6 +2914,7 @@ namespace WorldGen.Viewer
             // A vilag most ezekre a parameterekre epult fel - a kovetkezo
             // Update() ehhez kepest figyeli a valtozast (deepTimeMyr csuszka stb.).
             SnapshotWorldConfig();
+            SnapshotOverlayConfig();
             SnapshotCloudConfig();
             SnapshotRiverLineConfig();
             Built.Invoke();
@@ -2833,7 +2934,17 @@ namespace WorldGen.Viewer
         /// a folyamatos mozgas-kivaltotta koltsegtol (ami mostantol csak a
         /// kis, finomitott reszre vonatkozik).
         /// </summary>
-        private void BuildStaticBaseLayer()
+        /// <param name="reuseClassifications">
+        /// ND-50 (2026-09-20): a tile-KLASSZIFIKACIO (kategoria + bucket) NEM
+        /// fugg az overlaytol - az elevaciobol, a tengerszintbol es a
+        /// biome-bol szarmazik, amik overlay-valtaskor valtozatlanok. MERVE:
+        /// ez a fazis 453 ms a 1660 ms-os overlay-ujraepitesbol (27%).
+        /// CSAK az <see cref="ApplyOverlayOnlyRebuild"/> adja true-val, ahol
+        /// konstrukcio szerint semmi olyan nem valtozott, ami a besorolast
+        /// befolyasolna; a kivancsi hivo ne allitsa at. Ha a meglevo tomb
+        /// merete/szintje nem stimmel, a kod BIZTONSAGOSAN ujraszamol.
+        /// </param>
+        private void BuildStaticBaseLayer(bool reuseClassifications = false)
         {
             var totalStopwatch = Stopwatch.StartNew();
             var phaseStopwatch = Stopwatch.StartNew();
@@ -2857,9 +2968,14 @@ namespace WorldGen.Viewer
 
             phaseStopwatch.Restart();
             bool useDenseStaticData = adaptiveBaseLevel <= 8;
-            ClassificationDiag classificationDiag = useDenseStaticData
-                ? PrecomputeStaticClassificationsInParallel(leaves)
-                : PrecomputeClassificationsInParallel(leaves, forceCpu: true);
+            bool classificationsReused = reuseClassifications && useDenseStaticData
+                && _staticRenderDataLevel == adaptiveBaseLevel
+                && _staticTileClassifications.Length == leaves.Length;
+            ClassificationDiag classificationDiag = classificationsReused
+                ? new ClassificationDiag(0, false, 0, 0)
+                : useDenseStaticData
+                    ? PrecomputeStaticClassificationsInParallel(leaves)
+                    : PrecomputeClassificationsInParallel(leaves, forceCpu: true);
             double classificationMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
             phaseStopwatch.Restart();
@@ -2945,7 +3061,7 @@ namespace WorldGen.Viewer
                 $"enumerate={enumerateMs:F1}ms | terrainBasis={terrainBasisMs:F1}ms " +
                 $"(reused={terrainBasisReused}) | " +
                 $"tileCenterBasis={tileCenterBasisMs:F1}ms (reused={tileCenterBasisReused}) | " +
-                $"denseStatic={useDenseStaticData} | " +
+                $"denseStatic={useDenseStaticData} | classificationsReused={classificationsReused} | " +
                 $"classification={classificationMs:F1}ms (missing={classificationDiag.MissingCount}, " +
                 $"usedGpu={classificationDiag.UsedGpu}, gpuDispatch={classificationDiag.GpuDispatchMs:F1}ms, " +
                 $"cpuTempLoop={classificationDiag.CpuTemperatureLoopMs:F1}ms) | " +
