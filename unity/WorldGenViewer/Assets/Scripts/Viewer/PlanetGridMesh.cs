@@ -905,6 +905,17 @@ namespace WorldGen.Viewer
         /// </summary>
         private Dictionary<TileId, double> _lastLandMeanTemperatureK = new Dictionary<TileId, double>();
 
+        /// <summary>
+        /// ND-117: a Soil fertility-hez kellő statikus eróziós passz eredménye,
+        /// a <see cref="ComputePanelData"/>-ból eltéve. Azért MEZŐ, mert a
+        /// navigációs menü régió-sorait a LUSTA
+        /// <see cref="BuildRegionPanelDataFromTiles"/> építi, jóval a
+        /// panel-számítás után — az pedig enélkül nem tudná kiszámolni a
+        /// talaj-termékenységet (ez volt a 2026-09-20-án élő Editorban
+        /// megtalált hiba: a top-10 listában megvolt az érték, a menüben nem).
+        /// </summary>
+        private LakesIceErosion.ErosionResult? _lastSoilErosion;
+
         /// <summary>A BuildClouds() TISZTA (Unity API-t nem hívó) geometria-eredménye - háttérszálon is biztonságosan építhető, ld. ComputeCloudMeshData.</summary>
         private sealed class CloudMeshData
         {
@@ -5723,6 +5734,7 @@ namespace WorldGen.Viewer
             LakesIceErosion.ErosionResult? soilErosion = _lastLandMeanTemperatureK.Count > 0
                 ? LakesIceErosion.ApplyStaticErosionPass(_lastField, flood.Parent, _lastIsOcean, accumulation)
                 : null;
+            _lastSoilErosion = soilErosion;
 
             Dictionary<TileId, List<TileId>> regions = FeatureSegmentation.FindWatershedRegions(flood.Parent, _lastIsOcean);
             var sizedRegions = new Dictionary<TileId, List<TileId>>();
@@ -5988,6 +6000,7 @@ namespace WorldGen.Viewer
             FeatureSegmentation.LandformType landform = FeatureSegmentation.ClassifyLandform(
                 tiles, _lastField, _lastIsOcean, _lastSeaLevel);
             string name = NameGeneration.GenerateName(_lastSeed, featureId, dominant.ToString(), landform);
+            double? soilFertility = ComputeRegionSoilFertility(tiles, _lastSoilErosion);
             return new RegionPanelData
             {
                 Name = name,
@@ -5996,6 +6009,11 @@ namespace WorldGen.Viewer
                 RiverMouthCount = FeatureMetrics.RiverMouthCount(tiles, _lastFlood.Parent, _lastIsOcean, _lastRiverTilesForPanels),
                 LandformType = FeatureSegmentation.LandformTypeName(landform),
                 CenterDirection = CentroidDirection(tiles),
+                SoilFertility = soilFertility,
+                SoilFertilityLevel = soilFertility.HasValue
+                    ? OrdinalQuantization.LevelName(OrdinalQuantization.Quantize(
+                        soilFertility.Value, OrdinalQuantization.SoilFertilityThresholds))
+                    : null,
             };
         }
 
