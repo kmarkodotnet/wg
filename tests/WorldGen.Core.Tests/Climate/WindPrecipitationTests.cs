@@ -126,6 +126,89 @@ public class WindPrecipitationPropertyTests
         Assert.True(leeward >= 0.0);
     }
 
+    /// <summary>
+    /// A <see cref="WindPrecipitation.WindVectorFromTemperatureGradient"/> a
+    /// WindVector kozos, kiemelt masodik fele - BITRE azonos eredmenyt kell
+    /// adnia, ha ugyanazt a homerseklet-gradienst kapja, amit a WindVector
+    /// belul maga szamolna. Ez az invariansa annak, hogy a kiemelés NEM
+    /// seed-toro (a megjelenito azert hasznalja, hogy a dragabb belso
+    /// gradiens-szamitast egy olcsobb, sajat forrasu gradienssel valtsa ki).
+    /// </summary>
+    [Fact]
+    public void WindVectorFromTemperatureGradientIsBitIdenticalToWindVector()
+    {
+        const double orbitalPeriod = 365.25, rotationPeriod = 1.0;
+        double axialTilt = 23.44 * Math.PI / 180.0;
+        // NEM System.Random (CLAUDE.md tiltja): egy sajat, determinisztikus
+        // LCG, ami minden platformon/futasnal UGYANAZT a mintahalmazt adja.
+        ulong state = 20260920UL;
+        Func<double> next = () =>
+        {
+            state = unchecked(state * 6364136223846793005UL + 1442695040888963407UL);
+            return (state >> 11) * (1.0 / 9007199254740992.0);
+        };
+        int checkedPoints = 0;
+
+        for (int i = 0; i < 500; i++)
+        {
+            double lat = Math.Asin(2.0 * next() - 1.0);
+            double lon = 2.0 * Math.PI * next();
+            double x = Math.Cos(lat) * Math.Cos(lon);
+            double y = Math.Cos(lat) * Math.Sin(lon);
+            double z = Math.Sin(lat);
+            double dayT = 500.0 * next();
+            bool isOceanic = next() < 0.5;
+            double elevation = -4000.0 + 12000.0 * next();
+            double seaLevel = 1500.0;
+            // Elesetek is: nulla es nagyon meredek elevacio-gradiens.
+            double gradE = i % 5 == 0 ? 0.0 : -5e5 + 1e6 * next();
+            double gradN = i % 7 == 0 ? 0.0 : -5e5 + 1e6 * next();
+
+            WindPrecipitation.WindVector(
+                x, y, z, dayT, orbitalPeriod, rotationPeriod, axialTilt,
+                isOceanic, elevation, seaLevel, gradE, gradN,
+                out double we, out double wn, out double w3x, out double w3y, out double w3z);
+
+            WindPrecipitation.TemperatureGradientTangent(
+                x, y, z, dayT, orbitalPeriod, rotationPeriod, axialTilt,
+                isOceanic, elevation, seaLevel, out double tge, out double tgn);
+
+            WindPrecipitation.WindVectorFromTemperatureGradient(
+                x, y, z, tge, tgn, gradE, gradN,
+                out double we2, out double wn2, out double w3x2, out double w3y2, out double w3z2);
+
+            Assert.Equal(we, we2);
+            Assert.Equal(wn, wn2);
+            Assert.Equal(w3x, w3x2);
+            Assert.Equal(w3y, w3y2);
+            Assert.Equal(w3z, w3z2);
+            checkedPoints++;
+        }
+
+        Assert.Equal(500, checkedPoints);
+    }
+
+    /// <summary>
+    /// A homerseklet-gradiens ERDEMBEN hat a kimenetre - kulonben az elozo
+    /// teszt akkor is zold lenne, ha a gradienst valahol elejtenenk.
+    /// </summary>
+    [Fact]
+    public void TemperatureGradientActuallyChangesTheWind()
+    {
+        double x = 0.6, y = 0.5, z = 0.62449979983983983;
+        double len = Math.Sqrt(x * x + y * y + z * z);
+        x /= len; y /= len; z /= len;
+
+        WindPrecipitation.WindVectorFromTemperatureGradient(
+            x, y, z, 0.0, 0.0, 0.0, 0.0,
+            out double we0, out double wn0, out _, out _, out _);
+        WindPrecipitation.WindVectorFromTemperatureGradient(
+            x, y, z, 50.0, -30.0, 0.0, 0.0,
+            out double we1, out double wn1, out _, out _, out _);
+
+        Assert.True(Math.Abs(we1 - we0) > 1e-9 || Math.Abs(wn1 - wn0) > 1e-9);
+    }
+
     [Fact]
     public void WeatherDeviationStrictlyBounded()
     {

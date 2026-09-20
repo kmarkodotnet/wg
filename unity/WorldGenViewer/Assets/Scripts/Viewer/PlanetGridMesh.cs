@@ -4880,14 +4880,33 @@ namespace WorldGen.Viewer
                 }
 
                 positions[index] = p;
-                colors[index] = ContinuousCornerColorAuto(p);
                 normals[index] = normal;
             });
 
+            // #9 (2026-09-20): a SZIN kulon, MASODIK fazisban szamolodik. Ok: a
+            // szel-overlay sarok-szine a szomszedos base-szintu sarkok
+            // elevaciojabol veszi az elevacio-gradienst
+            // (TryStaticCornerElevationGradient), es amig a szin ugyanabban a
+            // Parallel.For-ban keszult, mint a pozicio, addig a szomszedok meg
+            // nem leteztek -> minden sarok a draga, pontonkenti veges
+            // differenciara esett vissza (MERVE: a Build 4,8 s-rol 15,8 s-ra
+            // nott). A szetvalasztas utan a szin-fazis mar a KESZ pozicio-
+            // tombot latja. A ket fazis kulon-kulon is teljesen parhuzamos, es
+            // egyik sem fugg a sajat fazisan beluli sorrendtol.
             _staticCornerPositions = positions;
-            _staticCornerColors = colors;
             _staticCornerNormals = normals;
+            // Szandekosan URES, amig a szin-fazis fut: aki kozben szint kerne,
+            // essen a cache-elt utra, ne olvasson egy ELOZO vilaghoz tartozo,
+            // veletlenul azonos hosszu tombot.
+            _staticCornerColors = Array.Empty<Color>();
             _staticRenderDataLevel = adaptiveBaseLevel;
+
+            System.Threading.Tasks.Parallel.For(0, count, index =>
+            {
+                colors[index] = ContinuousCornerColorAuto(positions[index]);
+            });
+
+            _staticCornerColors = colors;
             return (count, count);
         }
 
@@ -8170,9 +8189,20 @@ namespace WorldGen.Viewer
             BodyFrameConversion.ToCore(dir, out double cx, out double cy, out double cz);
 
             ElevationGradientTangent(cx, cy, cz, out double gradE, out double gradN);
-            WindPrecipitation.WindVector(
-                cx, cy, cz, climateDayT, climateOrbitalPeriodDays, climateRotationPeriodDays,
-                axialTiltRadForColor, isOceanic, elevation, seaLevelForColor, gradE, gradN,
+            // #9: a WindVector koltsegenek a masik fele a BELSO
+            // TemperatureGradientTangent volt (4 teljes Temperature.
+            // TemperatureKelvin, elesben MERVE 28,4 us/sarok). Ugyanazt a
+            // gradienst az ND-64 elore szamolt napi Nap-irany mintaibol
+            // 5,0 us alatt megkapjuk, es a KETTO BITRE AZONOS: a
+            // TemperatureKelvinFromSamples ugyanaz a keplet, csak a Nap-
+            // iranyokat nem szamolja ujra, a mintak pedig PONTOSAN a
+            // climateDayT/orbitalis/forgasi/_adaptiveAxialTiltRad ertekekbol
+            // keszultek (ld. DailyInsolationSampleDirections.Create a Build-ben).
+            TemperatureGradientTangentFromSamples(
+                cx, cy, cz, isOceanic, elevation, seaLevelForColor,
+                out double tempGradE, out double tempGradN);
+            WindPrecipitation.WindVectorFromTemperatureGradient(
+                cx, cy, cz, tempGradE, tempGradN, gradE, gradN,
                 out double windEast, out double windNorth, out _, out _, out _);
 
             double speed = Math.Sqrt(windEast * windEast + windNorth * windNorth);
@@ -8181,11 +8211,57 @@ namespace WorldGen.Viewer
             return WindSpeedRamp(t);
         }
 
-        /// <summary>dElev/d(kelet), dElev/d(eszak) - kozponti veges differencia a
-        /// MEGLEVO elevation-mezobol (ComputeElevationAtPoint), m/radian. A WindVector
-        /// hegy-elteres-tagjahoz kell (ugyanaz a minta, mint TemperatureGradientTangent).</summary>
+        /// <summary>
+        /// dT/d(kelet), dT/d(eszak) K/radian-ban, kozponti veges differenciaval -
+        /// UGYANAZ a keplet es UGYANAZ az eps, mint a
+        /// <see cref="WindPrecipitation.TemperatureGradientTangent"/>-ben, de a
+        /// homerseklet az ND-64 elore szamolt napi Nap-irany mintaibol jon
+        /// (<see cref="TemperatureKelvinAt"/>), nem 4 friss Nap-irany-sorozatbol.
+        /// Csak OLVAS -> szalbiztos a parhuzamos sarok-szin-szamitasbol.
+        /// </summary>
+        private void TemperatureGradientTangentFromSamples(
+            double x, double y, double z, bool isOceanic, double elevation, double seaLevel,
+            out double dEast, out double dNorth)
+        {
+            WindPrecipitation.LocalEastNorth(x, y, z,
+                out double ex, out double ey, out double ez, out double nx, out double ny, out double nz);
+            const double eps = WindPrecipitation.GradientEps;
+            double tEP = TemperatureAtNormalized(x + ex * eps, y + ey * eps, z + ez * eps, isOceanic, elevation, seaLevel);
+            double tEM = TemperatureAtNormalized(x - ex * eps, y - ey * eps, z - ez * eps, isOceanic, elevation, seaLevel);
+            double tNP = TemperatureAtNormalized(x + nx * eps, y + ny * eps, z + nz * eps, isOceanic, elevation, seaLevel);
+            double tNM = TemperatureAtNormalized(x - nx * eps, y - ny * eps, z - nz * eps, isOceanic, elevation, seaLevel);
+            dEast = (tEP - tEM) / (2.0 * eps);
+            dNorth = (tNP - tNM) / (2.0 * eps);
+        }
+
+        private double TemperatureAtNormalized(
+            double px, double py, double pz, bool isOceanic, double elevation, double seaLevel)
+        {
+            double len = Math.Sqrt(px * px + py * py + pz * pz);
+            if (len < 1e-12) { px = 0; py = 0; pz = 0; } else { px /= len; py /= len; pz /= len; }
+            return TemperatureKelvinAt(px, py, pz, _adaptiveAxialTiltRad, isOceanic, elevation, seaLevel);
+        }
+
+        /// <summary>
+        /// dElev/d(kelet), dElev/d(eszak) m/radian-ban, a szel-overlay
+        /// hegy-elteres-tagjahoz. ELSODLEGESEN a MAR KISZAMOLT, base-szintu
+        /// statikus sarok-poziciokbol
+        /// (<see cref="TryStaticCornerElevationGradient"/>); a regi,
+        /// sarkonkent 4 teljes ComputeElevationAtPoint-ot futtato veges
+        /// differencia csak TARTALEK-ut maradt (nincs statikus adat, vagy a
+        /// pont a kocka-lap szelen van).
+        ///
+        /// KOVETKEZMENY (vizualis, szandekos): a derivalas lepeskoze a
+        /// base-szint racsosztasa (level 8-on 6,1e-3 radian) a korabbi 1e-3
+        /// radian helyett. A szel tobbi tagja (zonalis alap, termikus szel,
+        /// Coriolis) VALTOZATLANUL sarkonkent szamolodik. A hatas merve:
+        /// ld. ND-119 tablazata (atlagos szin-rampa-eltolodas 0,090).
+        /// </summary>
         private void ElevationGradientTangent(double x, double y, double z, out double dEast, out double dNorth)
         {
+            if (TryStaticCornerElevationGradient(x, y, z, out dEast, out dNorth))
+                return;
+
             WindPrecipitation.LocalEastNorth(x, y, z,
                 out double ex, out double ey, out double ez, out double nx, out double ny, out double nz);
             const double eps = WindPrecipitation.GradientEps;
@@ -8195,6 +8271,101 @@ namespace WorldGen.Viewer
             double nM = ElevationAtDir(x - nx * eps, y - ny * eps, z - nz * eps);
             dEast = (eP - eM) / (2.0 * eps);
             dNorth = (nP - nM) / (2.0 * eps);
+        }
+
+        /// <summary>
+        /// Elevacio-gradiens a MAR KISZAMOLT, base-szintu (ND-66) statikus
+        /// sarok-pozicio tombbol, UJ Core-kiertekeles NELKUL. Minden ilyen
+        /// sarok sugara mar tartalmazza a domborzatot, tehat a
+        /// <see cref="WorldElevationFromDisplacedRadius"/> visszaadja az
+        /// elevaciot - a 4 racs-szomszed (u+-1, v+-1) elevacio-kulonbsegebol
+        /// LEGKISEBB NEGYZETEKKEL illesztunk gradienst a helyi (kelet, eszak)
+        /// bazisban. A 4 szomszedos minta azert kell (nem eleg ket ellentetes
+        /// par), mert a kocka-gomb racs iranyai NEM esnek egybe a kelet/eszak
+        /// tengelyekkel, es a polusok kozeleben eros a torzulas.
+        ///
+        /// A lepteke a base-szint racs-osztasa (level 8-on kb. 0,35 fok =
+        /// 6,1e-3 radian), szemben a regi, pontonkenti veges differencia
+        /// 1e-3 radianjaval - tehat kozel azonos skala, nem tile-lepteku
+        /// elkenes. (Egy level 5-os, referencia-tile-onkenti valtozatot
+        /// MERTUNK: az a szin-rampat atlagosan 0,124-del tolta el, a mintak
+        /// 37%-at 5% folott - ezert NEM azt hasznaljuk.)
+        ///
+        /// Csak OLVAS egy Build ota valtozatlan tombot -> szalbiztos a
+        /// parhuzamos sarok-szin-szamitasbol. `false`-t ad, ha a statikus
+        /// adat hianyzik vagy a pont a lap SZELEN van (ott a 4 szomszed nem
+        /// all ossze ertelmes bazissa) - ilyenkor a hivo a pontos, dragabb
+        /// veges differenciara esik vissza.
+        /// </summary>
+        private bool TryStaticCornerElevationGradient(
+            double x, double y, double z, out double dEast, out double dNorth)
+        {
+            dEast = 0.0;
+            dNorth = 0.0;
+
+            int lvl = _staticRenderDataLevel;
+            if (lvl < 0 || _staticCornerPositions.Length == 0) return false;
+
+            TileId tile = TileGeometry.FromPosition(x, y, z, lvl);
+            tile.GetUV(out uint u, out uint v);
+            int face = tile.Face;
+            if (!TryGetStaticCornerIndex(face, lvl, u, v, _staticCornerPositions.Length, out int centerIndex))
+                return false;
+
+            if (!TryStaticCornerSample(centerIndex, out double bx, out double by, out double bz, out double e0))
+                return false;
+
+            WindPrecipitation.LocalEastNorth(bx, by, bz,
+                out double ex, out double ey, out double ez, out double nx, out double ny, out double nz);
+
+            int n = 1 << lvl;
+            double sEE = 0.0, sEN = 0.0, sNN = 0.0, rhsE = 0.0, rhsN = 0.0;
+            for (int d = 0; d < 4; d++)
+            {
+                long su = (long)u + (d == 0 ? 1 : d == 1 ? -1 : 0);
+                long sv = (long)v + (d == 2 ? 1 : d == 3 ? -1 : 0);
+                if (su < 0 || sv < 0 || su > n || sv > n) continue;
+                if (!TryGetStaticCornerIndex(face, lvl, (uint)su, (uint)sv, _staticCornerPositions.Length, out int ni))
+                    continue;
+                if (!TryStaticCornerSample(ni, out double sx, out double sy, out double sz, out double eNb))
+                    continue;
+
+                // A sugariranyu komponens levonasa -> erintosikbeli elmozdulas,
+                // aminek a hossza kis szogeknel a radianban mert tavolsag.
+                double ddx = sx - bx, ddy = sy - by, ddz = sz - bz;
+                double radial = ddx * bx + ddy * by + ddz * bz;
+                double tx = ddx - radial * bx, ty = ddy - radial * by, tz = ddz - radial * bz;
+                double rE = tx * ex + ty * ey + tz * ez;
+                double rN = tx * nx + ty * ny + tz * nz;
+                double dElev = eNb - e0;
+                sEE += rE * rE; sEN += rE * rN; sNN += rN * rN;
+                rhsE += rE * dElev; rhsN += rN * dElev;
+            }
+
+            double det = sEE * sNN - sEN * sEN;
+            if (Math.Abs(det) < 1e-18) return false;
+            dEast = (sNN * rhsE - sEN * rhsN) / det;
+            dNorth = (sEE * rhsN - sEN * rhsE) / det;
+            return true;
+        }
+
+        /// <summary>Egy statikus sarok CORE-terbeli EGYSEGVEKTORA + elevacioja.</summary>
+        private bool TryStaticCornerSample(
+            int index, out double dirX, out double dirY, out double dirZ, out double elevation)
+        {
+            Vector3 p = _staticCornerPositions[index];
+            double magnitude = Math.Sqrt((double)p.x * p.x + (double)p.y * p.y + (double)p.z * p.z);
+            if (magnitude < 1e-9)
+            {
+                dirX = dirY = dirZ = 0.0;
+                elevation = 0.0;
+                return false;
+            }
+            elevation = WorldElevationFromDisplacedRadius(magnitude);
+            BodyFrameConversion.ToCore(
+                new Vector3((float)(p.x / magnitude), (float)(p.y / magnitude), (float)(p.z / magnitude)),
+                out dirX, out dirY, out dirZ);
+            return true;
         }
 
         private double ElevationAtDir(double px, double py, double pz)

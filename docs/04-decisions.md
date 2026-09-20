@@ -4844,6 +4844,74 @@ C#-port elkészülte UTÁN lehetséges — ez NEM ennek a döntésnek a
 hatóköre.
 
 
+### ND-119 — A szél-overlay NEM azt a szelet mutatja, amit a szimuláció használ (NYITOTT)
+
+**2026-09-20.** A todo.md #9 visszajelzés ("szél-overlay befagyasztja a
+nézegetőt") teljesítmény-vizsgálata közben derült ki egy tartalmi
+eltérés, ami I3/I4-et érint.
+
+**A tény.** A `WindPrecipitation.WindVector` utolsó tagja a
+*hegy-eltérés* (`ApplyMountainDeflection`), ami egy elevációs gradienst
+vár. A világmodell saját csapadék-mezője —
+`MoisturePrecipitation.Compute` — ezt a két paramétert **nullával** hívja
+(`MoisturePrecipitation.cs`, a `WindVector`-hívás `0.0, 0.0` argumentuma),
+tehát a szimuláció szele hegy-eltérés NÉLKÜL készül. A **megjelenítő**
+szél-overlay viszont sarkonként kiszámolja a gradienst, és ÁTADJA.
+Következésképp az overlay egy olyan szélmezőt rajzol ki, amit a
+világmodellben semmi nem használ.
+
+**Miért számít.** I3: "a képen látható minden pixel a világmodellből
+következik". Egy overlay, ami a modellétől eltérő mennyiséget mutat, ezt
+formálisan sérti — nem kitalált érték, de nem is a modell értéke.
+
+**Másodlagos tény (méréssel).** A hegy-eltérés mértéke
+`maxFraction * tanh(slopeMag / 0.5)`. A valós gradiens-nagyságok
+10^4 nagyságrendűek, tehát a `tanh` MINDIG telítésben van: a tag
+kizárólag a gradiens IRÁNYÁTÓL függ. Az irány viszont erősen skálafüggő
+(a domborzat nagyfrekvenciás), így az overlay képe azon múlik, milyen
+lépésközzel deriválunk — ami eddig egy tetszőleges konstans volt
+(`GradientEps = 1e-3` radián), nem a megjelenített LOD felbontása.
+Mért hatás a szín-rámpán (400 minta, `windSpeedColorMaxMs=15`):
+
+| gradiens forrása | lépésköz | átlagos rámpa-eltolódás | minták >5% |
+|---|---|---|---|
+| pontonkénti véges differencia (régi) | 1e-3 rad | — (referencia) | — |
+| base-szintű sarokrács (level 8, MOST ez fut) | 6,1e-3 rad | 0,090 | 27,8% |
+| referencia-tile-onként (level 5, ELVETVE) | 4,9e-2 rad | 0,124 | 36,8% |
+
+**Ami MOST történt (nem döntés, teljesítmény-javítás).** A
+`WindSpeedColorAt` 238 us/sarokról 6,3 us/sarokra csökkent (38x): az
+elevációs gradiens a MÁR KISZÁMOLT base-szintű sarok-pozíciókból jön, a
+hőmérséklet-gradiens pedig az ND-64 előre számolt napi Nap-irányaiból
+(ez utóbbi BITRE azonos). Az overlay ettől használható lett (82 FPS).
+A fenti táblázat középső sora a mostani állapot.
+
+**Opciók.**
+
+- **(A) Az overlay a szimuláció szelét mutassa** — a hegy-eltérés-tagot
+  nullával hívjuk, ahogy a `MoisturePrecipitation` is. I3/I4-tiszta,
+  INGYEN van (a gradiens-számítás teljesen elmarad), és a kép
+  skálafüggetlenné válik. Ára: eltűnik a domborzati részlet az
+  overlayről, a kép zonálisabb/simább lesz.
+- **(B) Marad a hegy-eltérés az overlayen, de RÖGZÍTETT skálával** — a
+  mostani állapot dokumentálva: a gradiens a base-szint rácsosztásán
+  értendő, és ezt az overlay felirata is közli. Az I3-eltérés megmarad,
+  csak explicit lesz.
+- **(C) A hegy-eltérés kerüljön be a SZIMULÁCIÓBA is** — a
+  `MoisturePrecipitation` is adja át a gradienst. Ez fizikailag a
+  legerősebb (az orografikus csapadék így kap szél-oldali erősítést a
+  már meglévő `uplift` tagon felül is), de **SEED-TÖRŐ**: minden
+  csapadék-mező, minden folyó-forrás és így minden régió-név megváltozik,
+  és az ND-09 ordinális kalibrációt is újra kell futtatni.
+
+**Javaslat: (A).** Az overlay feladata az, hogy a modellt mutassa; a
+skálafüggő, telítésben lévő hegy-eltérés-tag ma inkább zajt ad, mint
+információt, és épp ez a tag volt a költség 89%-a. (C) önmagában is
+védhető fizikailag, de seed-törő, tehát külön, tudatos lépés kell hozzá —
+nem egy overlay-hiba mellékterméke.
+
+**Eldöntendő:** a felhasználó választ (A)/(B)/(C) közül. Addig (B) fut.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

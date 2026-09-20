@@ -140,15 +140,45 @@ namespace WorldGen.Core.Climate
             double thermalWindCoeff = ThermalWindCoeff, double mountainDeflectionMax = MountainDeflectionMax,
             double mountainSlopeScale = MountainSlopeScale)
         {
+            TemperatureGradientTangent(x, y, z, dayT, orbitalPeriod, rotationPeriod, axialTilt,
+                isOceanic, elevationM, seaLevelM, out double tempGradE, out double tempGradN,
+                orbitalPhase0, rotationPhase0);
+
+            WindVectorFromTemperatureGradient(
+                x, y, z, tempGradE, tempGradN, elevationGradientEast, elevationGradientNorth,
+                out windEast, out windNorth, out wind3dX, out wind3dY, out wind3dZ,
+                baseWindSpeed, coriolisDeflectionDeg, thermalWindCoeff,
+                mountainDeflectionMax, mountainSlopeScale);
+        }
+
+        /// <summary>
+        /// A <see cref="WindVector"/> MASODIK FELE, a homerseklet-gradienst
+        /// KESZEN atveve. A WindVector koltsegenek tulnyomo resze a belso
+        /// <see cref="TemperatureGradientTangent"/> (4 teljes TemperatureKelvin-
+        /// kiertekeles); ha a hivonak mar van olcsobb forrasa ugyanarra a
+        /// gradiensre (pl. a megjelenito elore szamolt napi-inszolacio
+        /// mintakbol dolgozo homerseklet-utja), ezzel megkerulheti.
+        ///
+        /// A SZAMITAS BITRE AZONOS a WindVector-eval: a WindVector maga is
+        /// ezt hivja, miutan kiszamolta a gradienst. Ez tehat NEM seed-toro
+        /// valtozas, csak a kozos resz kiemelese.
+        /// </summary>
+        public static void WindVectorFromTemperatureGradient(
+            double x, double y, double z,
+            double temperatureGradientEast, double temperatureGradientNorth,
+            double elevationGradientEast, double elevationGradientNorth,
+            out double windEast, out double windNorth, out double wind3dX, out double wind3dY, out double wind3dZ,
+            double baseWindSpeed = BaseWindSpeed, double coriolisDeflectionDeg = CoriolisDeflectionDeg,
+            double thermalWindCoeff = ThermalWindCoeff, double mountainDeflectionMax = MountainDeflectionMax,
+            double mountainSlopeScale = MountainSlopeScale)
+        {
             double lat = Math.Asin(Math.Max(-1.0, Math.Min(1.0, z)));
 
             double baseEast = baseWindSpeed * ZonalBandIndex(lat);
             double baseNorth = 0.0;
 
-            TemperatureGradientTangent(x, y, z, dayT, orbitalPeriod, rotationPeriod, axialTilt,
-                isOceanic, elevationM, seaLevelM, out double gradE, out double gradN, orbitalPhase0, rotationPhase0);
-            double thermalERaw = gradE * thermalWindCoeff;
-            double thermalNRaw = gradN * thermalWindCoeff;
+            double thermalERaw = temperatureGradientEast * thermalWindCoeff;
+            double thermalNRaw = temperatureGradientNorth * thermalWindCoeff;
 
             // math.copysign(1.0, lat): lat>=+0 -> +1, lat<0 -> -1 (netstandard2.1-ben nincs Math.CopySign)
             double coriolisAngle = -(lat < 0.0 ? -1.0 : 1.0) * Radians(coriolisDeflectionDeg);
