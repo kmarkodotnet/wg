@@ -1,0 +1,92 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    OFFLINE fordítási kapu a VIEWER-réteghez (Assets/Scripts/Viewer/),
+    Unity Editor megnyitása nélkül. Ugyanaz a minta, mint a
+    WorldGen.App.UnityBinding.Compile-nál: a forrásfájlokat LINKKENT veszi
+    fel (egyetlen igazságforrás), és a helyi Unity-telepítés + a projekt
+    Library/ScriptAssemblies DLL-jei ellen fordít. Ezért NINCS a
+    WorldGen.sln-ben (a CI-gépeken nincs Unity). Kézi futtatás:
+
+      dotnet build tests/WorldGen.Viewer.Compile
+
+    MIÉRT KELL (2026-09-20). Eddig a `PlanetGridMesh` és társai offline
+    SEHOGY nem fordultak le; minden viewer-módosítást csak az élő Editor
+    `recompile`-jával lehetett ellenőrizni. Amikor az Editor-kapcsolat
+    kiesett, a változások fordítatlanul maradtak. Ez a projekt ezt a lyukat
+    zárja be.
+
+    MIT NEM HELYETTESÍT. Ez nem a Unity saját fordítása: az asmdef-szabályokat
+    és a platform-define-okat nem érvényesíti, és csak az itt felsorolt
+    modulokat látja. CSAK a projektben ténylegesen bekapcsolt modulokat
+    hivatkozd — 2026-09-13-án a ScreenCaptureModule itt hivatkozva volt, a
+    projektben nem, és az offline kapu átment, miközben a Unity elbukott.
+
+    A NULLABLE BEÁLLÍTÁS SZÁNDÉKOS. A Unity `Nullable`-t KIKAPCSOLVA fordít,
+    ezért a viewer-kód `?` annotációi CS8632 FIGYELMEZTETÉST adnak (a Unity
+    Console-ban is ~95 darabot). A repo gyökerének Directory.Build.props-a
+    viszont `Nullable=enable` + `TreatWarningsAsErrors=true` — ha az itt is
+    érvényesülne, ugyanaz a kód SZÁZ "hibával" bukna el, miközben a Unity
+    alatt hibátlanul fordul. Ezért itt mindkettőt a Unity viselkedésére
+    állítjuk vissza: a kapu azt mérje, lefordul-e ÚGY, ahogy a Unity fordítja.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <AssemblyName>WorldGen.Viewer.CompileCheck</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+
+    <!-- A Unity viselkedésének tükrözése, ld. a fenti megjegyzést. -->
+    <Nullable>disable</Nullable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+    <!--
+      CS0649 ("a mező soha nincs értékül adva"): a [SerializeField] mezőket a
+      Unity SZERIALIZÁLÓJA tölti fel a jelenetből/prefabból, amit ez a kapu nem
+      modellez - a Unity maga sem jelzi őket. Ellenőrizve: mind a 28 találat
+      [SerializeField] mező (pl. SunController.planetTransform,
+      PlanetGridMesh.borderMaterial). Elnémítva, hogy a kapu kimenete ne
+      fulladjon zajba és a VALÓDI figyelmeztetések látszódjanak.
+    -->
+    <NoWarn>$(NoWarn);CS0649</NoWarn>
+
+    <UnityEditorDir Condition="'$(UnityEditorDir)' == ''">C:\Program Files\Unity\Hub\Editor\6000.0.77f1\Editor\Data</UnityEditorDir>
+    <UnityEngineDir>$(UnityEditorDir)\Managed\UnityEngine</UnityEngineDir>
+    <!-- A csomag-assembly-k (TextMeshPro, HDRP) NEM az Editorban vannak, hanem
+         a projekt lefordított kimenetében. -->
+    <UnityScriptAssembliesDir Condition="'$(UnityScriptAssembliesDir)' == ''">$(MSBuildThisFileDirectory)..\..\unity\WorldGenViewer\Library\ScriptAssemblies</UnityScriptAssembliesDir>
+  </PropertyGroup>
+
+  <Target Name="WorldGenCheckUnityInstall" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(UnityEngineDir)\UnityEngine.CoreModule.dll')"
+           Text="Unity nem található: $(UnityEditorDir). Add meg: -p:UnityEditorDir=..." />
+    <Error Condition="!Exists('$(UnityScriptAssembliesDir)\Unity.TextMeshPro.dll')"
+           Text="A projekt csomag-assembly-i hiányoznak: $(UnityScriptAssembliesDir). Nyisd meg egyszer a Unity-projektet, hogy lefordítsa őket." />
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/WorldGen.Core/WorldGen.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- A Lod/ SAJÁT asmdef-fel megy, de forrásból vesszük ide is: így a kapu
+         soha nem egy ELAVULT Lod-DLL ellen fordít. -->
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/**/*.cs" LinkBase="Lod" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Gpu/**/*.cs" LinkBase="Gpu" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/*.cs" LinkBase="Viewer" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(UnityEngineDir)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.IMGUIModule" HintPath="$(UnityEngineDir)\UnityEngine.IMGUIModule.dll" Private="false" />
+    <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(UnityEngineDir)\UnityEngine.InputLegacyModule.dll" Private="false" />
+    <Reference Include="UnityEngine.TextRenderingModule" HintPath="$(UnityEngineDir)\UnityEngine.TextRenderingModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UI" HintPath="$(UnityScriptAssembliesDir)\UnityEngine.UI.dll" Private="false" />
+    <Reference Include="Unity.TextMeshPro" HintPath="$(UnityScriptAssembliesDir)\Unity.TextMeshPro.dll" Private="false" />
+    <Reference Include="Unity.RenderPipelines.Core.Runtime" HintPath="$(UnityScriptAssembliesDir)\Unity.RenderPipelines.Core.Runtime.dll" Private="false" />
+    <Reference Include="Unity.RenderPipelines.HighDefinition.Runtime" HintPath="$(UnityScriptAssembliesDir)\Unity.RenderPipelines.HighDefinition.Runtime.dll" Private="false" />
+  </ItemGroup>
+
+</Project>

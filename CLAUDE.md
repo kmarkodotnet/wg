@@ -185,6 +185,18 @@ For Unity-related work:
 - Target:
   `--project-path "F:\Claude\wg\unity\WorldGenViewer"`
 - After C# changes, verify that Unity recompiles successfully.
+- **Offline fordítási kapuk (Unity Editor NÉLKÜL is futnak).** Ha az Editor
+  nem elérhető — vagy egyszerűen gyorsabb visszajelzés kell —, ezek fordítják
+  le a Unity-oldali forrást a helyi Unity-DLL-ek ellen:
+
+  ```
+  dotnet build tests/WorldGen.Viewer.Compile          # Assets/Scripts/Viewer/ (+ Lod, Gpu)
+  dotnet build tests/WorldGen.App.UnityBinding.Compile # Assets/Scripts/App/UnityBinding + EditorTools
+  ```
+
+  Nincsenek a `WorldGen.sln`-ben, mert a CI-gépeken nincs Unity. **Nem
+  helyettesítik a Unity saját fordítását** (asmdef-szabályok, platform-define-ok),
+  de az API-hibákat és a C# 9 / netstandard2.1 sértéseket azonnal megfogják.
 - Check Unity Console errors before considering a task complete.
 - When appropriate, run relevant Unity tests.
 - Do not edit Library/PackageCache manually.
