@@ -5030,6 +5030,93 @@ karbantartást ÉS van hol futtatni az egyezési tesztet.
 világ sem függ tőle). (B) viszont azzá tenné, ha a portolás közben a
 CPU-oldalt is hozzányúlnánk — nem szabad.
 
+### ND-121 — A balance munkalistás átírása kész; a `MaximumRenderBudget` plafon emelése döntést kér (NYITOTT)
+
+**2026-09-20.** Az `AdaptiveQuadTree.MaximumRenderBudget = 48 000` doksija
+**két** okot nevez meg, és a másodikat kifejezetten feltételhez köti:
+„Amíg a ciklus teljes újraszkennelés helyett nem munkalistával dolgozik, a
+48 000 marad." Ez a feltétel most teljesült.
+
+**1. Előfeltétel tisztázva: a fixpont korlátok nélkül EGYÉRTELMŰ.**
+A saját magamnak előírt előfeltétel az volt, hogy a kimenet sorrend-függő-e.
+`BalanceFixpointUniquenessTests`: öt gyökeresen eltérő végrehajtási sorrend —
+köztük egy teljesen aszinkron, véletlen választással dolgozó fixpont-kereső —
+**azonos vágást ÉS azonos lépésszámot** ad, és megegyezik a termelési,
+körökben dolgozó implementációval.
+
+Az ok szerkezeti, és külön tesztben is rögzítve: a felosztás **monoton** — egy
+tile felosztása soha nem szüntet meg másik, fennálló szintkülönbség-sértést
+(a fedő ős csak finomabb lehet, a különbség tehát csak csökken). A lezárás
+ezért sorrendtől független legkisebb fixpont.
+
+**Sorrend-függőség CSAK a korlátoknál van** (`WithATightBudgetTheOutcomeDoesDependOnOrder`):
+ott a ciklus félbeszakad, és számít, melyik felosztások fértek be. Az átírás
+ezért nem hivatkozhatott pusztán a fixpont egyértelműségére — a kör-szemantikát
+is meg kellett őriznie.
+
+**2. Az átírás.** Az első kör változatlanul a teljes vágást járja be; a
+többi csak a *frontier*-t: az előző körben keletkezett gyerekeket **és a
+sértést kiváltó leveleket**. A második fél nélkülözhetetlen, és az első,
+hibás változatomból hiányzott: a sértés MINDIG a finom oldalról látszik, egy
+felosztás viszont csak egy szintet javít, tehát a kiváltó finom levél a
+következő körben is sérthet — a durva oldalról ez nem vehető észre (a
+szomszéd-területnek nincs fedő őse a vágásban). Hat egyenértékűségi teszt
+bukott el rá, mielőtt kijavítottam.
+
+**Igazolás.** `BalanceWorklistEquivalenceTests`: 600 véletlen konfiguráción
+(40 seed × 3 mélység × 5 budget, a szorító eseteket is beleértve) a kimenet
+**minden esetben azonos** a régi, teljes szkennelésű referenciával, 3,5×
+kevesebb bejárt levél mellett. Nagy kaszkádon: 4032 → 14 070 levél,
+**11 kör mindkettőnél**, bejárt levelek 129 381 → 25 683 (5,0×), idő
+53,0 ms → 12,4 ms (4,3×).
+
+**A költség-modell változása:** `körök × O(|cut|)` helyett
+`1 × O(|cut|) + O(felosztások)`.
+
+**3. A plafon — ITT KELL DÖNTENI.** A `RenderBudgetForViewport` a
+`MaximumRenderBudget`-tel **vág**, és ez ma köt:
+
+| felbontás | a képlet kérése (8 px cél, 3,0 overhead) | ténylegesen kapott | vágás |
+|---|---|---|---|
+| 1920×1080 | 97 200 | 48 000 | **2,0×** |
+| 2560×1440 | 172 800 | 48 000 | 3,6× |
+| 3840×2160 | 388 800 | 48 000 | 8,1× |
+
+Ez közvetlenül a felhasználó #1 visszajelzése („brutál nagyok a tile-ok").
+
+**Ami az emelés ellen szól, és NEM oldódott meg:** a doksi 1. oka, a
+**költség-paritás**. 48 000 levélnél a worker-költség 150–158 ms, ami pont
+annyi, amennyi a változtatások előtt 8000 levéllel volt. A plafon emelése
+ezt a paritást lépné túl — ez UX-kompromisszum, nem technikai kérdés.
+
+**A 2. ok mostani állapota — BECSLÉS, nem mérés.** A doksi szerint 96 000-es
+budgetnél a vágás 66 900-nál telítődik, és a balance 4 kör / 108 felosztás /
+320 ms. Az új költség-modellből ez ≈ egy kör bejárása + elhanyagolható maradék,
+vagyis nagyságrendileg **80–110 ms**. Ezt offline NEM tudtam reprodukálni (a
+konkrét eset a Unity-oldali terep-proxit és felszíni metrikát igényli; az én
+offline nézetemben a vágás pont a budgeten telítődik, így az ND-116 korai
+kilépés lép életbe és a balance 0 kört fut). **A számot a felhasználó
+PerfLogja tudja megerősíteni.**
+
+**Opciók.**
+
+- **(A) Marad 48 000.** A költség-paritás sértetlen. A tile-méret-panasz
+  megoldását máshonnan kell hozni (pl. a már megemelt split-kvóta, ND-76).
+- **(B) Emelés 96 000-re.** A képlet 1080p-s kérésének (97 200) gyakorlatilag
+  a teljes kielégítése. Várható worker-költség a doksi táblája + az új
+  balance-modell alapján: selection ~73 ms + balance ~80–110 ms ≈ **150–185 ms**
+  — vagyis nagyjából a MAI 48 000-es összköltség, mert a selection a
+  telítődés miatt nem nő tovább. Ez a becslés a megerősítendő pont.
+- **(C) Felbontás-arányos plafon** (pl. `pixelWidth * pixelHeight / 24`), hogy
+  4K-n se legyen 8× vágás. Nagyobb munka, és a gyengébb gépeken kockázatos.
+
+**Javaslat: (B), de CSAK élő visszamérés után.** A `adaptiveRenderBudget`
+SerializeField Play közben felülírható, tehát a felhasználó ki tudja próbálni
+96 000-rel, mielőtt a konstans változik. Ha a PerfLog `balance` sora tényleg
+100 ms körül marad, az emelés indokolt; ha 300 ms marad, (A) a helyes.
+
+**Verziózás:** nem seed-törő (a vágás megjelenítési döntés, nem világmodell).
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

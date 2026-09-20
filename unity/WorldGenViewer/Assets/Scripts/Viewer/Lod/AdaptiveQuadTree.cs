@@ -201,6 +201,21 @@ namespace WorldGen.Viewer.Lod
         ///    budgetnél nagyobb eséllyel kerülünk a "budget > telítődés"
         ///    tartományba. Amíg a ciklus teljes újraszkennelés helyett nem
         ///    munkalistával dolgozik, a 48 000 marad.
+        ///
+        /// FRISSÍTÉS (2026-09-20, ND-121): a 2. ok FELTÉTELE TELJESÜLT - a
+        /// fixpont-ciklus már nem szkenneli végig minden körben a teljes
+        /// vágást (ld. EnforceRestrictedBalance). A költség-modell
+        /// `körök × O(|cut|)` helyett `1 × O(|cut|) + O(felosztások)`; mérve
+        /// nagy kaszkádon 53,0 ms → 12,4 ms, 129 381 → 25 683 bejárt levél.
+        /// Az 1. ok (költség-paritás) VÁLTOZATLANUL érvényes, ezért a plafon
+        /// EGYELŐRE 48 000 marad - az emelés UX-kompromisszum, ami élő
+        /// visszamérést és felhasználói döntést kér (ND-121 opciói).
+        ///
+        /// FONTOS, AMIT ÉRDEMES TUDNI: ez a plafon MA KÖT. A
+        /// RenderBudgetForViewport 1920x1080-on 8 px-es céllal 97 200 levelet
+        /// kérne, és 48 000-re vágjuk (2,0x); 2560x1440-en 3,6x; 3840x2160-on
+        /// 8,1x. A felhasználó "brutál nagyok a tile-ok" visszajelzése részben
+        /// ebből ered.
         /// </summary>
         public const int MaximumRenderBudget = 48_000;
 
@@ -1361,34 +1376,81 @@ namespace WorldGen.Viewer.Lod
             // amikor a budget blokkolt - a LodCornerResolver illeszti.
             if (strictBudget && cut.Count + 3 > maxLeafCount) return;
 
+            // ND-121 (2026-09-20): INKREMENTALIS jeloltkereses. A ciklus KOR-
+            // SZEMANTIKAJA valtozatlan (koronkent osszegyujtjuk a jelolteket,
+            // TileId szerint rendezve osztjuk fel oket) - csak azt csereljuk le,
+            // HONNAN gyujtunk. Korabban MINDEN kor a TELJES cutot vegigjarta
+            // (|cut| x 4 szomszed-keresés); most az ELSO kor jar vegig mindent,
+            // a tobbi CSAK az elozo korben KELETKEZETT gyerekeket.
+            //
+            // MIERT ELEG EZ (es miert bitre azonos a kimenet). A sertes MINDIG a
+            // FINOM oldalrol latszik: a `leaf` a finom level, a `covering` a
+            // durva szomszed-fedo os. Egy felosztas utan uj sertes ket modon
+            // keletkezhet:
+            //  (a) az uj gyerek MAGA a finom oldal - egy szomszedja meg mindig
+            //      tul durva. Ezert az uj gyerekek bekerulnek a frontierbe.
+            //  (b) egy MAR MEGLEVO finom level sertese nem szunt meg, mert a
+            //      felosztott os csak EGY szinttel lett finomabb (pl. level 9 vs
+            //      level 3 -> 4 utan is 5 a kulonbseg). Ezt a durva oldalrol NEM
+            //      lehet eszrevenni: az uj gyerek szomszedjanak nincs fedo ose a
+            //      cutban (a szomszed-terulet FINOMABB), tehat a keresés false-t
+            //      ad. Ezert a frontierbe a sertest KIVALTO leveleket is
+            //      betesszuk. (Ez a hianyzo fel volt az elso, hibas valtozatban -
+            //      6 egyenertekusegi teszt bukott el ra.)
+            // Minden mas par valtozatlan: egy felosztas csak FINOMABBA teszi a
+            // fedo ost, tehat a level-kulonbseg csak csokkenhet - abbol uj sertes
+            // nem szulethet. Az elso kor ezen felul MINDEN akkor fennallo
+            // sertest megtalal.
+            //
+            // Ezt a `BalanceEquivalenceTests` / `BalanceWorklistEquivalenceTests`
+            // meri a referencia-implementacio ellen, a korlatos eseteket is
+            // beleertve - ott ugyanis a kimenet MAR sorrend-fuggo (ld.
+            // BalanceFixpointUniquenessTests).
             bool changed;
+            List<TileId>? frontier = null;
             do
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (cut.Count > balanceSizeCap)
                     break;
                 changed = false;
-                work?.CountBalanceIteration(cut.Count);
 
                 // ND-96: minden finom levél már jelölt; a külön jelöltépítés
                 // ugyanazt a négy szomszédot kétszer kérdezte le. A base-levél
                 // nem mutathat baseLevel alatti aktív ősre, így nem ad új splitet.
                 var toSplit = new HashSet<TileId>();
-                foreach (TileId leaf in cut)
+                var triggeringLeaves = new List<TileId>();
+                int scanned = 0;
+                foreach (TileId leaf in (IEnumerable<TileId>?)frontier ?? cut)
                 {
                     cancellation.ThrowIfCancellationRequested();
+                    // A frontier tagja idokozben maga is felosztodhatott egy
+                    // ugyanabban a korben vegrehajtott split miatt - akkor mar
+                    // nem level, a sajat gyerekei kerulnek a kovetkezo frontierbe.
+                    if (frontier != null && !cut.Contains(leaf)) continue;
+                    scanned++;
                     if (leaf.Level <= baseLevel) continue;
+                    bool triggered = false;
                     for (int dirIndex = 0; dirIndex < 4; dirIndex++)
                     {
                         TileId neighbor = TileNeighbors.Neighbor(leaf, (TileDirection)dirIndex);
                         if (TryFindCoveringAncestor(neighbor, cut, out TileId covering)
                             && leaf.Level - covering.Level > 1)
+                        {
                             toSplit.Add(covering);
+                            triggered = true;
+                        }
                     }
+                    // (b) eset: egyetlen felosztas egy szintet javit, ez a level
+                    // tehat a kovetkezo korben is serto lehet - ujra megnezzuk.
+                    if (triggered) triggeringLeaves.Add(leaf);
                 }
+                work?.CountBalanceIteration(scanned);
 
                 var orderedSplits = new List<TileId>(toSplit);
                 orderedSplits.Sort((a,b) => a.Value.CompareTo(b.Value));
+                var nextFrontier = new List<TileId>(orderedSplits.Count * 4 + triggeringLeaves.Count);
+                nextFrontier.AddRange(triggeringLeaves);
                 foreach (TileId ancestor in orderedSplits)
                 {
                     cancellation.ThrowIfCancellationRequested();
@@ -1405,10 +1467,13 @@ namespace WorldGen.Viewer.Lod
                     if (cut.Contains(ancestor))
                     {
                         SplitOnce(cut, ancestor);
+                        for (int childIndex = 0; childIndex < 4; childIndex++)
+                            nextFrontier.Add(ancestor.Child(childIndex));
                         work?.CountBalanceSplit();
                         changed = true;
                     }
                 }
+                frontier = nextFrontier;
             } while (changed);
         }
 
