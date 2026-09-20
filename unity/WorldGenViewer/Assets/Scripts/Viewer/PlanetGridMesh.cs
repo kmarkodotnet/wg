@@ -2435,7 +2435,11 @@ namespace WorldGen.Viewer
                 hydroFieldMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds;
 
                 hydrologySubphaseStopwatch.Restart();
-                Dictionary<TileId, double> filledForLakes;
+                // A `filledForLakes` CSAK a Dictionary-alapu to-detektalashoz
+                // kell; a suru agon vegig tombbel dolgozunk (ld. lentebb).
+                Dictionary<TileId, double>? filledForLakes = null;
+                double[]? denseFilledForLakes = null;
+                FlowNetwork.DenseGridTopology? lakeTopology = null;
                 if (hydroDenseField != null && hydroDenseOcean != null)
                 {
                     hydroTopologyReused = _hydrologyDenseTopology != null
@@ -2443,14 +2447,16 @@ namespace WorldGen.Viewer
                     if (!hydroTopologyReused)
                         _hydrologyDenseTopology = FlowNetwork.DenseGridTopology.Create(hydroLevel);
                     hydroTopologyMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds;
-                    FlowNetwork.DenseGridTopology denseTopology = _hydrologyDenseTopology!;
+                    lakeTopology = _hydrologyDenseTopology!;
 
                     FlowNetwork.DenseFloodResult denseFlood = FlowNetwork.PriorityFloodDense(
-                        denseTopology, hydroDenseField, hydroDenseOcean);
+                        lakeTopology, hydroDenseField, hydroDenseOcean);
                     hydroDenseKernelMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds - hydroTopologyMs;
-                    filledForLakes = denseFlood.ToFilledDictionary(denseTopology);
-                    hydroDenseConversionMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds
-                        - hydroTopologyMs - hydroDenseKernelMs;
+                    // A korabbi `ToFilledDictionary` KIMARAD: a feltoltott mezo
+                    // egyetlen fogyasztoja a to-detektalas volt, ami mostantol
+                    // tombindexelt. Elesben MERVE 12-14 ms/Build tiszta veszteseg.
+                    denseFilledForLakes = denseFlood.Filled;
+                    hydroDenseConversionMs = 0.0;
                     denseFloodUsed = true;
                 }
                 else
@@ -2467,9 +2473,23 @@ namespace WorldGen.Viewer
                 // igy eltunik a sok apro, blokkos helyi melyedes (zaj). A tavakat
                 // LAPOS vizfelszinkent rajzoljuk a feltoltesi szinten (BuildLakeSurface),
                 // ezert per-tile eltaroljuk a to-felszin (flat) elevaciojat.
-                LakesIceErosion.LakeResult lakes = LakesIceErosion.IdentifyLakes(hydroField, filledForLakes, hydroOcean);
+                // TOMBINDEXELT ut, ha van suru adat: a Dictionary-valtozat
+                // koltsegenek nagy resze nem a to-kereses, hanem a koritese - a
+                // kulcsok (face,u,v) szerinti RENDEZESE es harom eredmeny-
+                // Dictionary felepitese. A ket ut kimenete BITRE azonos (a suru
+                // index definicio szerint ugyanaz a lexikografikus sorrend),
+                // amit a DenseLakeEquivalenceTests tobb vilagon, tobb kuszobbel
+                // es a tile-listak ELEMSORRENDJEIG igazol.
+                // MERVE (level 7, 98 304 tile): 17,9 ms -> 1,0 ms (18,3x);
+                // a naplo szerint elesben a `lakes=` sor 180-190 ms volt.
+                List<LakesIceErosion.LakeInfo> lakeInfos =
+                    denseFilledForLakes != null && lakeTopology != null
+                        && hydroDenseField != null && hydroDenseOcean != null
+                    ? LakesIceErosion.IdentifyLakesDense(
+                        lakeTopology, hydroDenseField, denseFilledForLakes, hydroDenseOcean).Lakes
+                    : LakesIceErosion.IdentifyLakes(hydroField, filledForLakes!, hydroOcean).Lakes;
                 lakeSurface = new Dictionary<TileId, double>();
-                foreach (LakesIceErosion.LakeInfo lake in lakes.Lakes)
+                foreach (LakesIceErosion.LakeInfo lake in lakeInfos)
                 {
                     if (lake.TileCount < minLakeTiles || lake.MaxDepth < minLakeDepthMeters)
                         continue;
@@ -2488,7 +2508,8 @@ namespace WorldGen.Viewer
                 $"(reused={hydroTerrainBasisReused}) denseFlood={denseFloodUsed} " +
                 $"topology={hydroTopologyMs:F1}ms (reused={hydroTopologyReused}) " +
                 $"flood={hydroFloodMs:F1}ms (kernel={hydroDenseKernelMs:F1}ms, " +
-                $"conversion={hydroDenseConversionMs:F1}ms) lakes={hydroLakesMs:F1}ms]");
+                $"conversion={hydroDenseConversionMs:F1}ms) lakes={hydroLakesMs:F1}ms " +
+                $"(dense={denseFloodUsed})]");
             buildPhaseStopwatch.Restart();
 
             double axialTiltRad = climateAxialTiltDegrees * Math.PI / 180.0;

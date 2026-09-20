@@ -131,6 +131,144 @@ namespace WorldGen.Core.Hydrology
             return r;
         }
 
+        /// <summary>
+        /// A <see cref="IdentifyLakes"/> TOMBINDEXELT valtozatanak eredmenye.
+        /// A per-tile mezok TOMBOK (nem Dictionary): a suru topologia indexei
+        /// szerint, ahol a `LakeId` -1 a nem-to tile-okon.
+        /// </summary>
+        public sealed class DenseLakeResult
+        {
+            public bool[] IsLake = Array.Empty<bool>();
+            public double[] Depth = Array.Empty<double>();
+            public int[] LakeId = Array.Empty<int>();
+            public List<LakeInfo> Lakes = new List<LakeInfo>();
+
+            /// <summary>
+            /// A Dictionary-alapu <see cref="LakeResult"/>-ta konvertalja - a
+            /// referencia-orakulummal valo osszehasonlitashoz, illetve azoknak a
+            /// hivoknak, akik meg a regi alakot varjak. A `LakeId` szotarba -
+            /// a Dictionary-valtozattal EGYEZOEN - csak a to-tile-ok kerulnek be.
+            /// </summary>
+            public LakeResult ToLakeResult(FlowNetwork.DenseGridTopology topology)
+            {
+                if (topology == null) throw new ArgumentNullException(nameof(topology));
+                if (topology.Count != IsLake.Length)
+                    throw new ArgumentException("A topologia es a to-eredmeny merete elter.", nameof(topology));
+
+                var result = new LakeResult { Lakes = Lakes };
+                for (int i = 0; i < IsLake.Length; i++)
+                {
+                    TileId tile = topology.TileAt(i);
+                    result.IsLake[tile] = IsLake[i];
+                    result.Depth[tile] = Depth[i];
+                    if (LakeId[i] >= 0) result.LakeId[tile] = LakeId[i];
+                }
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// A <see cref="IdentifyLakes"/> TOMBINDEXELT valtozata: a suru
+        /// topologiat es a mar meglevo `double[]`/`bool[]` mezoket olvassa,
+        /// Dictionary nelkul.
+        ///
+        /// MIERT BITRE AZONOS a kimenete a Dictionary-alapu uttal:
+        ///  - a KULSO bejaras sorrendje azonos. A Dictionary-valtozat a
+        ///    kulcsokat (face, u, v) lexikografikusan RENDEZI
+        ///    (FieldKeysInFaceUvOrder); a suru index viszont definicio szerint
+        ///    `face * n * n + u * n + v`, tehat a 0..Count-1 bejaras PONTOSAN
+        ///    ugyanez a sorrend - a rendezes elhagyhato, nem helyettesitheto.
+        ///  - a komponens-bejaras (DFS) azonos: ugyanaz a verem (LIFO), a
+        ///    szomszedok ugyanabban a TileDirection-sorrendben (0..3) kerulnek
+        ///    ra, es a `visited` jeloles ugyanugy a BETEVESKOR tortenik, nem a
+        ///    kivetelkor. Ezert a `LakeInfo.Tiles` lista elemsorrendje is azonos.
+        ///  - ebbol kovetkezoen a statisztikak osszegzesi SORRENDJE is azonos,
+        ///    tehat a lebegopontos osszeadas nem-asszociativitasa sem okozhat
+        ///    elterest.
+        ///
+        /// ELOFELTETEL: a mezok a topologia TELJES szintjere vonatkoznak
+        /// (Length == topology.Count). A Dictionary-valtozat megengedne reszleges
+        /// mezot (a hianyzo szomszedot kihagyja); itt minden szomszed letezik,
+        /// ezert a ket ut csak TELJES mezore egyezik - a viewer mindig ilyet ad.
+        /// </summary>
+        public static DenseLakeResult IdentifyLakesDense(
+            FlowNetwork.DenseGridTopology topology, double[] field, double[] filled, bool[] isOcean,
+            double minDepth = LakeMinDepthM)
+        {
+            if (topology == null) throw new ArgumentNullException(nameof(topology));
+            if (field == null) throw new ArgumentNullException(nameof(field));
+            if (filled == null) throw new ArgumentNullException(nameof(filled));
+            if (isOcean == null) throw new ArgumentNullException(nameof(isOcean));
+            int count = topology.Count;
+            if (field.Length != count) throw new ArgumentException("A mezo merete nem egyezik a topologiaval.", nameof(field));
+            if (filled.Length != count) throw new ArgumentException("A feltoltott mezo merete nem egyezik a topologiaval.", nameof(filled));
+            if (isOcean.Length != count) throw new ArgumentException("Az ocean-maszk merete nem egyezik a topologiaval.", nameof(isOcean));
+
+            var r = new DenseLakeResult
+            {
+                IsLake = new bool[count],
+                Depth = new double[count],
+                LakeId = new int[count],
+            };
+            for (int i = 0; i < count; i++)
+            {
+                double d = filled[i] - field[i];
+                bool lake = !isOcean[i] && d > minDepth;
+                r.IsLake[i] = lake;
+                r.Depth[i] = lake ? d : 0.0;
+                r.LakeId[i] = -1;
+            }
+
+            var visited = new bool[count];
+            var stack = new List<int>();
+            var component = new List<int>();
+            for (int start = 0; start < count; start++)
+            {
+                if (!r.IsLake[start] || visited[start]) continue;
+
+                component.Clear();
+                stack.Clear();
+                stack.Add(start);
+                visited[start] = true;
+                while (stack.Count > 0)
+                {
+                    int cur = stack[stack.Count - 1];
+                    stack.RemoveAt(stack.Count - 1);
+                    component.Add(cur);
+                    for (int d = 0; d < 4; d++)
+                    {
+                        int nb = topology.NeighborIndex(cur, (TileDirection)d);
+                        if (r.IsLake[nb] && !visited[nb])
+                        {
+                            visited[nb] = true;
+                            stack.Add(nb);
+                        }
+                    }
+                }
+
+                int thisId = r.Lakes.Count;
+                double minSurf = double.PositiveInfinity, maxSurf = double.NegativeInfinity, sumSurf = 0;
+                double maxDepth = double.NegativeInfinity, sumDepth = 0;
+                var tiles = new List<TileId>(component.Count);
+                foreach (int index in component)
+                {
+                    r.LakeId[index] = thisId;
+                    tiles.Add(topology.TileAt(index));
+                    double surf = filled[index];
+                    if (surf < minSurf) minSurf = surf; if (surf > maxSurf) maxSurf = surf; sumSurf += surf;
+                    double dp = r.Depth[index];
+                    if (dp > maxDepth) maxDepth = dp; sumDepth += dp;
+                }
+                r.Lakes.Add(new LakeInfo
+                {
+                    Id = thisId, Tiles = tiles, TileCount = tiles.Count,
+                    SurfaceElevation = sumSurf / tiles.Count, MinSurface = minSurf, MaxSurface = maxSurf,
+                    MaxDepth = maxDepth, MeanDepth = sumDepth / tiles.Count,
+                });
+            }
+            return r;
+        }
+
         /// <summary>Eves (mean, min, max) napi-atlag homerseklet, suru mintavetellel a keringesi periodus alatt.</summary>
         public static void AnnualTemperatureStats(
             double x, double y, double z, double orbitalPeriod, double rotationPeriod, double axialTilt,
