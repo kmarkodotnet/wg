@@ -58,8 +58,11 @@ namespace WorldGen.Viewer
         [Tooltip("ND-123 diagnosztika: a párhuzamos statikus emit MELLETT lefuttatja a " +
                  "régi, egyszálú emitet is, és elemenként összehasonlítja a két eredményt. " +
                  "Bekapcsolva a Build lassabb (kétszer emitel), viszont bizonyítja, hogy a " +
-                 "párhuzamos út BITRE ugyanazt adja. Az első élő futás után kikapcsolható.")]
-        private bool verifyParallelStaticEmit = true;
+                 "párhuzamos út BITRE ugyanazt adja. 2026-09-21: az első élő futás " +
+                 "EGYEZÉST adott (PerfLog: \"[ND-123 emit verify] EGYEZIK\"), ezért " +
+                 "KIKAPCSOLVA. Ha az emit útját bárki módosítja, érdemes egy futásra " +
+                 "visszakapcsolni.")]
+        private bool verifyParallelStaticEmit = false;
 
         private void EmitStaticBaseLayerInParallel(
             TileId[] leaves, StaticMeshBuckets buckets,
