@@ -2201,7 +2201,7 @@ publikus típus, nem számoz át semmit).
 (a folyó-vonal szélessége nem korrelál a vízhozammal) TOVÁBBRA IS
 nyitott, külön (nagyobb, mesh-alapú "szalag"-rajzolást igénylő) munka.
 
-### ND-50 — Build()/renderelés szétválasztás: csak a felhő és a folyó-vonal kapott kivételt, a szél-/csapadék-overlay még nem (nyitott)
+### ND-50 — Build()/renderelés szétválasztás: csak a felhő és a folyó-vonal kapott kivételt, a szél-/csapadék-overlay még nem (LEZÁRVA: (A))
 
 **Kérdés (önálló code-review-ban feltárt hiányosság, 2026-09-06).** A
 felhasználói visszajelzés nyomán bevezetett `ApplyCloudOnlyRebuild`/
@@ -4891,7 +4891,7 @@ C#-port elkészülte UTÁN lehetséges — ez NEM ennek a döntésnek a
 hatóköre.
 
 
-### ND-119 — A szél-overlay NEM azt a szelet mutatja, amit a szimuláció használ (NYITOTT)
+### ND-119 — A szél-overlay NEM azt a szelet mutatja, amit a szimuláció használ (LEZÁRVA: (A))
 
 **2026-09-20.** A todo.md #9 visszajelzés ("szél-overlay befagyasztja a
 nézegetőt") teljesítmény-vizsgálata közben derült ki egy tartalmi
@@ -4974,7 +4974,7 @@ deriváltunk, mert a `maxFraction * tanh(slopeMag / 0.5)` tag a valós, 10^4
 nagyságrendű gradienseknél MINDIG telítésben volt, tehát kizárólag a gradiens
 IRÁNYÁTÓL függött. Ez zajt adott, nem információt.
 
-### ND-120 — A GPU-osztályozó shader két algoritmus-generációval le van maradva (NYITOTT)
+### ND-120 — A GPU-osztályozó shader két algoritmus-generációval le van maradva (LEZÁRVA: (A))
 
 **2026-09-20.** A todo.md úgy fogalmazott, hogy a jelenetben
 `useGpuClassification: 1` **aktív**, tehát a besorolás és a geometria eltérő
@@ -5071,7 +5071,7 @@ független attól, hogy van-e GPU-út — ez a két tag nem elhanyagolható.
 Konkrétan a `useGpuGeometry` utat védi, és minden jövőbeli „egyszerűsített"
 eleváció-közelítést (GPU, előre számolt textúra, LOD-proxy).
 
-### ND-121 — A balance munkalistás átírása kész; a `MaximumRenderBudget` plafon emelése döntést kér (NYITOTT)
+### ND-121 — A balance munkalistás átírása kész; a `MaximumRenderBudget` plafon emelése döntést kér (LEZÁRVA: (B))
 
 **2026-09-20.** Az `AdaptiveQuadTree.MaximumRenderBudget = 48 000` doksija
 **két** okot nevez meg, és a másodikat kifejezetten feltételhez köti:
