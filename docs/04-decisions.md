@@ -5467,6 +5467,119 @@ benyomás alapján, amit egy megjelenítési hiba okozott.
 `AssignPlate` numerikus viselkedése változna → verzió-emelés ÉS az ND-09
 ordinális kalibráció újrafuttatása.
 
+### ND-126 — „A térítők közt minden sivatag": a biome-osztályozó NEM LÁTJA a csapadékot (NYITOTT, döntést kér)
+
+**2026-09-21.** Visszajelzés (klíma-kalibráció): „sivatagok: ráktérítő
+baktérítő közt minden sivatag, fölötte és alatta egy darabig zöld, efölött meg
+jég van, nagyon nem életszerű".
+
+A tétel „klíma-konstansok kalibrálása" néven volt beütemezve. **Nem
+konstans-probléma.** A `BiomeClassification.Classify(temperatureK, isOceanic)`
+szignatúrája a teljes magyarázat: a csapadék **nem bemenet**. Az osztályozó
+saját doksija ki is mondja: „a csapadék/nedvesség (§31) halasztva van, ezért
+NEM különböztetünk meg pl. sivatagot/esőerdőt". Azóta a csapadék-mező
+(`MoisturePrecipitation`) elkészült — a folyó-forrásokhoz, az overlayhez és a
+talajhoz használjuk is —, csak a biome-osztályozásba nem került be.
+
+Következmény: négy szárazföldi osztály, tisztán hőmérsékleti küszöbökkel
+(−10 °C / +5 °C / +20 °C), a hőmérséklet pedig lényegében a szélesség sima
+függvénye → **tökéletes szélességi sávok**. A >20 °C sáv render-színe
+`(0.78, 0.72, 0.20)`, azaz homoksárga — ezt olvasta a felhasználó
+sivatagnak. Mérve (seed `0xA7C944210000`, level 6, szárazföldi tile-ok):
+
+| Szélességi sáv | Átlag T | Biome-eloszlás a szárazföldön |
+|---|---|---|
+| 70°..90° | −62,6 °C | Jég 100% |
+| 50°..70° | −13,9 °C | Jég 58%, Tundra 42% |
+| 30°..50° | +9,4 °C | Tundra 23%, Mérsékelt 77% |
+| 10°..30° | +23,1 °C | Mérsékelt 19%, **Trópusi 81%** |
+| −10°..10° | +27,6 °C | **Trópusi 100%** |
+
+**A csapadék-mező viszont NEM rossz** — csak nem használjuk. Ugyanaz a mérés,
+szárazföldi átlagcsapadék sávonként: 2,89 (Egyenlítő) → 1,25 (10–30°) →
+0,51–0,90 (30–50°) → 0,07–0,10 (50–70°) → 0,00 (sark). Ez kvalitatíve a
+helyes alak (nedves Egyenlítő, szárazabb szubtrópus), csak laposabb, mint a
+Földé.
+
+**A döntő szám.** Egy HŐMÉRSÉKLETI sávon belül mekkora a csapadék szórása?
+
+| Hőmérsékleti osztály | tile | P10 | medián | P90 | P90/P10 |
+|---|---|---|---|---|---|
+| Trópusi | 2648 | 0,04 | 1,45 | 5,65 | **140×** |
+| Mérsékelt | 2452 | 0,00 | 0,42 | 1,86 | nagyon nagy |
+| Tundra | 1446 | 0,00 | 0,12 | 0,69 | nagyon nagy |
+
+Egy másik seeden a trópusi sávban 52×. Vagyis **ugyanazon a szélességen már
+most is van száraz és nedves szárazföld** — pontosan a Föld mintázata (Szahara
+és Kongó azonos szélességen). Az információ megvan, csak eldobjuk az
+osztályozásnál.
+
+**Opciók.**
+
+- **(A) Whittaker-jellegű 2D osztályozás** (hőmérséklet × csapadék). Új
+  biome-értékek: Desert, Grassland/Steppe, Savanna, TemperateForest,
+  Rainforest, Boreal/Taiga a meglévő Tundra/IceSheet mellé. Ez a standard
+  megközelítés, és pontosan azt a mintázatot adja, ami hiányzik.
+- **(B) Minimális: aridity-módosító.** A négy hőmérsékleti osztály marad, de
+  egy száraz/nedves jelző mellé kerül → csak `Desert` jön létre újként
+  (trópusi+száraz, mérsékelt+száraz). Kisebb változás, kevesebb új szín, de
+  a „zöld mérsékelt öv" továbbra is egységes marad.
+- **(C) Csak a render-színeket változtatni.** ELUTASÍTVA: I4-sértés lenne —
+  a panel továbbra is „Trópusi"-t írna oda, ahol a kép esőerdőt mutat.
+
+**Javaslat: (A).** A (B) a panasz felét oldaná meg, és utána ugyanide
+jutnánk. A csapadék-mező már létezik, gyorsítótárazott (cache-találatnál
+0,0 ms), és a viewerben már ott van `_adaptivePrecip` néven, a finomabb
+szinteken pedig a `TryGetReferenceAncestorValue` minta már megoldja a
+referencia-szintű mező lekérdezését — tehát nincs új infrastruktúra.
+
+**KÜSZÖB-TERVEZÉS — ez a rész nem szabadon választható.** A csapadék
+egysége a modellben **nem mm/év**, hanem önkényes nedvesség-egység, ami
+függ a `DefaultPrecipBaseFraction`-től, az iterációszámtól és a
+bolygóparaméterektől. Abszolút küszöb („ha precip < 0,3, akkor sivatag")
+ezért **világfüggő** lenne, és más bolygóparamétereknél értelmetlenné válna.
+A küszöböknek a SZÁRAZFÖLDI ELOSZLÁS PERCENTILISEINEK kell lenniük —
+ugyanaz a minta, mint a folyó-forrásoknál (`DefaultPrecipPercentile`), és
+ugyanaz a tanulság, mint az ND-124-ben (ott a globális küszöb és a
+medence-szűrés metszete üres lett).
+
+**Hatókör-figyelmeztetés.** A biome-mező fogyasztói: régiónév-generálás
+(`DominantBiome` → `NameGeneration`), talaj-termékenység, a panelek
+biome-sorai, a render-kategóriák és színek. Mindegyik érintett; az új
+biome-értékekhez render-szín és név-kulcs is kell.
+
+**Verziózás:** nem seed-törő a domborzat értelmében (a `TileId`→eleváció
+leképezés nem változik), de a **világ biome-mezője és a régiónevek
+megváltoznak** — verzió-emelés kell, és a mentés-kompatibilitás (ND-108)
+szempontjából ez pont olyan eset, amire az a kapu való.
+
+---
+
+#### ND-126b — két MÉRT konstans-hiba, amit a vizsgálat mellékesen talált
+
+Ezek valódi kalibrációs hibák, az (A)/(B) döntéstől függetlenül:
+
+1. **A termikus szél korlátlan a sarkoknál.** Átlagos szélsebesség
+   szélességi sávonként: **7,4** m/s az Egyenlítőn, **50** m/s 50–70°-on,
+   **120–126** m/s 70–90°-on. Az alap-zonális szél 10 m/s
+   (`BaseWindSpeed`), a többi a `ThermalWindCoeff * dT/d(észak)` tagból jön,
+   ami K/radiánban mér, és a sarkok felé elszabadul. 120 m/s felszíni szél
+   nem fizikai (a futóáramlás is 50–70 m/s, magasban). Ez visszahat a
+   párolgásra (`EvapWindCoeff`, 30-as sapkával) és az advekció sebességére.
+   Javaslat: a termikus tagot `tanh`-hal korlátozni, ugyanúgy, ahogy az
+   orografikus tag már korlátozott.
+
+2. **A sark–egyenlítő hőmérsékleti esés túl meredek.** Szárazföldi átlag a
+   70–90° sávban **−62 °C** (napéjegyenlőségi pillanat), az Egyenlítőn
+   +27,6 °C. A Földön az évi átlag a Déli-sarkon ~−50 °C, az Északin ~−18 °C.
+   Emiatt a szárazföld 58–100%-a jég 50° felett. Ez a `Temperature` modul
+   konstansainak kérdése (ND-41), és a felhasználó „efölött meg jég van"
+   megjegyzését közvetlenül magyarázza.
+
+**A sorrend fontos:** az (A) bevezetése UTÁN kell ezeket hangolni, különben
+kétszer kalibrálunk — a biome-küszöbök percentilis-alapúak lesznek, tehát a
+szél/hőmérséklet hangolása automatikusan átrendezi őket.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |
