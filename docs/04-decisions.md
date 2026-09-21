@@ -5156,6 +5156,43 @@ SerializeField Play közben felülírható, tehát a felhasználó ki tudja pró
 96 000-rel, mielőtt a konstans változik. Ha a PerfLog `balance` sora tényleg
 100 ms körül marad, az emelés indokolt; ha 300 ms marad, (A) a helyes.
 
+---
+
+**LEZÁRVA (2026-09-21): (B) — élő mérés alapján.** A felhasználó
+`adaptiveRenderBudget = 96 000`-rel végigpróbálta: „nem akad". A PerfLog
+ennél többet mond:
+
+```
+cutBudget=96000  cutSaturated=False  starvedBudget=0  starvedQuota=0
+levelek ~49 216   selection=13,9-65,1 ms   balance=0-43,6 ms
+```
+
+**A döntő felismerés, ami a saját becslésemet is megjavította.** Azt
+vártam, hogy a worker-költség 150–185 ms-ra nő. Nem nőtt: **14–109 ms**,
+vagyis az eddigi 48 000-es szint (150 ms) ALATT. Az ok az, hogy a vágás a
+**metrika** szerint ~49 216 levélnél telítődik, nem a budgetnél — a budget
+emelése tehát nem kétszerezi a levélszámot, csak megszünteti az éhezést
+(48 000-nél `starvedBudget=6943` volt, most **0**). Nem a budget hajtotta a
+költséget, hanem a metrika által kért levélszám, és az mindkét plafonnal
+ugyanannyi.
+
+A 2. ok (balance-szakadék) az ND-121 munkalistás átírásával megszűnt:
+`balance=43,6 ms` 49 000 levélnél, a korábbi 66 900 levélre mért 327 ms
+helyett.
+
+A 96 000 nem önkényes: ez a `RenderBudgetForViewport` 1920×1080-as
+kérésének (97 200) gyakorlatilag teljes kielégítése.
+
+**Maradék kockázat, kimondva:** a mérés EGY nézetállásra vonatkozik, ahol a
+metrika 49 216 levelet kért. Egy olyan nézetben, ahol a metrika tényleg
+96 000 közelébe megy, a selection/balance arányosan drágulna — ilyet ebben a
+munkamenetben nem láttunk (`cutSaturated=False` MINDEN mintában). Ha
+előfordul, az `adaptiveRenderBudget` továbbra is kézi visszafogást ad.
+
+**Amit ez a felhasználó #1 panaszából megold:** a 48 000-es plafon 6943
+felosztást éheztetett ki; most nulla. A tile-méret panasz mindkét ága
+(split-kvóta ND-76, plafon ND-121) le van zárva.
+
 **Verziózás:** nem seed-törő (a vágás megjelenítési döntés, nem világmodell).
 
 ### ND-122 — A terrain-bázis lemez-gyorsítótár érvényesítése: újraszámolás, nem verziókonstans (LEZÁRVA)

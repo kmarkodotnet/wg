@@ -72,9 +72,16 @@ public class RenderBudgetForViewportTests
             AdaptiveQuadTree.RenderBudgetForViewport(width, height, Target));
 
     /// <summary>
-    /// 4K-nál a nyers képlet 194 400-at kérne; a felső korlát azért van, mert
-    /// 48 000 levél fölött az EnforceRestrictedBalance kezd dominálni
-    /// (mérve: 8000-nél 9 ms, 48 000-nél 57 ms).
+    /// 4K-nál a nyers képlet 194 400-at kérne, tehát a felső korlát ott
+    /// továbbra is vág. A korlát ÉRTÉKE viszont 2026-09-21-én 48 000-ről
+    /// 96 000-re emelkedett (ND-121): a korábbi indok részben az
+    /// EnforceRestrictedBalance költsége volt (48 000-nél 57 ms), amit a
+    /// munkalistás átírás megszüntetett, részben a költség-paritás, ami az
+    /// élő mérés szerint nem következett be (a vágás a metrika szerint
+    /// ~49 216 levélnél telítődik, nem a budgetnél). Ez a teszt
+    /// SZÁNDÉKOSAN a konstansra hivatkozik, nem egy beírt számra - így a
+    /// plafon jövőbeli hangolása nem törik el rajta, csak a vágás TÉNYE
+    /// marad rögzítve.
     /// </summary>
     [Theory]
     [InlineData(3840, 2160)]

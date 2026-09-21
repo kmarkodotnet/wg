@@ -211,13 +211,40 @@ namespace WorldGen.Viewer.Lod
         /// EGYELŐRE 48 000 marad - az emelés UX-kompromisszum, ami élő
         /// visszamérést és felhasználói döntést kér (ND-121 opciói).
         ///
-        /// FONTOS, AMIT ÉRDEMES TUDNI: ez a plafon MA KÖT. A
-        /// RenderBudgetForViewport 1920x1080-on 8 px-es céllal 97 200 levelet
-        /// kérne, és 48 000-re vágjuk (2,0x); 2560x1440-en 3,6x; 3840x2160-on
-        /// 8,1x. A felhasználó "brutál nagyok a tile-ok" visszajelzése részben
-        /// ebből ered.
+        /// ===================================================================
+        /// LEZÁRVA (2026-09-21, ND-121): 48 000 -&gt; 96 000. ÉLŐ MÉRÉS ALAPJÁN.
+        /// ===================================================================
+        ///
+        /// A felhasználó `adaptiveRenderBudget = 96 000` felülbírálással
+        /// végigpróbálta Play-ben: "nem akad". A PerfLog ennél többet mond, és
+        /// a fenti 1. ok (költség-paritás) NEM következett be:
+        ///
+        ///   cutBudget=96000  cutSaturated=False  starvedBudget=0  starvedQuota=0
+        ///   levelek: ~49 216    selection=13,9-65,1 ms    balance=0-43,6 ms
+        ///
+        /// A DÖNTŐ FELISMERÉS: a vágás a metrika szerint ~49 216 levélnél
+        /// TELÍTŐDIK, nem a budgetnél. A budget emelése tehát NEM kétszerezi a
+        /// levélszámot - csak megszünteti az éhezést (48 000-nél
+        /// `starvedBudget=6943` volt, most 0). A worker-költség így 14-109 ms,
+        /// vagyis AZ EDDIGI 48 000-es 150 ms-os szint ALATT marad: nem a
+        /// budget hajtotta a költséget, hanem a metrika által kért levélszám -
+        /// és az mindkét plafonnal ugyanannyi.
+        ///
+        /// A 2. ok (balance-szakadék) az ND-121 munkalistás átírásával
+        /// megszűnt: a mért `balance=43,6 ms` 49 000 levélnél a korábbi,
+        /// 66 900 levélre mért 327 ms helyett.
+        ///
+        /// A 96 000 nem önkényes: ez a `RenderBudgetForViewport` 1920x1080-as
+        /// kérése (97 200) gyakorlatilag teljes egészében.
+        ///
+        /// MARADÉK KOCKÁZAT, kimondva: a fenti mérés EGY nézetállásra
+        /// vonatkozik, ahol a metrika 49 216 levelet kért. Egy olyan nézetben,
+        /// ahol a metrika tényleg 96 000 közelébe megy, a selection/balance
+        /// arányosan drágulna. Ilyen nézetet ebben a munkamenetben nem
+        /// láttunk (`cutSaturated=False` MINDEN mintában). Ha előfordul, az
+        /// `adaptiveRenderBudget` mező továbbra is kézi visszafogást ad.
         /// </summary>
-        public const int MaximumRenderBudget = 48_000;
+        public const int MaximumRenderBudget = 96_000;
 
         /// <summary>
         /// A vágás levél-költségvetése a VIEWPORTBÓL számolva, nem kézi számból.
