@@ -1,5 +1,9 @@
 # Backlog — hátralévő feladatok mérföldkövenként
 
+> **2026-09-21 óta TÖRTÉNETI.** A „mi van hátra" kérdésre a [`../todo2.md`](../todo2.md)
+> válaszol (ellenőrzött állapottal); ez a lap a teljes, mérföldkő szerinti napló
+> és a kidolgozott tervek (hőmérséklet-overlay, navigációs menü, hegységek) forrása.
+
 ## Aktív sorrend — felhasználói döntés, 2026-09-11
 
 **Claude-visszaadás, 2026-09-12:** [teljes aktuális tudásátadás](../kt_2_co2cl.md).

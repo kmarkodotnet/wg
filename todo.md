@@ -1,5 +1,8 @@
 # TODO — rövidített backlog
 
+> **2026-09-21 óta TÖRTÉNETI.** Az élő, ellenőrzött feladatlista: [`todo2.md`](todo2.md).
+> Ez a lap a 2026-09-21-i állapotot őrzi meg, a diagnózisok szövegével együtt.
+
 A `docs/backlog.md` teljes, történeti; ez a kivonat csak azt mutatja, **mi van
 hátra**, két részre osztva: amit én el tudok végezni önállóan, és amihez te
 kellesz (élő Unity Play-menet, vizuális elfogadás).
