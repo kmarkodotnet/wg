@@ -24,7 +24,7 @@ from sphere_position_ref import position_from_tile
 from morton_ref import tile_id
 from neighbor_ref import neighbor, DIRECTIONS
 from temperature_ref import temperature_kelvin
-from biome_ref import classify_biome, BIOME_OCEAN, BIOME_SEA_ICE
+from biome_ref import classify_biome, compute_thresholds, BIOME_OCEAN, BIOME_SEA_ICE
 from hydrology_ref import (
     compute_elevation_and_ocean_field, priority_flood,
     flow_accumulation, select_river_tiles, river_mouth_count,
@@ -48,8 +48,13 @@ BIOME_SUFFIXES = {
     "IceSheet": ["Frost", "Rime", "Ice", "Glacier"],
     "SeaIce": ["Frost", "Rime", "Ice"],
     "Tundra": ["Tundra", "Barrens", "Waste"],
-    "Temperate": ["Forest", "Woods", "Vale", "Downs"],
-    "Tropical": ["Isles", "Verdant", "Reach", "Coast"],
+    # ND-126: a ket homersekleti osztaly (Temperate/Tropical) helyere ot,
+    # csapadek szerint is megkulonboztetett biome lepett.
+    "Desert": ["Desert", "Sands", "Dunes", "Barrens"],
+    "Grassland": ["Steppe", "Plains", "Prairie", "Downs"],
+    "TemperateForest": ["Forest", "Woods", "Vale", "Downs"],
+    "Savanna": ["Savanna", "Veld", "Reach", "Flats"],
+    "Rainforest": ["Jungle", "Verdant", "Canopy", "Coast"],
     # Tektonikuslemez-overlay (2026-09-13) - ld. features_ref.py-beli
     # BiomeSuffixes doksijat a C# oldalon (NameGeneration.cs).
     "OceanicCrust": ["Trench", "Abyss", "Rise", "Deep"],
@@ -120,12 +125,26 @@ def find_watershed_regions(parent, is_ocean):
     return regions
 
 
+# A Biome enum SORRENDJE a C#-ban - a dontetlen-feloldashoz kell (a kisebb
+# enum-ertek nyer). Ha a C# enum bovul, ezt is bovitsd.
+BIOME_ORDER = {
+    "Ocean": 0, "SeaIce": 1, "IceSheet": 2, "Tundra": 3,
+    "Desert": 4, "Grassland": 5, "TemperateForest": 6, "Savanna": 7, "Rainforest": 8,
+}
+
+
 def dominant_biome(tiles, biome_of):
+    """A leggyakoribb biome. DONTETLEN: a kisebb Biome enum-ertek nyer.
+
+    2026-09-21-ig egyik oldalon sem volt explicit dontetlen-feloldas, es az
+    eredmeny a szotar-bejarasi sorrenden mult. Az ND-126 (ot szarazfoldi
+    osztaly ketto helyett) ezt azonnal kibuktatta: ugyanabbol az adatbol a
+    Python "Sylthal Plains"-t, a C# "Sylthal Veld"-et adott."""
     counts = {}
     for t in tiles:
         b = biome_of[t]
         counts[b] = counts.get(b, 0) + 1
-    return max(counts.items(), key=lambda kv: kv[1])[0]
+    return min(counts.items(), key=lambda kv: (-kv[1], BIOME_ORDER.get(kv[0], 1 << 30)))[0]
 
 
 def ocean_coverage_fraction(is_ocean):
@@ -347,13 +366,22 @@ if __name__ == "__main__":
     orbital_period, rotation_period = 365.25, 1.0
     import math
     axial_tilt = math.radians(23.44)
+    # ND-126: a classify_biome csapadekot is kap. EZ A REFERENCIA A
+    # SZEGMENTALASROL SZOL, nem a klimarol, ezert NEM futtatunk teljes
+    # nedvesseg-transzportot (az kulon referencia:
+    # moisture_transport_ref.py) - a magassagot hasznaljuk olcso,
+    # determinisztikus csapadek-PROXY-kent. Csak annyi kell tole, hogy a
+    # szarazfoldon tobbfele biome keletkezzen. A C# oldali tesztek
+    # UGYANEZT a proxyt hasznaljak, kulonben a ket oldal nem osszemerheto.
+    land_precip_proxy = [field[k] for k in field if not is_ocean[k]]
+    biome_thresholds = compute_thresholds(land_precip_proxy)
     biome_of = {}
     for key in field:
         face, u, v = key
         pos = position_from_tile(face, level, u, v)
         t_k = temperature_kelvin(pos, 0.0, orbital_period, rotation_period, axial_tilt,
                                    is_ocean[key], field[key], sea_level)
-        biome_of[key] = classify_biome(t_k, is_ocean[key])
+        biome_of[key] = classify_biome(t_k, is_ocean[key], field[key], biome_thresholds)
     print("Kesz\n")
 
     print("Folyohalozat (torkolat-szamlalashoz)...")
@@ -486,13 +514,13 @@ if __name__ == "__main__":
     print("OK - a szegmentalas plauzibilis")
 
     # Determinizmus
-    name1 = generate_name(world_seed, 42, "Temperate")
-    name2 = generate_name(world_seed, 42, "Temperate")
+    name1 = generate_name(world_seed, 42, "TemperateForest")
+    name2 = generate_name(world_seed, 42, "TemperateForest")
     assert name1 == name2, "A nevgeneralas nem tiszta fuggveny!"
     print("OK - determinisztikus nevgeneralas")
 
     # Kulonbozo feature_id mas nevet ad
-    name3 = generate_name(world_seed, 43, "Temperate")
+    name3 = generate_name(world_seed, 43, "TemperateForest")
     assert name1 != name3, "Kulonbozo feature_id ugyanazt a nevet adta - gyanus"
     print("OK - kulonbozo feature_id mas nevet ad")
 

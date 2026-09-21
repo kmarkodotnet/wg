@@ -21,7 +21,11 @@ namespace WorldGen.Viewer
     /// <summary>Megjelenítési kategória - a biome-okon felül a "River" (M7) és "Crater" (M11) réteg.</summary>
     internal enum RenderCategory
     {
-        Ocean, SeaIce, IceSheet, Tundra, Temperate, Tropical, River, Crater, Lake,
+        // ND-126: a ket homersekleti osztaly (Temperate/Tropical) helyere ot,
+        // csapadek szerint is megkulonboztetett biome lepett.
+        Ocean, SeaIce, IceSheet, Tundra,
+        Desert, Grassland, TemperateForest, Savanna, Rainforest,
+        River, Crater, Lake,
     }
 
     /// <summary>
@@ -823,6 +827,32 @@ namespace WorldGen.Viewer
         private Dictionary<TileId, double> _adaptiveLakeSurface;
         // Referencia-szintu csapadek-mezo (MoisturePrecipitation) a csapadek-overlayhez.
         private Dictionary<TileId, double> _adaptivePrecip;
+
+        /// <summary>
+        /// ND-126: a csapadek-vagopontok a SZARAZFOLDI eloszlasbol, a Build()
+        /// elejen EGYSZER kiszamolva. Azert mezo es nem per-hivas szamitas,
+        /// mert a biome-osztalyozas tiszta fuggveny kell maradjon: ugyanaz a
+        /// harom vagopont vonatkozik minden tile-ra, fuggetlenul attol,
+        /// milyen sorrendben kerdezzuk oket.
+        /// </summary>
+        private BiomeClassification.PrecipitationThresholds _adaptiveBiomeThresholds;
+
+        /// <summary>
+        /// Egy pont csapadeka a REFERENCIA-szintu mezobol (_adaptivePrecip),
+        /// a pontot tartalmazo referencia-tile szerint. Ugyanaz a minta, mint
+        /// a PrecipitationColorAt-ban. Csak OLVAS (Build ota valtozatlan) ->
+        /// szalbiztos a parhuzamos sarok-/tile-klasszifikaciobol.
+        ///
+        /// Ha nincs csapadek-mezo (elvben nem fordulhat elo, mert az ND-126
+        /// ota a Build() MINDIG kiszamolja), 0-t ad - az a legszarazabb
+        /// osztaly, tehat lathato (sivatagos) jelzes, nem csendes hiba.
+        /// </summary>
+        private double PrecipitationAtCore(double cx, double cy, double cz)
+        {
+            if (_adaptivePrecip == null) return 0.0;
+            TileId t = TileGeometry.FromPosition(cx, cy, cz, level);
+            return _adaptivePrecip.TryGetValue(t, out double p) ? p : 0.0;
+        }
         // Dendritikus, csapadek-forrasu, finom-szintu folyo-nyomvonalak (ND-49,
         // RiverPathTracing) - ld. BuildRiverNetwork (viewer). Ez VALTJA FEL a
         // regi, referencia-szintu _adaptiveRiverTiles/_adaptiveRiverParent-bol
@@ -2607,7 +2637,8 @@ namespace WorldGen.Viewer
                         double elevation = field[id];
                         bool isOceanic = isOceanField[id];
                         double temperatureK = TemperatureKelvinAt(cx, cy, cz, axialTiltRad, isOceanic, elevation, seaLevel);
-                        Biome biome = BiomeClassification.Classify(temperatureK, isOceanic);
+                        Biome biome = BiomeClassification.Classify(
+                            temperatureK, isOceanic, PrecipitationAtCore(cx, cy, cz), _adaptiveBiomeThresholds);
                         biomeOf[id] = biome;
 
                         // TELJESITMENY (2026-09-10, felhasznaloi keres, cel <1s
@@ -2807,11 +2838,37 @@ namespace WorldGen.Viewer
             // sajat (t=0, krater/erozio nelkuli) mezojen szamol - klima-
             // kozelites, nem a deepTime-eltolt domborzatbol; ez egy vizualis/
             // forras-kivalasztasi reteg, nem a vilagmodell resze.
-            bool needsPrecipField = precipitationOverlay || showRivers || showClouds;
+            // ND-126 ota a csapadek-mezo MINDIG kell: a biome-osztalyozas
+            // bemenete lett (korabban csak az overlay/folyok/felhok kertek).
+            // A gyorsitotar miatt ez cache-talalatnal 0,0 ms, hidegen
+            // 300-400 ms - a Build() tobbi reszehez kepest kicsi, es
+            // enelkul a szarazfoldi biome-ok nem szamolhatok ki.
+            const bool needsPrecipField = true;
             MoisturePrecipitation.PrecipitationField precipField = needsPrecipField
                 ? GetOrComputePrecipitationField(seed, plateCount, level, targetWaterFraction)
                 : null;
             _adaptivePrecip = precipField?.Precipitation;
+
+            // ND-126: a vagopontok CSAK a VEGETALT szarazfoldbol - az oceani
+            // ertekek benne torzitanak (a nedvesseg az ocean folott
+            // keletkezik), a hideg szarazfoldeket pedig a homerseklet donti
+            // el, a csapadekuk viszont 0 koruli. Ld.
+            // ComputeThresholdsForVegetatedLand doksi a mert indoklassal.
+            if (precipField != null)
+            {
+                var landSamples = new List<(double TemperatureK, double Precipitation)>(
+                    precipField.Precipitation.Count);
+                foreach (KeyValuePair<TileId, double> pkv in precipField.Precipitation)
+                {
+                    if (precipField.IsOcean[pkv.Key]) continue;
+                    TileGeometry.ToPosition(pkv.Key, out double px, out double py, out double pz);
+                    double pt = TemperatureKelvinAt(px, py, pz, axialTiltRad, false,
+                        precipField.Elevation[pkv.Key], precipField.SeaLevel);
+                    landSamples.Add((pt, pkv.Value));
+                }
+                _adaptiveBiomeThresholds =
+                    BiomeClassification.ComputeThresholdsForVegetatedLand(landSamples);
+            }
             _lastPrecipField = precipField;
             PerfLog($"Build() precipitation(enabled={needsPrecipField}, "
                 + $"cacheHit={(needsPrecipField ? _precipCacheHit.ToString() : "n/a")})"
@@ -4717,11 +4774,17 @@ namespace WorldGen.Viewer
         /// hasznalja - igy a szarazfoldi biome-hatarok (jeg/tundra/mersekelt/
         /// tropusi) is szervesen szabalytalanok lesznek, nem csak a tengeri.
         /// </summary>
-        private static Biome JitteredRenderBiome(double x, double y, double z, double temperatureK, bool isOceanic, ulong seed)
+        private Biome JitteredRenderBiome(double x, double y, double z, double temperatureK, bool isOceanic, ulong seed)
         {
             double jitterK = IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
                 seed, x, y, z, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves);
-            return BiomeClassification.Classify(temperatureK + jitterK, isOceanic);
+            // ND-126: a jitter SZANDEKOSAN csak a homersekletre hat, a
+            // csapadekra nem. A jitter celja (ND-59) a polusi jeg/tundra
+            // hatar szabalyos korenek megtorese; a csapadek-hatarok mar
+            // eleve szabalytalanok (a nedvesseg-transzport a domborzatot
+            // koveti), azokat nem kell rongyolni.
+            return BiomeClassification.Classify(
+                temperatureK + jitterK, isOceanic, PrecipitationAtCore(x, y, z), _adaptiveBiomeThresholds);
         }
 
         /// <summary>Ld. IsInReferenceLevelSet doksi - ugyanaz a minta, de erteket (nem csak tagsagot) ad vissza.</summary>
@@ -5625,7 +5688,8 @@ namespace WorldGen.Viewer
             bool isOceanic = elevation < _adaptiveSeaLevel;
 
             double temperatureK = TemperatureKelvinAt(cx, cy, cz, _adaptiveAxialTiltRad, isOceanic, elevation, _adaptiveSeaLevel);
-            Biome biome = BiomeClassification.Classify(temperatureK, isOceanic);
+            Biome biome = BiomeClassification.Classify(
+                temperatureK, isOceanic, PrecipitationAtCore(cx, cy, cz), _adaptiveBiomeThresholds);
 
             bool isLake = showLakesIce && IsAdaptiveLakeTile(id);
             bool isIce = showLakesIce && IsAdaptiveIceTile(id);
@@ -6371,8 +6435,11 @@ namespace WorldGen.Viewer
             Biome.SeaIce => RenderCategory.SeaIce,
             Biome.IceSheet => RenderCategory.IceSheet,
             Biome.Tundra => RenderCategory.Tundra,
-            Biome.Temperate => RenderCategory.Temperate,
-            Biome.Tropical => RenderCategory.Tropical,
+            Biome.Desert => RenderCategory.Desert,
+            Biome.Grassland => RenderCategory.Grassland,
+            Biome.TemperateForest => RenderCategory.TemperateForest,
+            Biome.Savanna => RenderCategory.Savanna,
+            Biome.Rainforest => RenderCategory.Rainforest,
             _ => RenderCategory.Ocean,
         };
 
@@ -8175,8 +8242,11 @@ namespace WorldGen.Viewer
 
         private static readonly Color IceSheetColorContinuous = new Color(0.95f, 0.96f, 0.98f);
         private static readonly Color TundraColorContinuous = new Color(0.52f, 0.52f, 0.42f);
-        private static readonly Color TemperateColorContinuous = new Color(0.22f, 0.52f, 0.20f);
-        private static readonly Color TropicalColorContinuous = new Color(0.78f, 0.72f, 0.20f);
+        private static readonly Color DesertColorContinuous = new Color(0.84f, 0.74f, 0.50f);
+        private static readonly Color GrasslandColorContinuous = new Color(0.70f, 0.71f, 0.40f);
+        private static readonly Color SavannaColorContinuous = new Color(0.58f, 0.58f, 0.24f);
+        private static readonly Color TemperateForestColorContinuous = new Color(0.22f, 0.52f, 0.20f);
+        private static readonly Color RainforestColorContinuous = new Color(0.09f, 0.35f, 0.13f);
 
         /// <summary>Atmenet-sav fele (Kelvin) a biome-kuszobok korul - a kuszobok kozti (15K) resnel joval kisebb, nincs atfedes.</summary>
         private const double BiomeBlendHalfWidthK = 4.0;
@@ -8189,22 +8259,61 @@ namespace WorldGen.Viewer
             return t * t * (3.0 - 2.0 * t);
         }
 
-        /// <summary>
-        /// Folytonos szarazfoldi biome-szin - ugyanaz a 4 horgony-szin, mint
-        /// a CategoryColor IceSheet/Tundra/Temperate/Tropical agai, de a
-        /// BiomeClassification kuszobei (IceSheetThresholdK/TundraThresholdK/
-        /// TemperateThresholdK) korul lagyan atvezetve, nem egy diszkret
-        /// switch-csel eldontve. A kaszkad-lerp helyes, mert a kuszobok
-        /// monoton novekvoek es a savok nem fednek at.
-        /// </summary>
-        private static Color ContinuousLandBiomeColor(double temperatureK)
+        /// <summary>Simitott 0..1 atmenet ket csapadek-vagopont kozott (smoothstep).</summary>
+        private static float PrecipBlend01(double precipitation, double from, double to)
         {
+            if (to <= from) return precipitation > from ? 1f : 0f;
+            double t = (precipitation - from) / (to - from);
+            t = t < 0.0 ? 0.0 : (t > 1.0 ? 1.0 : t);
+            return (float)(t * t * (3.0 - 2.0 * t));
+        }
+
+        /// <summary>
+        /// A csapadek-tengely menti szin EGY homersekleti savban: szaraz ->
+        /// nedves iranyban Desert -> Grassland -> (kozepes) -> Rainforest, a
+        /// BiomeClassification.ComputeThresholds vagopontjai kozott lagyan
+        /// atvezetve. A "kozepes" horgony a hivotol jon, mert a mersekelt
+        /// savban TemperateForest, a tropusiban Savanna.
+        ///
+        /// A legnedvesebb szakasz szelessege a felso ket vagopont tavolsaga -
+        /// nincs felso vagopont, amihez normalizalni lehetne, es ez a
+        /// tavolsag ugyanabbol az eloszlasbol jon, tehat vilagfuggetlen.
+        /// </summary>
+        private static Color PrecipitationAxisColor(
+            double precipitation, Color middle, BiomeClassification.PrecipitationThresholds th)
+        {
+            Color c = Color.Lerp(DesertColorContinuous, GrasslandColorContinuous,
+                PrecipBlend01(precipitation, th.Arid, th.SemiArid));
+            c = Color.Lerp(c, middle, PrecipBlend01(precipitation, th.SemiArid, th.Moist));
+            c = Color.Lerp(c, RainforestColorContinuous,
+                PrecipBlend01(precipitation, th.Moist, th.Moist + (th.Moist - th.SemiArid)));
+            return c;
+        }
+
+        /// <summary>
+        /// Folytonos szarazfoldi biome-szin. ND-126 ota KETDIMENZIOS: a hideg
+        /// vegen (jeg/tundra) csak a homerseklet szamit - a sarkvideki "hideg
+        /// sivatag" is jeg/tundra -, a vegetalt savokban viszont a CSAPADEK
+        /// adja a szint, es a homerseklet csak a "kozepes" horgonyt valtja
+        /// (mersekelt erdo vs szavanna).
+        ///
+        /// Ugyanazok a kuszobok es ugyanaz a logika, mint a
+        /// BiomeClassification.Classify-ban - csak diszkret switch helyett
+        /// lagyan atvezetve (I3: a kep a vilagmodellbol kovetkezik, nem egy
+        /// kulon szinezesi szabalybol).
+        /// </summary>
+        private static Color ContinuousLandBiomeColor(
+            double temperatureK, double precipitation, BiomeClassification.PrecipitationThresholds th)
+        {
+            Color cool = PrecipitationAxisColor(precipitation, TemperateForestColorContinuous, th);
+            Color warm = PrecipitationAxisColor(precipitation, SavannaColorContinuous, th);
+            Color vegetated = Color.Lerp(cool, warm,
+                (float)SmoothTransition01(BiomeClassification.TemperateThresholdK, temperatureK));
+
             Color c = Color.Lerp(IceSheetColorContinuous, TundraColorContinuous,
                 (float)SmoothTransition01(BiomeClassification.IceSheetThresholdK, temperatureK));
-            c = Color.Lerp(c, TemperateColorContinuous,
+            c = Color.Lerp(c, vegetated,
                 (float)SmoothTransition01(BiomeClassification.TundraThresholdK, temperatureK));
-            c = Color.Lerp(c, TropicalColorContinuous,
-                (float)SmoothTransition01(BiomeClassification.TemperateThresholdK, temperatureK));
             return c;
         }
 
@@ -8264,20 +8373,19 @@ namespace WorldGen.Viewer
         /// mar meglevo sarok-szin-cache (sima atmenet) automatikusan
         /// vonatkozik ra.
         /// </summary>
-        private static Color ContinuousSurfaceColor(RenderCategory category, int bucket, bool isOceanic, double elevation, double temperatureK)
-        {
-            if (category == RenderCategory.Ocean || category == RenderCategory.SeaIce) return ContinuousOceanRockColor(elevation);
-            if (category == RenderCategory.IceSheet || category == RenderCategory.Tundra
-                || category == RenderCategory.Temperate || category == RenderCategory.Tropical)
-                return ContinuousLandBiomeColor(temperatureK);
-            return CategoryColor(category, bucket);
-        }
+        // ND-126: az itt korabban allo ContinuousSurfaceColor(...) TOROLVE.
+        // Halott kod volt - egyetlen hivoja sem maradt (csak a sajat
+        // definicioja es egy hivatkozo komment), es a Temperate/Tropical
+        // kategoriakra hivatkozott, amiket az ND-126 megszuntetett. Az elo
+        // ut a ContinuousCornerColor.
 
-        /// <summary>Ocean/SeaIce/IceSheet/Tundra/Temperate/Tropical - a folytonos vertex-szint kapo, vertex-szin-anyagos kategoriak (ND-58).</summary>
+        /// <summary>Ocean/SeaIce + a szarazfoldi biome-ok - a folytonos vertex-szint kapo, vertex-szin-anyagos kategoriak (ND-58).</summary>
         private static bool IsContinuousTerrainCategory(RenderCategory category) =>
             category == RenderCategory.Ocean || category == RenderCategory.SeaIce
             || category == RenderCategory.IceSheet || category == RenderCategory.Tundra
-            || category == RenderCategory.Temperate || category == RenderCategory.Tropical;
+            || category == RenderCategory.Desert || category == RenderCategory.Grassland
+            || category == RenderCategory.TemperateForest || category == RenderCategory.Savanna
+            || category == RenderCategory.Rainforest;
 
         /// <summary>
         /// A folytonos felszín-szín EGY SAROKPONTRA, a mar KISZAMOLT
@@ -8307,7 +8415,8 @@ namespace WorldGen.Viewer
             Vector3 dir = displacedCornerPos.normalized;
             BodyFrameConversion.ToCore(dir, out double cx, out double cy, out double cz);
             double temperatureK = TemperatureKelvinAt(cx, cy, cz, axialTiltRadForColor, isOceanic, elevation, seaLevelForColor);
-            return ContinuousLandBiomeColor(temperatureK);
+            return ContinuousLandBiomeColor(
+                temperatureK, PrecipitationAtCore(cx, cy, cz), _adaptiveBiomeThresholds);
         }
 
         /// <summary>
@@ -8579,8 +8688,15 @@ namespace WorldGen.Viewer
             RenderCategory.SeaIce => new Color(0.72f, 0.78f, 0.84f),
             RenderCategory.IceSheet => new Color(0.80f, 0.83f, 0.87f),
             RenderCategory.Tundra => new Color(0.52f, 0.52f, 0.42f),
-            RenderCategory.Temperate => new Color(0.22f, 0.52f, 0.20f),
-            RenderCategory.Tropical => new Color(0.78f, 0.72f, 0.20f),
+            // ND-126: szarazfoldi biome-szinek szaraz -> nedves iranyban.
+            // Homok -> szalma -> olajzold -> zold -> melyzold; a ket
+            // "kozepes" osztaly (Savanna/TemperateForest) szandekosan kozeli,
+            // de elkulonitheto arnyalat.
+            RenderCategory.Desert => new Color(0.84f, 0.74f, 0.50f),
+            RenderCategory.Grassland => new Color(0.70f, 0.71f, 0.40f),
+            RenderCategory.Savanna => new Color(0.58f, 0.58f, 0.24f),
+            RenderCategory.TemperateForest => new Color(0.22f, 0.52f, 0.20f),
+            RenderCategory.Rainforest => new Color(0.09f, 0.35f, 0.13f),
             RenderCategory.River => new Color(0.20f, 0.55f, 0.90f), // vilagosabb kek, mint az ocean - elkulonul
             RenderCategory.Lake => new Color(0.12f, 0.42f, 0.62f), // edesviz-to: melyebb, kicsit zoldesebb kek, mint a folyo/ocean
             RenderCategory.Crater => new Color(0.45f, 0.18f, 0.10f), // sotet vorosbarna - jol elkulonul minden biome-tol

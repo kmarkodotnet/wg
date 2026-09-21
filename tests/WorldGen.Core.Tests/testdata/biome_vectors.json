@@ -1,1003 +1,1208 @@
 {
+ "thresholds": {
+  "arid": 1.0,
+  "semiArid": 2.0,
+  "moist": 3.0
+ },
  "vectors": [
   {
    "temperatureK": 347.312,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.322,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 207.944,
    "isOceanic": true,
+   "precipitation": 1.401,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 358.746,
    "isOceanic": true,
+   "precipitation": 1.41,
    "biome": "Ocean"
   },
   {
    "temperatureK": 384.13599999999997,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.456,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 270.21299999999997,
    "isOceanic": false,
+   "precipitation": 3.669,
    "biome": "Tundra"
   },
   {
    "temperatureK": 311.134,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 1.849,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 288.131,
    "isOceanic": false,
-   "biome": "Temperate"
+   "precipitation": 1.756,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 236.118,
    "isOceanic": false,
+   "precipitation": 1.795,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 360.01,
    "isOceanic": true,
+   "precipitation": 4.06,
    "biome": "Ocean"
   },
   {
    "temperatureK": 265.294,
    "isOceanic": false,
+   "precipitation": 4.274,
    "biome": "Tundra"
   },
   {
    "temperatureK": 264.139,
    "isOceanic": false,
+   "precipitation": 1.945,
    "biome": "Tundra"
   },
   {
    "temperatureK": 389.524,
    "isOceanic": true,
+   "precipitation": 2.198,
    "biome": "Ocean"
   },
   {
    "temperatureK": 338.04499999999996,
    "isOceanic": true,
+   "precipitation": 1.568,
    "biome": "Ocean"
   },
   {
    "temperatureK": 252.582,
    "isOceanic": true,
+   "precipitation": 4.858,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 257.501,
    "isOceanic": true,
+   "precipitation": 0.737,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 211.62,
    "isOceanic": true,
+   "precipitation": 0.807,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 204.058,
    "isOceanic": true,
+   "precipitation": 3.484,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 304.19,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 4.935,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 302.387,
    "isOceanic": true,
+   "precipitation": 2.989,
    "biome": "Ocean"
   },
   {
    "temperatureK": 315.248,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.09,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 228.676,
    "isOceanic": true,
+   "precipitation": 0.397,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 215.225,
    "isOceanic": true,
+   "precipitation": 0.993,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 221.531,
    "isOceanic": true,
+   "precipitation": 4.149,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 371.195,
    "isOceanic": true,
+   "precipitation": 4.37,
    "biome": "Ocean"
   },
   {
    "temperatureK": 390.27,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 3.858,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 397.957,
    "isOceanic": true,
+   "precipitation": 1.594,
    "biome": "Ocean"
   },
   {
    "temperatureK": 318.996,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.338,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 246.59199999999998,
    "isOceanic": true,
+   "precipitation": 4.238,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 359.303,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 0.977,
+   "biome": "Desert"
   },
   {
    "temperatureK": 257.129,
    "isOceanic": false,
+   "precipitation": 4.162,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 381.695,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 0.869,
+   "biome": "Desert"
   },
   {
    "temperatureK": 212.059,
    "isOceanic": false,
+   "precipitation": 4.802,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 212.974,
    "isOceanic": true,
+   "precipitation": 0.453,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 230.319,
    "isOceanic": false,
+   "precipitation": 1.717,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 200.722,
    "isOceanic": true,
+   "precipitation": 2.211,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 388.54499999999996,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 0.783,
+   "biome": "Desert"
   },
   {
    "temperatureK": 268.026,
    "isOceanic": false,
+   "precipitation": 1.13,
    "biome": "Tundra"
   },
   {
    "temperatureK": 392.052,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 1.775,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 332.169,
    "isOceanic": true,
+   "precipitation": 3.891,
    "biome": "Ocean"
   },
   {
    "temperatureK": 344.93899999999996,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 3.772,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 202.19,
    "isOceanic": false,
+   "precipitation": 3.405,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 340.505,
    "isOceanic": true,
+   "precipitation": 3.626,
    "biome": "Ocean"
   },
   {
    "temperatureK": 379.49,
    "isOceanic": true,
+   "precipitation": 0.267,
    "biome": "Ocean"
   },
   {
    "temperatureK": 256.37,
    "isOceanic": false,
+   "precipitation": 3.294,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 372.554,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.254,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 264.335,
    "isOceanic": false,
+   "precipitation": 0.933,
    "biome": "Tundra"
   },
   {
    "temperatureK": 370.11699999999996,
    "isOceanic": true,
+   "precipitation": 3.069,
    "biome": "Ocean"
   },
   {
    "temperatureK": 375.73199999999997,
    "isOceanic": true,
+   "precipitation": 3.604,
    "biome": "Ocean"
   },
   {
    "temperatureK": 329.424,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.4,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 257.104,
    "isOceanic": true,
+   "precipitation": 4.524,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 384.37,
    "isOceanic": true,
+   "precipitation": 2.221,
    "biome": "Ocean"
   },
   {
    "temperatureK": 243.516,
    "isOceanic": true,
+   "precipitation": 2.864,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 285.943,
    "isOceanic": true,
+   "precipitation": 0.45,
    "biome": "Ocean"
   },
   {
    "temperatureK": 239.551,
    "isOceanic": false,
+   "precipitation": 0.462,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 344.246,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.849,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 300.271,
    "isOceanic": true,
+   "precipitation": 4.755,
    "biome": "Ocean"
   },
   {
    "temperatureK": 386.58299999999997,
    "isOceanic": true,
+   "precipitation": 4.579,
    "biome": "Ocean"
   },
   {
    "temperatureK": 340.898,
    "isOceanic": true,
+   "precipitation": 2.503,
    "biome": "Ocean"
   },
   {
    "temperatureK": 350.086,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 1.887,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 363.203,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 0.295,
+   "biome": "Desert"
   },
   {
    "temperatureK": 220.438,
    "isOceanic": false,
+   "precipitation": 3.916,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 246.337,
    "isOceanic": false,
+   "precipitation": 4.303,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 211.879,
    "isOceanic": false,
+   "precipitation": 1.971,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 282.961,
    "isOceanic": false,
-   "biome": "Temperate"
+   "precipitation": 3.427,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 348.98400000000004,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 3.56,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 258.007,
    "isOceanic": true,
+   "precipitation": 3.977,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 279.264,
    "isOceanic": true,
+   "precipitation": 4.624,
    "biome": "Ocean"
   },
   {
    "temperatureK": 256.338,
    "isOceanic": true,
+   "precipitation": 2.512,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 398.663,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 1.531,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 311.094,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 3.41,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 328.784,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.213,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 300.126,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 3.903,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 264.474,
    "isOceanic": false,
+   "precipitation": 1.79,
    "biome": "Tundra"
   },
   {
    "temperatureK": 293.015,
    "isOceanic": false,
-   "biome": "Temperate"
+   "precipitation": 1.195,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 320.446,
    "isOceanic": true,
+   "precipitation": 4.731,
    "biome": "Ocean"
   },
   {
    "temperatureK": 221.378,
    "isOceanic": false,
+   "precipitation": 0.313,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 223.661,
    "isOceanic": false,
+   "precipitation": 3.625,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 209.719,
    "isOceanic": true,
+   "precipitation": 3.741,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 333.46299999999997,
    "isOceanic": true,
+   "precipitation": 0.971,
    "biome": "Ocean"
   },
   {
    "temperatureK": 204.635,
    "isOceanic": false,
+   "precipitation": 2.836,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 365.913,
    "isOceanic": true,
+   "precipitation": 4.148,
    "biome": "Ocean"
   },
   {
    "temperatureK": 214.995,
    "isOceanic": true,
+   "precipitation": 0.324,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 373.416,
    "isOceanic": true,
+   "precipitation": 1.705,
    "biome": "Ocean"
   },
   {
    "temperatureK": 282.06,
    "isOceanic": false,
-   "biome": "Temperate"
+   "precipitation": 1.327,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 311.868,
    "isOceanic": true,
+   "precipitation": 2.894,
    "biome": "Ocean"
   },
   {
    "temperatureK": 330.51300000000003,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 4.418,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 243.089,
    "isOceanic": true,
+   "precipitation": 4.726,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 357.145,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.814,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 268.164,
    "isOceanic": false,
+   "precipitation": 2.838,
    "biome": "Tundra"
   },
   {
    "temperatureK": 370.127,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 4.231,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 381.725,
    "isOceanic": true,
+   "precipitation": 4.318,
    "biome": "Ocean"
   },
   {
    "temperatureK": 385.568,
    "isOceanic": true,
+   "precipitation": 3.493,
    "biome": "Ocean"
   },
   {
    "temperatureK": 257.201,
    "isOceanic": false,
+   "precipitation": 0.467,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 361.395,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.432,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 349.321,
    "isOceanic": true,
+   "precipitation": 1.436,
    "biome": "Ocean"
   },
   {
    "temperatureK": 382.712,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 4.353,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 306.072,
    "isOceanic": true,
+   "precipitation": 2.291,
    "biome": "Ocean"
   },
   {
    "temperatureK": 333.847,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.469,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 394.327,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 4.554,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 266.771,
    "isOceanic": false,
+   "precipitation": 0.377,
    "biome": "Tundra"
   },
   {
    "temperatureK": 348.48,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 3.496,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 395.408,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 1.89,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 280.321,
    "isOceanic": true,
+   "precipitation": 4.406,
    "biome": "Ocean"
   },
   {
    "temperatureK": 288.598,
    "isOceanic": false,
-   "biome": "Temperate"
+   "precipitation": 4.069,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 305.027,
    "isOceanic": true,
+   "precipitation": 4.345,
    "biome": "Ocean"
   },
   {
    "temperatureK": 255.226,
    "isOceanic": false,
+   "precipitation": 2.029,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 381.53499999999997,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 1.282,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 228.81,
    "isOceanic": true,
+   "precipitation": 4.814,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 333.273,
    "isOceanic": true,
+   "precipitation": 1.042,
    "biome": "Ocean"
   },
   {
    "temperatureK": 305.721,
    "isOceanic": true,
+   "precipitation": 3.559,
    "biome": "Ocean"
   },
   {
    "temperatureK": 252.484,
    "isOceanic": false,
+   "precipitation": 1.099,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 395.43100000000004,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 4.89,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 200.122,
    "isOceanic": false,
+   "precipitation": 4.379,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 344.075,
    "isOceanic": true,
+   "precipitation": 2.051,
    "biome": "Ocean"
   },
   {
    "temperatureK": 325.331,
    "isOceanic": true,
+   "precipitation": 4.641,
    "biome": "Ocean"
   },
   {
    "temperatureK": 287.923,
    "isOceanic": false,
-   "biome": "Temperate"
+   "precipitation": 4.333,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 357.13800000000003,
    "isOceanic": true,
+   "precipitation": 1.282,
    "biome": "Ocean"
   },
   {
    "temperatureK": 284.907,
    "isOceanic": false,
-   "biome": "Temperate"
+   "precipitation": 4.095,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 396.624,
    "isOceanic": true,
+   "precipitation": 1.358,
    "biome": "Ocean"
   },
   {
    "temperatureK": 245.042,
    "isOceanic": false,
+   "precipitation": 4.278,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 333.51300000000003,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 3.111,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 373.721,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 0.161,
+   "biome": "Desert"
   },
   {
    "temperatureK": 222.28300000000002,
    "isOceanic": false,
+   "precipitation": 3.227,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 351.08500000000004,
    "isOceanic": true,
+   "precipitation": 0.607,
    "biome": "Ocean"
   },
   {
    "temperatureK": 230.081,
    "isOceanic": true,
+   "precipitation": 0.193,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 286.497,
    "isOceanic": true,
+   "precipitation": 0.824,
    "biome": "Ocean"
   },
   {
    "temperatureK": 369.39,
    "isOceanic": true,
+   "precipitation": 4.5,
    "biome": "Ocean"
   },
   {
    "temperatureK": 371.07,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 3.981,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 287.324,
    "isOceanic": true,
+   "precipitation": 1.529,
    "biome": "Ocean"
   },
   {
    "temperatureK": 336.56,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.122,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 385.1,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 3.74,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 318.921,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 1.678,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 201.652,
    "isOceanic": false,
+   "precipitation": 3.966,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 394.875,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.447,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 349.63599999999997,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.948,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 278.733,
    "isOceanic": false,
-   "biome": "Temperate"
+   "precipitation": 0.094,
+   "biome": "Desert"
   },
   {
    "temperatureK": 262.803,
    "isOceanic": false,
+   "precipitation": 1.933,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 341.707,
    "isOceanic": true,
+   "precipitation": 3.888,
    "biome": "Ocean"
   },
   {
    "temperatureK": 331.921,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 4.174,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 383.91499999999996,
    "isOceanic": true,
+   "precipitation": 2.593,
    "biome": "Ocean"
   },
   {
    "temperatureK": 399.399,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.605,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 217.522,
    "isOceanic": true,
+   "precipitation": 1.327,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 258.95,
    "isOceanic": true,
+   "precipitation": 4.143,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 210.17,
    "isOceanic": false,
+   "precipitation": 0.983,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 293.677,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 1.625,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 301.53700000000003,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 0.725,
+   "biome": "Desert"
   },
   {
    "temperatureK": 332.50800000000004,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.423,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 300.915,
    "isOceanic": true,
+   "precipitation": 1.605,
    "biome": "Ocean"
   },
   {
    "temperatureK": 278.477,
    "isOceanic": false,
-   "biome": "Temperate"
+   "precipitation": 3.296,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 253.677,
    "isOceanic": true,
+   "precipitation": 2.308,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 206.728,
    "isOceanic": true,
+   "precipitation": 1.099,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 296.442,
    "isOceanic": true,
+   "precipitation": 2.295,
    "biome": "Ocean"
   },
   {
    "temperatureK": 324.077,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 0.642,
+   "biome": "Desert"
   },
   {
    "temperatureK": 319.118,
    "isOceanic": true,
+   "precipitation": 2.241,
    "biome": "Ocean"
   },
   {
    "temperatureK": 263.847,
    "isOceanic": false,
+   "precipitation": 3.513,
    "biome": "Tundra"
   },
   {
    "temperatureK": 288.308,
    "isOceanic": false,
-   "biome": "Temperate"
+   "precipitation": 1.718,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 284.852,
    "isOceanic": false,
-   "biome": "Temperate"
+   "precipitation": 0.404,
+   "biome": "Desert"
   },
   {
    "temperatureK": 235.837,
    "isOceanic": true,
+   "precipitation": 3.835,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 235.365,
    "isOceanic": false,
+   "precipitation": 4.224,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 277.252,
    "isOceanic": false,
+   "precipitation": 1.241,
    "biome": "Tundra"
   },
   {
    "temperatureK": 386.46799999999996,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 1.319,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 352.669,
    "isOceanic": true,
+   "precipitation": 3.939,
    "biome": "Ocean"
   },
   {
    "temperatureK": 269.18399999999997,
    "isOceanic": true,
+   "precipitation": 4.523,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 296.262,
    "isOceanic": true,
+   "precipitation": 1.637,
    "biome": "Ocean"
   },
   {
    "temperatureK": 309.039,
    "isOceanic": true,
+   "precipitation": 0.916,
    "biome": "Ocean"
   },
   {
    "temperatureK": 351.47,
    "isOceanic": true,
+   "precipitation": 1.965,
    "biome": "Ocean"
   },
   {
    "temperatureK": 216.96699999999998,
    "isOceanic": false,
+   "precipitation": 2.965,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 247.619,
    "isOceanic": true,
+   "precipitation": 3.973,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 241.797,
    "isOceanic": true,
+   "precipitation": 2.315,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 329.54499999999996,
    "isOceanic": true,
+   "precipitation": 1.958,
    "biome": "Ocean"
   },
   {
    "temperatureK": 249.487,
    "isOceanic": false,
+   "precipitation": 2.676,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 374.274,
    "isOceanic": true,
+   "precipitation": 1.32,
    "biome": "Ocean"
   },
   {
    "temperatureK": 374.418,
    "isOceanic": true,
+   "precipitation": 1.702,
    "biome": "Ocean"
   },
   {
    "temperatureK": 301.563,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.494,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 375.73400000000004,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 4.179,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 328.632,
    "isOceanic": true,
+   "precipitation": 2.909,
    "biome": "Ocean"
   },
   {
    "temperatureK": 307.307,
    "isOceanic": true,
+   "precipitation": 2.828,
    "biome": "Ocean"
   },
   {
    "temperatureK": 370.89099999999996,
    "isOceanic": true,
+   "precipitation": 3.654,
    "biome": "Ocean"
   },
   {
    "temperatureK": 360.11,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 2.373,
+   "biome": "Savanna"
   },
   {
    "temperatureK": 206.625,
    "isOceanic": true,
+   "precipitation": 1.83,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 324.536,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 1.32,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 260.317,
    "isOceanic": false,
+   "precipitation": 3.461,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 219.481,
    "isOceanic": true,
+   "precipitation": 0.12,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 379.369,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 3.226,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 379.23699999999997,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 1.867,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 370.339,
    "isOceanic": true,
+   "precipitation": 0.358,
    "biome": "Ocean"
   },
   {
    "temperatureK": 225.304,
    "isOceanic": true,
+   "precipitation": 4.431,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 331.156,
    "isOceanic": true,
+   "precipitation": 4.937,
    "biome": "Ocean"
   },
   {
    "temperatureK": 343.221,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 0.318,
+   "biome": "Desert"
   },
   {
    "temperatureK": 288.093,
    "isOceanic": false,
-   "biome": "Temperate"
+   "precipitation": 3.384,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 263.779,
    "isOceanic": false,
+   "precipitation": 1.599,
    "biome": "Tundra"
   },
   {
    "temperatureK": 285.017,
    "isOceanic": true,
+   "precipitation": 1.358,
    "biome": "Ocean"
   },
   {
    "temperatureK": 342.803,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 4.915,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 205.216,
    "isOceanic": false,
+   "precipitation": 2.786,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 359.57,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 3.642,
+   "biome": "Rainforest"
   },
   {
    "temperatureK": 211.493,
    "isOceanic": true,
+   "precipitation": 3.913,
    "biome": "SeaIce"
   },
   {
    "temperatureK": 364.123,
    "isOceanic": false,
-   "biome": "Tropical"
+   "precipitation": 1.275,
+   "biome": "Grassland"
   },
   {
    "temperatureK": 205.75,
    "isOceanic": false,
+   "precipitation": 2.06,
    "biome": "IceSheet"
   },
   {
    "temperatureK": 390.094,
    "isOceanic": true,
+   "precipitation": 1.034,
    "biome": "Ocean"
   },
   {
    "temperatureK": 250.40800000000002,
    "isOceanic": true,
+   "precipitation": 4.043,
    "biome": "SeaIce"
   }
  ]

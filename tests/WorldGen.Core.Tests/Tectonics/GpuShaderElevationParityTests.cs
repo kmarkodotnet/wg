@@ -40,6 +40,11 @@ namespace WorldGen.Core.Tests.Tectonics;
 /// </summary>
 public class GpuShaderElevationParityTests
 {
+    /// <summary>ND-126: rogzitett csapadek + kuszobok - ld. a hasznalat helyen a magyarazatot.</summary>
+    private const double BiomeProbePrecipitation = 2.5;
+    private static readonly BiomeClassification.PrecipitationThresholds BiomeProbeThresholds =
+        new BiomeClassification.PrecipitationThresholds(1.0, 2.0, 3.0);
+
     private const ulong Seed = 0xA7C944210000UL;
     private const int PlateCount = 20;
     private const int Level = 6;
@@ -126,12 +131,18 @@ public class GpuShaderElevationParityTests
             bool oceanVariant = e < seaLevel;
             oceanFlip[i] = oceanTruth != oceanVariant ? 1 : 0;
 
+            // ND-126: a Classify csapadekot is kap. Ez a teszt azt meri, hany
+            // tile biome-ja fordul at az ELEVACIO elterese miatt, ezert a
+            // csapadek MINDKET valtozatnal UGYANAZ a konstans - kulonben a
+            // csapadek elterese is beszamitana, es nem az elevacio hatasat
+            // mernenk. Az ertek a "kozepes" savba esik, tehat a homersekleti
+            // kuszoboknel es az ocean-hatarnal kapunk atfordulast.
             Biome bT = BiomeClassification.Classify(
                 Temperature.TemperatureKelvin(x, y, z, 0.0, 365.25, 1.0, AxialTilt, oceanTruth, truth[i], seaLevel),
-                oceanTruth);
+                oceanTruth, BiomeProbePrecipitation, BiomeProbeThresholds);
             Biome bV = BiomeClassification.Classify(
                 Temperature.TemperatureKelvin(x, y, z, 0.0, 365.25, 1.0, AxialTilt, oceanVariant, e, seaLevel),
-                oceanVariant);
+                oceanVariant, BiomeProbePrecipitation, BiomeProbeThresholds);
             biomeFlip[i] = bT != bV ? 1 : 0;
         });
 

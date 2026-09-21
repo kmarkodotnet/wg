@@ -31,8 +31,16 @@ namespace WorldGen.Core.Features
             ["IceSheet"] = new[] { "Frost", "Rime", "Ice", "Glacier" },
             ["SeaIce"] = new[] { "Frost", "Rime", "Ice" },
             ["Tundra"] = new[] { "Tundra", "Barrens", "Waste" },
-            ["Temperate"] = new[] { "Forest", "Woods", "Vale", "Downs" },
-            ["Tropical"] = new[] { "Isles", "Verdant", "Reach", "Coast" },
+
+            // ND-126: a ket homersekleti osztaly (Temperate/Tropical) helyere
+            // ot, csapadek szerint is megkulonboztetett biome lepett. A
+            // nev-kulcs a Biome.ToString(), tehat ezeknek EGYEZNIUK kell az
+            // enum nevekkel - kulonben csendben a DefaultSuffixes jon.
+            ["Desert"] = new[] { "Desert", "Sands", "Dunes", "Barrens" },
+            ["Grassland"] = new[] { "Steppe", "Plains", "Prairie", "Downs" },
+            ["TemperateForest"] = new[] { "Forest", "Woods", "Vale", "Downs" },
+            ["Savanna"] = new[] { "Savanna", "Veld", "Reach", "Flats" },
+            ["Rainforest"] = new[] { "Jungle", "Verdant", "Canopy", "Coast" },
 
             // Tektonikuslemez-overlay (2026-09-13, docs/backlog.md) -
             // NEM biome, csak a MEGLÉVŐ biome-alapú utótag-kiválasztást

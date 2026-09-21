@@ -55,7 +55,20 @@ namespace WorldGen.Core.Features
             return regions;
         }
 
-        /// <summary>A leggyakoribb biome egy tile-halmazban.</summary>
+        /// <summary>
+        /// A leggyakoribb biome egy tile-halmazban.
+        ///
+        /// DÖNTETLEN: a KISEBB <see cref="Biome"/> enum-érték nyer. Ez nem
+        /// kozmetika — 2026-09-21-ig NEM volt explicit döntetlen-feloldás, és
+        /// az eredmény a `Dictionary&lt;Biome,int&gt;` BEJÁRÁSI SORRENDJÉN
+        /// múlt (az `OrderByDescending` stabil, tehát az első bejárt
+        /// maximumot adja vissza). Ez az I2 („nincs szótár-bejárási
+        /// sorrendtől való függés") sértése volt, csak addig nem bukott ki,
+        /// amíg kevés biome-osztály létezett. Az ND-126 (csapadék-alapú
+        /// osztályozás) öt szárazföldi osztályt hozott a kettő helyett, és a
+        /// Python-referencia azonnal más régiónevet adott, mint a C#
+        /// („Sylthal Plains" vs „Sylthal Veld") — ugyanabból az adatból.
+        /// </summary>
         public static Biome DominantBiome(IEnumerable<TileId> tiles, Dictionary<TileId, Biome> biomeOf)
         {
             var counts = new Dictionary<Biome, int>();
@@ -64,7 +77,18 @@ namespace WorldGen.Core.Features
                 Biome b = biomeOf[t];
                 counts[b] = counts.TryGetValue(b, out int c) ? c + 1 : 1;
             }
-            return counts.OrderByDescending(kv => kv.Value).First().Key;
+
+            Biome best = default;
+            int bestCount = -1;
+            foreach (KeyValuePair<Biome, int> kv in counts)
+            {
+                if (kv.Value > bestCount || (kv.Value == bestCount && (int)kv.Key < (int)best))
+                {
+                    best = kv.Key;
+                    bestCount = kv.Value;
+                }
+            }
+            return best;
         }
 
         /// <summary>

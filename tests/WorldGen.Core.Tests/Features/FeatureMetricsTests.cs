@@ -26,12 +26,12 @@ public class FeatureMetricsStructuralTests
         TileId c = TileId.FromFaceLevelUV(0, 3, 3, 3);
         var biomeOf = new Dictionary<TileId, Biome>
         {
-            [a] = Biome.Temperate, [b] = Biome.Temperate, [c] = Biome.Tropical,
+            [a] = Biome.TemperateForest, [b] = Biome.TemperateForest, [c] = Biome.Savanna,
         };
 
         int diversity = FeatureMetrics.BiomeDiversity(new[] { a, b, c }, biomeOf);
 
-        Assert.Equal(2, diversity); // Temperate + Tropical, a/b duplikalt
+        Assert.Equal(2, diversity); // TemperateForest + Savanna, a/b duplikalt
     }
 
     [Fact]
@@ -188,5 +188,35 @@ public class SelectRiverTilesTests
         HashSet<TileId> r2 = FlowNetwork.SelectRiverTiles(isOcean, accumulation, 0.3);
 
         Assert.Equal(r1, r2);
+    }
+
+    /// <summary>
+    /// ND-126 mellekterme: a DominantBiome dontetlenjet 2026-09-21-ig a
+    /// szotar-bejarasi sorrend dontotte el (I2-sertes). A dontetlen-szabaly:
+    /// a KISEBB Biome enum-ertek nyer. Ez a teszt a szabalyt rogziti, es azt
+    /// is, hogy a BEMENETI SORREND nem szamit.
+    /// </summary>
+    [Fact]
+    public void DominantBiomeBreaksTiesByLowestEnumValueRegardlessOfInputOrder()
+    {
+        TileId a = TileId.FromFaceLevelUV(0, 3, 1, 1);
+        TileId b = TileId.FromFaceLevelUV(0, 3, 2, 2);
+        TileId c = TileId.FromFaceLevelUV(0, 3, 3, 3);
+        TileId d = TileId.FromFaceLevelUV(0, 3, 4, 4);
+
+        // 2-2 dontetlen: Savanna (7) vs Grassland (5) -> Grassland nyer.
+        var biomeOf = new Dictionary<TileId, Biome>
+        {
+            [a] = Biome.Savanna, [b] = Biome.Savanna,
+            [c] = Biome.Grassland, [d] = Biome.Grassland,
+        };
+
+        Assert.Equal(Biome.Grassland, FeatureSegmentation.DominantBiome(new[] { a, b, c, d }, biomeOf));
+        Assert.Equal(Biome.Grassland, FeatureSegmentation.DominantBiome(new[] { c, d, a, b }, biomeOf));
+        Assert.Equal(Biome.Grassland, FeatureSegmentation.DominantBiome(new[] { a, c, b, d }, biomeOf));
+
+        // Tobbseg eseten viszont a tobbseg nyer, fuggetlenul az enum-ertektol.
+        biomeOf[d] = Biome.Savanna;
+        Assert.Equal(Biome.Savanna, FeatureSegmentation.DominantBiome(new[] { a, b, c, d }, biomeOf));
     }
 }

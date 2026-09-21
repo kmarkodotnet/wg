@@ -47,6 +47,12 @@ public class AreaPartitioningVectorFileTests
         var isOcean = FlowNetwork.ComputeOceanField(field, seaLevel);
         FlowNetwork.FloodResult flood = FlowNetwork.PriorityFlood(field, isOcean);
 
+        var landPrecipProxy = new List<double>();
+        foreach (TileId id in field.Keys)
+            if (!isOcean[id]) landPrecipProxy.Add(field[id]);
+        BiomeClassification.PrecipitationThresholds biomeThresholds =
+            BiomeClassification.ComputeThresholds(landPrecipProxy);
+
         var biomeOf = new Dictionary<TileId, Biome>();
         foreach (TileId id in field.Keys)
         {
@@ -54,7 +60,13 @@ public class AreaPartitioningVectorFileTests
             double tK = Temperature.TemperatureKelvin(
                 x, y, z, 0.0, 365.25, 1.0, 23.44 * Math.PI / 180.0,
                 isOcean[id], field[id], seaLevel);
-            biomeOf[id] = BiomeClassification.Classify(tK, isOcean[id]);
+            // ND-126: a Classify csapadekot is kap. Ennek a tesztnek a targya a
+            // SZEGMENTALAS, nem a klima, ezert nem futtatunk teljes
+            // nedvesseg-transzportot - a magassagot hasznaljuk olcso,
+            // determinisztikus csapadek-PROXY-kent. Csak annyi kell tole,
+            // hogy a szarazfoldon legyen tobbfele biome.
+            biomeOf[id] = BiomeClassification.Classify(
+                tK, isOcean[id], field[id], biomeThresholds);
         }
 
         Dictionary<TileId, List<TileId>> regions = FeatureSegmentation.FindWatershedRegions(flood.Parent, isOcean);

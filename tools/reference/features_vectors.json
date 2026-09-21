@@ -5,34 +5,34 @@
  "worldOceanCoverage": 0.6499837239583334,
  "continents": [
   {
-   "name": "Aulight Woods",
+   "name": "Aulight Verdant",
    "areaTiles": 4171,
-   "biomeCount": 4,
-   "dominantBiome": "Temperate",
+   "biomeCount": 7,
+   "dominantBiome": "Rainforest",
    "riverMouthCount": 43,
    "riverBasinCount": 207
   },
   {
    "name": "Rhacy Glacier",
    "areaTiles": 3452,
-   "biomeCount": 4,
+   "biomeCount": 7,
    "dominantBiome": "IceSheet",
    "riverMouthCount": 20,
    "riverBasinCount": 198
   },
   {
-   "name": "Queltide Vale",
+   "name": "Queltide Canopy",
    "areaTiles": 221,
-   "biomeCount": 3,
-   "dominantBiome": "Temperate",
+   "biomeCount": 5,
+   "dominantBiome": "Rainforest",
    "riverMouthCount": 1,
    "riverBasinCount": 7
   },
   {
-   "name": "Auver Isles",
+   "name": "Auver Jungle",
    "areaTiles": 84,
-   "biomeCount": 2,
-   "dominantBiome": "Tropical",
+   "biomeCount": 4,
+   "dominantBiome": "Rainforest",
    "riverMouthCount": 0,
    "riverBasinCount": 3
   },
@@ -47,64 +47,64 @@
   {
    "name": "Haleast Downs",
    "areaTiles": 48,
-   "biomeCount": 2,
-   "dominantBiome": "Temperate",
+   "biomeCount": 5,
+   "dominantBiome": "TemperateForest",
    "riverMouthCount": 0,
    "riverBasinCount": 2
   },
   {
-   "name": "Aurel Verdant",
+   "name": "Aurel Veld",
    "areaTiles": 38,
-   "biomeCount": 1,
-   "dominantBiome": "Tropical",
+   "biomeCount": 4,
+   "dominantBiome": "Savanna",
    "riverMouthCount": 0,
    "riverBasinCount": 2
   },
   {
-   "name": "Sylthal Verdant",
+   "name": "Sylthal Plains",
    "areaTiles": 36,
-   "biomeCount": 1,
-   "dominantBiome": "Tropical",
+   "biomeCount": 4,
+   "dominantBiome": "Grassland",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
-   "name": "Reltide Isles",
+   "name": "Reltide Steppe",
    "areaTiles": 34,
-   "biomeCount": 1,
-   "dominantBiome": "Tropical",
+   "biomeCount": 4,
+   "dominantBiome": "Grassland",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
-   "name": "Delwat Reach",
+   "name": "Delwat Prairie",
    "areaTiles": 31,
-   "biomeCount": 1,
-   "dominantBiome": "Tropical",
+   "biomeCount": 4,
+   "dominantBiome": "Grassland",
    "riverMouthCount": 0,
    "riverBasinCount": 1
   },
   {
    "name": "Pyrrin Tundra",
    "areaTiles": 27,
-   "biomeCount": 2,
+   "biomeCount": 4,
    "dominantBiome": "Tundra",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
-   "name": "Eastum Verdant",
+   "name": "Eastum Veld",
    "areaTiles": 26,
-   "biomeCount": 1,
-   "dominantBiome": "Tropical",
+   "biomeCount": 4,
+   "dominantBiome": "Savanna",
    "riverMouthCount": 0,
    "riverBasinCount": 1
   },
   {
-   "name": "Eastcy Coast",
+   "name": "Eastcy Downs",
    "areaTiles": 18,
-   "biomeCount": 1,
-   "dominantBiome": "Tropical",
+   "biomeCount": 3,
+   "dominantBiome": "Grassland",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
@@ -117,10 +117,10 @@
    "riverBasinCount": 0
   },
   {
-   "name": "Mirau Isles",
+   "name": "Mirau Desert",
    "areaTiles": 16,
-   "biomeCount": 2,
-   "dominantBiome": "Tropical",
+   "biomeCount": 4,
+   "dominantBiome": "Desert",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
@@ -133,18 +133,18 @@
    "riverBasinCount": 0
   },
   {
-   "name": "Ionos Reach",
+   "name": "Ionos Prairie",
    "areaTiles": 12,
-   "biomeCount": 1,
-   "dominantBiome": "Tropical",
+   "biomeCount": 3,
+   "dominantBiome": "Grassland",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
-   "name": "Ionhal Reach",
+   "name": "Ionhal Dunes",
    "areaTiles": 12,
-   "biomeCount": 1,
-   "dominantBiome": "Tropical",
+   "biomeCount": 3,
+   "dominantBiome": "Desert",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
@@ -157,90 +157,90 @@
    "riverBasinCount": 0
   },
   {
-   "name": "Kaau Woods",
+   "name": "Kaau Sands",
    "areaTiles": 10,
-   "biomeCount": 2,
-   "dominantBiome": "Temperate",
+   "biomeCount": 4,
+   "dominantBiome": "Desert",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
    "name": "Relvel Verdant",
    "areaTiles": 10,
-   "biomeCount": 1,
-   "dominantBiome": "Tropical",
+   "biomeCount": 4,
+   "dominantBiome": "Rainforest",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
-   "name": "Velmar Verdant",
+   "name": "Velmar Veld",
    "areaTiles": 10,
-   "biomeCount": 2,
-   "dominantBiome": "Tropical",
+   "biomeCount": 4,
+   "dominantBiome": "Savanna",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
-   "name": "Quelmir Reach",
+   "name": "Quelmir Dunes",
    "areaTiles": 10,
-   "biomeCount": 1,
-   "dominantBiome": "Tropical",
+   "biomeCount": 3,
+   "dominantBiome": "Desert",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
-   "name": "Mirau Reach",
+   "name": "Mirau Dunes",
    "areaTiles": 9,
-   "biomeCount": 1,
-   "dominantBiome": "Tropical",
+   "biomeCount": 2,
+   "dominantBiome": "Desert",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
    "name": "Eastlight Coast",
    "areaTiles": 8,
-   "biomeCount": 1,
-   "dominantBiome": "Tropical",
+   "biomeCount": 3,
+   "dominantBiome": "Rainforest",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
-   "name": "Rhahal Isles",
+   "name": "Rhahal Desert",
    "areaTiles": 8,
-   "biomeCount": 1,
-   "dominantBiome": "Tropical",
+   "biomeCount": 2,
+   "dominantBiome": "Desert",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
-   "name": "Reldor Vale",
+   "name": "Reldor Prairie",
    "areaTiles": 7,
    "biomeCount": 2,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
-   "name": "Silhal Vale",
+   "name": "Silhal Dunes",
    "areaTiles": 7,
-   "biomeCount": 1,
-   "dominantBiome": "Temperate",
+   "biomeCount": 2,
+   "dominantBiome": "Desert",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
-   "name": "Southnor Woods",
+   "name": "Southnor Plains",
    "areaTiles": 6,
-   "biomeCount": 1,
-   "dominantBiome": "Temperate",
+   "biomeCount": 2,
+   "dominantBiome": "Grassland",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
-   "name": "Tidehal Isles",
+   "name": "Tidehal Desert",
    "areaTiles": 5,
-   "biomeCount": 2,
-   "dominantBiome": "Tropical",
+   "biomeCount": 3,
+   "dominantBiome": "Desert",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
@@ -279,7 +279,7 @@
   {
    "name": "Rinum Coast",
    "areaTiles": 82,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     3,
     62,
@@ -288,9 +288,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Verhal Coast",
+   "name": "Verhal Downs",
    "areaTiles": 65,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     3,
     52,
@@ -321,9 +321,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Frosos Forest",
+   "name": "Frosos Jungle",
    "areaTiles": 58,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     10,
@@ -343,9 +343,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Mirrel Forest",
+   "name": "Mirrel Jungle",
    "areaTiles": 54,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     11,
@@ -354,9 +354,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Northal Downs",
+   "name": "Northal Coast",
    "areaTiles": 54,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     48,
@@ -367,7 +367,7 @@
   {
    "name": "Lightdel Woods",
    "areaTiles": 49,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     0,
     5,
@@ -376,9 +376,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Frosrel Woods",
+   "name": "Frosrel Verdant",
    "areaTiles": 48,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     7,
@@ -387,9 +387,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Thalver Downs",
+   "name": "Thalver Coast",
    "areaTiles": 47,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     3,
     63,
@@ -400,7 +400,7 @@
   {
    "name": "Southsouth Woods",
    "areaTiles": 46,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     1,
     56,
@@ -411,7 +411,7 @@
   {
    "name": "Umka Verdant",
    "areaTiles": 41,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     2,
     21,
@@ -420,9 +420,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Kaum Downs",
+   "name": "Kaum Tundra",
    "areaTiles": 40,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     1,
@@ -431,9 +431,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Relion Downs",
+   "name": "Relion Coast",
    "areaTiles": 39,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     56,
@@ -477,7 +477,7 @@
   {
    "name": "Umcy Vale",
    "areaTiles": 36,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     2,
     28,
@@ -508,9 +508,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delsouth Coast",
+   "name": "Delsouth Flats",
    "areaTiles": 33,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     30,
@@ -585,9 +585,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Sylsil Vale",
+   "name": "Sylsil Barrens",
    "areaTiles": 31,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Tundra",
    "outlet": [
     1,
     4,
@@ -596,9 +596,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Lightnor Isles",
+   "name": "Lightnor Steppe",
    "areaTiles": 30,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     0,
     19,
@@ -618,9 +618,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Pyrcy Forest",
+   "name": "Pyrcy Steppe",
    "areaTiles": 29,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     23,
@@ -642,7 +642,7 @@
   {
    "name": "Mirion Forest",
    "areaTiles": 28,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     0,
     1,
@@ -651,9 +651,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Iontide Coast",
+   "name": "Iontide Downs",
    "areaTiles": 28,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     0,
     17,
@@ -662,9 +662,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Relsyl Coast",
+   "name": "Relsyl Flats",
    "areaTiles": 28,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     1,
     51,
@@ -673,9 +673,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Southau Vale",
+   "name": "Southau Canopy",
    "areaTiles": 28,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     62,
@@ -684,9 +684,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Mirlight Vale",
+   "name": "Mirlight Barrens",
    "areaTiles": 28,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     4,
@@ -706,9 +706,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Rhahal Verdant",
+   "name": "Rhahal Veld",
    "areaTiles": 27,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     1,
     20,
@@ -739,9 +739,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Tidemar Vale",
+   "name": "Tidemar Canopy",
    "areaTiles": 26,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     9,
@@ -750,9 +750,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Rindel Downs",
+   "name": "Rindel Coast",
    "areaTiles": 26,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     0,
@@ -761,9 +761,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Eastrha Vale",
+   "name": "Eastrha Canopy",
    "areaTiles": 26,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     53,
@@ -772,9 +772,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Sylos Forest",
+   "name": "Sylos Steppe",
    "areaTiles": 26,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     0,
@@ -805,9 +805,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Ionrel Isles",
+   "name": "Ionrel Savanna",
    "areaTiles": 24,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     22,
@@ -816,9 +816,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rhaum Downs",
+   "name": "Rhaum Coast",
    "areaTiles": 24,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     61,
@@ -829,7 +829,7 @@
   {
    "name": "Kasouth Verdant",
    "areaTiles": 24,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     2,
     20,
@@ -838,9 +838,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Ionlu Coast",
+   "name": "Ionlu Flats",
    "areaTiles": 23,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     18,
@@ -849,9 +849,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Dellight Verdant",
+   "name": "Dellight Veld",
    "areaTiles": 23,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     22,
@@ -860,9 +860,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Authal Vale",
+   "name": "Authal Canopy",
    "areaTiles": 23,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     10,
@@ -871,9 +871,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watpyr Downs",
+   "name": "Watpyr Coast",
    "areaTiles": 23,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     3,
     47,
@@ -884,7 +884,7 @@
   {
    "name": "Dortide Coast",
    "areaTiles": 23,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     3,
     56,
@@ -893,9 +893,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Norrin Woods",
+   "name": "Norrin Verdant",
    "areaTiles": 23,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     1,
@@ -917,7 +917,7 @@
   {
    "name": "Marquel Reach",
    "areaTiles": 22,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     26,
@@ -926,9 +926,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thalrha Verdant",
+   "name": "Thalrha Veld",
    "areaTiles": 22,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     1,
@@ -937,9 +937,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Eastum Woods",
+   "name": "Eastum Plains",
    "areaTiles": 22,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     17,
@@ -948,9 +948,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Umquel Verdant",
+   "name": "Umquel Veld",
    "areaTiles": 22,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     17,
@@ -970,9 +970,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Queldel Vale",
+   "name": "Queldel Canopy",
    "areaTiles": 21,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     9,
@@ -981,9 +981,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Halwat Coast",
+   "name": "Halwat Downs",
    "areaTiles": 21,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     0,
     18,
@@ -994,7 +994,7 @@
   {
    "name": "Tidelight Reach",
    "areaTiles": 21,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     3,
     61,
@@ -1049,7 +1049,7 @@
   {
    "name": "Eastmar Downs",
    "areaTiles": 20,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     3,
     40,
@@ -1069,9 +1069,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Relquel Forest",
+   "name": "Relquel Jungle",
    "areaTiles": 20,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     60,
@@ -1104,7 +1104,7 @@
   {
    "name": "Auion Reach",
    "areaTiles": 18,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     29,
@@ -1113,9 +1113,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Southtide Vale",
+   "name": "Southtide Canopy",
    "areaTiles": 18,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     8,
@@ -1126,7 +1126,7 @@
   {
    "name": "Mirdor Vale",
    "areaTiles": 18,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     2,
     6,
@@ -1135,9 +1135,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Rinlight Woods",
+   "name": "Rinlight Verdant",
    "areaTiles": 18,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     3,
     56,
@@ -1157,9 +1157,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Silfros Vale",
+   "name": "Silfros Tundra",
    "areaTiles": 18,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     60,
@@ -1170,7 +1170,7 @@
   {
    "name": "Verpyr Forest",
    "areaTiles": 18,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     62,
@@ -1179,9 +1179,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Eastrel Barrens",
+   "name": "Eastrel Ice",
    "areaTiles": 18,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "IceSheet",
    "outlet": [
     5,
     10,
@@ -1201,9 +1201,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Aulu Woods",
+   "name": "Aulu Verdant",
    "areaTiles": 17,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     56,
@@ -1212,9 +1212,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cydor Isles",
+   "name": "Cydor Jungle",
    "areaTiles": 17,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     2,
     29,
@@ -1223,9 +1223,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Watcy Isles",
+   "name": "Watcy Jungle",
    "areaTiles": 17,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     2,
     33,
@@ -1269,7 +1269,7 @@
   {
    "name": "Silhal Downs",
    "areaTiles": 16,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     0,
     6,
@@ -1280,7 +1280,7 @@
   {
    "name": "Osrha Downs",
    "areaTiles": 16,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     1,
     62,
@@ -1355,9 +1355,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watos Verdant",
+   "name": "Watos Veld",
    "areaTiles": 15,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     18,
@@ -1366,9 +1366,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lightdel Isles",
+   "name": "Lightdel Savanna",
    "areaTiles": 15,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     21,
@@ -1388,9 +1388,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Siltide Woods",
+   "name": "Siltide Verdant",
    "areaTiles": 15,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     58,
@@ -1399,9 +1399,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Dorka Forest",
+   "name": "Dorka Steppe",
    "areaTiles": 15,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     28,
@@ -1410,9 +1410,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Ionmar Isles",
+   "name": "Ionmar Steppe",
    "areaTiles": 15,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     49,
@@ -1421,9 +1421,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cyrel Forest",
+   "name": "Cyrel Jungle",
    "areaTiles": 15,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     3,
     40,
@@ -1434,7 +1434,7 @@
   {
    "name": "Lighthal Reach",
    "areaTiles": 15,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     3,
     47,
@@ -1443,9 +1443,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Quellu Vale",
+   "name": "Quellu Prairie",
    "areaTiles": 15,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     6,
@@ -1456,7 +1456,7 @@
   {
    "name": "Eastwat Forest",
    "areaTiles": 15,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     62,
@@ -1489,7 +1489,7 @@
   {
    "name": "Rinsyl Forest",
    "areaTiles": 15,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     60,
@@ -1498,9 +1498,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Tideion Isles",
+   "name": "Tideion Jungle",
    "areaTiles": 14,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     27,
@@ -1511,7 +1511,7 @@
   {
    "name": "Pyrrin Woods",
    "areaTiles": 14,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     1,
     61,
@@ -1544,7 +1544,7 @@
   {
    "name": "Verwat Downs",
    "areaTiles": 13,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     0,
     10,
@@ -1555,7 +1555,7 @@
   {
    "name": "Frosmir Reach",
    "areaTiles": 13,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     39,
@@ -1564,9 +1564,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Umthal Forest",
+   "name": "Umthal Jungle",
    "areaTiles": 13,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     8,
@@ -1575,9 +1575,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cysil Vale",
+   "name": "Cysil Canopy",
    "areaTiles": 13,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     52,
@@ -1588,7 +1588,7 @@
   {
    "name": "Sildor Vale",
    "areaTiles": 13,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     1,
     61,
@@ -1599,7 +1599,7 @@
   {
    "name": "Velthal Downs",
    "areaTiles": 13,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     3,
     20,
@@ -1610,7 +1610,7 @@
   {
    "name": "Tideos Coast",
    "areaTiles": 13,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     3,
     51,
@@ -1619,9 +1619,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rhathal Isles",
+   "name": "Rhathal Savanna",
    "areaTiles": 13,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     3,
     60,
@@ -1630,9 +1630,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delvel Isles",
+   "name": "Delvel Jungle",
    "areaTiles": 13,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     3,
     61,
@@ -1676,7 +1676,7 @@
   {
    "name": "Thalsouth Coast",
    "areaTiles": 12,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     33,
@@ -1687,7 +1687,7 @@
   {
    "name": "Thalion Vale",
    "areaTiles": 12,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     1,
     51,
@@ -1696,9 +1696,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Tidewat Forest",
+   "name": "Tidewat Steppe",
    "areaTiles": 12,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     15,
@@ -1773,9 +1773,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Ionau Forest",
+   "name": "Ionau Steppe",
    "areaTiles": 11,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     0,
     3,
@@ -1784,9 +1784,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Norfros Isles",
+   "name": "Norfros Savanna",
    "areaTiles": 11,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     19,
@@ -1797,7 +1797,7 @@
   {
    "name": "Kanor Downs",
    "areaTiles": 11,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     1,
     57,
@@ -1808,7 +1808,7 @@
   {
    "name": "Silwat Verdant",
    "areaTiles": 11,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     2,
     34,
@@ -1817,9 +1817,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Halfros Forest",
+   "name": "Halfros Steppe",
    "areaTiles": 11,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     39,
@@ -1828,9 +1828,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thalquel Isles",
+   "name": "Thalquel Steppe",
    "areaTiles": 11,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     3,
     59,
@@ -1905,9 +1905,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Sillu Coast",
+   "name": "Sillu Downs",
    "areaTiles": 10,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     0,
     27,
@@ -1916,9 +1916,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cylight Verdant",
+   "name": "Cylight Veld",
    "areaTiles": 10,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     33,
@@ -1927,9 +1927,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Southwat Reach",
+   "name": "Southwat Canopy",
    "areaTiles": 10,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     42,
@@ -1938,9 +1938,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Versil Reach",
+   "name": "Versil Prairie",
    "areaTiles": 10,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     1,
     16,
@@ -1949,9 +1949,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Mirrin Verdant",
+   "name": "Mirrin Sands",
    "areaTiles": 10,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     1,
     49,
@@ -1960,9 +1960,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Umtide Downs",
+   "name": "Umtide Barrens",
    "areaTiles": 10,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Tundra",
    "outlet": [
     1,
     61,
@@ -1971,9 +1971,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Velcy Coast",
+   "name": "Velcy Flats",
    "areaTiles": 10,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     2,
@@ -1982,9 +1982,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Queltide Isles",
+   "name": "Queltide Savanna",
    "areaTiles": 10,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     16,
@@ -1995,7 +1995,7 @@
   {
    "name": "Vernor Coast",
    "areaTiles": 10,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     2,
     21,
@@ -2004,9 +2004,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Halsil Reach",
+   "name": "Halsil Dunes",
    "areaTiles": 10,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     2,
     34,
@@ -2017,7 +2017,7 @@
   {
    "name": "Marsyl Downs",
    "areaTiles": 10,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     3,
     28,
@@ -2028,7 +2028,7 @@
   {
    "name": "Norrha Coast",
    "areaTiles": 10,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     3,
     48,
@@ -2083,7 +2083,7 @@
   {
    "name": "Dorthal Reach",
    "areaTiles": 9,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     17,
@@ -2092,9 +2092,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rhanor Isles",
+   "name": "Rhanor Savanna",
    "areaTiles": 9,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     31,
@@ -2103,9 +2103,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Pyrcy Forest",
+   "name": "Pyrcy Jungle",
    "areaTiles": 9,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     3,
@@ -2114,9 +2114,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Luum Downs",
+   "name": "Luum Coast",
    "areaTiles": 9,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     57,
@@ -2125,9 +2125,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Quelhal Isles",
+   "name": "Quelhal Savanna",
    "areaTiles": 9,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     2,
@@ -2136,9 +2136,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Queldor Verdant",
+   "name": "Queldor Veld",
    "areaTiles": 9,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     7,
@@ -2147,9 +2147,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delsil Verdant",
+   "name": "Delsil Veld",
    "areaTiles": 9,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     14,
@@ -2158,9 +2158,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Queleast Reach",
+   "name": "Queleast Prairie",
    "areaTiles": 9,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     22,
@@ -2169,9 +2169,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lighttide Reach",
+   "name": "Lighttide Canopy",
    "areaTiles": 9,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     2,
     34,
@@ -2180,9 +2180,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Ionrel Coast",
+   "name": "Ionrel Downs",
    "areaTiles": 9,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     3,
     41,
@@ -2191,9 +2191,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Sylver Coast",
+   "name": "Sylver Flats",
    "areaTiles": 9,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     3,
     45,
@@ -2202,9 +2202,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delpyr Isles",
+   "name": "Delpyr Savanna",
    "areaTiles": 9,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     3,
     46,
@@ -2213,9 +2213,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Norrha Reach",
+   "name": "Norrha Canopy",
    "areaTiles": 9,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     3,
     58,
@@ -2224,9 +2224,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Deldor Vale",
+   "name": "Deldor Dunes",
    "areaTiles": 9,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     4,
@@ -2268,9 +2268,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Southau Woods",
+   "name": "Southau Verdant",
    "areaTiles": 9,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     61,
@@ -2345,9 +2345,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lightthal Woods",
+   "name": "Lightthal Plains",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     0,
     2,
@@ -2367,9 +2367,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Tidetide Forest",
+   "name": "Tidetide Jungle",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     4,
@@ -2378,9 +2378,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Kavel Woods",
+   "name": "Kavel Verdant",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     6,
@@ -2389,9 +2389,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Relpyr Downs",
+   "name": "Relpyr Coast",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     10,
@@ -2400,9 +2400,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Quelion Woods",
+   "name": "Quelion Verdant",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     50,
@@ -2411,9 +2411,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Norpyr Woods",
+   "name": "Norpyr Verdant",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     58,
@@ -2422,9 +2422,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Iontide Vale",
+   "name": "Iontide Prairie",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     1,
     62,
@@ -2446,7 +2446,7 @@
   {
    "name": "Tidelight Downs",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     1,
     63,
@@ -2455,9 +2455,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rinlight Coast",
+   "name": "Rinlight Downs",
    "areaTiles": 8,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     7,
@@ -2468,7 +2468,7 @@
   {
    "name": "Pyrnor Reach",
    "areaTiles": 8,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     7,
@@ -2477,9 +2477,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delos Isles",
+   "name": "Delos Jungle",
    "areaTiles": 8,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     2,
     35,
@@ -2488,9 +2488,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Mirlight Verdant",
+   "name": "Mirlight Veld",
    "areaTiles": 8,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     40,
@@ -2499,9 +2499,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lighteast Verdant",
+   "name": "Lighteast Veld",
    "areaTiles": 8,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     40,
@@ -2512,7 +2512,7 @@
   {
    "name": "Sylsyl Reach",
    "areaTiles": 8,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     47,
@@ -2521,9 +2521,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Dorrha Vale",
+   "name": "Dorrha Canopy",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     3,
     30,
@@ -2532,9 +2532,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cyquel Downs",
+   "name": "Cyquel Barrens",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     3,
     42,
@@ -2543,9 +2543,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Relsouth Forest",
+   "name": "Relsouth Steppe",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     3,
     43,
@@ -2556,7 +2556,7 @@
   {
    "name": "Lightrel Vale",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     3,
     58,
@@ -2598,9 +2598,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thalmar Waste",
+   "name": "Thalmar Rime",
    "areaTiles": 8,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "IceSheet",
    "outlet": [
     4,
     13,
@@ -2642,9 +2642,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lightthal Vale",
+   "name": "Lightthal Canopy",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     61,
@@ -2664,9 +2664,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lighttide Vale",
+   "name": "Lighttide Dunes",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     62,
@@ -2675,9 +2675,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Relsouth Woods",
+   "name": "Relsouth Plains",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     62,
@@ -2730,9 +2730,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watpyr Woods",
+   "name": "Watpyr Plains",
    "areaTiles": 8,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     47,
@@ -2774,9 +2774,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Osnor Woods",
+   "name": "Osnor Plains",
    "areaTiles": 7,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     0,
     0,
@@ -2785,9 +2785,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Frosfros Isles",
+   "name": "Frosfros Jungle",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     33,
@@ -2796,9 +2796,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lutide Isles",
+   "name": "Lutide Desert",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     0,
     35,
@@ -2807,9 +2807,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thaldel Isles",
+   "name": "Thaldel Savanna",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     38,
@@ -2818,9 +2818,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Eastos Verdant",
+   "name": "Eastos Veld",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     1,
     30,
@@ -2831,7 +2831,7 @@
   {
    "name": "Auvel Reach",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     1,
     33,
@@ -2840,9 +2840,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Marmar Coast",
+   "name": "Marmar Downs",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     1,
     37,
@@ -2851,9 +2851,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Velwat Forest",
+   "name": "Velwat Jungle",
    "areaTiles": 7,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     49,
@@ -2864,7 +2864,7 @@
   {
    "name": "Ionka Woods",
    "areaTiles": 7,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     1,
     55,
@@ -2873,9 +2873,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Froscy Forest",
+   "name": "Froscy Jungle",
    "areaTiles": 7,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     58,
@@ -2884,9 +2884,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Marlight Vale",
+   "name": "Marlight Canopy",
    "areaTiles": 7,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     60,
@@ -2897,7 +2897,7 @@
   {
    "name": "Halmar Forest",
    "areaTiles": 7,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     1,
     61,
@@ -2906,9 +2906,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Pyrka Reach",
+   "name": "Pyrka Canopy",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     2,
     0,
@@ -2917,9 +2917,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Velpyr Coast",
+   "name": "Velpyr Flats",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     1,
@@ -2928,9 +2928,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watdel Isles",
+   "name": "Watdel Savanna",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     12,
@@ -2939,9 +2939,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cyquel Reach",
+   "name": "Cyquel Prairie",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     14,
@@ -2950,9 +2950,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watlight Forest",
+   "name": "Watlight Steppe",
    "areaTiles": 7,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     24,
@@ -2961,9 +2961,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Oslight Verdant",
+   "name": "Oslight Sands",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     2,
     43,
@@ -2972,9 +2972,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thalhal Reach",
+   "name": "Thalhal Prairie",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     44,
@@ -2983,9 +2983,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delion Verdant",
+   "name": "Delion Veld",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     54,
@@ -2996,7 +2996,7 @@
   {
    "name": "Mirver Downs",
    "areaTiles": 7,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     3,
     9,
@@ -3005,9 +3005,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Halrel Woods",
+   "name": "Halrel Sands",
    "areaTiles": 7,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     3,
     18,
@@ -3016,9 +3016,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watrel Woods",
+   "name": "Watrel Plains",
    "areaTiles": 7,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     3,
     22,
@@ -3029,7 +3029,7 @@
   {
    "name": "Aulight Reach",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     3,
     52,
@@ -3038,9 +3038,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Mirtide Verdant",
+   "name": "Mirtide Sands",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     3,
     57,
@@ -3051,7 +3051,7 @@
   {
    "name": "Rhalight Coast",
    "areaTiles": 7,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     3,
     58,
@@ -3247,9 +3247,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Relsouth Forest",
+   "name": "Relsouth Jungle",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     7,
@@ -3258,9 +3258,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Halnor Vale",
+   "name": "Halnor Prairie",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     0,
     11,
@@ -3269,9 +3269,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rintide Reach",
+   "name": "Rintide Dunes",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     0,
     13,
@@ -3282,7 +3282,7 @@
   {
    "name": "Eastnor Verdant",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     29,
@@ -3291,9 +3291,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Mirquel Coast",
+   "name": "Mirquel Flats",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     0,
     47,
@@ -3302,9 +3302,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Osver Woods",
+   "name": "Osver Verdant",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     2,
@@ -3313,9 +3313,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Veros Downs",
+   "name": "Veros Coast",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     3,
@@ -3324,9 +3324,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cypyr Verdant",
+   "name": "Cypyr Plains",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     1,
     21,
@@ -3335,9 +3335,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Mirrin Reach",
+   "name": "Mirrin Dunes",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     1,
     24,
@@ -3346,9 +3346,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watver Isles",
+   "name": "Watver Desert",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     1,
     29,
@@ -3357,9 +3357,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Southau Isles",
+   "name": "Southau Desert",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     1,
     34,
@@ -3368,9 +3368,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lightvel Reach",
+   "name": "Lightvel Dunes",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     1,
     41,
@@ -3379,9 +3379,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cywat Reach",
+   "name": "Cywat Prairie",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     1,
     45,
@@ -3392,7 +3392,7 @@
   {
    "name": "Frosnor Reach",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     1,
     46,
@@ -3401,9 +3401,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lightos Woods",
+   "name": "Lightos Verdant",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     49,
@@ -3412,9 +3412,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delsil Vale",
+   "name": "Delsil Dunes",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     1,
     61,
@@ -3423,9 +3423,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lunor Coast",
+   "name": "Lunor Flats",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     0,
@@ -3434,9 +3434,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lutide Verdant",
+   "name": "Lutide Sands",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     2,
     12,
@@ -3445,9 +3445,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Kavel Woods",
+   "name": "Kavel Sands",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     2,
     13,
@@ -3456,9 +3456,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Ionka Reach",
+   "name": "Ionka Canopy",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     2,
     21,
@@ -3469,7 +3469,7 @@
   {
    "name": "Oshal Reach",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     34,
@@ -3478,9 +3478,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Silpyr Coast",
+   "name": "Silpyr Barrens",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     2,
     35,
@@ -3489,9 +3489,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lightwat Reach",
+   "name": "Lightwat Prairie",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     55,
@@ -3500,9 +3500,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Umrin Isles",
+   "name": "Umrin Savanna",
    "areaTiles": 6,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     3,
     43,
@@ -3513,7 +3513,7 @@
   {
    "name": "Verrha Downs",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     3,
     47,
@@ -3524,7 +3524,7 @@
   {
    "name": "Quelmar Vale",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     3,
     49,
@@ -3533,9 +3533,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watwat Vale",
+   "name": "Watwat Canopy",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     3,
     59,
@@ -3544,9 +3544,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thalhal Woods",
+   "name": "Thalhal Sands",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     0,
@@ -3555,9 +3555,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Frosdel Woods",
+   "name": "Frosdel Sands",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     2,
@@ -3676,9 +3676,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delwat Vale",
+   "name": "Delwat Dunes",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     62,
@@ -3687,9 +3687,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Pyrvel Woods",
+   "name": "Pyrvel Plains",
    "areaTiles": 6,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     2,
@@ -3973,9 +3973,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Dorlu Forest",
+   "name": "Dorlu Jungle",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     8,
@@ -3984,9 +3984,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Froseast Vale",
+   "name": "Froseast Canopy",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     10,
@@ -3995,9 +3995,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watvel Forest",
+   "name": "Watvel Desert",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     0,
     10,
@@ -4006,9 +4006,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Southlight Reach",
+   "name": "Southlight Dunes",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     0,
     14,
@@ -4017,9 +4017,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cyhal Isles",
+   "name": "Cyhal Desert",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     0,
     19,
@@ -4028,9 +4028,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Dellight Verdant",
+   "name": "Dellight Plains",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     0,
     29,
@@ -4041,7 +4041,7 @@
   {
    "name": "Relsouth Downs",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     0,
     63,
@@ -4050,9 +4050,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Silrha Vale",
+   "name": "Silrha Prairie",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     1,
     2,
@@ -4061,9 +4061,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cypyr Vale",
+   "name": "Cypyr Canopy",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     9,
@@ -4072,9 +4072,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Dorpyr Isles",
+   "name": "Dorpyr Jungle",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     22,
@@ -4083,9 +4083,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rinver Verdant",
+   "name": "Rinver Veld",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     1,
     33,
@@ -4094,9 +4094,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cydel Isles",
+   "name": "Cydel Savanna",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     1,
     39,
@@ -4105,9 +4105,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Ionmir Reach",
+   "name": "Ionmir Canopy",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     42,
@@ -4118,7 +4118,7 @@
   {
    "name": "Lightion Reach",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     1,
     42,
@@ -4127,9 +4127,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Halsil Coast",
+   "name": "Halsil Downs",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     1,
     47,
@@ -4138,9 +4138,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Syllu Woods",
+   "name": "Syllu Sands",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     1,
     57,
@@ -4151,7 +4151,7 @@
   {
    "name": "Pyrsil Downs",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     1,
     62,
@@ -4162,7 +4162,7 @@
   {
    "name": "Rinau Verdant",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     2,
     1,
@@ -4173,7 +4173,7 @@
   {
    "name": "Doreast Reach",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     3,
@@ -4182,9 +4182,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rhalight Coast",
+   "name": "Rhalight Flats",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     4,
@@ -4195,7 +4195,7 @@
   {
    "name": "Halver Reach",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     11,
@@ -4204,9 +4204,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watmar Coast",
+   "name": "Watmar Downs",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     13,
@@ -4215,9 +4215,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lighttide Forest",
+   "name": "Lighttide Steppe",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     16,
@@ -4226,9 +4226,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Versil Verdant",
+   "name": "Versil Veld",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     18,
@@ -4239,7 +4239,7 @@
   {
    "name": "Noreast Coast",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     2,
     29,
@@ -4248,9 +4248,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delquel Reach",
+   "name": "Delquel Dunes",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     2,
     37,
@@ -4259,9 +4259,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rinsouth Coast",
+   "name": "Rinsouth Downs",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     39,
@@ -4270,9 +4270,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rhalu Isles",
+   "name": "Rhalu Savanna",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     50,
@@ -4281,9 +4281,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watvel Coast",
+   "name": "Watvel Barrens",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     2,
     51,
@@ -4294,7 +4294,7 @@
   {
    "name": "Ludor Reach",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     51,
@@ -4305,7 +4305,7 @@
   {
    "name": "Frostide Reach",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     55,
@@ -4316,7 +4316,7 @@
   {
    "name": "Lightsil Coast",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Rainforest",
    "outlet": [
     2,
     58,
@@ -4325,9 +4325,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thallu Verdant",
+   "name": "Thallu Veld",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     58,
@@ -4336,9 +4336,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Sylsouth Reach",
+   "name": "Sylsouth Prairie",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     2,
     62,
@@ -4349,7 +4349,7 @@
   {
    "name": "Ionion Woods",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     3,
     42,
@@ -4358,9 +4358,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Ionwat Woods",
+   "name": "Ionwat Plains",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     3,
     43,
@@ -4371,7 +4371,7 @@
   {
    "name": "Syleast Reach",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     3,
     49,
@@ -4382,7 +4382,7 @@
   {
    "name": "Thallu Reach",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     3,
     53,
@@ -4391,9 +4391,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Mirthal Isles",
+   "name": "Mirthal Savanna",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     3,
     55,
@@ -4404,7 +4404,7 @@
   {
    "name": "Quelrin Reach",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Savanna",
    "outlet": [
     3,
     55,
@@ -4413,9 +4413,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Quelos Isles",
+   "name": "Quelos Steppe",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Grassland",
    "outlet": [
     3,
     61,
@@ -4424,9 +4424,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Eastos Coast",
+   "name": "Eastos Barrens",
    "areaTiles": 5,
-   "dominantBiome": "Tropical",
+   "dominantBiome": "Desert",
    "outlet": [
     3,
     61,
@@ -4446,9 +4446,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thalquel Vale",
+   "name": "Thalquel Dunes",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     3,
@@ -4545,9 +4545,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delfros Vale",
+   "name": "Delfros Prairie",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     60,
@@ -4567,9 +4567,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Dordor Woods",
+   "name": "Dordor Sands",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     60,
@@ -4589,9 +4589,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Ionsil Woods",
+   "name": "Ionsil Sands",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     62,
@@ -4644,9 +4644,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Halau Downs",
+   "name": "Halau Barrens",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Desert",
    "outlet": [
     5,
     29,
@@ -4864,9 +4864,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Oscy Forest",
+   "name": "Oscy Steppe",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     58,
@@ -4875,9 +4875,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Osver Woods",
+   "name": "Osver Plains",
    "areaTiles": 5,
-   "dominantBiome": "Temperate",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     62,
@@ -5184,7 +5184,7 @@
     {
      "name": "Southdel Verdant",
      "tileCount": 48,
-     "dominantBiome": "Tropical",
+     "dominantBiome": "Rainforest",
      "seedTileId": 432345564227567681,
      "memberTileIds": [
       432345564227567681,
@@ -5238,9 +5238,9 @@
      ]
     },
     {
-     "name": "Luum Verdant",
+     "name": "Luum Veld",
      "tileCount": 34,
-     "dominantBiome": "Tropical",
+     "dominantBiome": "Savanna",
      "seedTileId": 432345564227567905,
      "memberTileIds": [
       432345564227567905,
@@ -5294,7 +5294,7 @@
     {
      "name": "Pyrum Downs",
      "tileCount": 33,
-     "dominantBiome": "Temperate",
+     "dominantBiome": "TemperateForest",
      "seedTileId": 7349874591868650789,
      "memberTileIds": [
       7349874591868650789,
@@ -5333,9 +5333,9 @@
      ]
     },
     {
-     "name": "Sylion Isles",
+     "name": "Sylion Steppe",
      "tileCount": 32,
-     "dominantBiome": "Tropical",
+     "dominantBiome": "Grassland",
      "seedTileId": 7349874591868650889,
      "memberTileIds": [
       7349874591868650889,
@@ -5636,103 +5636,103 @@
  "nameVectors": [
   {
    "featureId": 65015,
-   "biome": "OceanicCrust",
-   "name": "Umum Deep"
+   "biome": "SeaIce",
+   "name": "Umum Ice"
   },
   {
    "featureId": 35256,
-   "biome": "Tropical",
-   "name": "Dornor Coast"
+   "biome": "Savanna",
+   "name": "Dornor Flats"
   },
   {
    "featureId": 25861,
-   "biome": "Unknown",
-   "name": "Martide Land"
+   "biome": "Grassland",
+   "name": "Martide Plains"
   },
   {
    "featureId": 46528,
-   "biome": "Unknown",
-   "name": "Oshal Expanse"
+   "biome": "TemperateForest",
+   "name": "Oshal Vale"
   },
   {
    "featureId": 64164,
-   "biome": "SeaIce",
-   "name": "Kathal Ice"
+   "biome": "Grassland",
+   "name": "Kathal Downs"
   },
   {
    "featureId": 12220,
-   "biome": "Tropical",
-   "name": "Pyrrha Reach"
+   "biome": "Unknown",
+   "name": "Pyrrha Expanse"
   },
   {
    "featureId": 90310,
-   "biome": "Tundra",
-   "name": "Velion Waste"
+   "biome": "TemperateForest",
+   "name": "Velion Forest"
   },
   {
    "featureId": 34474,
-   "biome": "ContinentalCrust",
-   "name": "Velmir Craton"
+   "biome": "TemperateForest",
+   "name": "Velmir Forest"
   },
   {
    "featureId": 11360,
-   "biome": "SeaIce",
-   "name": "Southver Ice"
+   "biome": "OceanicCrust",
+   "name": "Southver Trench"
   },
   {
    "featureId": 10883,
-   "biome": "Unknown",
-   "name": "Watvel Reach"
+   "biome": "IceSheet",
+   "name": "Watvel Ice"
   },
   {
    "featureId": 90704,
-   "biome": "IceSheet",
-   "name": "Mircy Glacier"
+   "biome": "TemperateForest",
+   "name": "Mircy Downs"
   },
   {
    "featureId": 76351,
-   "biome": "ContinentalCrust",
-   "name": "Lighttide Massif"
+   "biome": "Savanna",
+   "name": "Lighttide Reach"
   },
   {
    "featureId": 61232,
-   "biome": "Tundra",
-   "name": "Sylion Waste"
+   "biome": "ContinentalCrust",
+   "name": "Sylion Craton"
   },
   {
    "featureId": 66504,
-   "biome": "ContinentalCrust",
-   "name": "Lightvel Massif"
+   "biome": "IceSheet",
+   "name": "Lightvel Ice"
   },
   {
    "featureId": 13606,
-   "biome": "Temperate",
-   "name": "Pyrmar Vale"
+   "biome": "IceSheet",
+   "name": "Pyrmar Ice"
   },
   {
    "featureId": 79259,
-   "biome": "Tundra",
-   "name": "Nornor Tundra"
+   "biome": "OceanicCrust",
+   "name": "Nornor Deep"
   },
   {
    "featureId": 46500,
-   "biome": "Tundra",
-   "name": "Southver Barrens"
+   "biome": "OceanicCrust",
+   "name": "Southver Rise"
   },
   {
    "featureId": 99827,
-   "biome": "Tropical",
-   "name": "Velsil Reach"
+   "biome": "TemperateForest",
+   "name": "Velsil Vale"
   },
   {
    "featureId": 64996,
-   "biome": "Temperate",
-   "name": "Marquel Vale"
+   "biome": "Savanna",
+   "name": "Marquel Reach"
   },
   {
    "featureId": 10481,
-   "biome": "Unknown",
-   "name": "Thalion Expanse"
+   "biome": "IceSheet",
+   "name": "Thalion Glacier"
   },
   {
    "featureId": 87168,
@@ -5741,283 +5741,283 @@
   },
   {
    "featureId": 23957,
-   "biome": "Unknown",
-   "name": "Rhasyl Land"
+   "biome": "Tundra",
+   "name": "Rhasyl Tundra"
   },
   {
    "featureId": 93306,
-   "biome": "Temperate",
-   "name": "Quelsyl Vale"
+   "biome": "Rainforest",
+   "name": "Quelsyl Canopy"
   },
   {
    "featureId": 41427,
-   "biome": "Unknown",
-   "name": "Lightau Expanse"
+   "biome": "ContinentalCrust",
+   "name": "Lightau Shield"
   },
   {
    "featureId": 8477,
-   "biome": "Tropical",
-   "name": "Rinnor Isles"
+   "biome": "OceanicCrust",
+   "name": "Rinnor Trench"
   },
   {
    "featureId": 66602,
-   "biome": "Tropical",
-   "name": "Mirpyr Reach"
+   "biome": "ContinentalCrust",
+   "name": "Mirpyr Massif"
   },
   {
    "featureId": 63355,
-   "biome": "IceSheet",
-   "name": "Lighthal Glacier"
+   "biome": "Desert",
+   "name": "Lighthal Barrens"
   },
   {
    "featureId": 5394,
-   "biome": "SeaIce",
-   "name": "Cymar Frost"
+   "biome": "TemperateForest",
+   "name": "Cymar Woods"
   },
   {
    "featureId": 97065,
-   "biome": "ContinentalCrust",
-   "name": "Marka Plate"
+   "biome": "TemperateForest",
+   "name": "Marka Downs"
   },
   {
    "featureId": 51633,
-   "biome": "Tundra",
-   "name": "Lightrha Waste"
+   "biome": "IceSheet",
+   "name": "Lightrha Frost"
   },
   {
    "featureId": 27347,
-   "biome": "IceSheet",
-   "name": "Watmir Glacier"
+   "biome": "ContinentalCrust",
+   "name": "Watmir Plate"
   },
   {
    "featureId": 26095,
-   "biome": "Temperate",
+   "biome": "TemperateForest",
    "name": "Mirion Woods"
   },
   {
    "featureId": 11472,
-   "biome": "IceSheet",
+   "biome": "SeaIce",
    "name": "Mirdor Frost"
   },
   {
    "featureId": 23368,
-   "biome": "Unknown",
-   "name": "Auhal Expanse"
+   "biome": "TemperateForest",
+   "name": "Auhal Forest"
   },
   {
    "featureId": 64812,
-   "biome": "IceSheet",
-   "name": "Tideion Frost"
+   "biome": "Unknown",
+   "name": "Tideion Reach"
   },
   {
    "featureId": 17969,
-   "biome": "IceSheet",
-   "name": "Quellu Frost"
+   "biome": "OceanicCrust",
+   "name": "Quellu Trench"
   },
   {
    "featureId": 39061,
-   "biome": "Tundra",
-   "name": "Noreast Tundra"
+   "biome": "SeaIce",
+   "name": "Noreast Frost"
   },
   {
    "featureId": 52907,
-   "biome": "ContinentalCrust",
-   "name": "Silcy Craton"
+   "biome": "TemperateForest",
+   "name": "Silcy Forest"
   },
   {
    "featureId": 26684,
-   "biome": "SeaIce",
-   "name": "Silfros Ice"
+   "biome": "ContinentalCrust",
+   "name": "Silfros Craton"
   },
   {
    "featureId": 30953,
-   "biome": "IceSheet",
-   "name": "Umver Frost"
+   "biome": "ContinentalCrust",
+   "name": "Umver Craton"
   },
   {
    "featureId": 78332,
-   "biome": "Tropical",
-   "name": "Pyrhal Coast"
+   "biome": "IceSheet",
+   "name": "Pyrhal Glacier"
   },
   {
    "featureId": 87264,
-   "biome": "IceSheet",
-   "name": "Quelion Frost"
+   "biome": "Savanna",
+   "name": "Quelion Savanna"
   },
   {
    "featureId": 29081,
-   "biome": "OceanicCrust",
-   "name": "Delmir Rise"
+   "biome": "Tundra",
+   "name": "Delmir Barrens"
   },
   {
    "featureId": 19924,
-   "biome": "Tundra",
-   "name": "Luver Waste"
+   "biome": "Unknown",
+   "name": "Luver Expanse"
   },
   {
    "featureId": 93826,
-   "biome": "Unknown",
-   "name": "Mirion Land"
+   "biome": "TemperateForest",
+   "name": "Mirion Downs"
   },
   {
    "featureId": 45274,
-   "biome": "IceSheet",
-   "name": "Delnor Rime"
+   "biome": "SeaIce",
+   "name": "Delnor Frost"
   },
   {
    "featureId": 97346,
-   "biome": "Tundra",
-   "name": "Syldor Waste"
+   "biome": "Rainforest",
+   "name": "Syldor Coast"
   },
   {
    "featureId": 14624,
-   "biome": "Tundra",
-   "name": "Auhal Waste"
+   "biome": "ContinentalCrust",
+   "name": "Auhal Shield"
   },
   {
    "featureId": 48648,
-   "biome": "ContinentalCrust",
-   "name": "Rhathal Massif"
+   "biome": "IceSheet",
+   "name": "Rhathal Ice"
   },
   {
    "featureId": 8200,
-   "biome": "Unknown",
-   "name": "Veleast Reach"
+   "biome": "SeaIce",
+   "name": "Veleast Rime"
   },
   {
    "featureId": 90141,
-   "biome": "Unknown",
-   "name": "Easthal Reach"
+   "biome": "Grassland",
+   "name": "Easthal Downs"
   },
   {
    "featureId": 38646,
-   "biome": "ContinentalCrust",
-   "name": "Auver Shield"
+   "biome": "Grassland",
+   "name": "Auver Plains"
   },
   {
    "featureId": 47848,
-   "biome": "ContinentalCrust",
-   "name": "Velnor Massif"
+   "biome": "SeaIce",
+   "name": "Velnor Frost"
   },
   {
    "featureId": 57166,
-   "biome": "ContinentalCrust",
-   "name": "Lurin Plate"
+   "biome": "IceSheet",
+   "name": "Lurin Glacier"
   },
   {
    "featureId": 92974,
-   "biome": "ContinentalCrust",
-   "name": "Halum Plate"
+   "biome": "TemperateForest",
+   "name": "Halum Downs"
   },
   {
    "featureId": 10366,
-   "biome": "Tundra",
-   "name": "Watvel Barrens"
+   "biome": "Unknown",
+   "name": "Watvel Reach"
   },
   {
    "featureId": 20,
-   "biome": "Tropical",
-   "name": "Relvel Verdant"
+   "biome": "Unknown",
+   "name": "Relvel Reach"
   },
   {
    "featureId": 92828,
-   "biome": "SeaIce",
-   "name": "Dellu Frost"
+   "biome": "Tundra",
+   "name": "Dellu Tundra"
   },
   {
    "featureId": 81065,
-   "biome": "Tropical",
-   "name": "Southos Coast"
+   "biome": "ContinentalCrust",
+   "name": "Southos Plate"
   },
   {
    "featureId": 93290,
-   "biome": "OceanicCrust",
-   "name": "Relthal Deep"
+   "biome": "Grassland",
+   "name": "Relthal Downs"
   },
   {
    "featureId": 91119,
-   "biome": "Unknown",
-   "name": "Auion Reach"
+   "biome": "ContinentalCrust",
+   "name": "Auion Craton"
   },
   {
    "featureId": 98363,
-   "biome": "Temperate",
-   "name": "Southsil Forest"
+   "biome": "ContinentalCrust",
+   "name": "Southsil Craton"
   },
   {
    "featureId": 21034,
-   "biome": "Temperate",
-   "name": "Lueast Forest"
+   "biome": "Desert",
+   "name": "Lueast Desert"
   },
   {
    "featureId": 8265,
-   "biome": "IceSheet",
-   "name": "Pyrrin Rime"
+   "biome": "Desert",
+   "name": "Pyrrin Sands"
   },
   {
    "featureId": 13244,
-   "biome": "ContinentalCrust",
-   "name": "Lutide Shield"
+   "biome": "TemperateForest",
+   "name": "Lutide Woods"
   },
   {
    "featureId": 85799,
-   "biome": "Tundra",
-   "name": "Ionlight Barrens"
+   "biome": "TemperateForest",
+   "name": "Ionlight Vale"
   },
   {
    "featureId": 95509,
-   "biome": "Temperate",
-   "name": "Hallight Downs"
+   "biome": "Unknown",
+   "name": "Hallight Expanse"
   },
   {
    "featureId": 1725,
-   "biome": "Unknown",
-   "name": "Tiderel Land"
+   "biome": "TemperateForest",
+   "name": "Tiderel Downs"
   },
   {
    "featureId": 9790,
-   "biome": "SeaIce",
+   "biome": "IceSheet",
    "name": "Auwat Frost"
   },
   {
    "featureId": 97974,
-   "biome": "SeaIce",
-   "name": "Umhal Frost"
+   "biome": "Savanna",
+   "name": "Umhal Savanna"
   },
   {
    "featureId": 39978,
-   "biome": "Tropical",
-   "name": "Tidesil Coast"
+   "biome": "OceanicCrust",
+   "name": "Tidesil Deep"
   },
   {
    "featureId": 42557,
-   "biome": "Tundra",
-   "name": "Relfros Barrens"
+   "biome": "IceSheet",
+   "name": "Relfros Glacier"
   },
   {
    "featureId": 53659,
-   "biome": "Temperate",
+   "biome": "TemperateForest",
    "name": "Luum Forest"
   },
   {
    "featureId": 95677,
-   "biome": "SeaIce",
-   "name": "Rinver Rime"
+   "biome": "Grassland",
+   "name": "Rinver Prairie"
   },
   {
    "featureId": 17180,
-   "biome": "Temperate",
+   "biome": "TemperateForest",
    "name": "Watsil Downs"
   },
   {
    "featureId": 67699,
-   "biome": "OceanicCrust",
-   "name": "Velwat Rise"
+   "biome": "TemperateForest",
+   "name": "Velwat Vale"
   },
   {
    "featureId": 20615,
-   "biome": "OceanicCrust",
-   "name": "Marau Deep"
+   "biome": "SeaIce",
+   "name": "Marau Frost"
   },
   {
    "featureId": 62770,
@@ -6026,8 +6026,8 @@
   },
   {
    "featureId": 31755,
-   "biome": "Temperate",
-   "name": "Pyrrin Downs"
+   "biome": "SeaIce",
+   "name": "Pyrrin Rime"
   },
   {
    "featureId": 12699,
@@ -6036,8 +6036,8 @@
   },
   {
    "featureId": 72204,
-   "biome": "ContinentalCrust",
-   "name": "Pyrcy Craton"
+   "biome": "OceanicCrust",
+   "name": "Pyrcy Trench"
   },
   {
    "featureId": 27429,
@@ -6046,373 +6046,373 @@
   },
   {
    "featureId": 22584,
-   "biome": "IceSheet",
-   "name": "Southsil Ice"
+   "biome": "Rainforest",
+   "name": "Southsil Canopy"
   },
   {
    "featureId": 29391,
-   "biome": "Temperate",
-   "name": "Dortide Woods"
+   "biome": "Savanna",
+   "name": "Dortide Veld"
   },
   {
    "featureId": 69444,
-   "biome": "OceanicCrust",
-   "name": "Kasil Rise"
+   "biome": "Savanna",
+   "name": "Kasil Reach"
   },
   {
    "featureId": 49660,
-   "biome": "Temperate",
-   "name": "Mirquel Woods"
+   "biome": "Grassland",
+   "name": "Mirquel Plains"
   },
   {
    "featureId": 23091,
-   "biome": "ContinentalCrust",
-   "name": "Hallight Massif"
+   "biome": "SeaIce",
+   "name": "Hallight Ice"
   },
   {
    "featureId": 44665,
-   "biome": "Tropical",
-   "name": "Verdel Verdant"
+   "biome": "OceanicCrust",
+   "name": "Verdel Abyss"
   },
   {
    "featureId": 84215,
-   "biome": "OceanicCrust",
-   "name": "Delvel Abyss"
+   "biome": "ContinentalCrust",
+   "name": "Delvel Shield"
   },
   {
    "featureId": 84594,
-   "biome": "IceSheet",
-   "name": "Delcy Glacier"
+   "biome": "Unknown",
+   "name": "Delcy Expanse"
   },
   {
    "featureId": 64374,
-   "biome": "Tundra",
-   "name": "Dordel Tundra"
+   "biome": "Grassland",
+   "name": "Dordel Steppe"
   },
   {
    "featureId": 81042,
-   "biome": "SeaIce",
-   "name": "Cylu Rime"
+   "biome": "Rainforest",
+   "name": "Cylu Verdant"
   },
   {
    "featureId": 11998,
-   "biome": "Unknown",
-   "name": "Luwat Land"
+   "biome": "IceSheet",
+   "name": "Luwat Frost"
   },
   {
    "featureId": 77689,
-   "biome": "ContinentalCrust",
-   "name": "Northal Craton"
+   "biome": "IceSheet",
+   "name": "Northal Frost"
   },
   {
    "featureId": 37073,
-   "biome": "ContinentalCrust",
-   "name": "Thalfros Craton"
+   "biome": "Rainforest",
+   "name": "Thalfros Jungle"
   },
   {
    "featureId": 78990,
-   "biome": "Tropical",
-   "name": "Norrel Isles"
+   "biome": "TemperateForest",
+   "name": "Norrel Forest"
   },
   {
    "featureId": 35528,
-   "biome": "IceSheet",
-   "name": "Sylwat Frost"
+   "biome": "Tundra",
+   "name": "Sylwat Tundra"
   },
   {
    "featureId": 29283,
-   "biome": "Temperate",
-   "name": "Rinion Downs"
+   "biome": "IceSheet",
+   "name": "Rinion Glacier"
   },
   {
    "featureId": 66936,
-   "biome": "OceanicCrust",
-   "name": "Velquel Deep"
+   "biome": "SeaIce",
+   "name": "Velquel Rime"
   },
   {
    "featureId": 14241,
-   "biome": "ContinentalCrust",
-   "name": "Kavel Massif"
+   "biome": "Grassland",
+   "name": "Kavel Prairie"
   },
   {
    "featureId": 52598,
-   "biome": "Temperate",
-   "name": "Sylau Woods"
+   "biome": "Grassland",
+   "name": "Sylau Plains"
   },
   {
    "featureId": 93679,
-   "biome": "Tropical",
-   "name": "Silcy Reach"
+   "biome": "Tundra",
+   "name": "Silcy Barrens"
   },
   {
    "featureId": 11451,
-   "biome": "Tundra",
-   "name": "Rinum Barrens"
+   "biome": "TemperateForest",
+   "name": "Rinum Forest"
   },
   {
    "featureId": 79946,
-   "biome": "ContinentalCrust",
-   "name": "Eastion Plate"
+   "biome": "OceanicCrust",
+   "name": "Eastion Deep"
   },
   {
    "featureId": 50013,
-   "biome": "Tundra",
-   "name": "Wathal Waste"
+   "biome": "Rainforest",
+   "name": "Wathal Coast"
   },
   {
    "featureId": 81939,
-   "biome": "SeaIce",
-   "name": "Kamar Ice"
+   "biome": "Rainforest",
+   "name": "Kamar Jungle"
   },
   {
    "featureId": 68382,
-   "biome": "IceSheet",
-   "name": "Umos Frost"
+   "biome": "Unknown",
+   "name": "Umos Land"
   },
   {
    "featureId": 85423,
-   "biome": "OceanicCrust",
-   "name": "Froshal Deep"
+   "biome": "TemperateForest",
+   "name": "Froshal Downs"
   },
   {
    "featureId": 67095,
-   "biome": "OceanicCrust",
-   "name": "Luka Trench"
+   "biome": "Rainforest",
+   "name": "Luka Jungle"
   },
   {
    "featureId": 3923,
-   "biome": "Tundra",
-   "name": "Quelsil Waste"
+   "biome": "IceSheet",
+   "name": "Quelsil Glacier"
   },
   {
    "featureId": 40005,
-   "biome": "Unknown",
-   "name": "Rharin Reach"
+   "biome": "Grassland",
+   "name": "Rharin Prairie"
   },
   {
    "featureId": 1987,
-   "biome": "SeaIce",
-   "name": "Tidevel Frost"
+   "biome": "Unknown",
+   "name": "Tidevel Land"
   },
   {
    "featureId": 18071,
-   "biome": "Tundra",
-   "name": "Tidesil Tundra"
+   "biome": "ContinentalCrust",
+   "name": "Tidesil Shield"
   },
   {
    "featureId": 44098,
-   "biome": "OceanicCrust",
-   "name": "Relsil Trench"
+   "biome": "Unknown",
+   "name": "Relsil Expanse"
   },
   {
    "featureId": 25980,
-   "biome": "Temperate",
+   "biome": "TemperateForest",
    "name": "Tideum Woods"
   },
   {
    "featureId": 2990,
-   "biome": "Temperate",
-   "name": "Delhal Vale"
+   "biome": "Desert",
+   "name": "Delhal Dunes"
   },
   {
    "featureId": 5337,
-   "biome": "IceSheet",
-   "name": "Kaau Rime"
+   "biome": "Desert",
+   "name": "Kaau Sands"
   },
   {
    "featureId": 18204,
-   "biome": "IceSheet",
-   "name": "Silsouth Ice"
+   "biome": "ContinentalCrust",
+   "name": "Silsouth Massif"
   },
   {
    "featureId": 85585,
-   "biome": "ContinentalCrust",
-   "name": "Pyrrin Craton"
+   "biome": "Desert",
+   "name": "Pyrrin Desert"
   },
   {
    "featureId": 3995,
-   "biome": "Tropical",
-   "name": "Rhatide Verdant"
+   "biome": "Unknown",
+   "name": "Rhatide Reach"
   },
   {
    "featureId": 37584,
-   "biome": "ContinentalCrust",
-   "name": "Rhalight Massif"
+   "biome": "Grassland",
+   "name": "Rhalight Prairie"
   },
   {
    "featureId": 78301,
-   "biome": "Unknown",
-   "name": "Norcy Expanse"
+   "biome": "OceanicCrust",
+   "name": "Norcy Rise"
   },
   {
    "featureId": 95434,
-   "biome": "IceSheet",
-   "name": "Velum Frost"
+   "biome": "TemperateForest",
+   "name": "Velum Forest"
   },
   {
    "featureId": 66082,
-   "biome": "SeaIce",
-   "name": "Umlu Frost"
+   "biome": "OceanicCrust",
+   "name": "Umlu Trench"
   },
   {
    "featureId": 79881,
-   "biome": "SeaIce",
-   "name": "Marrha Frost"
+   "biome": "Desert",
+   "name": "Marrha Dunes"
   },
   {
    "featureId": 31276,
-   "biome": "SeaIce",
-   "name": "Quelum Rime"
+   "biome": "Unknown",
+   "name": "Quelum Reach"
   },
   {
    "featureId": 59280,
-   "biome": "OceanicCrust",
-   "name": "Watsouth Abyss"
+   "biome": "Desert",
+   "name": "Watsouth Sands"
   },
   {
    "featureId": 20050,
-   "biome": "Temperate",
+   "biome": "TemperateForest",
    "name": "Halwat Vale"
   },
   {
    "featureId": 96359,
-   "biome": "Temperate",
-   "name": "Froseast Forest"
+   "biome": "Savanna",
+   "name": "Froseast Savanna"
   },
   {
    "featureId": 99549,
-   "biome": "OceanicCrust",
-   "name": "Watvel Deep"
+   "biome": "SeaIce",
+   "name": "Watvel Ice"
   },
   {
    "featureId": 95206,
-   "biome": "IceSheet",
-   "name": "Osos Rime"
+   "biome": "OceanicCrust",
+   "name": "Osos Abyss"
   },
   {
    "featureId": 85790,
-   "biome": "Temperate",
-   "name": "Cysyl Forest"
+   "biome": "ContinentalCrust",
+   "name": "Cysyl Craton"
   },
   {
    "featureId": 27413,
-   "biome": "OceanicCrust",
-   "name": "Marsyl Deep"
+   "biome": "ContinentalCrust",
+   "name": "Marsyl Plate"
   },
   {
    "featureId": 69650,
-   "biome": "ContinentalCrust",
-   "name": "Lurel Plate"
+   "biome": "IceSheet",
+   "name": "Lurel Glacier"
   },
   {
    "featureId": 58444,
-   "biome": "SeaIce",
-   "name": "Lightrha Rime"
+   "biome": "TemperateForest",
+   "name": "Lightrha Downs"
   },
   {
    "featureId": 56247,
-   "biome": "SeaIce",
-   "name": "Rinmar Frost"
+   "biome": "Tundra",
+   "name": "Rinmar Tundra"
   },
   {
    "featureId": 78282,
-   "biome": "Tropical",
-   "name": "Halnor Coast"
+   "biome": "TemperateForest",
+   "name": "Halnor Downs"
   },
   {
    "featureId": 28625,
-   "biome": "ContinentalCrust",
-   "name": "Umos Plate"
+   "biome": "Tundra",
+   "name": "Umos Barrens"
   },
   {
    "featureId": 52173,
-   "biome": "OceanicCrust",
-   "name": "Frosau Rise"
+   "biome": "Unknown",
+   "name": "Frosau Expanse"
   },
   {
    "featureId": 47872,
-   "biome": "Tundra",
-   "name": "Southdel Barrens"
+   "biome": "Grassland",
+   "name": "Southdel Prairie"
   },
   {
    "featureId": 97266,
-   "biome": "Unknown",
-   "name": "Cytide Land"
+   "biome": "Savanna",
+   "name": "Cytide Savanna"
   },
   {
    "featureId": 31176,
-   "biome": "ContinentalCrust",
-   "name": "Tidesyl Massif"
+   "biome": "Rainforest",
+   "name": "Tidesyl Canopy"
   },
   {
    "featureId": 35806,
-   "biome": "OceanicCrust",
-   "name": "Dorver Trench"
+   "biome": "Desert",
+   "name": "Dorver Desert"
   },
   {
    "featureId": 92141,
-   "biome": "Tundra",
-   "name": "Pyrrha Barrens"
+   "biome": "Desert",
+   "name": "Pyrrha Sands"
   },
   {
    "featureId": 35416,
-   "biome": "OceanicCrust",
-   "name": "Hallight Rise"
+   "biome": "Rainforest",
+   "name": "Hallight Canopy"
   },
   {
    "featureId": 59426,
-   "biome": "IceSheet",
-   "name": "Velcy Frost"
+   "biome": "Grassland",
+   "name": "Velcy Steppe"
   },
   {
    "featureId": 98327,
-   "biome": "OceanicCrust",
-   "name": "Eastcy Abyss"
+   "biome": "Tundra",
+   "name": "Eastcy Tundra"
   },
   {
    "featureId": 21615,
-   "biome": "IceSheet",
-   "name": "Syleast Glacier"
+   "biome": "Grassland",
+   "name": "Syleast Downs"
   },
   {
    "featureId": 50850,
-   "biome": "ContinentalCrust",
-   "name": "Osrel Craton"
+   "biome": "Grassland",
+   "name": "Osrel Steppe"
   },
   {
    "featureId": 49436,
-   "biome": "ContinentalCrust",
-   "name": "Ospyr Craton"
+   "biome": "OceanicCrust",
+   "name": "Ospyr Trench"
   },
   {
    "featureId": 45898,
-   "biome": "OceanicCrust",
-   "name": "Rinum Rise"
+   "biome": "Desert",
+   "name": "Rinum Dunes"
   },
   {
    "featureId": 83604,
-   "biome": "Tropical",
-   "name": "Quellu Verdant"
+   "biome": "Unknown",
+   "name": "Quellu Land"
   },
   {
    "featureId": 84959,
-   "biome": "Tropical",
-   "name": "Luthal Isles"
+   "biome": "Grassland",
+   "name": "Luthal Steppe"
   },
   {
    "featureId": 56637,
-   "biome": "ContinentalCrust",
-   "name": "Quelrin Massif"
+   "biome": "OceanicCrust",
+   "name": "Quelrin Rise"
   },
   {
    "featureId": 16547,
-   "biome": "SeaIce",
-   "name": "Norwat Ice"
+   "biome": "Rainforest",
+   "name": "Norwat Jungle"
   },
   {
    "featureId": 70174,
-   "biome": "SeaIce",
-   "name": "Silmar Rime"
+   "biome": "Grassland",
+   "name": "Silmar Plains"
   },
   {
    "featureId": 92272,
@@ -6426,218 +6426,218 @@
   },
   {
    "featureId": 6199,
-   "biome": "ContinentalCrust",
-   "name": "Umos Craton"
+   "biome": "Desert",
+   "name": "Umos Desert"
   },
   {
    "featureId": 67289,
-   "biome": "IceSheet",
-   "name": "Eastum Frost"
+   "biome": "Grassland",
+   "name": "Eastum Steppe"
   },
   {
    "featureId": 37177,
-   "biome": "Unknown",
-   "name": "Thalnor Reach"
+   "biome": "IceSheet",
+   "name": "Thalnor Glacier"
   },
   {
    "featureId": 93852,
-   "biome": "Tropical",
-   "name": "Quelver Isles"
+   "biome": "IceSheet",
+   "name": "Quelver Frost"
   },
   {
    "featureId": 25799,
-   "biome": "Unknown",
-   "name": "Mirdel Reach"
+   "biome": "Desert",
+   "name": "Mirdel Dunes"
   },
   {
    "featureId": 82771,
-   "biome": "SeaIce",
-   "name": "Hallight Rime"
+   "biome": "Desert",
+   "name": "Hallight Barrens"
   },
   {
    "featureId": 42864,
-   "biome": "SeaIce",
-   "name": "Rhatide Ice"
+   "biome": "IceSheet",
+   "name": "Rhatide Rime"
   },
   {
    "featureId": 23311,
-   "biome": "OceanicCrust",
-   "name": "Tidedel Trench"
+   "biome": "Unknown",
+   "name": "Tidedel Land"
   },
   {
    "featureId": 83759,
-   "biome": "Tundra",
-   "name": "Quelion Tundra"
+   "biome": "Rainforest",
+   "name": "Quelion Jungle"
   },
   {
    "featureId": 67419,
-   "biome": "Unknown",
-   "name": "Relwat Reach"
+   "biome": "OceanicCrust",
+   "name": "Relwat Deep"
   },
   {
    "featureId": 48459,
-   "biome": "Unknown",
-   "name": "Quellu Land"
+   "biome": "Savanna",
+   "name": "Quellu Reach"
   },
   {
    "featureId": 17493,
-   "biome": "Temperate",
-   "name": "Southvel Vale"
+   "biome": "Tundra",
+   "name": "Southvel Waste"
   },
   {
    "featureId": 80658,
-   "biome": "Unknown",
-   "name": "Tidehal Land"
+   "biome": "Rainforest",
+   "name": "Tidehal Canopy"
   },
   {
    "featureId": 64056,
-   "biome": "IceSheet",
-   "name": "Velos Rime"
+   "biome": "OceanicCrust",
+   "name": "Velos Abyss"
   },
   {
    "featureId": 66981,
-   "biome": "Unknown",
-   "name": "Ionrin Reach"
+   "biome": "Tundra",
+   "name": "Ionrin Barrens"
   },
   {
    "featureId": 12432,
-   "biome": "OceanicCrust",
-   "name": "Southdel Deep"
+   "biome": "Rainforest",
+   "name": "Southdel Coast"
   },
   {
    "featureId": 24878,
-   "biome": "IceSheet",
-   "name": "Delka Glacier"
+   "biome": "Desert",
+   "name": "Delka Barrens"
   },
   {
    "featureId": 40203,
-   "biome": "Tundra",
-   "name": "Vermar Tundra"
+   "biome": "SeaIce",
+   "name": "Vermar Frost"
   },
   {
    "featureId": 46231,
-   "biome": "IceSheet",
-   "name": "Relrha Rime"
+   "biome": "Savanna",
+   "name": "Relrha Veld"
   },
   {
    "featureId": 63382,
-   "biome": "ContinentalCrust",
-   "name": "Delfros Massif"
+   "biome": "TemperateForest",
+   "name": "Delfros Vale"
   },
   {
    "featureId": 88038,
-   "biome": "Tundra",
-   "name": "Lumar Waste"
+   "biome": "TemperateForest",
+   "name": "Lumar Forest"
   },
   {
    "featureId": 82985,
-   "biome": "OceanicCrust",
-   "name": "Relfros Deep"
+   "biome": "Rainforest",
+   "name": "Relfros Coast"
   },
   {
    "featureId": 56770,
-   "biome": "SeaIce",
-   "name": "Kaau Frost"
+   "biome": "Tundra",
+   "name": "Kaau Tundra"
   },
   {
    "featureId": 88099,
-   "biome": "IceSheet",
-   "name": "Mirdel Glacier"
+   "biome": "SeaIce",
+   "name": "Mirdel Ice"
   },
   {
    "featureId": 39446,
-   "biome": "Tundra",
-   "name": "Nordor Waste"
+   "biome": "Grassland",
+   "name": "Nordor Steppe"
   },
   {
    "featureId": 28541,
-   "biome": "Temperate",
+   "biome": "TemperateForest",
    "name": "Aucy Woods"
   },
   {
    "featureId": 39209,
-   "biome": "OceanicCrust",
-   "name": "Haldor Abyss"
+   "biome": "Unknown",
+   "name": "Haldor Land"
   },
   {
    "featureId": 88549,
-   "biome": "OceanicCrust",
-   "name": "Oswat Abyss"
+   "biome": "Unknown",
+   "name": "Oswat Land"
   },
   {
    "featureId": 98383,
-   "biome": "SeaIce",
-   "name": "Cyeast Frost"
+   "biome": "Rainforest",
+   "name": "Cyeast Coast"
   },
   {
    "featureId": 1339,
-   "biome": "Tropical",
-   "name": "Karin Reach"
+   "biome": "Desert",
+   "name": "Karin Dunes"
   },
   {
    "featureId": 20592,
-   "biome": "ContinentalCrust",
-   "name": "Eastlight Craton"
+   "biome": "Unknown",
+   "name": "Eastlight Expanse"
   },
   {
    "featureId": 71012,
-   "biome": "OceanicCrust",
-   "name": "Froshal Abyss"
+   "biome": "IceSheet",
+   "name": "Froshal Rime"
   },
   {
    "featureId": 27623,
-   "biome": "Tropical",
-   "name": "Dorfros Verdant"
+   "biome": "SeaIce",
+   "name": "Dorfros Ice"
   },
   {
    "featureId": 74537,
-   "biome": "ContinentalCrust",
-   "name": "Mireast Craton"
+   "biome": "Unknown",
+   "name": "Mireast Land"
   },
   {
    "featureId": 78683,
-   "biome": "SeaIce",
-   "name": "Delpyr Frost"
+   "biome": "ContinentalCrust",
+   "name": "Delpyr Plate"
   },
   {
    "featureId": 43582,
-   "biome": "Tropical",
-   "name": "Lightum Verdant"
+   "biome": "Grassland",
+   "name": "Lightum Plains"
   },
   {
    "featureId": 83343,
-   "biome": "Tropical",
-   "name": "Eastdel Isles"
+   "biome": "Tundra",
+   "name": "Eastdel Barrens"
   },
   {
    "featureId": 71129,
-   "biome": "Tundra",
-   "name": "Southlu Barrens"
+   "biome": "Rainforest",
+   "name": "Southlu Verdant"
   },
   {
    "featureId": 67054,
-   "biome": "SeaIce",
-   "name": "Verfros Frost"
+   "biome": "Tundra",
+   "name": "Verfros Tundra"
   },
   {
    "featureId": 18852,
-   "biome": "Tropical",
-   "name": "Marwat Verdant"
+   "biome": "IceSheet",
+   "name": "Marwat Rime"
   },
   {
    "featureId": 57398,
-   "biome": "Tundra",
-   "name": "Mirrel Tundra"
+   "biome": "OceanicCrust",
+   "name": "Mirrel Trench"
   },
   {
    "featureId": 38180,
-   "biome": "OceanicCrust",
-   "name": "Auquel Deep"
+   "biome": "SeaIce",
+   "name": "Auquel Frost"
   },
   {
    "featureId": 53040,
-   "biome": "OceanicCrust",
-   "name": "Dorion Deep"
+   "biome": "TemperateForest",
+   "name": "Dorion Downs"
   },
   {
    "featureId": 74134,
@@ -6646,43 +6646,43 @@
   },
   {
    "featureId": 75747,
-   "biome": "Unknown",
-   "name": "Ummar Land"
+   "biome": "IceSheet",
+   "name": "Ummar Frost"
   },
   {
    "featureId": 88302,
-   "biome": "Temperate",
-   "name": "Quelka Forest"
+   "biome": "IceSheet",
+   "name": "Quelka Frost"
   },
   {
    "featureId": 89075,
-   "biome": "IceSheet",
-   "name": "Watthal Rime"
+   "biome": "Unknown",
+   "name": "Watthal Reach"
   },
   {
    "featureId": 30485,
-   "biome": "IceSheet",
-   "name": "Lightquel Rime"
+   "biome": "TemperateForest",
+   "name": "Lightquel Woods"
   },
   {
    "featureId": 11752,
-   "biome": "IceSheet",
-   "name": "Rhaum Frost"
+   "biome": "SeaIce",
+   "name": "Rhaum Rime"
   },
   {
    "featureId": 68734,
-   "biome": "IceSheet",
-   "name": "Sylion Ice"
+   "biome": "OceanicCrust",
+   "name": "Sylion Rise"
   },
   {
    "featureId": 67873,
-   "biome": "Unknown",
-   "name": "Eastlight Expanse"
+   "biome": "IceSheet",
+   "name": "Eastlight Frost"
   },
   {
    "featureId": 85061,
-   "biome": "Unknown",
-   "name": "Pyrtide Land"
+   "biome": "IceSheet",
+   "name": "Pyrtide Ice"
   },
   {
    "featureId": 3181,
@@ -6691,38 +6691,38 @@
   },
   {
    "featureId": 60427,
-   "biome": "SeaIce",
-   "name": "Osdel Frost"
+   "biome": "Tundra",
+   "name": "Osdel Tundra"
   },
   {
    "featureId": 27951,
-   "biome": "SeaIce",
-   "name": "Watthal Rime"
+   "biome": "Grassland",
+   "name": "Watthal Plains"
   },
   {
    "featureId": 81613,
-   "biome": "ContinentalCrust",
-   "name": "Frosthal Craton"
+   "biome": "Tundra",
+   "name": "Frosthal Tundra"
   },
   {
    "featureId": 74315,
-   "biome": "SeaIce",
+   "biome": "IceSheet",
    "name": "Pyreast Rime"
   },
   {
    "featureId": 20212,
-   "biome": "Unknown",
-   "name": "Southcy Land"
+   "biome": "IceSheet",
+   "name": "Southcy Ice"
   },
   {
    "featureId": 19835,
-   "biome": "Tundra",
-   "name": "Velmir Waste"
+   "biome": "Desert",
+   "name": "Velmir Sands"
   },
   {
    "featureId": 69275,
-   "biome": "IceSheet",
-   "name": "Eastsil Ice"
+   "biome": "Savanna",
+   "name": "Eastsil Reach"
   },
   {
    "featureId": 16848,
@@ -6731,18 +6731,18 @@
   },
   {
    "featureId": 20877,
-   "biome": "ContinentalCrust",
-   "name": "Eastcy Massif"
+   "biome": "IceSheet",
+   "name": "Eastcy Ice"
   },
   {
    "featureId": 36700,
-   "biome": "ContinentalCrust",
-   "name": "Mircy Massif"
+   "biome": "IceSheet",
+   "name": "Mircy Ice"
   },
   {
    "featureId": 69105,
-   "biome": "Temperate",
-   "name": "Relmir Downs"
+   "biome": "ContinentalCrust",
+   "name": "Relmir Plate"
   },
   {
    "featureId": 19387,
@@ -6751,72 +6751,72 @@
   },
   {
    "featureId": 64717,
-   "biome": "IceSheet",
-   "name": "Rharha Rime"
+   "biome": "TemperateForest",
+   "name": "Rharha Woods"
   },
   {
    "featureId": 75047,
-   "biome": "Tundra",
-   "name": "Lightnor Tundra"
+   "biome": "Unknown",
+   "name": "Lightnor Land"
   },
   {
    "featureId": 52066,
-   "biome": "Unknown",
-   "name": "Umrin Reach"
+   "biome": "Tundra",
+   "name": "Umrin Barrens"
   },
   {
    "featureId": 90454,
-   "biome": "Temperate",
-   "name": "Lightka Downs"
+   "biome": "Desert",
+   "name": "Lightka Barrens"
   },
   {
    "featureId": 40126,
-   "biome": "SeaIce",
-   "name": "Luum Frost"
+   "biome": "Unknown",
+   "name": "Luum Land"
   },
   {
    "featureId": 67367,
-   "biome": "Unknown",
-   "name": "Umsil Expanse"
+   "biome": "ContinentalCrust",
+   "name": "Umsil Massif"
   },
   {
    "featureId": 78101,
-   "biome": "IceSheet",
-   "name": "Umka Ice"
+   "biome": "ContinentalCrust",
+   "name": "Umka Massif"
   },
   {
    "featureId": 52973,
-   "biome": "Temperate",
-   "name": "Watlight Woods"
+   "biome": "Unknown",
+   "name": "Watlight Expanse"
   },
   {
    "featureId": 8237,
-   "biome": "Tundra",
-   "name": "Umpyr Barrens"
+   "biome": "SeaIce",
+   "name": "Umpyr Rime"
   },
   {
    "featureId": 84745,
-   "biome": "IceSheet",
-   "name": "Pyrvel Rime"
+   "biome": "Grassland",
+   "name": "Pyrvel Plains"
   },
   {
    "featureId": 16628,
-   "biome": "IceSheet",
-   "name": "Frosmar Ice"
+   "biome": "OceanicCrust",
+   "name": "Frosmar Rise"
   },
   {
    "featureId": 31248,
-   "biome": "ContinentalCrust",
-   "name": "Halum Craton"
+   "biome": "TemperateForest",
+   "name": "Halum Forest"
   },
   {
    "featureId": 6338,
-   "biome": "Unknown",
-   "name": "Velsil Land"
+   "biome": "Tundra",
+   "name": "Velsil Tundra"
   },
   {
    "featureId": 74279,
-   "biome": "IceSheet",
+   "biome": "SeaIce",
    "name": "Mirfros Rime"
   },
   {
@@ -6826,128 +6826,128 @@
   },
   {
    "featureId": 52904,
-   "biome": "Tundra",
-   "name": "Pyrrel Tundra"
+   "biome": "OceanicCrust",
+   "name": "Pyrrel Abyss"
   },
   {
    "featureId": 52604,
-   "biome": "Tundra",
-   "name": "Quelos Barrens"
+   "biome": "Rainforest",
+   "name": "Quelos Verdant"
   },
   {
    "featureId": 43772,
-   "biome": "IceSheet",
-   "name": "Dorthal Ice"
+   "biome": "Rainforest",
+   "name": "Dorthal Canopy"
   },
   {
    "featureId": 38784,
-   "biome": "Tropical",
-   "name": "Ionlu Coast"
+   "biome": "IceSheet",
+   "name": "Ionlu Glacier"
   },
   {
    "featureId": 9991,
-   "biome": "Temperate",
-   "name": "Cysouth Vale"
+   "biome": "Rainforest",
+   "name": "Cysouth Canopy"
   },
   {
    "featureId": 39564,
-   "biome": "Tropical",
-   "name": "Oslight Coast"
+   "biome": "Unknown",
+   "name": "Oslight Expanse"
   },
   {
    "featureId": 41899,
-   "biome": "IceSheet",
-   "name": "Lightver Glacier"
+   "biome": "Grassland",
+   "name": "Lightver Downs"
   },
   {
    "featureId": 45679,
-   "biome": "OceanicCrust",
-   "name": "Watpyr Abyss"
+   "biome": "Desert",
+   "name": "Watpyr Sands"
   },
   {
    "featureId": 91467,
-   "biome": "OceanicCrust",
-   "name": "Kaum Trench"
+   "biome": "SeaIce",
+   "name": "Kaum Rime"
   },
   {
    "featureId": 5303,
-   "biome": "SeaIce",
-   "name": "Ionrin Frost"
+   "biome": "OceanicCrust",
+   "name": "Ionrin Rise"
   },
   {
    "featureId": 97285,
-   "biome": "OceanicCrust",
-   "name": "Velmir Rise"
+   "biome": "Grassland",
+   "name": "Velmir Prairie"
   },
   {
    "featureId": 71090,
-   "biome": "SeaIce",
-   "name": "Hallight Frost"
+   "biome": "Rainforest",
+   "name": "Hallight Coast"
   },
   {
    "featureId": 38669,
-   "biome": "Tropical",
-   "name": "Mirwat Reach"
+   "biome": "Grassland",
+   "name": "Mirwat Prairie"
   },
   {
    "featureId": 65173,
-   "biome": "SeaIce",
-   "name": "Sileast Rime"
+   "biome": "ContinentalCrust",
+   "name": "Sileast Craton"
   },
   {
    "featureId": 7814,
-   "biome": "Unknown",
-   "name": "Lightau Expanse"
+   "biome": "Grassland",
+   "name": "Lightau Downs"
   },
   {
    "featureId": 87180,
-   "biome": "IceSheet",
-   "name": "Halsouth Ice"
+   "biome": "Desert",
+   "name": "Halsouth Dunes"
   },
   {
    "featureId": 54791,
-   "biome": "SeaIce",
+   "biome": "IceSheet",
    "name": "Queleast Frost"
   },
   {
    "featureId": 19091,
-   "biome": "ContinentalCrust",
-   "name": "Mirsouth Shield"
+   "biome": "Rainforest",
+   "name": "Mirsouth Verdant"
   },
   {
    "featureId": 57928,
-   "biome": "IceSheet",
-   "name": "Velsouth Glacier"
+   "biome": "Rainforest",
+   "name": "Velsouth Coast"
   },
   {
    "featureId": 22984,
-   "biome": "OceanicCrust",
-   "name": "Relmir Deep"
+   "biome": "Grassland",
+   "name": "Relmir Downs"
   },
   {
    "featureId": 60864,
-   "biome": "SeaIce",
-   "name": "Norion Rime"
+   "biome": "Rainforest",
+   "name": "Norion Verdant"
   },
   {
    "featureId": 34789,
-   "biome": "Tropical",
-   "name": "Dorwat Verdant"
+   "biome": "Grassland",
+   "name": "Dorwat Plains"
   },
   {
    "featureId": 73809,
-   "biome": "Tropical",
-   "name": "Sylmar Verdant"
+   "biome": "Savanna",
+   "name": "Sylmar Veld"
   },
   {
    "featureId": 67509,
-   "biome": "IceSheet",
-   "name": "Southrin Glacier"
+   "biome": "OceanicCrust",
+   "name": "Southrin Deep"
   },
   {
    "featureId": 50956,
-   "biome": "Tundra",
-   "name": "Marcy Tundra"
+   "biome": "Rainforest",
+   "name": "Marcy Verdant"
   },
   {
    "featureId": 49489,
@@ -6956,93 +6956,93 @@
   },
   {
    "featureId": 25554,
-   "biome": "Unknown",
-   "name": "Quelmar Land"
+   "biome": "IceSheet",
+   "name": "Quelmar Ice"
   },
   {
    "featureId": 91097,
-   "biome": "ContinentalCrust",
-   "name": "Veros Plate"
+   "biome": "Grassland",
+   "name": "Veros Downs"
   },
   {
    "featureId": 6973,
-   "biome": "ContinentalCrust",
-   "name": "Frosdel Shield"
+   "biome": "Grassland",
+   "name": "Frosdel Plains"
   },
   {
    "featureId": 26392,
-   "biome": "Unknown",
-   "name": "Noros Expanse"
+   "biome": "Savanna",
+   "name": "Noros Reach"
   },
   {
    "featureId": 68227,
-   "biome": "Tropical",
-   "name": "Eastdel Verdant"
+   "biome": "Savanna",
+   "name": "Eastdel Veld"
   },
   {
    "featureId": 28326,
-   "biome": "IceSheet",
-   "name": "Mirdel Ice"
+   "biome": "Unknown",
+   "name": "Mirdel Expanse"
   },
   {
    "featureId": 77987,
-   "biome": "OceanicCrust",
-   "name": "Ionwat Deep"
+   "biome": "SeaIce",
+   "name": "Ionwat Ice"
   },
   {
    "featureId": 43189,
-   "biome": "Temperate",
-   "name": "Ossil Downs"
+   "biome": "ContinentalCrust",
+   "name": "Ossil Plate"
   },
   {
    "featureId": 58979,
-   "biome": "Tropical",
-   "name": "Norpyr Coast"
+   "biome": "ContinentalCrust",
+   "name": "Norpyr Plate"
   },
   {
    "featureId": 3169,
-   "biome": "Temperate",
-   "name": "Rinrha Downs"
+   "biome": "Desert",
+   "name": "Rinrha Barrens"
   },
   {
    "featureId": 3802,
-   "biome": "OceanicCrust",
-   "name": "Aurel Abyss"
+   "biome": "Rainforest",
+   "name": "Aurel Verdant"
   },
   {
    "featureId": 19322,
-   "biome": "Tundra",
-   "name": "Lighthal Waste"
+   "biome": "Desert",
+   "name": "Lighthal Barrens"
   },
   {
    "featureId": 6589,
-   "biome": "Tropical",
-   "name": "Marka Isles"
+   "biome": "Rainforest",
+   "name": "Marka Jungle"
   },
   {
    "featureId": 47942,
-   "biome": "IceSheet",
-   "name": "Delmir Glacier"
+   "biome": "Rainforest",
+   "name": "Delmir Coast"
   },
   {
    "featureId": 86364,
-   "biome": "Temperate",
-   "name": "Southum Vale"
+   "biome": "Tundra",
+   "name": "Southum Tundra"
   },
   {
    "featureId": 83089,
-   "biome": "Tundra",
-   "name": "Froswat Barrens"
+   "biome": "Rainforest",
+   "name": "Froswat Coast"
   },
   {
    "featureId": 46530,
-   "biome": "ContinentalCrust",
-   "name": "Ionau Shield"
+   "biome": "Savanna",
+   "name": "Ionau Veld"
   },
   {
    "featureId": 46771,
-   "biome": "Tropical",
-   "name": "Easttide Coast"
+   "biome": "ContinentalCrust",
+   "name": "Easttide Plate"
   },
   {
    "featureId": 27372,
@@ -7051,68 +7051,68 @@
   },
   {
    "featureId": 76528,
-   "biome": "Unknown",
-   "name": "Thalsouth Land"
+   "biome": "Tundra",
+   "name": "Thalsouth Tundra"
   },
   {
    "featureId": 72202,
-   "biome": "Tundra",
-   "name": "Rhavel Waste"
+   "biome": "Grassland",
+   "name": "Rhavel Steppe"
   },
   {
    "featureId": 48213,
-   "biome": "ContinentalCrust",
-   "name": "Cyion Shield"
+   "biome": "Grassland",
+   "name": "Cyion Plains"
   },
   {
    "featureId": 54740,
-   "biome": "OceanicCrust",
-   "name": "Mirlu Trench"
+   "biome": "Savanna",
+   "name": "Mirlu Savanna"
   },
   {
    "featureId": 96015,
-   "biome": "OceanicCrust",
-   "name": "Lightsouth Abyss"
+   "biome": "TemperateForest",
+   "name": "Lightsouth Woods"
   },
   {
    "featureId": 47475,
-   "biome": "SeaIce",
-   "name": "Dordor Frost"
+   "biome": "ContinentalCrust",
+   "name": "Dordor Shield"
   },
   {
    "featureId": 22164,
-   "biome": "SeaIce",
-   "name": "Quelka Frost"
+   "biome": "Grassland",
+   "name": "Quelka Downs"
   },
   {
    "featureId": 27452,
-   "biome": "ContinentalCrust",
-   "name": "Thalfros Shield"
+   "biome": "OceanicCrust",
+   "name": "Thalfros Abyss"
   },
   {
    "featureId": 43481,
-   "biome": "Tropical",
-   "name": "Southrha Coast"
+   "biome": "SeaIce",
+   "name": "Southrha Frost"
   },
   {
    "featureId": 28398,
-   "biome": "ContinentalCrust",
-   "name": "Rinsyl Massif"
+   "biome": "Rainforest",
+   "name": "Rinsyl Canopy"
   },
   {
    "featureId": 21762,
-   "biome": "ContinentalCrust",
-   "name": "Hallight Craton"
+   "biome": "Grassland",
+   "name": "Hallight Steppe"
   },
   {
    "featureId": 58502,
-   "biome": "Unknown",
-   "name": "Relau Expanse"
+   "biome": "Savanna",
+   "name": "Relau Savanna"
   },
   {
    "featureId": 49701,
-   "biome": "Temperate",
-   "name": "Mirka Forest"
+   "biome": "Desert",
+   "name": "Mirka Desert"
   },
   {
    "featureId": 51654,
@@ -7121,18 +7121,18 @@
   },
   {
    "featureId": 22686,
-   "biome": "Temperate",
-   "name": "Lulu Vale"
+   "biome": "ContinentalCrust",
+   "name": "Lulu Massif"
   },
   {
    "featureId": 38790,
-   "biome": "Temperate",
+   "biome": "TemperateForest",
    "name": "Cywat Downs"
   },
   {
    "featureId": 21569,
-   "biome": "OceanicCrust",
-   "name": "Velnor Abyss"
+   "biome": "Grassland",
+   "name": "Velnor Plains"
   }
  ]
 }

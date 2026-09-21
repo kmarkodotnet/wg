@@ -5467,7 +5467,7 @@ benyomás alapján, amit egy megjelenítési hiba okozott.
 `AssignPlate` numerikus viselkedése változna → verzió-emelés ÉS az ND-09
 ordinális kalibráció újrafuttatása.
 
-### ND-126 — „A térítők közt minden sivatag": a biome-osztályozó NEM LÁTJA a csapadékot (NYITOTT, döntést kér)
+### ND-126 — „A térítők közt minden sivatag": a biome-osztályozó NEM LÁTJA a csapadékot (LEZÁRVA: (A))
 
 **2026-09-21.** Visszajelzés (klíma-kalibráció): „sivatagok: ráktérítő
 baktérítő közt minden sivatag, fölötte és alatta egy darabig zöld, efölött meg
@@ -5554,6 +5554,88 @@ megváltoznak** — verzió-emelés kell, és a mentés-kompatibilitás (ND-108)
 szempontjából ez pont olyan eset, amire az a kapu való.
 
 ---
+
+---
+
+**LEZÁRVA (A), 2026-09-21** — felhasználói döntés, implementálva.
+
+**A táblázat.** Két hőmérsékleti oszlop × négy csapadék-sor, a hideg vég
+csapadéktól függetlenül (a sarkvidéki „hideg sivatag" is jég/tundra):
+
+| | 5–20 °C | 20 °C fölött |
+|---|---|---|
+| nedves | Rainforest | Rainforest |
+| közepes | TemperateForest | Savanna |
+| félszáraz | Grassland | Grassland |
+| száraz | Desert | Desert |
+
+**MÉRT eredmény** (seed `0xA7C944210000`, level 6, szárazföldi tile-ok) —
+hány KÜLÖNBÖZŐ biome van egy 20°-os szélességi sávon belül:
+
+| Sáv | Előtte | Utána |
+|---|---|---|
+| 30°..50° | 2 | **6** |
+| 10°..30° | 2 | **5** |
+| −10°..10° | **1** | **4** |
+| −30°..−10° | 2 | **5** |
+| −50°..−30° | 2 | **5** |
+
+Az Egyenlítő sávja korábban **100% Trópusi** volt — egyetlen osztály az egész
+sávban. Most: Sivatag 17%, Sztyeppe 16%, Szavanna 29%, Esőerdő 38%. A
+szélességi sávok feltörtek.
+
+**IMPLEMENTÁCIÓ KÖZBEN TALÁLT TERVEZÉSI HIBA — a küszöb POPULÁCIÓJA.**
+Az első változat a vágópontokat a TELJES szárazföldi eloszlásból számolta.
+Eredmény: az arid vágópont pontosan **0,000** lett (a szárazföld több mint
+20%-ának nulla a csapadéka), és a szárazföld **24,4%-a** lett esőerdő — a
+Földön ez ~7%. Az ok szerkezeti: a hideg tile-okat a HŐMÉRSÉKLET dönti el, a
+csapadékuk viszont szisztematikusan 0 körüli, tehát lehúzzák a
+percentiliseket, és a meleg sáv minden tile-ja „nedvesnek" látszik.
+
+Javítás: `ComputeThresholdsForVegetatedLand` — a vágópontok CSAK azokból a
+tile-okból, amelyeket a csapadék-tengely egyáltalán osztályoz
+(`TundraThresholdK` fölött). Utána a vágópontok 0,109 / 0,604 / 1,999, és a
+globális eloszlás értelmes.
+
+**Ez pontosan az ND-124 hibaosztálya**: ott a globális csapadék-percentilis és
+a vízgyűjtő-szűrés metszete lett üres, mert két KÜLÖNBÖZŐ populációra
+vonatkozó küszöböt kombináltunk. Harmadszor jött elő ugyanez a minta — a
+percentilis-küszöbnél MINDIG ki kell mondani, MELYIK populáció eloszlásáról
+van szó.
+
+**A kalibráció mostantól a percentiliseken múlik, és ez szándékos.**
+A vegetált szárazföld konstrukció szerint 20% / 25% / 30% / 25% arányban
+oszlik Sivatag / Sztyeppe / közepes / Esőerdő között (`AridPercentile`,
+`SemiAridPercentile`, `MoistPercentile`). Hogy ezek az arányok jók-e, az
+hangolási kérdés, nem szerkezeti — a felhasználó vizuális ítélete dönti el.
+
+**Ami MÉG MINDIG nem földszerű, és ez az ND-126b:** a globális szárazföldi
+eloszlásban jég + tundra **40,7%** (a Földön ~18%). Ez nem az osztályozó
+hibája — a hőmérsékleti lánc túl meredek sark–egyenlítő esést ad.
+
+**MELLÉKTERMÉK — egy látens determinizmus-hiba.** A `FeatureSegmentation.DominantBiome`
+döntetlenjét 2026-09-21-ig a `Dictionary<Biome,int>` BEJÁRÁSI SORRENDJE
+döntötte el; explicit szabály nem volt. Ez I2-sértés, csak addig nem bukott
+ki, amíg két szárazföldi osztály létezett. Az öt osztállyal a
+Python-referencia és a C# azonnal MÁS régiónevet adott ugyanabból az adatból
+(„Sylthal Plains" vs „Sylthal Veld"). Javítva mindkét oldalon: a KISEBB
+`Biome` enum-érték nyer, tesztbe zárva.
+
+**Verziózás:** a domborzat NEM változott (a `TileId`→eleváció leképezés
+érintetlen), de a világ **biome-mezője és a régiónevei megváltoztak**.
+
+**Hatókör, ami tényleg átment:** `Biome` enum (Temperate/Tropical →
+Desert/Grassland/TemperateForest/Savanna/Rainforest), `NameGeneration`
+utótagok, a viewer `RenderCategory`-ja, kategória-színei és a FOLYTONOS
+felszínszín (mostantól kétdimenziós keverés: a csapadék-tengely mentén
+Desert→Grassland→közepes→Rainforest, a hőmérséklet csak a „közepes" horgonyt
+váltja). A `Build()` mostantól MINDIG kiszámolja a csapadék-mezőt (korábban
+csak overlay/folyók/felhők kérték) — gyorsítótár-találatnál 0,0 ms.
+Törölve: a halott `ContinuousSurfaceColor`.
+
+**Python-referencia:** `tools/reference/biome_ref.py` (classify + mindkét
+küszöb-függvény), 200 új tesztvektor, és a `features_ref.py` is a
+csapadék-proxyra állt (a szegmentálási referencia nem klíma-referencia).
 
 #### ND-126b — két MÉRT konstans-hiba, amit a vizsgálat mellékesen talált
 
