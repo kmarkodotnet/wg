@@ -135,6 +135,149 @@ namespace WorldGen.Core.Hydrology
             return candidates;
         }
 
+        /// <summary>
+        /// Hány vízgyűjtőből válasszunk forrást (a legnagyobbaktól kezdve).
+        /// A 16 KOMPROMISSZUM: kevesebb medence mélyebb fát ad (6 medencénél
+        /// 44% összefolyás 42% helyett), de a folyókat a bolygó néhány
+        /// pontjára sűríti - ami éppen a MÁSIK felhasználói panasz
+        /// ("az egész bolygón ritkák a folyók"). 16 külön folyórendszer
+        /// eloszlik a szárazföldeken, és a fa is többszintű marad.
+        /// </summary>
+        public const int DefaultSourceBasinCount = 16;
+
+        /// <summary>
+        /// Hány forrás egy vízgyűjtőn belül. A 6 MÉRT érték: 4-nél a
+        /// legnagyobb vízhozam-súly 4 és 5-6 folyó éri el a 3-as súlyt,
+        /// 6-nál a súly 6 és 13 folyó - vagyis a fa ettől lesz TÖBBSZINTŰ,
+        /// nem csak "egy mellékfolyó". Ld. <see cref="BuildRiverNetworkPerBasin"/>.
+        /// </summary>
+        public const int DefaultSourcesPerBasin = 6;
+
+        /// <summary>
+        /// Ennél kevesebb tile-os vízgyűjtőbe nem teszünk forrást - egy
+        /// 2-3 tile-os parti lefolyásban nincs hova összefolyni.
+        /// </summary>
+        public const int DefaultMinBasinTiles = 12;
+
+        /// <summary>
+        /// Két forrás MINIMÁLIS távolsága egy vízgyűjtőn belül. Enélkül a
+        /// legcsapadékosabb tile-ok egymás szomszédjai lennének, a második
+        /// folyó egy-két lépés után beleolvadna az elsőbe, és nem keletkezne
+        /// valódi mellékfolyó - csak egy elágazás a forrás mellett.
+        /// </summary>
+        public const double DefaultSourceSeparationMeters = 150_000.0;
+
+        /// <summary>
+        /// ND-124 (A): forrás-kiválasztás VÍZGYŰJTŐNKÉNT, nem globális
+        /// top-K-val.
+        ///
+        /// MIÉRT. A <see cref="SelectRiverSources"/> a legcsapadékosabb
+        /// tile-okat veszi az EGÉSZ bolygóról. Ez a legnedvesebb hegyvidékek
+        /// KÖZÖTT szórja szét a forrásokat, tehát a nyomvonalak külön
+        /// medencékben futnak a tengerig, és ritkán találkoznak - mérve:
+        /// 48 globális forrásból 8 összefolyás, a legnagyobb vízhozam-súly 2.
+        /// A felhasználói visszajelzés ("nincs tree alakzat, sosem ér bele
+        /// egyik a másikba") pontosan ez.
+        ///
+        /// Dendritikus fához a forrásoknak EGY vízgyűjtőn belül kell lenniük -
+        /// akkor közös torkolat felé tartanak, és összefolynak. Ez a függvény
+        /// a legnagyobb <paramref name="basinCount"/> vízgyűjtőt veszi, és
+        /// mindegyikben <paramref name="sourcesPerBasin"/> forrást választ.
+        ///
+        /// A CSAPADÉK-KÜSZÖB MEDENCÉN BELÜL RELATÍV - és ez nem kozmetika.
+        /// Mérve (seed 0xA7C944210000, level 6): a 6 legnagyobb vízgyűjtőben
+        /// EGYETLEN tile sincs a szárazföldi csapadék-eloszlás 80.
+        /// percentilise fölött, tehát a globális küszöbbel a metszet ÜRES -
+        /// pontosan 0 forrás. A nagy vízgyűjtők ugyanis ott vannak, ahol sok
+        /// a szárazföld (kontinens-belső), a legnedvesebb tile-ok viszont a
+        /// keskeny, csapadékos parti hegyvidékeken. Ezért itt a medence SAJÁT
+        /// legnedvesebb tile-jait vesszük; a magasság-küszöb (hegyvidék)
+        /// marad abszolút.
+        ///
+        /// DETERMINIZMUS: a vízgyűjtők méret szerint csökkenően, döntetlennél
+        /// a torkolat `TileId.Value`-ja szerint növekvően rendezve; a
+        /// jelölteken belül csapadék szerint csökkenően, döntetlennél
+        /// `TileId.Value` szerint növekvően. Nincs `System.Random`, nincs
+        /// szótár-bejárási sorrendtől való függés.
+        ///
+        /// A minimális forrás-távolság (<paramref name="minSeparationMeters"/>)
+        /// mohó szűréssel érvényesül: a sorrendben előrébb álló jelölt
+        /// "elnyeli" a hozzá közelieket. Ez is determinisztikus.
+        /// </summary>
+        public static List<TileId> SelectRiverSourcesPerBasin(
+            Dictionary<TileId, double> elevField, Dictionary<TileId, double> precipField,
+            Dictionary<TileId, bool> isOcean, Dictionary<TileId, TileId?> floodParent,
+            double seaLevel,
+            int basinCount = DefaultSourceBasinCount,
+            int sourcesPerBasin = DefaultSourcesPerBasin,
+            double minElevAboveSeaM = DefaultMinElevAboveSeaM,
+            double minSeparationMeters = DefaultSourceSeparationMeters,
+            int minBasinTiles = DefaultMinBasinTiles)
+        {
+            if (elevField == null) throw new ArgumentNullException(nameof(elevField));
+            if (precipField == null) throw new ArgumentNullException(nameof(precipField));
+            if (isOcean == null) throw new ArgumentNullException(nameof(isOcean));
+            if (floodParent == null) throw new ArgumentNullException(nameof(floodParent));
+            if (basinCount < 1) throw new ArgumentOutOfRangeException(nameof(basinCount));
+            if (sourcesPerBasin < 1) throw new ArgumentOutOfRangeException(nameof(sourcesPerBasin));
+
+            Dictionary<TileId, List<TileId>> basins =
+                Features.FeatureSegmentation.FindWatershedRegions(floodParent, isOcean);
+
+            var outlets = new List<TileId>(basins.Keys);
+            outlets.Sort((a, b) =>
+            {
+                int bySize = basins[b].Count.CompareTo(basins[a].Count);
+                return bySize != 0 ? bySize : a.Value.CompareTo(b.Value);
+            });
+
+            // ND-27: NEM Math.Cos - az nem garantaltan bitpontos platformok
+            // kozott, es ez a kuszob kozvetlenul befolyasolja, MELY tile-ok
+            // lesznek folyo-forrasok (tehat a kritikus uton van).
+            double minSeparationCos = Numerics.DeterministicMath.Cos(
+                Math.Max(0.0, minSeparationMeters) / PlanetConstants.RadiusMeters);
+
+            var sources = new List<TileId>();
+            int basinsUsed = 0;
+            for (int b = 0; b < outlets.Count && basinsUsed < basinCount; b++)
+            {
+                List<TileId> basin = basins[outlets[b]];
+                if (basin.Count < minBasinTiles) break; // meret szerint rendezve: innentol mind kisebb
+                basinsUsed++;
+
+                var candidates = new List<TileId>();
+                foreach (TileId t in basin)
+                {
+                    if (!elevField.TryGetValue(t, out double elevation)) continue;
+                    if (elevation < seaLevel + minElevAboveSeaM) continue;
+                    if (!precipField.ContainsKey(t)) continue;
+                    candidates.Add(t);
+                }
+                candidates.Sort((x, y) =>
+                {
+                    int byPrecip = precipField[y].CompareTo(precipField[x]);
+                    return byPrecip != 0 ? byPrecip : x.Value.CompareTo(y.Value);
+                });
+
+                // Moho, minimalis-tavolsagu valasztas a medencen belul.
+                var chosen = new List<(double X, double Y, double Z)>(sourcesPerBasin);
+                for (int c = 0; c < candidates.Count && chosen.Count < sourcesPerBasin; c++)
+                {
+                    TileGeometry.ToPosition(candidates[c], out double x, out double y, out double z);
+                    bool tooClose = false;
+                    for (int k = 0; k < chosen.Count; k++)
+                    {
+                        double dot = x * chosen[k].X + y * chosen[k].Y + z * chosen[k].Z;
+                        if (dot > minSeparationCos) { tooClose = true; break; }
+                    }
+                    if (tooClose) continue;
+                    chosen.Add((x, y, z));
+                    sources.Add(candidates[c]);
+                }
+            }
+            return sources;
+        }
+
         /// <summary>Memoizált pontszerű elevációkiértékelés - a nyomvonalkövetés és a pit-escape keresés gyakran ugyanazokat a finom tile-okat kérdezi le.</summary>
         private sealed class ElevationCache
         {
@@ -991,6 +1134,47 @@ namespace WorldGen.Core.Hydrology
         {
             List<TileId> sources = SelectRiverSources(
                 elevField, precipField, isOcean, seaLevel, topK, minElevAboveSeaM, precipPercentile);
+            return BuildRiverNetworkFromSources(worldSeed, seeds, seaLevel, sources, fineDepth, maxSteps, escapeNodeBudget);
+        }
+
+        /// <summary>
+        /// ND-124 (A) - ugyanaz, mint <see cref="BuildRiverNetwork"/>, de a
+        /// forrásokat <see cref="SelectRiverSourcesPerBasin"/> választja:
+        /// vízgyűjtőnkénti kvótával, nem globális top-K-val. A
+        /// priority-flood-ot (a vízgyűjtő-szegmentáláshoz) MAGA számolja
+        /// ugyanabból az elevációs/óceán-mezőből, amit kapott - így a
+        /// vízgyűjtők garantáltan ugyanahhoz a világállapothoz tartoznak,
+        /// mint a források.
+        ///
+        /// MÉRVE (seed 0xA7C944210000, level 6, fineDepth 4, folytonos
+        /// követő) - a globális top-K-hoz képest:
+        ///
+        ///   globális top-K 48 :  8 összefolyás (17%), max vízhozam-súly 2,   6,5 s
+        ///   medence  6×8 (48) : 21 összefolyás (44%), max vízhozam-súly 6,  19,9 s
+        ///   medence 12×6 (72) : 27 összefolyás (38%), max vízhozam-súly 5,  26,0 s
+        ///   medence 16×6 (96) : 40 összefolyás (42%), max vízhozam-súly 6,  32,3 s
+        ///
+        /// A globális top-K-nál EGYETLEN folyó sincs 3-as vagy nagyobb
+        /// vízhozam-súllyal (nincs kétszintű hálózat); a 16×6-nál 13 van.
+        /// A költség ~5× - a medence-források a kontinens BELSEJÉBEN
+        /// indulnak, ahol sokkal több a pit-escape. Háttérszálon fut, a
+        /// Build()-et nem blokkolja.
+        /// </summary>
+        public static List<RiverPath> BuildRiverNetworkPerBasin(
+            ulong worldSeed, (double X, double Y, double Z)[] seeds,
+            Dictionary<TileId, double> elevField, Dictionary<TileId, double> precipField,
+            Dictionary<TileId, bool> isOcean, double seaLevel,
+            int fineDepth = DefaultFineDepth,
+            int basinCount = DefaultSourceBasinCount,
+            int sourcesPerBasin = DefaultSourcesPerBasin,
+            double minElevAboveSeaM = DefaultMinElevAboveSeaM,
+            double minSeparationMeters = DefaultSourceSeparationMeters,
+            int maxSteps = DefaultMaxSteps, int escapeNodeBudget = DefaultEscapeNodeBudget)
+        {
+            FlowNetwork.FloodResult flood = FlowNetwork.PriorityFlood(elevField, isOcean);
+            List<TileId> sources = SelectRiverSourcesPerBasin(
+                elevField, precipField, isOcean, flood.Parent, seaLevel,
+                basinCount, sourcesPerBasin, minElevAboveSeaM, minSeparationMeters);
             return BuildRiverNetworkFromSources(worldSeed, seeds, seaLevel, sources, fineDepth, maxSteps, escapeNodeBudget);
         }
 

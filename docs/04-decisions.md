@@ -5250,7 +5250,7 @@ Ehhez jön a fizikai lemez-olvasás és a valós újraszámolásos validáció
 **Verziózás:** nem seed-törő — a gyorsítótár származtatott adat, a világmodell
 nem függ tőle.
 
-### ND-124 — A folyó-forrás kiválasztás sűrítése egy vízgyűjtőn belül (NYITOTT)
+### ND-124 — A folyó-forrás kiválasztás sűrítése egy vízgyűjtőn belül (LEZÁRVA: (A))
 
 **2026-09-21.** A #5 visszajelzés: „nincs tree alakzat, nagyon tirkák a
 folyók, sosem ér bele egyik a másikba… az egész bolygón ritkák a folyók."
@@ -5305,6 +5305,80 @@ belevágni, ha (A) mérése szerint a fa még mindig sekély.
 választási réteg (a hívás feletti komment szerint „vizuális/forrás-
 kiválasztási réteg, nem a világmodell része"), és a `topK` emelése a
 meglévő sorrend első 48 elemét veszi — a korábbi 12 részhalmaza.
+
+---
+
+**LEZÁRVA (A), 2026-09-21** — felhasználói döntés („legyen A"), implementálva:
+`RiverPathTracing.SelectRiverSourcesPerBasin` +
+`BuildRiverNetworkPerBasin`, bekötve a viewer `Build()`-jébe.
+
+**Amit az implementáció közben a MÉRÉS derített ki — és ami átírta a tervet.**
+Az (A) leírása szerint „a legnagyobb N vízgyűjtő, mindegyikben K forrás".
+Az első változat pontosan ezt csinálta, a meglévő globális csapadék-küszöbbel
+(a szárazföldi eloszlás 80. percentilise) együtt — és **0 forrást** adott,
+minden paraméterezésnél. A diagnosztika (seed `0xA7C944210000`, level 6):
+
+- 8602 szárazföldi tile, **2467** vízgyűjtő, a legnagyobb **108** tile-os —
+  vagyis a level-6 priority-flood minden apró parti lefolyást külön
+  medencének lát (a kulcs a torkolat óceán-tile-ja);
+- a 6 legnagyobb vízgyűjtőben **egyetlen** tile sincs a globális 80.
+  percentilis fölött.
+
+Az ok szerkezeti: a nagy vízgyűjtők ott vannak, ahol sok a szárazföld
+(kontinens-belső), a legnedvesebb tile-ok viszont a keskeny, csapadékos parti
+hegyvidékeken — a két szűrő metszete üres. Ezért a csapadék-küszöb a
+medencén belül **relatív** lett (a medence saját legnedvesebb tile-jai); a
+magasság-küszöb (hegyvidék) maradt abszolút. Hozzájött egy
+`minBasinTiles` küszöb is (2-3 tile-os parti lefolyásban nincs hova
+összefolyni).
+
+**Mért eredmény** (ugyanaz a seed, level 6, `fineDepth` 4, folytonos követő,
+16 mag):
+
+| Forrás-kiválasztás | Forrás | Összefolyás | Max vízhozam-súly | Súly ≥ 3 | Idő |
+|---|---|---|---|---|---|
+| globális top-K | 48 | 8 (17%) | 2 | **0** | 6,5 s |
+| medence 6×8 | 48 | 21 (44%) | 6 | 6 | 19,9 s |
+| medence 12×6 | 72 | 27 (38%) | 5 | 9 | 26,0 s |
+| **medence 16×6** (alapértelmezés) | **96** | **40 (42%)** | **6** | **13** | **32,3 s** |
+| medence 20×5 | 100 | 39 (39%) | 5 | 13 | 31,7 s |
+
+A lényeg a „Súly ≥ 3" oszlop: a globális top-K-nál **egyetlen** folyó sincs,
+amibe kettőnél több ág futna be — tehát nincs többszintű hálózat, csak
+„fő ág + egy mellékfolyó" párok. Ez a „nincs tree alakzat" visszajelzés
+számszerű megfelelője.
+
+**Alapértelmezés: 16 medence × 6 forrás.** Kevesebb medence mélyebb fát ad
+(6×8: 44% összefolyás), de a folyókat a bolygó néhány pontjára sűríti — ami
+éppen a MÁSIK panasz („az egész bolygón ritkák a folyók"). A 16 külön
+folyórendszer eloszlik a szárazföldeken, és a fa is többszintű marad.
+
+**A költség 5×** (6,5 s → 32 s háttérszálon, a `Build()`-et nem blokkolja).
+Nem a hosszabb nyomvonalak miatt: a medence-források a kontinens
+BELSEJÉBEN indulnak, ahol sokkal több a pit-escape (lokális priority-flood).
+Mérve: ugyanez szekvenciálisan 54,6 s egy szálon, tehát a párhuzamosítás
+2,5×-öt hoz — a maradék a terheléskiegyenlítetlenség (egy-két nagyon hosszú
+folyó uralja a farkat). Ha ez zavaróvá válik, a következő lépés a
+kör-alapú (round-major) forrás-sorrend: a medencék ELSŐ forrásai külön
+körben, előre, és a későbbi körök a már lefoglalt főágnál korán megállnak —
+a szekvenciális szemantika, tehát bitre azonos kimenettel.
+
+**Determinizmus.** A kiválasztás tiszta függvény: a vízgyűjtők méret szerint
+csökkenően (döntetlennél a torkolat `TileId.Value`-ja szerint), a jelöltek
+csapadék szerint csökkenően (döntetlennél `TileId.Value` szerint) rendezve —
+nincs szótár-bejárási sorrendtől való függés (külön teszt méri, fordított
+beszúrási sorrendű szótárakkal). A minimális forrás-távolság küszöbe
+`DeterministicMath.Cos`-szal számolódik, NEM `Math.Cos`-szal (ND-27): a
+küszöb közvetlenül eldönti, mely tile-ok lesznek források, tehát a kritikus
+úton van.
+
+**Tesztek:** `tests/WorldGen.Core.Tests/Hydrology/PerBasinRiverSourceTests.cs`
+(7 teszt): medencénkénti kvóta és méret-sorrend, `minBasinTiles`,
+minimális forrás-távolság (a megmaradt párok tényleges távolsága is mérve),
+magasság-küszöb, tisztaság + szótár-sorrend-függetlenség, élesetek
+(üres világ, érvénytelen paraméterek), és a lényeg: valódi világon a
+medence-kvóta TÖBB összefolyást ad, mint az ugyanannyi forrást használó
+globális top-K (mérve a durva hálózaton: 37 vs 21).
 
 ### A többi nyitott döntés
 

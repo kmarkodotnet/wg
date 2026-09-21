@@ -2848,8 +2848,17 @@ namespace WorldGen.Viewer
             // csapadekkal); a TENYLEGES nyomvonal-kovetes viszont a
             // JELENLEGI (deep-time-mozgatott) _adaptiveSeeds-t kapja, hogy a
             // MEGJELENITETT domborzattal konzisztens legyen.
+            //
+            // ND-124 (A), 2026-09-21: a forrasokat VIZGYUJTONKENTI kvotaval
+            // valasztjuk (BuildRiverNetworkPerBasin), nem globalis top-K-val.
+            // A globalis top-K a legnedvesebb hegyvidekek KOZOTT szorta szet
+            // a forrasokat, ezert a nyomvonalak kulon medencekben futottak a
+            // tengerig es ritkan talalkoztak - merve 48 forrasbol 8
+            // osszefolyas es EGYETLEN 3-as vagy nagyobb vizhozam-sulyu folyo
+            // sem. Vizgyujtonkenti kvotaval (16x6) 40 osszefolyas es 13 ilyen
+            // folyo. Ez a "nincs tree alakzat" visszajelzes javitasa.
             _adaptiveDendriticRivers = showRivers
-                ? RiverPathTracing.BuildRiverNetwork(
+                ? RiverPathTracing.BuildRiverNetworkPerBasin(
                     seed, seeds, precipField.Elevation, precipField.Precipitation, precipField.IsOcean, precipField.SeaLevel)
                 : null;
             PerfLog($"Build() dendriticRivers(enabled={showRivers}, count={_adaptiveDendriticRivers?.Count ?? 0})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
