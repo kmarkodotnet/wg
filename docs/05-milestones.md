@@ -389,6 +389,11 @@ panelek élesben (`docs/01-architecture.md` §2).
   végül lefolyik). A spec ND-05 hibrid kritériuma (vízgyűjtő ∪ biome-
   klaszter ∪ domborzati törés) közül csak az első van benne — a
   biome-klaszter/domborzati törés finomítás később.
+  **ND-127 (2026-09-21) óta a vízgyűjtő nem nyersen a régió**: a torkolat
+  óceán-tile-ja szerinti kulcsolás a lefolyás azonosítója, nem földrajzi
+  egységé (level 5-ön a szárazföld 50%-a kimaradt a panelről, a régiók
+  35,7%-a térben szétesett), ezért a panel-régió a vízgyűjtő-komponensek
+  összevonása a szárazföld 3%-áig — `MergeWatershedsIntoRegions`.
 - **Alap névgenerálás**: szótag-tő (seedelt minta) + biome-alapú (nem
   teljes morfológiai tipizálású) utótag-készlet.
 - **Néhány panel-mező**, aminek MÁR VAN valós forrása: Ocean coverage

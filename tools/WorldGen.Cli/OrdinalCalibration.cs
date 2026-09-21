@@ -52,7 +52,9 @@ namespace WorldGen.Cli
             const double dayT = 0.0;
             const int minContinentTiles = 5;
             // ND-117: ugyanaz a kuszob-logika, mint a kontinensnel - egy-ket
-            // tile-os vizgyujto "regio" statisztikailag zaj, nem panel-alany.
+            // tile-os "regio" statisztikailag zaj, nem panel-alany. ND-127 ota
+            // ez csak az onallo apro szigeteket zarja ki (az osszevont regiok
+            // egyebkent elerik a cel-meretet).
             const int minRegionTiles = 5;
 
             var habitabilitySamples = new List<double>(worldCount);
@@ -97,13 +99,25 @@ namespace WorldGen.Cli
                     rotationPeriodDays: rotationPeriodDays,
                     axialTiltDegrees: axialTiltDegrees);
 
-                Dictionary<TileId, List<TileId>> regions =
+                // ND-127: a minta populacioja UGYANAZ, amit a panel mutat -
+                // az OSSZEVONT regio, nem a nyers vizgyujto. Ez nem kozmetika:
+                // a ket eloszlas merve kulonbozik (p20/p80 vizgyujton
+                // 0,1928/0,2625, osszevont region 0,1357/0,2406), tehat a regi
+                // kuszobokkel az osszevont regiok tobb mint 40%-a esne a
+                // legalso savba a 20% helyett.
+                int landTiles = 0;
+                foreach (bool oceanic in regolith.IsOcean.Values)
+                    if (!oceanic) landTiles++;
+
+                Dictionary<TileId, List<TileId>> watersheds =
                     FeatureSegmentation.FindWatershedRegions(regolith.Parent, regolith.IsOcean);
-                foreach (KeyValuePair<TileId, List<TileId>> region in regions)
+                List<List<TileId>> soilRegions = FeatureSegmentation.MergeWatershedsIntoRegions(
+                    watersheds, FeatureSegmentation.RecommendedRegionTileTarget(landTiles));
+                foreach (List<TileId> region in soilRegions)
                 {
-                    if (region.Value.Count < minRegionTiles) continue;
+                    if (region.Count < minRegionTiles) continue;
                     soilFertilitySamples.Add(FeatureMetrics.SoilFertility(
-                        region.Value, regolith.DepthMeters, regolith.WaterRetention, regolith.IsOcean,
+                        region, regolith.DepthMeters, regolith.WaterRetention, regolith.IsOcean,
                         RegolithModel.DepthAbsoluteCapM));
                 }
             }

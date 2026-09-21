@@ -909,8 +909,15 @@ namespace WorldGen.Viewer
         // szamitas ujra-futtatasa nelkul.
         private FlowNetwork.FloodResult _lastFlood;
         private HashSet<TileId> _lastRiverTilesForPanels;
-        private List<TileId> _lastPanelRegionRoots;
-        private Dictionary<TileId, List<TileId>> _lastSizedRegions;
+        /// <summary>
+        /// ND-127: a panel/navigacio regioi MAR NEM a nyers vizgyujtok (azok
+        /// a torkolat ocean-tile-ja szerint kulcsolodnak, tehat terben
+        /// szetesnek es a szarazfold felet meretszuro dobta el), hanem a
+        /// `FeatureSegmentation.MergeWatershedsIntoRegions` osszevont,
+        /// osszefuggo regioi - meret szerint csokkeno, kanonikus sorrendben.
+        /// A lista INDEXE a regio globalis azonositoja a navigacioban.
+        /// </summary>
+        private List<List<TileId>> _lastPanelRegions;
         private List<List<TileId>> _lastSortedContinents;
         // A legutobbi Build()-ben kiszamolt csapadek-mezo (vagy null, ha
         // egyik felhasznaloja - precipitationOverlay/showRivers/showClouds -
@@ -6053,6 +6060,11 @@ namespace WorldGen.Viewer
             _lastSoilErosion = soilErosion;
 
             Dictionary<TileId, List<TileId>> regions = FeatureSegmentation.FindWatershedRegions(flood.Parent, _lastIsOcean);
+            // A NYERS vizgyujtok tovabbra is kellenek EGY mezohoz: a
+            // kontinens-panel "River basins" szama tenylegesen azt kerdezi,
+            // hany kulon vizgyujto metsz bele a kontinensbe (a >=5 tile-os
+            // szuro ott a statisztikai zajt vagja le). A NAVIGACIOS regio
+            // viszont mar nem ez - ld. lent, ND-127.
             var sizedRegions = new Dictionary<TileId, List<TileId>>();
             foreach (KeyValuePair<TileId, List<TileId>> kv in regions)
                 if (kv.Value.Count >= 5) sizedRegions[kv.Key] = kv.Value;
@@ -6102,25 +6114,26 @@ namespace WorldGen.Viewer
                 });
             }
 
-            List<TileId> sortedRegionRoots = new List<TileId>(sizedRegions.Keys);
-            sortedRegionRoots.Sort((a, b) =>
-            {
-                int bySize = sizedRegions[b].Count.CompareTo(sizedRegions[a].Count);
-                return bySize != 0 ? bySize : CompareTileByFaceUV(a, b);
-            });
+            // ND-127: a navigacios/panel-regio a vizgyujtok OSSZEVONT,
+            // terben osszefuggo csoportja - nem a nyers, torkolat szerint
+            // kulcsolt vizgyujto. A Core garantalja, hogy ez a szarazfold
+            // PARTICIOJA (minden tile pontosan egy regioban), tehat itt
+            // NINCS tobb meretszuro: korabban a >=5 tile-os szuro a
+            // szarazfold 50%-at (level 5) hagyta ki a navigaciobol.
+            List<List<TileId>> panelRegions = FeatureSegmentation.MergeWatershedsIntoRegions(
+                regions, FeatureSegmentation.RecommendedRegionTileTarget(totalLandTiles));
 
             // ld. a mezok doksijat: a navigacios menu negyedik szintje ebbol
             // dolgozik, a TELJES (nem csak a WorldGenPanelData.Regions top 10-e)
             // sorrendben, hogy egy mely regioba is bele lehessen zoomolni.
             _lastFlood = flood;
             _lastRiverTilesForPanels = riverTilesForPanels;
-            _lastPanelRegionRoots = sortedRegionRoots;
-            _lastSizedRegions = sizedRegions;
+            _lastPanelRegions = panelRegions;
 
-            int regionLimit = Math.Min(10, sortedRegionRoots.Count);
+            int regionLimit = Math.Min(10, panelRegions.Count);
             for (int i = 0; i < regionLimit; i++)
             {
-                List<TileId> tiles = sizedRegions[sortedRegionRoots[i]];
+                List<TileId> tiles = panelRegions[i];
                 Biome dominant = FeatureSegmentation.DominantBiome(tiles, _lastBiomeOf);
                 // §2.3: a régiónév utótagja a FELISMERT morfológiai típust
                 // tükrözi (pl. "Northwatch Range"), nem csak a domináns
@@ -6206,27 +6219,37 @@ namespace WorldGen.Viewer
         /// elrendezés") számára: MELY globális régió-indexek (a
         /// <see cref="ComputePanelData"/> régió-sorrendje, NEM csak a
         /// `WorldGenPanelData.Regions` top 10-e) tartoznak az adott kontinenshez.
-        /// HEURISZTIKA (dokumentált egyszerűsítés, mint a többi
-        /// FeatureMetrics-közelítés): egy régió tile-jainak ELSŐ eleme
-        /// alapján dönt - a vízgyűjtő-áramlás a gyakorlati esetek
-        /// túlnyomó többségében nem lép át kontinenshatáron, tehát ez a
-        /// régió tile-jainak túlnyomó részére is igaz.
+        /// Egy régió tile-jainak ELSŐ eleme alapján dönt. ND-127 óta ez NEM
+        /// heurisztika, hanem pontos: az összevont régió térben összefüggő,
+        /// két landmass pedig definíció szerint nem szomszédos, tehát egy
+        /// régió minden tile-ja ugyanazon a landmasson van (a Core-teszt
+        /// `NoMergedRegionSpansTwoLandmasses` ezt rögzíti). Korábban a nyers
+        /// vízgyűjtő-régió szétesett, és az első tile csak a "túlnyomó
+        /// többségre" volt igaz.
         /// </summary>
         private List<int> GetRegionGlobalIndicesForContinent(int continentIndex)
         {
             var result = new List<int>();
-            if (_lastSortedContinents == null || _lastPanelRegionRoots == null) return result;
+            if (_lastSortedContinents == null || _lastPanelRegions == null) return result;
             if (continentIndex < 0 || continentIndex >= _lastSortedContinents.Count) return result;
 
             var continentTiles = new HashSet<TileId>(_lastSortedContinents[continentIndex]);
-            for (int i = 0; i < _lastPanelRegionRoots.Count; i++)
+            for (int i = 0; i < _lastPanelRegions.Count; i++)
             {
-                List<TileId> tiles = _lastSizedRegions[_lastPanelRegionRoots[i]];
+                List<TileId> tiles = _lastPanelRegions[i];
                 if (tiles.Count > 0 && continentTiles.Contains(tiles[0]))
                     result.Add(i);
             }
-            result.Sort((a, b) => _lastSizedRegions[_lastPanelRegionRoots[b]].Count
-                .CompareTo(_lastSizedRegions[_lastPanelRegionRoots[a]].Count));
+            // A Core mar meret szerint csokkenoen adja vissza a regiokat,
+            // tehat ez a reszhalmaz is az. A rendezes megis explicit, ES a
+            // dontetlent a GLOBALIS INDEX donti el: a List.Sort NEM stabil,
+            // tehat azonos meretu regiok sorrendje enelkul a bemeneti
+            // elrendezesen mulna.
+            result.Sort((a, b) =>
+            {
+                int bySize = _lastPanelRegions[b].Count.CompareTo(_lastPanelRegions[a].Count);
+                return bySize != 0 ? bySize : a.CompareTo(b);
+            });
             return result;
         }
 
@@ -6247,7 +6270,13 @@ namespace WorldGen.Viewer
         /// halmazát adjuk vissza - nem változtat a `FindWatershedRegions`/
         /// `sizedRegions` Core-szemantikáján (I1/I2-kompatibilis, tiszta
         /// függvény a MÁR meglévő adatokból), csak a navigáció soha nem
-        /// akad el 0 gyerekkel. A fallback régió negyedik szintje (Area)
+        /// akad el 0 gyerekkel.
+        ///
+        /// ND-127 ÓTA EZ BIZTONSÁGI HÁLÓ, nem napi útvonal: az összevont
+        /// régiók a szárazföld PARTÍCIÓJÁT adják (nincs méretszűrő), tehát
+        /// minden landmassnak van legalább egy régiója. Megtartjuk, mert
+        /// nulla költségű, és egy jövőbeli szegmentálás-csere megint
+        /// kihagyhat tile-okat. A fallback régió negyedik szintje (Area)
         /// automatikusan nem-üres, mert
         /// <see cref="FeatureSegmentation.PartitionRegionIntoAreas"/> már
         /// garantáltan legalább 1 területet ad bármely nem-üres bemenetre.
@@ -6306,7 +6335,7 @@ namespace WorldGen.Viewer
 
         private RegionPanelData BuildRegionPanelData(int globalRegionIndex)
         {
-            List<TileId> tiles = _lastSizedRegions[_lastPanelRegionRoots[globalRegionIndex]];
+            List<TileId> tiles = _lastPanelRegions[globalRegionIndex];
             return BuildRegionPanelDataFromTiles(tiles, (ulong)(10000 + globalRegionIndex));
         }
 
@@ -6352,10 +6381,10 @@ namespace WorldGen.Viewer
                 return BuildAreaPanelDataFromTiles(tiles, areaFeatureIdBase);
             }
 
-            if (_lastPanelRegionRoots == null || regionIndexOrFallback < 0 || regionIndexOrFallback >= _lastPanelRegionRoots.Count)
+            if (_lastPanelRegions == null || regionIndexOrFallback < 0 || regionIndexOrFallback >= _lastPanelRegions.Count)
                 return new List<AreaPanelData>();
 
-            List<TileId> regionTiles = _lastSizedRegions[_lastPanelRegionRoots[regionIndexOrFallback]];
+            List<TileId> regionTiles = _lastPanelRegions[regionIndexOrFallback];
             ulong normalAreaFeatureIdBase = (ulong)(20000 + regionIndexOrFallback * 1000);
             return BuildAreaPanelDataFromTiles(regionTiles, normalAreaFeatureIdBase);
         }

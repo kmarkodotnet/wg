@@ -782,6 +782,26 @@ Régió     = kontinensen belüli szegmens, hibrid kritérium:
             vízgyűjtő-határok ∪ biome-klaszterek ∪ domborzati törések
 ```
 
+**A megvalósított régió (ND-127, 2026-09-21) az első tag, összevonva.** Az
+ND-05 hibridjéből egyelőre csak a vízgyűjtő-határ van meg, de nem nyersen:
+a `FindWatershedRegions` a torkolat ÓCEÁN-tile-ja szerint kulcsol, ami a
+LEFOLYÁS azonosítója, nem egy földrajzi egységé — level 5-ön 789 vízgyűjtő,
+a szárazföld 50%-a egyetlen (≥5 tile-os) régióba sem esett, és a régiók
+több mint harmada térben szétesett. Ezért a panel-régió két lépésben áll elő:
+
+```
+cella  = egy vízgyűjtő egy ÖSSZEFÜGGŐ komponense
+régió  = cellák agglomeratív összevonása, amíg el nem éri a cél-méretet
+         (a szárazföld 3%-a), a legHOSSZABB közös határ mentén
+```
+
+`FeatureSegmentation.MergeWatershedsIntoRegions` +
+`RecommendedRegionTileTarget`. Következmények, amikre a panelrétegek
+építenek: minden szárazföld-tile PONTOSAN egy régióban van, minden régió
+térben összefüggő, és egyetlen landmasson belül marad. A biome-klaszter és
+a domborzati törés (az ND-05 másik két tagja) továbbra is nyitott — ugyanezen
+a cella-gráfon más összevonási költségfüggvényként jönne be.
+
 ### 6.2 Morfológiai típusfelismerés
 
 A név utótagja a felismert alaktípusból jön:

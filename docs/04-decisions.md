@@ -5662,6 +5662,134 @@ Ezek valódi kalibrációs hibák, az (A)/(B) döntéstől függetlenül:
 kétszer kalibrálunk — a biome-küszöbök percentilis-alapúak lesznek, tehát a
 szél/hőmérséklet hangolása automatikusan átrendezi őket.
 
+### ND-127 — A régiók nem „tartoznak össze": a vízgyűjtő-szegmentálás a torkolat óceán-tile-ja szerint kulcsol (LEZÁRVA: (A))
+
+**2026-09-21.** A `todo.md` 1. tábla 3. sora, az ND-124 mérésének
+mellékterméke: a navigációs menü régiói nem alkotnak földrajzi egységet.
+
+**A MÉRT diagnózis** (seed `0xA7C944210000`, 20 lemez, víz 0,65):
+
+| | level 5 (a viewer panel-szintje) | level 6 |
+|---|---|---|
+| szárazföld-tile | 2151 | 8602 |
+| vízgyűjtő (`FindWatershedRegions`) | 789 | 2467 |
+| ebből ≥5 tile (csak ez látszik a panelen) | 112 | 421 |
+| a szárazföld hány %-a van egyáltalán régióban | **50,1%** | **63,3%** |
+| régió a legnagyobb landmasson | **65** | **207** |
+| térben SZÉTESŐ régió (>1 komponens) | **35,7%** | **20,0%** |
+| legnagyobb régió | 31 tile | 108 tile |
+
+Három külön hiba, egy okból:
+
+1. **A szárazföld fele-harmada semmilyen régióhoz nem tartozik.** A panel
+   `Count >= 5` szűrése 677 (level 5), illetve 2046 (level 6) apró
+   vízgyűjtőt dob el — ezek tile-jai nem navigálhatók, nem kapnak nevet.
+2. **Egy régió több, egymástól elszakadt földdarab is lehet.** A régió
+   kulcsa a torkolat ÓCEÁN-tile-ja; két külön félsziget is folyhat ugyanabba
+   az óceán-tile-ba. Level 5-ön a régiók **több mint harmada** ilyen.
+   Szó szerint ez a panasz: a régió darabjai nem tartoznak össze.
+3. **65–207 menüpont egyetlen kontinensen**, mindegyik egy keskeny parti
+   lefolyás. Ez a szint így navigációra használhatatlan.
+
+A gyökérok egy szintbeli hiba: az óceán-tile szerinti kulcsolás a LEFOLYÁS
+azonosítója, nem egy földrajzi egységé. Egy hosszú partszakasz definíció
+szerint sok apró, egymástól független vízgyűjtőre esik.
+
+**Opciók.**
+
+- **(A) A vízgyűjtők agglomeratív összevonása cél-méretig.** A vízgyűjtő
+  marad az atom (a vízválasztó valódi földrajzi határ — a „Duna-medence"
+  pontosan így egység), de a kicsiket összeolvasztjuk a szomszédjukkal,
+  amíg el nem érik a cél-méretet. Előbb ÖSSZEFÜGGŐ komponensekre bontunk,
+  így a 2. hiba konstrukció szerint megszűnik, és minden szárazföld-tile
+  pontosan egy régióba kerül (nincs több `Count >= 5` szűrés).
+- **(B) A vízgyűjtő elhagyása, tisztán térbeli felosztás.** A már meglévő
+  `PartitionRegionIntoAreas` (k-center + többforrású BFS) a landmassra,
+  nagyobb cél-mérettel. Olcsó (kész kód), garantáltan kompakt — de a
+  határok nem követnek semmilyen természetes vonalat: a folyó közepén vág
+  ketté egy völgyet, és a felosztás ettől „mesterséges rács"-nak látszik.
+- **(C) Az ND-05 teljes hibridje** (vízgyűjtő ∪ biome-klaszter ∪
+  domborzati törés). Ez a specifikáció eredeti terve, és hosszú távon ez a
+  helyes válasz — de három külön klaszterezés összefésülése, saját
+  súlyozási paraméterekkel, amiket csak vizuálisan lehet hangolni.
+
+**Javaslat: (A).** A 2. és a 3. hiba konstrukció szerint megszűnik tőle, az
+1. is (100% lefedettség), és a határai megmaradnak vízválasztónak — tehát
+(C) felé is ez a helyes első lépés: (C) ugyanezen a cella-gráfon csak más
+összevonási költségfüggvény lenne.
+
+**Verziózás:** nem seed-törő. A `FindWatershedRegions` és az egész
+hidrológiai lánc VÁLTOZATLAN; az összevonás tiszta, utólagos prezentációs
+réteg a már kiszámolt vízgyűjtők fölött. A régiónevek viszont
+megváltoznak (más tile-halmaz → más domináns biome/morfológia), és a
+`SoilFertility` ordinális küszöbök populációja is más lesz — ld. lent.
+
+---
+
+**LEZÁRVA (A), 2026-09-21** — implementálva:
+`FeatureSegmentation.MergeWatershedsIntoRegions` +
+`RecommendedRegionTileTarget`, Python-referenciával
+(`features_ref.py: merge_watersheds_into_regions`) és bitpontos
+vektor-teszttel.
+
+**Az algoritmus** (tiszta egész-aritmetika: nincs lebegőpont, nincs random,
+nincs szótár-bejárási sorrendtől való függés):
+
+1. **Cellák:** minden vízgyűjtő ÖSSZEFÜGGŐ komponensekre bontva
+   (4-szomszédság). Innentől minden cella egyetlen összefüggő földdarab, és
+   egyetlen landmasson belül van (két landmass definíció szerint nem
+   szomszédos, tehát a landmass-határ átlépése kizárt).
+2. **Szomszédsági gráf** a cellák között, élsúly = a KÖZÖS HATÁR hossza
+   (hány tile-él érintkezik).
+3. **Összevonás:** amíg van cél-méret alatti cella, amelynek van szomszédja,
+   a legkisebbet (döntetlen: kisebb kanonikus `TileId.Value`) beolvasztjuk
+   abba a szomszédjába, amelyik (a) maga is cél alatt van, ha van ilyen;
+   (b) ezen belül a LEGHOSSZABB közös határt osztja vele; (c) döntetlennél
+   a kisebb; (d) döntetlennél a kisebb `TileId.Value`-jú.
+4. A kimenet méret szerint csökkenő, döntetlennél `TileId.Value` szerinti
+   kanonikus sorrendben.
+
+A (b) szabály MÉRT különbség, nem ízlés. A kézenfekvőbb „olvadjon a
+legkisebb szomszédba" változat a partvonal mentén elnyúló régiókat épít;
+a két szabály a legnagyobb landmasson (level 6, cél 258 tile):
+
+| Partner-szabály | Régió | Legnagyobb | átmérő/√terület | kerület/√terület (átlag) |
+|---|---|---|---|---|
+| legkisebb szomszéd | 10 | 602 | 2,5–3,5 | 5,79 |
+| közös határ | 11 | 699 | 1,9–3,4 | 5,46 |
+| **közös határ + cél alatti előny** | **11** | **612** | **1,9–3,4** (a legnagyobbé 2,3) | **5,52** |
+
+(Viszonyítás: egy kompakt folt átmérő/√terület mutatója ~2,0; maga a
+legnagyobb landmass 2,9 — a régiók tehát nem nyúlványosabbak, mint a
+kontinens, aminek a részei.)
+
+**Cél-méret:** a szárazföld **3%-a** (`RecommendedRegionTileTarget`), nem
+fix tile-szám — így a régiók SZÁMA szintfüggetlen (a viewer level 5-ön
+panelez, a tesztek/mérések level 6-on futnak). Mérve a legnagyobb
+landmasson: level 5 → **10** régió (79–144 tile), level 6 → **11** régió
+(265–612 tile).
+
+**MÉRT eredmény** (ugyanaz a seed/paraméterezés, mint a diagnózisnál):
+
+| | level 5: előtte → utána | level 6: előtte → utána |
+|---|---|---|
+| lefedett szárazföld | 50,1% → **100%** | 63,3% → **100%** |
+| szétesett (>1 komponens) régió | 35,7% → **0** | 20,0% → **0** |
+| régió a legnagyobb landmasson | 65 → **10** | 207 → **11** |
+| összevonás költsége | **19 ms** | **43 ms** |
+
+**Következmény, amit ez a döntés NEM old meg** (külön tétel a `todo.md`-ben):
+a `SoilFertilityThresholds` (ND-09/ND-117) kalibrációs populációja a ≥5
+tile-os VÍZGYŰJTŐ-régió volt; az összevont régiók nagyobbak, tehát az
+átlagolt termékenység eloszlása eltolódik. MÉRVE, ugyanazon az 500 világon:
+v1 (vízgyűjtő) p20/p80 = 0,1946/0,2596, v2 (összevont régió)
+0,1577/0,2302 — a régi küszöbökkel az összevont régiók ~40%-a esne a
+legalsó kvintilisbe a 20% helyett. **Ez ebben a menetben megtörtént**: az
+`OrdinalCalibration` is az összevont régiókat mintázza, és a
+`SoilFertilityThresholds` v2-re cserélve (23 492 régió-minta). Ellenőrzés:
+a Habitability és a CoastalComplexity vágópontjai BITRE ugyanazok
+maradtak, tehát tényleg csak a talaj-populáció változott.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

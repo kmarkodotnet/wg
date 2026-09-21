@@ -284,6 +284,121 @@ def partition_region_into_areas(region_tiles, level, target_area_tile_count=40):
     return areas
 
 
+# ND-127: a panel-regio cel-merete a szarazfold SZAZALEKABAN, nem fix
+# tile-szamban - igy a regiok SZAMA szintfuggetlen (a viewer level 5-on
+# panelez, a tesztek level 6-on futnak).
+REGION_TARGET_LAND_SHARE_PERCENT = 3
+
+
+def recommended_region_tile_target(total_land_tiles):
+    """A cel-regiomeret tile-ban. Egesz aritmetika (nincs lebegopontos
+    kerekites-kettertelmuseg): a felezopont-kerekites a (x*p + 50) // 100
+    alakbol jon. Minimum 1, kulonben a 'meret < cel' feltetel sosem allna."""
+    if total_land_tiles <= 0:
+        return 1
+    return max(1, (total_land_tiles * REGION_TARGET_LAND_SHARE_PERCENT + 50) // 100)
+
+
+def merge_watersheds_into_regions(watersheds, level, target_region_tile_count):
+    """ND-127 - a vizgyujtok agglomerativ osszevonasa foldrajzilag
+    osszetartozo regiokba. 1:1 megfeleles a C#
+    FeatureSegmentation.MergeWatershedsIntoRegions-szal.
+
+    1. Cellak: minden vizgyujto OSSZEFUGGO komponensei (igy egy regio
+       sosem esik szet terben, es sosem lep at landmass-hataron).
+    2. Szomszedsagi graf a cellak kozott, elsuly = a KOZOS HATAR hossza.
+    3. Amig van cel alatti cella szomszeddal: a legkisebbet (dontetlen:
+       kisebb kanonikus TileId) beolvasztjuk abba a szomszedjaba, amelyik
+       (a) maga is cel alatt van, ha van ilyen, (b) a leghosszabb kozos
+       hatart osztja vele, (c) dontetlennel kisebb, (d) dontetlennel
+       kisebb kanonikus TileId-ju.
+
+    Minden dontes explicit osszehasonlitassal dol el - NINCS dict/set
+    bejarasi sorrendtol valo fugges (I2)."""
+    key = lambda t: _canonical_key(t, level)
+
+    cells = []
+    for root in sorted(watersheds.keys(), key=key):
+        cells.extend(_connected_components(watersheds[root], level))
+    cells.sort(key=lambda c: min(key(t) for t in c))
+
+    n = len(cells)
+    if n == 0:
+        return []
+
+    cell_of = {}
+    for i, cell in enumerate(cells):
+        for t in cell:
+            cell_of[t] = i
+
+    size = [len(c) for c in cells]
+    min_tile = [min(key(t) for t in c) for c in cells]
+    alive = [True] * n
+    parent = list(range(n))
+    nbrs = [dict() for _ in range(n)]
+    for i, cell in enumerate(cells):
+        for t in cell:
+            for nb in _all_neighbors(t, level):
+                j = cell_of.get(nb)
+                if j is not None and j != i:
+                    nbrs[i][j] = nbrs[i].get(j, 0) + 1
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    while True:
+        g = -1
+        for i in range(n):
+            if not alive[i] or size[i] >= target_region_tile_count or not nbrs[i]:
+                continue
+            if g < 0 or (size[i], min_tile[i]) < (size[g], min_tile[g]):
+                g = i
+        if g < 0:
+            break
+
+        h = -1
+        h_under, h_border = False, -1
+        for cand in sorted(nbrs[g].keys()):
+            border = nbrs[g][cand]
+            under = size[cand] < target_region_tile_count
+            if h < 0:
+                better = True
+            elif under != h_under:
+                better = under
+            else:
+                better = (-border, size[cand], min_tile[cand]) < (-h_border, size[h], min_tile[h])
+            if better:
+                h, h_under, h_border = cand, under, border
+
+        parent[g] = h
+        alive[g] = False
+        size[h] += size[g]
+        min_tile[h] = min(min_tile[h], min_tile[g])
+        for x, w in nbrs[g].items():
+            if x == h:
+                continue
+            nbrs[h][x] = nbrs[h].get(x, 0) + w
+            nbrs[x].pop(g, None)
+            nbrs[x][h] = nbrs[x].get(h, 0) + w
+        nbrs[h].pop(g, None)
+        nbrs[g] = {}
+
+    by_root = {}
+    for i in range(n):
+        by_root.setdefault(find(i), []).extend(cells[i])
+    regions = [sorted(tiles, key=key) for tiles in by_root.values()]
+    regions.sort(key=lambda r: (-len(r), key(r[0])))
+    return regions
+
+
+def _all_neighbors(tile, level):
+    face, u, v = tile
+    return [neighbor(face, level, u, v, d) for d in DIRECTIONS]
+
+
 TINY_LANDMASS_TILE_THRESHOLD = 20
 
 
@@ -513,6 +628,41 @@ if __name__ == "__main__":
           f"({100.0*total_region_tiles/total_land_tiles:.1f}%)")
     print("OK - a szegmentalas plauzibilis")
 
+    print("\n--- Osszevont regiok (ND-127) ---")
+    region_target = recommended_region_tile_target(total_land_tiles)
+    merged_regions = merge_watersheds_into_regions(regions, level, region_target)
+
+    # Invariansok: (1) PONTOSAN a szarazfold lefedese, atfedes nelkul;
+    # (2) minden regio terben OSSZEFUGGO; (3) tiszta fuggveny.
+    covered_tiles = [t for r in merged_regions for t in r]
+    land_tiles = {k for k, v in is_ocean.items() if not v}
+    assert len(covered_tiles) == len(land_tiles), "Atfedo vagy hianyzo tile az osszevont regiokban"
+    assert set(covered_tiles) == land_tiles, "Az osszevont regiok nem PONTOSAN a szarazfoldet fedik"
+    for r in merged_regions:
+        r_set = set(r)
+        reached = {r[0]}
+        queue = deque([r[0]])
+        while queue:
+            t = queue.popleft()
+            for nb in _neighbors_in_set(t, level, r_set):
+                if nb not in reached:
+                    reached.add(nb)
+                    queue.append(nb)
+        assert reached == r_set, "Egy osszevont regio NEM osszefuggo"
+    assert merged_regions == merge_watersheds_into_regions(regions, level, region_target),         "Az osszevonas nem tiszta fuggveny!"
+    print(f"  cel-meret {region_target} tile, {len(merged_regions)} regio, "
+          f"{len(covered_tiles)}/{len(land_tiles)} szarazfold-tile lefedve")
+    print(f"  legnagyobbak: {[len(r) for r in merged_regions[:8]]}")
+
+    merged_region_results = []
+    for i, r in enumerate(merged_regions):
+        dom = dominant_biome(r, biome_of)
+        merged_region_results.append({
+            "tileCount": len(r), "dominantBiome": dom,
+            "minTileId": _canonical_key(r[0], level),
+            "memberTileIds": [_canonical_key(t, level) for t in r],
+        })
+
     # Determinizmus
     name1 = generate_name(world_seed, 42, "TemperateForest")
     name2 = generate_name(world_seed, 42, "TemperateForest")
@@ -546,6 +696,8 @@ if __name__ == "__main__":
             "targetAreaTileCount": target_area_tile_count, "areasByRegion": area_results,
             "totalLandTiles": total_land_tiles, "landmassClassifications": landmass_classifications,
             "landmassDistributionStats": distribution_stats,
+            "regionTargetTileCount": region_target,
+            "mergedRegions": merged_region_results,
             "nameVectors": name_vectors,
         }, f, indent=1)
     print(f"\n{len(continent_results)} kontinens + {len(region_results)} regio + "

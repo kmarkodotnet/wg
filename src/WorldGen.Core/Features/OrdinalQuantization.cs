@@ -104,29 +104,42 @@ namespace WorldGen.Core.Features
         };
 
         /// <summary>
-        /// ND-117 kalibráció v1 (2026-09-19): ugyanaz az N=500 világ, a minta
-        /// minden (legalább 5 tile méretű) VÍZGYŰJTŐ-RÉGIÓ <see
-        /// cref="FeatureMetrics.SoilFertility"/>-értéke — összesen 192 337
+        /// ND-117 kalibráció **v2** (ND-127, 2026-09-21): N=500 világ, a minta
+        /// minden ÖSSZEVONT (`MergeWatershedsIntoRegions`) RÉGIÓ <see
+        /// cref="FeatureMetrics.SoilFertility"/>-értéke — összesen 23 492
         /// régió-minta —, a
         /// `dotnet run --project tools/WorldGen.Cli -- calibrate-ordinals
         /// --count 500 --plates 20 --level 6 --water 0.65 --soil true`
         /// paranccsal. Régió-szintű, mert a "Soil fertility" a §2.3 RÉGIÓ-
         /// panel mezője.
         ///
-        /// SZŰK ELOSZLÁS, tudatosan rögzítve: a négy vágópont 0.1946 és
-        /// 0.2596 közé esik, tehát a középső három sáv nagyon keskeny (a
-        /// p20..p80 tartomány szélessége 0.065). A panelen ez azt jelenti,
-        /// hogy a metrika kis változása is sávot lépthet — a kvintilis-
-        /// felosztás ettől még helyes (definíció szerint egyenlő gyakoriságú
-        /// sávokat ad), de a sáv-váltás NEM jelent nagy fizikai különbséget.
+        /// MIÉRT KELLETT ÚJRA (v1 → v2): a v1 populációja a ≥5 tile-os NYERS
+        /// VÍZGYŰJTŐ volt (192 337 minta), az ND-127 óta viszont a panel
+        /// összevont régiót mutat — nagyobb halmaz, tehát simább átlag. A két
+        /// eloszlás UGYANAZON az 500 világon különbözik: v1 (vízgyűjtő)
+        /// p20/p80 = 0,1946/0,2596, v2 (összevont régió) 0,1577/0,2302. A
+        /// v2-populáció MEDIÁN fölötti negyede (p40 = 0,1940) épp a v1 p20
+        /// vágópontja alatt van — a régi küszöbökkel tehát az összevont
+        /// régiók ~40%-a esne a legalsó kvintilisbe a 20% helyett. A
+        /// kvantálás akkor mond igazat, ha a küszöbök populációja UGYANAZ,
+        /// amit a panel osztályoz.
+        ///
+        /// SZŰK ELOSZLÁS, tudatosan rögzítve: a négy vágópont 0.1577 és
+        /// 0.2302 közé esik, tehát a középső három sáv keskeny (a p20..p80
+        /// tartomány szélessége 0.073). A panelen ez azt jelenti, hogy a
+        /// metrika kis változása is sávot lépthet — a kvintilis-felosztás
+        /// ettől még helyes (definíció szerint egyenlő gyakoriságú sávokat
+        /// ad), de a sáv-váltás NEM jelent nagy fizikai különbséget.
         ///
         /// ÚJRAKALIBRÁLANDÓ, ha a SoilFertility képlete, a RegolithProfile
-        /// MVP-je (ND-117) vagy az elevációs lánc változik. Ha a `minerality`
-        /// tag valaha bekerül a képletbe, ez a kalibráció ÉRVÉNYÉT VESZTI.
+        /// MVP-je (ND-117), az elevációs lánc VAGY a régió-definíció
+        /// (ND-127: `RegionTargetLandSharePercent`) változik. Ha a
+        /// `minerality` tag valaha bekerül a képletbe, ez a kalibráció
+        /// ÉRVÉNYÉT VESZTI.
         /// </summary>
         public static readonly double[] SoilFertilityThresholds =
         {
-            0.194567, 0.221114, 0.241362, 0.259604,
+            0.157734, 0.193976, 0.215019, 0.230240,
         };
     }
 }

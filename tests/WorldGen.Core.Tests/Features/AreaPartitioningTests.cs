@@ -264,6 +264,14 @@ public class AreaPartitioningStructuralTests
     /// egy területe (`PartitionRegionIntoAreas` sosem ad üres listát
     /// nem-üres bemenetre - ld. a többi teszt) - tehát a navigációs
     /// hierarchia SOHA nem futhat 0 régió/0 terület állapotba.
+    ///
+    /// ND-127 ÓTA a fallback biztonsági háló, nem napi útvonal: a panel-régió
+    /// az ÖSSZEVONT (<see cref="FeatureSegmentation.MergeWatershedsIntoRegions"/>)
+    /// régió, ami a szárazföld partíciója, tehát méretszűrő nélkül is minden
+    /// landmassnak van régiója (lásd
+    /// <c>WatershedMergeTests.EveryLandmassHasAtLeastOneMergedRegion</c>). Ez
+    /// a teszt a NYERS vízgyűjtő-úton maradt - azt rögzíti, hogy a háló akkor
+    /// is tart, ha a szegmentálás megint kihagyna tile-okat.
     /// </summary>
     [Fact]
     public void EveryLandmassHasAtLeastOneRegionAfterFallback()
