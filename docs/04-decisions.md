@@ -5380,6 +5380,93 @@ magasság-küszöb, tisztaság + szótár-sorrend-függetlenség, élesetek
 medence-kvóta TÖBB összefolyást ad, mint az ugyanannyi forrást használó
 globális top-K (mérve a durva hálózaton: 37 vs 21).
 
+### ND-125 — A lemezek „rendkívül szabályosak": overlay-hiba volt, a méret-eloszlás viszont nyitott kérdés
+
+**2026-09-21.** Visszajelzés (#4): „a lemezek rendkívül szabályosak, szinte
+mindegyik egy négyszög vagy háromszög, némelyik pedig brutál nagy."
+
+Ez a tétel **seed-törőnek volt beütemezve** (verzió-emelés + ND-09 ordinális
+kalibráció újrafuttatása). A vizsgálat kiderítette, hogy a panasz nagyobbik
+fele **nem a világmodellről szól**.
+
+#### 1. rész — az alak: I3-sértés az overlayben (JAVÍTVA, nem seed-törő)
+
+A `PlanetGridMesh.TectonicPlateColorAt` a **NYERS** pozícióval hívta a
+`PlateGeneration.AssignPlate`-et. A világmodell viszont — `SeaLevelCalibration`,
+`RiverPathTracing`, a teljes domborzat-lánc — a **WARPOLT** pozícióval kérdez
+(ND-36: „a tiszta »legközelebbi mag« gömbi Voronoi-felosztás MATEMATIKAILAG
+MINDIG sima, nagykör-ív-szerű határvonalat ad").
+
+Az overlay tehát egy **másik lemez-felosztást** rajzolt, mint amit a domborzat
+használ. Mérve (level 7, 98 304 tile, három seed):
+
+| | nyers (az overlay) | warpolt (a világmodell) |
+|---|---|---|
+| eltérő hozzárendelés | — | **19,5–26,4%** a tile-okból |
+| kerület/√terület | 4,9–5,2 | **7,2–7,9** (1,40–1,59×) |
+
+A kerület/√terület izoperimetrikus hányados a lényeg: a nyers felosztás
+értéke a konvex sokszögekére jellemző — mert *az is*, definíció szerint. A
+felhasználó pontosan ezt látta. Ez ugyanaz a hibaosztály, mint az **ND-119**
+(a szél-overlay nem a szimuláció szelét mutatta).
+
+**Javítás:** új kanonikus belépési pont, `PlateGeneration.AssignPlateWarped`
+(warp + assign egy helyen, dokumentálva, hogy lemez-hovatartozást
+MEGJELENÍTENI csak ezzel szabad); az overlay ezt hívja.
+
+**Költség:** 0,022 → 8,3 µs/sarok (a warp három 3-oktávos fBm-kiértékelés).
+24 576 sarokra ~205 ms egy szálon, de a sarok-szín-előszámítás párhuzamos, és
+ez a nagyságrend megegyezik a már elfogadott szél-overlay-ével (6,3 µs/sarok).
+**Olcsóbb warpot nem szabad használni:** ha az overlay más paraméterekkel
+warpol, mint a világmodell, visszatér ugyanez a hiba, csak halkabban.
+
+**Nem seed-törő:** a világmodell egyetlen bitje sem változik — eddig is a
+warpolt felosztást használta. Csak a megjelenítés igazodik hozzá.
+
+#### 2. rész — a méret: a mérés ELLENTMOND a benyomásnak (NYITOTT)
+
+A „némelyik brutál nagy" valódi modell-tulajdonság, nem overlay-hiba. Megmérve
+(level 7, warpolt hozzárendelés, lemez-terület a bolygófelszín %-ában):
+
+| Seed | Legnagyobb | Legkisebb | Top 3 együtt |
+|---|---|---|---|
+| `0xA7C944210000` | 12,1% | 1,6% | 31,1% |
+| `0x1234` | 8,7% | 1,5% | 25,0% |
+| `0xDEADBEEF` | 10,4% | 0,6% | 27,1% |
+| **Föld** | **20,4%** (Pacific) | **0,05%** (Juan de Fuca) | **42,4%** |
+
+A generált eloszlás tehát **egyenletesebb**, mint a Földé, nem szélsőségesebb:
+a legnagyobb lemezünk feleakkora részt foglal el, mint a Csendes-óceáni, és
+nincsenek apró lemezek sem. Az ok: 20 **egyenletes eloszlású** magpont
+Poisson-Voronoi-ja — a cellaméretek szórása korlátos. A Földön ezzel szemben
+néhány domináns és sok apró lemez van.
+
+A „brutál nagy" benyomás valószínűleg **relatív**: ha minden lemez közepes,
+egy 12%-os kilóg, és nincs mellette apró, ami léptéket adna.
+
+**Opciók (mind seed-törő):**
+
+- **(A) Maradjon.** A méret-eloszlás már most is hihető tartományban van, és a
+  panasz nagyobbik fele (az alak) a megjelenítés javításával megszűnik. Nincs
+  verzió-emelés, nincs ND-09 újrakalibrálás.
+- **(B) Súlyozott Voronoi.** Minden maghoz determinisztikus súly (pl.
+  hatványeloszlásból), és a hozzárendelés `dot − w` szerint dönt. Kis
+  kódváltozás, pontosan a hiányzó tulajdonságot adja (néhány domináns + sok
+  apró), a Földhöz közelebbi eloszlás. Seed-törő.
+- **(C) Több lemez + súlyozás** (20 → 30–40). A „sok apró" textúrát adja, de
+  minden per-pont `AssignPlate` lineárisan drágul, és az `AssignPlate` a
+  legforróbb úton van (minden tile, minden sarok).
+
+**Javaslat: (A) egyelőre — de a döntés a felhasználóé, és MÉRÉS után.** Az
+1. rész javítása után a lemezek először látszanak a valódi, szabálytalan
+alakjukban. Előbb nézze meg; ha a méret-eloszlás ezután is zavaró, (B) a
+válasz. Fordított sorrendben egy seed-törő változást hoznánk meg egy olyan
+benyomás alapján, amit egy megjelenítési hiba okozott.
+
+**Verziózás:** az 1. rész nem seed-törő. A 2. rész (B/C) az lenne:
+`AssignPlate` numerikus viselkedése változna → verzió-emelés ÉS az ND-09
+ordinális kalibráció újrafuttatása.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

@@ -23,19 +23,28 @@ namespace WorldGen.Viewer
 
         /// <summary>
         /// Egy sarokpont színe a tektonikus overlay-ben - a MÁR MEGLÉVŐ,
-        /// deep-time-mozgatott <c>_adaptiveSeeds</c>-hez legközelebbi lemez
-        /// (<see cref="PlateGeneration.AssignPlate"/>), majd annak
+        /// deep-time-mozgatott <c>_adaptiveSeeds</c>-hez tartozó lemez
+        /// (<see cref="PlateGeneration.AssignPlateWarped"/>), majd annak
         /// determinisztikus színe (<see cref="PlatePresentation.PlateColorRgb"/>).
         /// Csak OLVAS (Build óta változatlan _adaptiveSeed/_adaptiveSeeds) -
         /// szálbiztos a párhuzamos sarok-szín-előszámításból, ugyanúgy, mint
         /// a <see cref="WindSpeedColorAt"/>.
+        ///
+        /// ND-125 (2026-09-21): KORÁBBAN a NYERS pozícióval hívta az
+        /// <c>AssignPlate</c>-et, a világmodell viszont a WARPOLTTAL
+        /// (ND-36). Az overlay tehát egy MÁSIK lemez-felosztást rajzolt,
+        /// mint amit a domborzat használ - mérve a tile-ok 19,5-26,4%-án
+        /// tert el. Ez okozta a "rendkivul szabalyosak, szinte mindegyik egy
+        /// negyszog vagy haromszog" visszajelzest: a nyers gombi Voronoi
+        /// definicio szerint KONVEX, nagykor-ivekkel hatarolt sokszogekbol
+        /// all. I3-sertes volt, ugyanaz az osztaly, mint az ND-119.
         /// </summary>
         private Color TectonicPlateColorAt(Vector3 displacedCornerPos)
         {
             Vector3 dir = displacedCornerPos.normalized;
             BodyFrameConversion.ToCore(dir, out double cx, out double cy, out double cz);
 
-            int plateId = PlateGeneration.AssignPlate(cx, cy, cz, _adaptiveSeeds);
+            int plateId = PlateGeneration.AssignPlateWarped(_adaptiveSeed, cx, cy, cz, _adaptiveSeeds);
             if (plateId < 0) return Color.magenta; // elvben sose fordul elo (ld. AssignPlate doksi) - diagnosztikai jelzes, ha megis
 
             PlatePresentation.PlateColorRgb(_adaptiveSeed, plateId, out double r, out double g, out double b);
