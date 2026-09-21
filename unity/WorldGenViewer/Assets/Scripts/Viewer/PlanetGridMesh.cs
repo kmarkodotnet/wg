@@ -3037,14 +3037,29 @@ namespace WorldGen.Viewer
             double bucketPrepareMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
             phaseStopwatch.Restart();
-            for (int i = 0; i < leaves.Length; i++)
+            // ND-123: ha van suru statikus adat ES nincs hatarvonal-reteg, a
+            // 393 216 tile emitje PARHUZAMOSAN fut (ld.
+            // EmitStaticBaseLayerInParallel). Minden mas esetben a korabbi,
+            // egyszalu ciklus - ez egyben a referencia-implementacio is.
+            bool parallelEmit = useDenseStaticData && staticBuckets != null && !showBorders;
+            if (parallelEmit)
             {
-                EmitAdaptiveTile(
-                    leaves[i], verticesByKey, normalsByKey, trianglesByKey, colorsByKey,
+                EmitStaticBaseLayerInParallel(
+                    leaves, staticBuckets!, verticesByKey, normalsByKey, trianglesByKey, colorsByKey,
                     waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, waterColorsByBucket,
-                    borderVerts, borderIndices, waterSurfaceRadius, radialBias: 0f,
-                    staticDenseIndex: useDenseStaticData ? i : -1,
-                    staticBuckets: staticBuckets);
+                    borderVerts, borderIndices, waterSurfaceRadius);
+            }
+            else
+            {
+                for (int i = 0; i < leaves.Length; i++)
+                {
+                    EmitAdaptiveTile(
+                        leaves[i], verticesByKey, normalsByKey, trianglesByKey, colorsByKey,
+                        waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, waterColorsByBucket,
+                        borderVerts, borderIndices, waterSurfaceRadius, radialBias: 0f,
+                        staticDenseIndex: useDenseStaticData ? i : -1,
+                        staticBuckets: staticBuckets);
+                }
             }
             double emitMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
@@ -3076,6 +3091,7 @@ namespace WorldGen.Viewer
                 $"(reused={terrainBasisReused}) | " +
                 $"tileCenterBasis={tileCenterBasisMs:F1}ms (reused={tileCenterBasisReused}) | " +
                 $"denseStatic={useDenseStaticData} | classificationsReused={classificationsReused} | " +
+                $"parallelEmit={parallelEmit} | " +
                 $"classification={classificationMs:F1}ms (missing={classificationDiag.MissingCount}, " +
                 $"usedGpu={classificationDiag.UsedGpu}, gpuDispatch={classificationDiag.GpuDispatchMs:F1}ms, " +
                 $"cpuTempLoop={classificationDiag.CpuTemperatureLoopMs:F1}ms) | " +
@@ -4262,7 +4278,8 @@ namespace WorldGen.Viewer
             List<Vector3> borderVerts, List<int> borderIndices,
             float waterSurfaceRadius, float radialBias, int staticDenseIndex = -1,
             StaticMeshBuckets? staticBuckets = null, bool replaceStaticTerrain = false,
-            List<Vector3>? resolvedPositions = null, int resolvedStart = 0)
+            List<Vector3>? resolvedPositions = null, int resolvedStart = 0,
+            bool emitTerrain = true, bool emitWater = true)
         {
             bool useStaticDenseData = staticDenseIndex >= 0
                 && id.Level == _staticRenderDataLevel
@@ -4345,7 +4362,16 @@ namespace WorldGen.Viewer
             // a MEGOSZTOTT sarok-cache-mintazat, mint a szinnel
             // (_persistentCornerColorCache) - PrecomputeCornersInParallel
             // MAR feltoltotte parhuzamosan.
-            if (IsContinuousTerrainCategory(category))
+            if (!emitTerrain)
+            {
+                // ND-123: a parhuzamos statikus emit ELSO passza CSAK a terep-
+                // quadokat irja (terep-slot szerint particionalva), a MASODIK
+                // CSAK a viz-quadokat (viz-bucket szerint). Igy minden szal
+                // KIZAROLAGOS listakra ir, es a sorrend bucketen belul
+                // valtozatlanul tile-index szerint novekvo - ld.
+                // EmitStaticBaseLayerInParallel.
+            }
+            else if (IsContinuousTerrainCategory(category))
             {
                 // TELJESITMENY: a szin a MEGOSZTOTT sarok-cache-bol jon
                 // (PrecomputeCornersInParallel MAR feltoltotte parhuzamosan),
@@ -4372,7 +4398,7 @@ namespace WorldGen.Viewer
             // felszin OPAK, ezert a jegszinu, tengerszintu lap elrejti a mely
             // fenekgeometriat - a tengeri jeg most a nyilt vizzel egy szinten,
             // laposan ul, csak FEHER (jeg) szinnel a kek helyett.
-            if (isOceanic && (biome == Biome.Ocean || biome == Biome.SeaIce)
+            if (emitWater && isOceanic && (biome == Biome.Ocean || biome == Biome.SeaIce)
                 && !(replaceStaticTerrain && _requestedIndependentWater && _waterLodSource!.ContainsWater(id)))
             {
                 TileGeometry.GetContinuousBounds(id, out double uMin, out double uMax, out double vMin, out double vMax);
@@ -6399,9 +6425,12 @@ namespace WorldGen.Viewer
                 && !float.IsInfinity(c.r) && !float.IsInfinity(c.g) && !float.IsInfinity(c.b) && !float.IsInfinity(c.a);
             if (finite)
                 return c;
-            if (_nanVertexColorLogCount < MaxNaNVertexColorLogs)
+            // ND-123: a statikus emit MAR PARHUZAMOS, ezert ez a diagnosztikai
+            // szamlalo Interlocked - kulonben ket szal ugyanazt az erteket
+            // olvasva tulloghatna a korlaton (a szam maga diagnosztika, de a
+            // konzol elarasztasa ellen vedo korlatnak mukodnie kell).
+            if (System.Threading.Interlocked.Increment(ref _nanVertexColorLogCount) <= MaxNaNVertexColorLogs)
             {
-                _nanVertexColorLogCount++;
                 Debug.LogWarning($"[NaN-diag] NaN/Infinity vertex color detected at pos={pos} (radius={pos.magnitude}), color=({c.r},{c.g},{c.b},{c.a}) -> replaced with magenta. count={_nanVertexColorLogCount}");
             }
             return new Color(1f, 0f, 1f, 1f);
