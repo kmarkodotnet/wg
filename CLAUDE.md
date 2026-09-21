@@ -197,6 +197,18 @@ For Unity-related work:
   Nincsenek a `WorldGen.sln`-ben, mert a CI-gépeken nincs Unity. **Nem
   helyettesítik a Unity saját fordítását** (asmdef-szabályok, platform-define-ok),
   de az API-hibákat és a C# 9 / netstandard2.1 sértéseket azonnal megfogják.
+- **ÚJ `.cs` fájl az `Assets/` alatt: a kapu nem fogja meg az asset-importot.**
+  A kapu glob szerint fordít, a Unity viszont CSAK azt a fájlt fordítja, amit
+  az asset-adatbázisba importált (`.meta` fájl jön létre mellé). Ha az Editor
+  a fájl létrehozásakor nem futott vagy nem válaszolt, a kapu zöld lesz, a
+  Unity mégis `CS0103: The name '...' does not exist` hibát ad. Javítás:
+
+  ```
+  # eval-lal az élő Editorban
+  UnityEditor.AssetDatabase.Refresh(UnityEditor.ImportAssetOptions.ForceUpdate);
+  ```
+
+  Utána a `.meta` fájlt is **commitold** (a GUID-nak stabilnak kell lennie).
 - Check Unity Console errors before considering a task complete.
 - When appropriate, run relevant Unity tests.
 - Do not edit Library/PackageCache manually.
