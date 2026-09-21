@@ -109,6 +109,38 @@ mostani algoritmussal készült, és a rendszer helyesen újraszámolt.
 
 ---
 
+## 3c. ELSŐ DOLOG a következő futásnál: az emit ön-ellenőrzése (ND-123)
+
+A statikus alapréteg emitje mostantól **párhuzamosan** fut (a legnagyobb
+egyetlen tétel volt: 584–688 ms). Mivel az Editor a session alatt nem
+válaszolt, **beépítettem egy ön-ellenőrzést**, ami alapból BE van.
+
+**Amit a PerfLogban látnod kell:**
+
+```
+[ND-123 emit verify] EGYEZIK (parhuzamos == egyszalu), ellenorzes=...ms
+```
+
+Plusz a `BuildStaticBaseLayer reszletek` sorban `parallelEmit=True`, és az
+`emit=` értéknek érdemben kisebbnek kell lennie 584–688 ms-nál.
+
+**Ha ehelyett `[ND-123 emit verify] ELTERES: ...` jelenik meg** (és egy
+konzol-hiba), az azt jelenti, hogy a párhuzamos út mást ad — akkor kapcsold
+ki az Inspectorban a párhuzamos emitet nem lehet külön kikapcsolni, de a
+`showBorders` bekapcsolása visszaviszi az egyszálú útra, és jelezd nekem az
+üzenetet (benne van, melyik bucket melyik eleme tér el).
+
+**Amíg az ellenőrzés be van kapcsolva, a Build LASSABB** (kétszer emitel).
+Ha az `EGYEZIK` megjelent, a `verifyParallelStaticEmit` mezőt kapcsold ki —
+vagy szólj, és én kapcsolom ki a kódban.
+
+**Fontos, hogy mit NEM mér:** a várható gyorsulás nem a magszám, hanem
+nagyjából **2–3×**, mert a párhuzamosságot a legnagyobb bucket (az óceáni
+terep-slot) határolja. Ha az `emit=` csak ennyit javul, az az elvárt
+viselkedés, nem hiba.
+
+---
+
 ## 4. Mire számíts a nagyobb budgetnél — offline előrejelzés
 
 Ez a 6. feladat eredménye: a chunk-csomagolás és a feltöltés **offline
