@@ -4957,7 +4957,22 @@ információt, és épp ez a tag volt a költség 89%-a. (C) önmagában is
 védhető fizikailag, de seed-törő, tehát külön, tudatos lépés kell hozzá —
 nem egy overlay-hiba mellékterméke.
 
-**Eldöntendő:** a felhasználó választ (A)/(B)/(C) közül. Addig (B) fut.
+**LEZÁRVA (2026-09-21): (A) — a felhasználó döntése.** Az overlay mostantól
+a hegy-eltérés tagot NULLÁVAL hívja, pontosan úgy, ahogy a
+`MoisturePrecipitation.Compute` is — az overlay tehát a modell szelét mutatja
+(I3/I4 helyreállt).
+
+**Mellékhatás:** a sarkonkénti elevációs gradiens számítása teljesen elmarad.
+Ez volt a `WindSpeedColorAt` költségének 89%-a, és emiatt kiesett a
+`TryStaticCornerElevationGradient` / `ElevationGradientTangent` pár is
+(126 sor törölve). A szél többi tagja (zonális alap, termikus szél, Coriolis)
+változatlanul sarkonként számolódik az ND-64 mintákból — az overlay tehát nem
+lesz blokkos.
+
+A kép ezzel **skálafüggetlen** lett: korábban azon múlt, milyen lépésközzel
+deriváltunk, mert a `maxFraction * tanh(slopeMag / 0.5)` tag a valós, 10^4
+nagyságrendű gradienseknél MINDIG telítésben volt, tehát kizárólag a gradiens
+IRÁNYÁTÓL függött. Ez zajt adott, nem információt.
 
 ### ND-120 — A GPU-osztályozó shader két algoritmus-generációval le van maradva (NYITOTT)
 
@@ -5029,6 +5044,32 @@ karbantartást ÉS van hol futtatni az egyezési tesztet.
 **Verziózás:** önmagában nem seed-törő (a GPU-ág ma nem fut, tehát egyetlen
 világ sem függ tőle). (B) viszont azzá tenné, ha a portolás közben a
 CPU-oldalt is hozzányúlnánk — nem szabad.
+
+---
+
+**LEZÁRVA (2026-09-21): (A) — a felhasználó döntése.** Törölve:
+- `PrecomputeClassificationsOnGpu` (a dispatch-ág és a metódus),
+- a `useGpuClassification` mező és a jelenetbeli kapcsoló,
+- `Assets/Scripts/Viewer/Gpu/GpuTileClassifier.cs` (nem volt más hívója).
+
+**A `forceCpu` paraméter szándékosan MEGMARADT**: az async emit-út ezzel
+jelzi, hogy worker szálról fut. Ma már nincs másik ág, de a hívási felület
+így változatlan, és egy jövőbeli, ELLENŐRZÖTT GPU-út ide illeszkedne vissza.
+
+**AMIT NEM TÖRÖLTEM, ÉS MIÉRT — ezt érdemes tudni.** A
+`TileClassification.compute` asset **megmaradt**, mert a `useGpuGeometry` út
+is használja (`GpuTerrainGeometryGenerator`), és **az is ugyanazt az elavult
+`BaseElevationF`-et** hívja. Vagyis a 22%-os eltérés kockázata a
+`useGpuGeometry` bekapcsolásával **ma is él**. Ez nem volt része a
+döntésnek, ezért nem nyúltam hozzá; a mező tooltipje viszont mostantól
+tételesen kiírja a mért számokat. A shaderhez amúgy is óvatosan kell érni:
+kétszer futott „Compiler timed out"-ba, és a mostantól nem hívott
+`CSClassifyTiles` kernelt épp ezért hagytam benne.
+
+A `GpuShaderElevationParityTests` **MARAD**, újrakeretezve: az állítása
+független attól, hogy van-e GPU-út — ez a két tag nem elhanyagolható.
+Konkrétan a `useGpuGeometry` utat védi, és minden jövőbeli „egyszerűsített"
+eleváció-közelítést (GPU, előre számolt textúra, LOD-proxy).
 
 ### ND-121 — A balance munkalistás átírása kész; a `MaximumRenderBudget` plafon emelése döntést kér (NYITOTT)
 

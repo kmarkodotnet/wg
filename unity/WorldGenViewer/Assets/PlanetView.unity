@@ -224,7 +224,6 @@ MonoBehaviour:
   dynamicLayerRadialBias: 0.002
   minSecondsBetweenAdaptiveRebuilds: 0.1
   adaptiveRebuildWarningMs: 50
-  useGpuClassification: 0
   tileClassificationCompute: {fileID: 7200000, guid: d747bc6651924f843bb8599225814adf, type: 3}
   useGpuGeometry: 0
   Built:

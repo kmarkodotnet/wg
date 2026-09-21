@@ -694,48 +694,16 @@ namespace WorldGen.Viewer
 
         [Header("GPU-alapú tile-klasszifikáció (kísérleti)")]
         [SerializeField]
-        [Tooltip("Ha be van kapcsolva, a hiányzó tile-klasszifikációkat (eleváció/" +
-                 "óceán/hőmérséklet/biome) a TileClassification.compute számolja a " +
-                 "CPU-s Parallel.For lánc helyett. FONTOS, DOKUMENTÁLT KOCKÁZAT: a " +
-                 "GPU-oldal float32-ben dolgozik (a CPU double-lel), és a HLSL-t " +
-                 "ebből a környezetből nem lehetett ténylegesen lefuttatni/tesztelni - " +
-                 "csak a C#-os offline compile-check és a Threefry4x64 64-bites " +
-                 "aritmetika-emulációjának KAT-vektoros ellenőrzése történt meg. " +
-                 "Alapból KIKAPCSOLVA. Az adaptív CPU-geometria ezt figyelmen kívül hagyja: " +
-                 "a GPU-ból hiányzó secondary detail miatt ott kötelező a teljes CPU-besorolás (ND-69).")]
-        private bool useGpuClassification = false;
-
-        // ====================================================================
-        // ND-120 (2026-09-20) - OLVASD EL, MIELOTT EZT BEKAPCSOLOD.
-        //
-        // A GPU-ag JELENLEG ELERHETETLEN: a PrecomputeClassificationsInParallel
-        // MINDHAROM hivoja `forceCpu: true`-t ad (ND-47 3. fazisa ota, mert
-        // worker szalrol a GPU-dispatch tilos). A PerfLog tanusaga szerint
-        // `usedGpu=True` UTOLJARA 2026-09-11-en fordult elo, azota egyszer sem.
-        // A jelenetben (PlanetView.unity) ez a kapcsolo MEGIS 1-en allt - egy
-        // HALOTT kapcsolo, ami elonek latszott; 2026-09-20-an 0-ra allitva.
-        //
-        // MIERT NEM SZABAD csak ugy visszakapcsolni: a
-        // TileClassification.compute `BaseElevationF`-je KET Core-ujitast nem
-        // tartalmaz - az ND-52 masodlagos zajt es az ND-90 lemezhatar-keverest.
-        // OFFLINE MERVE (GpuShaderElevationParityTests, seed 0xA7C944210000,
-        // 20 lemez, level 6 es level 8 egyarant): |delta| atlag 301 m, max
-        // 3116 m, es a tile-ok ~22%-a MAS oldalra kerulne a tengerszinthez
-        // kepest, ~24%-a mas biome-ot kapna. Ez ALSO KORLAT: a meres float64-en
-        // fut, tehat a shader float32-es pontossagvesztese meg nem is szerepel
-        // benne.
-        //
-        // Vagyis a bekapcsolas nem "gyorsitas", hanem egy MASIK bolygo
-        // osztalyozasa a MOSTANI geometria alatt. A dontes (shader javitasa vs.
-        // a GPU-ut torlese) az ND-120-ban var - addig maradjon kikapcsolva.
-        // ====================================================================
-
-        [SerializeField]
-        [Tooltip("A TileClassification.compute shader asset - useGpuClassification " +
-                 "esetén kötelező (üresen hagyva a GPU-út kikapcsolt módra esik vissza).")]
+        [Tooltip("A TileClassification.compute shader asset - a useGpuGeometry úthoz " +
+                 "kötelező (üresen hagyva az a GPU-út is kikapcsolt módra esik vissza). " +
+                 "FIGYELEM (ND-120, 2026-09-21): ez a shader UGYANAZT az elavult " +
+                 "BaseElevationF-et használja, amiből a TÖRÖLT GPU-klasszifikáció is " +
+                 "dolgozott - hiányzik belőle az ND-52 másodlagos zaj és az ND-90 " +
+                 "határkeverés. Offline mérve (GpuShaderElevationParityTests) a tile-ok " +
+                 "~22%-a kerülne más oldalra a tengerszinthez képest, ~24%-a más biome-ot " +
+                 "kapna. A useGpuGeometry bekapcsolása tehát UGYANEZT a kockázatot " +
+                 "hordozza - előbb a shadert kell felzárkóztatni.")]
         private ComputeShader tileClassificationCompute;
-
-        private WorldGen.Viewer.Gpu.GpuTileClassifier _gpuClassifier;
 
         [SerializeField]
         [Tooltip("M13 Fazis 3: a dinamikus reteg NEGYSZOG-GEOMETRIAJAT (sarok-" +
@@ -1252,7 +1220,7 @@ namespace WorldGen.Viewer
                     $"=== PlanetGridMesh perf log started {DateTime.Now:O} ===\n" +
                     $"adaptiveBaseLevel={adaptiveBaseLevel} adaptiveMaxLevel={adaptiveMaxLevel} " +
                     $"targetTilePixelSize={targetTilePixelSize} initialRefinementPixelSize={initialRefinementPixelSize} useGpuGeometry={useGpuGeometry} " +
-                    $"useGpuClassification={useGpuClassification} radius={radius}\n");
+                    $"radius={radius}\n");
                 _perfLogPath = path; // CSAK sikeres init utan
             }
             catch
@@ -5669,17 +5637,23 @@ namespace WorldGen.Viewer
 
         private ClassificationDiag PrecomputeClassificationsInParallel(TileId[] leaves, bool forceCpu = false)
         {
-            // FAZIS 3 (ND-47): worker szalrol a GPU-dispatch TILOS (fo szal), ezert
-            // az async emit-ut forceCpu=true-val a tiszta CPU-agra kenyszerit
-            // (ComputeTileClassification igazoltan szalbiztos, ld. ott).
-            // M10: a GPU compute shader NEM alkalmazza a deep-time eroziot (uplift-
-            // relaxacio), ezert erozio-aktiv allapotban (t!=0) a CPU-agra
-            // kenyszeritunk, kulonben a GPU-besorolas (ocean/biome) az EROZIO
-            // ELOTTI domborzatot latna, mig a geometria mar az utanit -> eltero
-            // partvonal/biome-hatarok. t=0-nal (erozio=0) valtozatlan (GPU marad).
-            if (!forceCpu && useGpuClassification && tileClassificationCompute != null
-                && _adaptiveErosionTimeMyr == 0.0)
-                return PrecomputeClassificationsOnGpu(leaves);
+            // ND-120 LEZARVA (2026-09-21, felhasznaloi dontes "A"): a GPU-
+            // KLASSZIFIKACIO utja TOROLVE. Elesben mar korabban elerhetetlen
+            // volt (mindharom hivo `forceCpu: true`-t adott az ND-47 3. fazisa
+            // ota; a naplokban `usedGpu=True` utoljara 2026-09-11-en szerepelt),
+            // a shader `BaseElevationF`-je viszont KET Core-ujitassal - ND-52
+            // masodlagos zaj es ND-90 hatarkeveres - le volt maradva. MERVE
+            // (GpuShaderElevationParityTests): a tile-ok ~22%-a mas oldalra
+            // kerult volna a tengerszinthez kepest, ~24%-a mas biome-ot kapott
+            // volna. Egy meg nem valosult optimalizacio maradvanya nem erte meg
+            // az allando I1-kockazatot: minden Core-valtozast kezzel kellett
+            // volna utanavezetni benne, es egy elfelejtett port CSENDBEN mas
+            // vilagot osztalyozott volna.
+            //
+            // A `forceCpu` parameter SZANDEKOSAN MEGMARAD: az async emit-ut
+            // ezzel jelzi, hogy worker szalrol fut. Ma mar nincs mas ag, de a
+            // hivasi felulet igy valtozatlan, es egy jovobeli, ELLENORZOTT
+            // GPU-ut ide illeszkedne vissza.
 
             var missing = new List<TileId>(leaves.Length);
             foreach (TileId id in leaves)
@@ -5721,83 +5695,6 @@ namespace WorldGen.Viewer
             _staticTileClassifications = results;
             _staticRenderDataLevel = adaptiveBaseLevel;
             return new ClassificationDiag(leaves.Length, false, 0, 0);
-        }
-
-        /// <summary>
-        /// A PrecomputeClassificationsInParallel GPU-ágra (useGpuClassification)
-        /// - lásd Assets/Scripts/Viewer/Gpu/TileClassification.compute a
-        /// dokumentált CPU/GPU eltérésekről (float32, nincs élesben tesztelve
-        /// ebből a fejlesztői környezetből). Az eredmény ugyanabba a
-        /// _tileClassificationCache-be kerül, mint a CPU-ág - a hívó (Build/
-        /// RebuildAdaptiveMesh) oldaláról ez a két út megkülönböztethetetlen.
-        /// </summary>
-        private ClassificationDiag PrecomputeClassificationsOnGpu(TileId[] leaves)
-        {
-            var missing = new List<TileId>(leaves.Length);
-            foreach (TileId id in leaves)
-                if (!_tileClassificationCache.ContainsKey(id))
-                    missing.Add(id);
-            if (missing.Count == 0)
-                return new ClassificationDiag(0, true, 0, 0);
-
-            _gpuClassifier ??= new WorldGen.Viewer.Gpu.GpuTileClassifier(tileClassificationCompute);
-
-            var positions = new Vector3[missing.Count];
-            for (int i = 0; i < missing.Count; i++)
-            {
-                TileGeometry.ToPosition(missing[i], out double cx, out double cy, out double cz);
-                positions[i] = new Vector3((float)cx, (float)cy, (float)cz);
-            }
-
-            // A kereg-tipus (IsOceanic) plate-enkent olcso (csak _adaptiveSeeds.Length-
-            // szer fut) - CPU-n szamoljuk, hogy a GPU shadernek NE kelljen ujra
-            // portolnia a DeterministicRandom.Chance-t (ld. TileClassification.compute
-            // fejleceben a 3. dokumentalt egyszerusites).
-            var plateIsOceanic = new bool[_adaptiveSeeds.Length];
-            for (int p = 0; p < _adaptiveSeeds.Length; p++)
-                plateIsOceanic[p] = CrustElevation.IsOceanic(_adaptiveSeed, p);
-
-            var gpuStopwatch = Stopwatch.StartNew();
-            WorldGen.Viewer.Gpu.GpuClassificationResult[] results = _gpuClassifier.Classify(
-                positions, _adaptiveSeed, _adaptiveSeeds, plateIsOceanic, _adaptiveCraters,
-                _adaptiveSeaLevel, climateDayT, climateOrbitalPeriodDays, climateRotationPeriodDays,
-                _adaptiveAxialTiltRad);
-            gpuStopwatch.Stop();
-
-            // IDEIGLENES TELJESITMENY-DIAGNOSZTIKA (2026-09-02): ez a ciklus
-            // SZEKVENCIALIS (nincs Parallel.For), szemben a tiszta CPU-agon
-            // (PrecomputeClassificationsInParallel) lévő valtozattal - GYANU,
-            // hogy ez a foszala lassulasnak nagy `missing.Count` mellett,
-            // mert a Temperature.TemperatureKelvin tobb tucat trigonometriai
-            // kiertekelest jelent hivasonkent, itt EGYSZALON, a fo szalon.
-            var cpuTempStopwatch = Stopwatch.StartNew();
-            for (int i = 0; i < missing.Count; i++)
-            {
-                TileId id = missing[i];
-                WorldGen.Viewer.Gpu.GpuClassificationResult r = results[i];
-                var biome = (Biome)r.Biome;
-                bool isLake = showLakesIce && IsAdaptiveLakeTile(id);
-                bool isIce = showLakesIce && IsAdaptiveIceTile(id);
-                RenderCategory category = r.IsCratered ? RenderCategory.Crater
-                    : isIce ? RenderCategory.IceSheet
-                    : isLake ? RenderCategory.Lake
-                    : ToRenderCategory(biome); // folyok: kulon vonal-reteg (BuildRiverNetwork)
-                int bucket = category == RenderCategory.Ocean ? OceanRockBucket(r.Elevation) : 0;
-
-                // A GPU eredmeny mar csak a DISZKRET biome-ot adja vissza -
-                // a folytonos szinezeshez (ContinuousSurfaceColor) a NYERS
-                // homersekletre van szukseg, amit itt, olcson (nincs benne
-                // fraktal-zaj-kiertekeles) ujraszamolunk - ugyanaz a hivas,
-                // mint a CPU-agon (ComputeTileClassification).
-                TileGeometry.ToPosition(id, out double cx, out double cy, out double cz);
-                double temperatureK = TemperatureKelvinAt(cx, cy, cz, _adaptiveAxialTiltRad, r.IsOceanic, r.Elevation, _adaptiveSeaLevel);
-
-                _tileClassificationCache[id] = new AdaptiveTileClassification(r.Elevation, r.IsOceanic, biome, category, bucket, temperatureK);
-                _tileClassificationLruNodes[id] = _tileClassificationLru.AddLast(id);
-            }
-            cpuTempStopwatch.Stop();
-
-            return new ClassificationDiag(missing.Count, true, gpuStopwatch.Elapsed.TotalMilliseconds, cpuTempStopwatch.Elapsed.TotalMilliseconds);
         }
 
         private void EvictTileClassificationCacheIfNeeded()
@@ -8466,7 +8363,22 @@ namespace WorldGen.Viewer
             Vector3 dir = displacedCornerPos.normalized;
             BodyFrameConversion.ToCore(dir, out double cx, out double cy, out double cz);
 
-            ElevationGradientTangent(cx, cy, cz, out double gradE, out double gradN);
+            // ND-119 (2026-09-21, felhasznaloi dontes "A"): a hegy-elteres tag
+            // NULLA - PONTOSAN ugy, ahogy a vilagmodell sajat csapadek-mezoje
+            // hivja (MoisturePrecipitation.Compute -> WindVector(..., 0.0, 0.0)).
+            //
+            // MIERT. Korabban az overlay sarkonkent kiszamolta az elevacio-
+            // gradienst es atadta, a SZIMULACIO viszont soha nem hasznalta -
+            // vagyis az overlay nem a modell szelet mutatta (I3/I4). Raadasul a
+            // tag `maxFraction * tanh(slopeMag / 0.5)` alakja a valos, 10^4
+            // nagysagrendu gradienseknel MINDIG telitesben van, tehat kizarolag
+            // a gradiens IRANYATOL fuggott - az pedig erosen skalafuggo, igy a
+            // kep azon mult, milyen lepteku derivalast valasztottunk. Ez zajt
+            // adott, nem informaciot.
+            //
+            // MELLEKHATAS: a sarkonkenti elevacio-gradiens szamitasa teljesen
+            // elmarad (ez volt a WindSpeedColorAt koltsegenek 89%-a).
+            const double gradE = 0.0, gradN = 0.0;
             // #9: a WindVector koltsegenek a masik fele a BELSO
             // TemperatureGradientTangent volt (4 teljes Temperature.
             // TemperatureKelvin, elesben MERVE 28,4 us/sarok). Ugyanazt a
@@ -8518,132 +8430,6 @@ namespace WorldGen.Viewer
             double len = Math.Sqrt(px * px + py * py + pz * pz);
             if (len < 1e-12) { px = 0; py = 0; pz = 0; } else { px /= len; py /= len; pz /= len; }
             return TemperatureKelvinAt(px, py, pz, _adaptiveAxialTiltRad, isOceanic, elevation, seaLevel);
-        }
-
-        /// <summary>
-        /// dElev/d(kelet), dElev/d(eszak) m/radian-ban, a szel-overlay
-        /// hegy-elteres-tagjahoz. ELSODLEGESEN a MAR KISZAMOLT, base-szintu
-        /// statikus sarok-poziciokbol
-        /// (<see cref="TryStaticCornerElevationGradient"/>); a regi,
-        /// sarkonkent 4 teljes ComputeElevationAtPoint-ot futtato veges
-        /// differencia csak TARTALEK-ut maradt (nincs statikus adat, vagy a
-        /// pont a kocka-lap szelen van).
-        ///
-        /// KOVETKEZMENY (vizualis, szandekos): a derivalas lepeskoze a
-        /// base-szint racsosztasa (level 8-on 6,1e-3 radian) a korabbi 1e-3
-        /// radian helyett. A szel tobbi tagja (zonalis alap, termikus szel,
-        /// Coriolis) VALTOZATLANUL sarkonkent szamolodik. A hatas merve:
-        /// ld. ND-119 tablazata (atlagos szin-rampa-eltolodas 0,090).
-        /// </summary>
-        private void ElevationGradientTangent(double x, double y, double z, out double dEast, out double dNorth)
-        {
-            if (TryStaticCornerElevationGradient(x, y, z, out dEast, out dNorth))
-                return;
-
-            WindPrecipitation.LocalEastNorth(x, y, z,
-                out double ex, out double ey, out double ez, out double nx, out double ny, out double nz);
-            const double eps = WindPrecipitation.GradientEps;
-            double eP = ElevationAtDir(x + ex * eps, y + ey * eps, z + ez * eps);
-            double eM = ElevationAtDir(x - ex * eps, y - ey * eps, z - ez * eps);
-            double nP = ElevationAtDir(x + nx * eps, y + ny * eps, z + nz * eps);
-            double nM = ElevationAtDir(x - nx * eps, y - ny * eps, z - nz * eps);
-            dEast = (eP - eM) / (2.0 * eps);
-            dNorth = (nP - nM) / (2.0 * eps);
-        }
-
-        /// <summary>
-        /// Elevacio-gradiens a MAR KISZAMOLT, base-szintu (ND-66) statikus
-        /// sarok-pozicio tombbol, UJ Core-kiertekeles NELKUL. Minden ilyen
-        /// sarok sugara mar tartalmazza a domborzatot, tehat a
-        /// <see cref="WorldElevationFromDisplacedRadius"/> visszaadja az
-        /// elevaciot - a 4 racs-szomszed (u+-1, v+-1) elevacio-kulonbsegebol
-        /// LEGKISEBB NEGYZETEKKEL illesztunk gradienst a helyi (kelet, eszak)
-        /// bazisban. A 4 szomszedos minta azert kell (nem eleg ket ellentetes
-        /// par), mert a kocka-gomb racs iranyai NEM esnek egybe a kelet/eszak
-        /// tengelyekkel, es a polusok kozeleben eros a torzulas.
-        ///
-        /// A lepteke a base-szint racs-osztasa (level 8-on kb. 0,35 fok =
-        /// 6,1e-3 radian), szemben a regi, pontonkenti veges differencia
-        /// 1e-3 radianjaval - tehat kozel azonos skala, nem tile-lepteku
-        /// elkenes. (Egy level 5-os, referencia-tile-onkenti valtozatot
-        /// MERTUNK: az a szin-rampat atlagosan 0,124-del tolta el, a mintak
-        /// 37%-at 5% folott - ezert NEM azt hasznaljuk.)
-        ///
-        /// Csak OLVAS egy Build ota valtozatlan tombot -> szalbiztos a
-        /// parhuzamos sarok-szin-szamitasbol. `false`-t ad, ha a statikus
-        /// adat hianyzik vagy a pont a lap SZELEN van (ott a 4 szomszed nem
-        /// all ossze ertelmes bazissa) - ilyenkor a hivo a pontos, dragabb
-        /// veges differenciara esik vissza.
-        /// </summary>
-        private bool TryStaticCornerElevationGradient(
-            double x, double y, double z, out double dEast, out double dNorth)
-        {
-            dEast = 0.0;
-            dNorth = 0.0;
-
-            int lvl = _staticRenderDataLevel;
-            if (lvl < 0 || _staticCornerPositions.Length == 0) return false;
-
-            TileId tile = TileGeometry.FromPosition(x, y, z, lvl);
-            tile.GetUV(out uint u, out uint v);
-            int face = tile.Face;
-            if (!TryGetStaticCornerIndex(face, lvl, u, v, _staticCornerPositions.Length, out int centerIndex))
-                return false;
-
-            if (!TryStaticCornerSample(centerIndex, out double bx, out double by, out double bz, out double e0))
-                return false;
-
-            WindPrecipitation.LocalEastNorth(bx, by, bz,
-                out double ex, out double ey, out double ez, out double nx, out double ny, out double nz);
-
-            int n = 1 << lvl;
-            double sEE = 0.0, sEN = 0.0, sNN = 0.0, rhsE = 0.0, rhsN = 0.0;
-            for (int d = 0; d < 4; d++)
-            {
-                long su = (long)u + (d == 0 ? 1 : d == 1 ? -1 : 0);
-                long sv = (long)v + (d == 2 ? 1 : d == 3 ? -1 : 0);
-                if (su < 0 || sv < 0 || su > n || sv > n) continue;
-                if (!TryGetStaticCornerIndex(face, lvl, (uint)su, (uint)sv, _staticCornerPositions.Length, out int ni))
-                    continue;
-                if (!TryStaticCornerSample(ni, out double sx, out double sy, out double sz, out double eNb))
-                    continue;
-
-                // A sugariranyu komponens levonasa -> erintosikbeli elmozdulas,
-                // aminek a hossza kis szogeknel a radianban mert tavolsag.
-                double ddx = sx - bx, ddy = sy - by, ddz = sz - bz;
-                double radial = ddx * bx + ddy * by + ddz * bz;
-                double tx = ddx - radial * bx, ty = ddy - radial * by, tz = ddz - radial * bz;
-                double rE = tx * ex + ty * ey + tz * ez;
-                double rN = tx * nx + ty * ny + tz * nz;
-                double dElev = eNb - e0;
-                sEE += rE * rE; sEN += rE * rN; sNN += rN * rN;
-                rhsE += rE * dElev; rhsN += rN * dElev;
-            }
-
-            double det = sEE * sNN - sEN * sEN;
-            if (Math.Abs(det) < 1e-18) return false;
-            dEast = (sNN * rhsE - sEN * rhsN) / det;
-            dNorth = (sEE * rhsN - sEN * rhsE) / det;
-            return true;
-        }
-
-        /// <summary>Egy statikus sarok CORE-terbeli EGYSEGVEKTORA + elevacioja.</summary>
-        private bool TryStaticCornerSample(
-            int index, out double dirX, out double dirY, out double dirZ, out double elevation)
-        {
-            Vector3 p = _staticCornerPositions[index];
-            double magnitude = Math.Sqrt((double)p.x * p.x + (double)p.y * p.y + (double)p.z * p.z);
-            if (magnitude < 1e-9)
-            {
-                dirX = dirY = dirZ = 0.0;
-                elevation = 0.0;
-                return false;
-            }
-            elevation = WorldElevationFromDisplacedRadius(magnitude);
-            BodyFrameConversion.ToCore(
-                new Vector3((float)(p.x / magnitude), (float)(p.y / magnitude), (float)(p.z / magnitude)),
-                out dirX, out dirY, out dirZ);
-            return true;
         }
 
         private double ElevationAtDir(double px, double py, double pz)

@@ -10,19 +10,28 @@ using Xunit;
 namespace WorldGen.Core.Tests.Tectonics;
 
 /// <summary>
-/// ND-120: a `TileClassification.compute` GPU-shader `BaseElevationF`-je két
-/// Core-újítást NEM tartalmaz — az ND-52 MÁSODLAGOS ZAJT és az ND-90
-/// lemezhatár-KEVERÉST. A shader maga nem hívható C#-ból, ezért itt azt
-/// mérjük, MEKKORA következménye van ennek a két hiánynak: a Core-utat
+/// ND-120: mekkora következménye van, ha az eleváció-alapból kimarad az
+/// ND-52 MÁSODLAGOS ZAJ vagy az ND-90 lemezhatár-KEVERÉS. A Core-utat
 /// futtatjuk le úgy, hogy egyszer minden benne van, egyszer pedig a hiányzó
 /// tagokat kivesszük — a két eredményt ugyanazzal a tengerszinttel
-/// osztályozzuk (a shader is konstansként kapja meg a CPU-tól).
+/// osztályozzuk.
 ///
-/// MIÉRT TESZT ÉS NEM EGYSZERI MÉRÉS. A számok döntés-minőségűek (ld. ND-120:
-/// a shader javítása vs. a GPU-út törlése). Ha valaki később azt gondolná,
-/// hogy „ez a tag elhanyagolható, a GPU-n kihagyható", ez a teszt megmondja,
-/// hogy nem az. A küszöbök szándékosan LAZÁK (nagyságrendet rögzítenek, nem
-/// pontos darabszámot), hogy a jövőbeli hangolások ne törjék el őket.
+/// ELŐZMÉNY ÉS AKTUÁLIS SZEREP. Ezek a számok döntötték el az ND-120-at: a
+/// `TileClassification.compute` `BaseElevationF`-je mindkét tagot NEM
+/// tartalmazta, és a mérés szerint a tile-ok ~22%-a került volna más oldalra
+/// a tengerszinthez képest. A GPU-KLASSZIFIKÁCIÓ útja ezért **2026-09-21-én
+/// törölve** lett. A teszt viszont MARAD, mert az állítása független attól,
+/// hogy van-e GPU-út: **ez a két tag nem elhanyagolható.**
+///
+/// Két konkrét dolgot véd:
+///  - a `useGpuGeometry` út UGYANAZT a shadert (és ugyanazt az elavult
+///    `BaseElevationF`-et) használja, tehát a kockázat ott ÉL;
+///  - ha valaki bármikor „egyszerűsített" eleváció-közelítést vezetne be
+///    (GPU-n, előre számolt textúrában, LOD-proxyban), ez megmondja, mit
+///    veszít vele.
+///
+/// A küszöbök szándékosan LAZÁK (nagyságrendet rögzítenek, nem pontos
+/// darabszámot), hogy a jövőbeli hangolások ne törjék el őket.
 ///
 /// A HATÓKÖR PONTOSAN: alap-domborzat t=0-ban, kráterek és deep-time erózió
 /// NÉLKÜL, MINDKÉT oldalon float64-gyel. Tehát NEM tartalmazza a shader
