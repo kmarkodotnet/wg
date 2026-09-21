@@ -2875,8 +2875,13 @@ namespace WorldGen.Viewer
                     sourcesForRefinement.Add(r.Source);
                 double stepMeters = riverRefinementStepMeters;
                 double seaLevelForRefinement = precipField.SeaLevel;
+                // #5 (2026-09-21): a PARHUZAMOS valtozat - BITRE azonos
+                // kimenet, merve 3,7-5,2x gyorsabb (ParallelRiverNetworkTests).
+                // EZ oldotta fel a forrasszam-korlatot: a szekvencialis ut
+                // ~0,8 s/folyo volt, amiert a DefaultSourceTopK 12-n allt, es
+                // ebbol kovetkezett a "ritkak a folyok" visszajelzes.
                 _riverRefinementTask = System.Threading.Tasks.Task.Run(() =>
-                    RiverPathTracing.BuildContinuousRiverNetworkFromSources(
+                    RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
                         seed, seeds, seaLevelForRefinement, sourcesForRefinement,
                         RiverPathTracing.DefaultFineDepth, stepMeters));
                 // A hivo (LateUpdate -> TryApplyCompletedRiverRefinement) a

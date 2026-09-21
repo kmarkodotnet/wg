@@ -5250,6 +5250,62 @@ Ehhez jön a fizikai lemez-olvasás és a valós újraszámolásos validáció
 **Verziózás:** nem seed-törő — a gyorsítótár származtatott adat, a világmodell
 nem függ tőle.
 
+### ND-124 — A folyó-forrás kiválasztás sűrítése egy vízgyűjtőn belül (NYITOTT)
+
+**2026-09-21.** A #5 visszajelzés: „nincs tree alakzat, nagyon tirkák a
+folyók, sosem ér bele egyik a másikba… az egész bolygón ritkák a folyók."
+
+**Amit a vizsgálat kimutatott.** A dendritikus összefolyás **támogatott** és
+működik (`claimed` térkép, `MergedIntoRiverIndex`,
+`ComputeDischargeWeights`). A hiba nem ott volt, hanem a forrásszámban:
+`DefaultSourceTopK = 12`. És ez sem hidrológiai döntés volt, hanem
+**költség-korlát** — a folytonos nyomvonal-követő ~0,8 s/folyó, és
+*szekvenciálisan* futott a megosztott `claimed` térkép miatt.
+
+**A költség-korlát feloldva.** A `claimed` térkép a követésben KIZÁRÓLAG a
+megállást befolyásolja, a lépésirányt nem — tehát a folyók egymástól
+függetlenül, párhuzamosan követhetők, majd forrás-sorrendben csonkolhatók.
+`BuildContinuousRiverNetworkFromSourcesParallel`: **bitre azonos** kimenet
+(a pontok, a megállási ok és a teljes vízhozam-fa is), mérve **3,7–5,2×**
+gyorsabb. `DefaultSourceTopK` 12 → **48** (kb. 7–8 s háttérszálon).
+
+**Ami ezzel MEGOLDÓDOTT:** a folyók sűrűsége (4× több), és van
+fa-szerkezet: 12 forrás → **1** összefolyás, 48 forrás → **15**.
+
+**Ami NEM oldódott meg, és ez a nyitott kérdés.** A fa **sekély**: 40
+forrásnál a legnagyobb vízhozam-súly **2** — vagyis tipikusan egy
+mellékfolyó, nem egy többszintű hálózat. Az ok a forrás-KIVÁLASZTÁS: a
+globális „legcsapadékosabb top-K" a legnedvesebb hegyvidékek **között**
+szórja szét a forrásokat, nem **egy vízgyűjtőn belül** sűríti őket. Egy
+valódi dendritikus fához ez utóbbi kell.
+
+**Opciók.**
+
+- **(A) Vízgyűjtő-alapú kvóta.** A `FlowNetwork` már számol vízgyűjtőket
+  (`FindWatershedRegions`) és folyás-szülőt (`ParentIndex`). Válasszunk a
+  legnagyobb N vízgyűjtőt, és mindegyiken belül K forrást — így a forrásokat
+  garantáltan közös torkolat felé tartó ágakra tesszük. Ez adja a
+  legmélyebb fát a legkevesebb folyóval.
+- **(B) Egyszerűen még több globális forrás** (pl. 200). A sűrűség nő, a fa
+  mélysége viszont csak lassan — és a költség lineárisan (kb. 30 s
+  háttérszálon).
+- **(C) A hálózat topológiája a flow-networkből**, a folytonos követő csak
+  simításra. A fa így **konstrukció szerint** helyes (minden tile egyetlen
+  szülőhöz folyik), és a vízhozam a flow-akkumulációból jön. Ez a
+  legerősebb, de a legnagyobb átalakítás — és a régi, tile-középpontos út
+  épp a blokkosság miatt lett leváltva, tehát a simítást gondosan kell
+  megtartani.
+
+**Javaslat: (A).** A meglévő vízgyűjtő-szegmentálásra épül, nem igényel új
+algoritmust, és pontosan azt célozza, ami hiányzik (egy medencén belüli
+sűrűség). (C) a hosszú távú helyes válasz, de csak akkor érdemes
+belevágni, ha (A) mérése szerint a fa még mindig sekély.
+
+**Verziózás:** nem seed-törő. A forrás-kiválasztás megjelenítési/forrás-
+választási réteg (a hívás feletti komment szerint „vizuális/forrás-
+kiválasztási réteg, nem a világmodell része"), és a `topK` emelése a
+meglévő sorrend első 48 elemét veszi — a korábbi 12 részhalmaza.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

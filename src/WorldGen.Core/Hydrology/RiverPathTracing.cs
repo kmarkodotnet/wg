@@ -49,7 +49,30 @@ namespace WorldGen.Core.Hydrology
     public static class RiverPathTracing
     {
         public const int DefaultFineDepth = 4;
-        public const int DefaultSourceTopK = 12;
+        /// <summary>
+        /// A folyo-forrasok szama. 12 -> 48 (2026-09-21, #5).
+        ///
+        /// A 12-es ertek NEM hidrologiai dontes volt, hanem KOLTSEG-korlat: a
+        /// folytonos nyomvonal-koveto ~0,8 s/folyo, es szekvencialisan futott
+        /// (a megosztott `claimed` terkep miatt), tehat 12 folyo 6-10 masodperc.
+        /// Ebbol kovetkezett a felhasznaloi visszajelzes: "ritkak a folyok" es
+        /// "nincs tree alakzat, sosem er bele egyik a masikba" - 12 egymastol
+        /// tavoli forras nyomvonalai gyakorlatilag soha nem talalkoznak.
+        ///
+        /// A <see cref="BuildContinuousRiverNetworkFromSourcesParallel"/> ezt a
+        /// korlatot feloldotta (BITRE azonos kimenet, merve 3,7-5,2x). MERT
+        /// koltseg 48 forrasnal: kb. 7-8 s HATTERSZALON (a Buildet nem
+        /// blokkolja), a szekvencialis ~35 s helyett.
+        ///
+        /// MERT HATAS (ParallelRiverNetworkTests): 12 forras -> 1 osszefolyas,
+        /// 48 forras -> 15. A halozat tehat SURUBB es van benne fa-szerkezet,
+        /// DE meg mindig SEKELY (a legnagyobb vizhozam-suly 40 forrasnal is
+        /// csak 2). Ennek oka a forras-KIVALASZTAS: a globalis "legcsapadekosabb
+        /// top-K" a legnedvesebb hegyvidekek kozott szetszorja a forrasokat,
+        /// nem egy vizgyujton belul suriti oket - egy valodi dendritikus fahoz
+        /// az kell. Ez kulon lepes, ld. ND-124.
+        /// </summary>
+        public const int DefaultSourceTopK = 48;
         public const double DefaultMinElevAboveSeaM = 300.0;
         public const double DefaultPrecipPercentile = 0.80;
         public const int DefaultMaxSteps = 2000;
@@ -360,6 +383,25 @@ namespace WorldGen.Core.Hydrology
             /// összefolyás-struktúrából jön, nem dekoratív becslés).
             /// </summary>
             public int MergedIntoRiverIndex = -1;
+
+            /// <summary>
+            /// Azok a <see cref="Points"/>-indexek, amelyeken a
+            /// nyomvonal-követés a `claimed` összefolyás-ellenőrzést
+            /// ELVÉGZI - vagyis a követő-ciklus iterációinak teteje.
+            ///
+            /// MIÉRT KELL EZ KÜLÖN LISTA. A pit-escape útvonal EGYSZERRE
+            /// több pontot fűz a `Points`-hoz, és azokat a követés NEM
+            /// ellenőrzi összefolyásra - csak a következő iteráció tetején
+            /// lévő pontot. A `Points` indexei tehát önmagukban NEM
+            /// mondják meg, hol történt ellenőrzés. Ezt a
+            /// <see cref="BuildContinuousRiverNetworkFromSourcesParallel"/>
+            /// használja: az első, `claimed` NÉLKÜL felvett nyomvonalat
+            /// utólag PONTOSAN ott vágja el, ahol a szekvenciális követés is
+            /// elvágta volna - enélkül SZIGORÚBB lenne (az escape-útvonal
+            /// belső pontjain is összefolyást találna), és más folyóhálózatot
+            /// adna.
+            /// </summary>
+            public List<int> ClaimCheckIndices = new List<int>();
         }
 
         /// <summary>
@@ -525,6 +567,12 @@ namespace WorldGen.Core.Hydrology
 
             for (long step = 0; step < maxSteps; step++)
             {
+                // A ciklus teteje: EZ az a pozicio, amit a `claimed`
+                // ellenorzes lat (ld. ClaimCheckIndices doksija). A
+                // rogzites a tengerszint-ellenorzes ELOTT tortenik, hogy az
+                // "Ocean"-nal zarult nyomvonalnal is teljes legyen a lista.
+                result.ClaimCheckIndices.Add(result.Points.Count - 1);
+
                 if (elev < seaLevel)
                 {
                     result.Termination = TerminationReason.Ocean;
@@ -727,6 +775,123 @@ namespace WorldGen.Core.Hydrology
                     stepMeters, sensingRadiusMeters, ringDirections, escapeCellMeters, escapeNodeBudget, maxSteps);
 
                 int fineLevel = sources[i].Level + fineDepth;
+                foreach ((double X, double Y, double Z) p in river.Points)
+                {
+                    TileId t = TileGeometry.FromPosition(p.X, p.Y, p.Z, fineLevel);
+                    if (!claimed.ContainsKey(t)) claimed[t] = new ClaimedTileInfo(i, p);
+                }
+                rivers.Add(river);
+            }
+            return rivers;
+        }
+
+        /// <summary>
+        /// A <see cref="BuildContinuousRiverNetworkFromSources"/> PÁRHUZAMOS
+        /// változata, BITRE AZONOS kimenettel.
+        ///
+        /// MIÉRT LEHETSÉGES. A `claimed` térkép a nyomvonal-követésben
+        /// KIZÁRÓLAG a MEGÁLLÁST befolyásolja (ld.
+        /// <see cref="TraceRiverPathContinuous"/> "Merged" ága): a lépésirányt
+        /// sosem. Egy folyó útvonala tehát a saját forrásából, a domborzatból
+        /// és a tengerszintből egyértelműen következik - a többi folyótól
+        /// FÜGGETLENÜL. Ezért:
+        ///
+        ///   1. minden folyót PÁRHUZAMOSAN, `claimed` NÉLKÜL végigkövetünk;
+        ///   2. majd FORRÁS-SORRENDBEN (növekvő index) végigmegyünk rajtuk, és
+        ///      mindegyiket az első olyan pontnál elvágjuk, ahol egy KISEBB
+        ///      indexű folyó már lefoglalta a finom tile-t - ugyanazt a pontot
+        ///      és ugyanazt a `MergedIntoRiverIndex`-et adva, mint a
+        ///      szekvenciális változat.
+        ///
+        /// A 2. fázis szigorúan sorrendben fut, tehát a lefoglalási sorrend -
+        /// és így a teljes dendritikus fa - VÁLTOZATLAN. Az 1. fázisban a
+        /// nyomvonal a beolvadási ponton TÚL is folytatódik; azokat a pontokat
+        /// a csonkolás eldobja, mielőtt bármit lefoglalnának.
+        ///
+        /// MIÉRT KELL. A szekvenciális változat 12 folyóra 6-10 másodperc, és
+        /// EZ tartotta a forrásszámot (`DefaultSourceTopK`) 12-n - amiből a
+        /// felhasználói visszajelzés szerint "ritkák a folyók" és "nincs tree
+        /// alakzat, sosem ér bele egyik a másikba" következett: 12 egymástól
+        /// távoli forrás nyomvonalai gyakorlatilag soha nem találkoznak.
+        /// </summary>
+        public static List<ContinuousRiverPath> BuildContinuousRiverNetworkFromSourcesParallel(
+            ulong worldSeed, (double X, double Y, double Z)[] seeds, double seaLevel,
+            IReadOnlyList<TileId> sources, int fineDepth,
+            double stepMeters = DefaultContinuousStepMeters,
+            double sensingRadiusMeters = DefaultContinuousSensingRadiusMeters,
+            int ringDirections = DefaultContinuousRingDirections,
+            double escapeCellMeters = DefaultContinuousEscapeCellMeters,
+            int escapeNodeBudget = DefaultContinuousEscapeNodeBudget,
+            long maxSteps = DefaultContinuousMaxSteps,
+            System.Threading.CancellationToken cancellation = default)
+        {
+            if (sources == null) throw new ArgumentNullException(nameof(sources));
+
+            // 1. FÁZIS: minden folyó ÖNÁLLÓAN, `claimed` nélkül. Tiszta
+            // függvények, megosztott állapot nélkül - a sorrend nem számít.
+            var traced = new ContinuousRiverPath[sources.Count];
+            System.Threading.Tasks.Parallel.For(0, sources.Count, i =>
+            {
+                cancellation.ThrowIfCancellationRequested();
+                // URES `claimed`: a kovetes ilyenkor sosem all meg
+                // "Merged"-kent, tehat a teljes nyomvonalat megkapjuk. (A
+                // parameter nem nullable, es a nyomvonal-koveto CSAK OLVASSA
+                // ezt a szotarat - a lefoglalas a 2. fazisban tortenik.)
+                traced[i] = TraceRiverPathContinuous(
+                    worldSeed, seeds, seaLevel, sources[i], i, fineDepth,
+                    new Dictionary<TileId, ClaimedTileInfo>(),
+                    stepMeters, sensingRadiusMeters, ringDirections,
+                    escapeCellMeters, escapeNodeBudget, maxSteps);
+            });
+
+            // 2. FÁZIS: csonkolás FORRÁS-SORRENDBEN - ez reprodukálja a
+            // szekvenciális `claimed` szemantikát.
+            var claimed = new Dictionary<TileId, ClaimedTileInfo>();
+            var rivers = new List<ContinuousRiverPath>(sources.Count);
+            for (int i = 0; i < sources.Count; i++)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                ContinuousRiverPath full = traced[i];
+                int fineLevel = sources[i].Level + fineDepth;
+
+                var river = new ContinuousRiverPath { SourceIndex = i };
+                int mergeAt = -1;
+                ClaimedTileInfo mergeOwner = default;
+                // CSAK azokon a pontokon ellenorzunk, ahol a szekvencialis
+                // koveto is ellenorzott volna (ld. ClaimCheckIndices) - az
+                // elso (step == 0) kihagyva, ahogy ott is.
+                for (int c = 1; c < full.ClaimCheckIndices.Count; c++)
+                {
+                    int index = full.ClaimCheckIndices[c];
+                    if ((uint)index >= (uint)full.Points.Count) break;
+                    (double X, double Y, double Z) point = full.Points[index];
+                    TileId fineTile = TileGeometry.FromPosition(point.X, point.Y, point.Z, fineLevel);
+                    if (claimed.TryGetValue(fineTile, out ClaimedTileInfo owner))
+                    {
+                        mergeAt = index;
+                        mergeOwner = owner;
+                        break;
+                    }
+                }
+
+                if (mergeAt >= 0)
+                {
+                    // A szekvencialis ag a MAR FELVETT pontokat megtartja
+                    // (Points[0..mergeAt]), majd a befogado folyo TENYLEGES
+                    // pontjat fuzi a vegere - igy nem marad res a
+                    // talalkozasnal.
+                    for (int k = 0; k <= mergeAt; k++) river.Points.Add(full.Points[k]);
+                    river.Points.Add(mergeOwner.Position);
+                    river.MergedIntoRiverIndex = mergeOwner.RiverIndex;
+                    river.Termination = TerminationReason.Merged;
+                }
+                else
+                {
+                    river.Points.AddRange(full.Points);
+                    river.ClaimCheckIndices.AddRange(full.ClaimCheckIndices);
+                    river.Termination = full.Termination;
+                }
+
                 foreach ((double X, double Y, double Z) p in river.Points)
                 {
                     TileId t = TileGeometry.FromPosition(p.X, p.Y, p.Z, fineLevel);
