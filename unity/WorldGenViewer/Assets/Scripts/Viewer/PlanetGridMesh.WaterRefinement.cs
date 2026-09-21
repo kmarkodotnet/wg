@@ -90,7 +90,7 @@ namespace WorldGen.Viewer
 
         private void PrepareIndependentWaterRequest()
         {
-            bool enabled = !useGpuGeometry && _requestedProjectedView != null
+            bool enabled = _requestedProjectedView != null
                 && _waterLodSource?.BaseLevel == adaptiveBaseLevel && adaptiveMaxLevel >= adaptiveBaseLevel;
             // A terep-chunk cache-ben lévő régi víz-emisszió nem élheti túl a módváltást.
             if (enabled != _requestedIndependentWater) _previousChunkCache.Clear();

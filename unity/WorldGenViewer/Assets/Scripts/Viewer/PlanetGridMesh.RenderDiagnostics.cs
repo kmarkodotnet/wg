@@ -202,9 +202,9 @@ namespace WorldGen.Viewer
             _nextDrawnDiagnosticTime=Time.unscaledTime+2;
             Camera cam=GetAdaptiveCamera();
             if (cam==null) return;
-            if (!useAdaptiveLod || useGpuGeometry || cam.orthographic)
+            if (!useAdaptiveLod || cam.orthographic)
             {
-                PerfLog($"[ND-75 drawn] frame={Time.frameCount} status=unsupported adaptive={useAdaptiveLod} gpuGeometry={useGpuGeometry} orthographic={cam.orthographic}");
+                PerfLog($"[ND-75 drawn] frame={Time.frameCount} status=unsupported adaptive={useAdaptiveLod} orthographic={cam.orthographic}");
                 return;
             }
             var capture=Stopwatch.StartNew();

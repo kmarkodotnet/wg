@@ -26,7 +26,7 @@ modul vagy döntés hiányzik) · 👁 élő Unity Play kell hozzá.
 
 | # | Feladat | Mi a tényleges állapot (ellenőrizve) | Hivatkozás |
 |---|---|---|---|
-| A1 🔴 | **`useGpuGeometry` eleváció-eltérése** | **Valós, ma is aktiválható helyességi hiba.** Ellenőrizve: `Assets/Scripts/Viewer/Gpu/TileClassification.compute:536` továbbra is a saját `BaseElevationF`-jét használja, ami az ND-52 (másodlagos zaj) ELŐTTI Core-állapotot tükrözi. Az ND-120 csak a GPU-*osztályozó* utat törölte, a geometria-ágat nem. Bekapcsolva a tile-ok ~22%-a kerülne a tengerszint másik oldalára. A shaderhez óvatosan kell nyúlni (kétszer futott „Compiler timed out"-ba). Reális opció a shader-ág törlése is. | ND-120, ND-52 |
+| A1 ✅ | **~~`useGpuGeometry` eleváció-eltérése~~** | **KÉSZ (2026-09-21, ND-128): az út törölve.** A `TileClassification.compute` a Core-eleváció ÚJRAÍRT (HLSL) mása volt, az ND-52 és ND-90 előtti állapotban — mérve a tile-ok ~22%-a került volna a tengerszint másik oldalára. A törlés mellett döntött az is, hogy a GPU-ág élő mérésben LASSABB volt (~50 s/újraépítés, sarok-dedup nélkül), geomorphing nélkül futott, és öt másik utat (aszinkron újraépítés, szakaszolt upload, víz-finomítás, terep-LOD-proxy, ND-75 diagnosztika) `!useGpuGeometry` feltétellel béklyózott. Ráadásul a `RebuildAdaptiveMesh` CPU-ága ELÉRHETETLEN (halott) kód volt. −398 sor a viewerben, a `Gpu/` mappa megszűnt. | ND-128, ND-120 |
 | A2 🟠 | **Hidrológia tile-középpont terrain-bázisa (hideg Build)** | Ellenőrizve: `EnsureTileCenterTerrainBasisCache` (PlanetGridMesh.cs:5385) **csak memóriában** cache-el (seed+level kulccsal), míg a statikus sarok-bázis már a validált LEMEZ-cache-t kapta (ND-122, `TerrainBasisDiskCache`). Ezért a hideg Buildben a `hydrology(...) terrainBasis=` sor ~2,2 s marad. Ugyanaz az újraszámolásos validációs minta alkalmazható rá. | ND-122, ND-64 |
 | A3 🟠 | **Klíma-konstansok hangolása (ND-126b)** | Az ND-126 a szerkezeti hibát megoldotta (kétdimenziós biome-osztályozás). Ami MÉRT hiba maradt: (a) jég+tundra a szárazföld **40,7%-a** (Földön ~18%) — túl meredek sark–egyenlítő esés; (b) a termikus szél a sarkoknál **120–126 m/s** (Egyenlítőn 7,4) — ellenőrizve: `ThermalWind.cs:157` a `ThermalWindCoeff * gradiens` tagot **korlátozás nélkül** adja hozzá. A `DeterministicMath.Tanh` az ND-118 óta rendelkezésre áll, tehát a lefogás ma megírható. (c) A csapadék-percentilisek (20/45/75) aránya viszont vizuális ítélet → B4. | ND-126b, ND-41, ND-118 |
 | A4 🟠 | **Deep-time újraépítés: cél <1 s** | Jelenleg ~2,8 s meleg (22,57 s baseline-ról, 8,0×), hideg teljes Build 5271 ms. A maradék, mért tételek: statikus base-layer emit (ND-123 után párhuzamos, de a **bucketen BELÜLI, prefix-offsetes darabolás** még nincs meg — ez a `PlanetGridMesh.StaticEmit.cs` fejlécében kimondott következő lépés), klasszifikáció 418–669 ms, terrain mesh 97–309 ms. Ideiglenesen elfogadtad; a cél megmarad. | backlog M9/M10, ND-123 |
@@ -116,7 +116,8 @@ Ezek a `todo.md`-ből és a backlogból **kikerülnek**; a részletes indoklás 
 tile-méret-panasz mindkét ága lezárva) · ND-123 párhuzamos statikus emit
 ön-ellenőrzése EGYEZÉST adott (a kapcsoló kikapcsolva).
 
-**2026-09-21 — a mai fejlesztés:** ND-124 vízgyűjtő-alapú folyó-forrás (fa-alak:
+**2026-09-21 — a mai fejlesztés:** ND-128 a `useGpuGeometry` út törlése (az
+ND-120 másik fele; a GPU-oldali, újraírt világmodell-matek megszűnt) · ND-124 vízgyűjtő-alapú folyó-forrás (fa-alak:
 összefolyás 17% → 42%, max vízhozam-súly 2 → 6) · ND-125 1. rész: a
 lemez-overlay warpolatlan pozícióval rajzolt (javítva) · ND-126 kétdimenziós
 biome-osztályozás (az Egyenlítő sávjában 1 → 4 biome) · **ND-127 régió-összevonás**
@@ -149,8 +150,8 @@ kódja · M1–M5, M7, M10 alap, M8 numerikus rész.
 
 ## F. Sorrend-javaslat
 
-1. **A1** (`useGpuGeometry`) — ez helyességi hiba, nem teljesítmény, és a
-   kapcsoló bekapcsolásával ma is aktiválható.
+1. ~~**A1** (`useGpuGeometry`)~~ — **kész** (ND-128, 2026-09-21): az út
+   törölve, a helyességi kockázat megszűnt.
 2. **A3** (jég-túlsúly + sarki szél lefogása) — MÉRT hibák, a te ítéleted
    nélkül is javíthatók, és a B4 megítélését is megkönnyítik. Érdemes
    egyszerre a csapadék-percentilisekkel, különben kétszer kalibrálunk.

@@ -16,27 +16,26 @@ namespace WorldGen.Core.Tests.Tectonics;
 /// tagokat kivesszük — a két eredményt ugyanazzal a tengerszinttel
 /// osztályozzuk.
 ///
-/// ELŐZMÉNY ÉS AKTUÁLIS SZEREP. Ezek a számok döntötték el az ND-120-at: a
-/// `TileClassification.compute` `BaseElevationF`-je mindkét tagot NEM
-/// tartalmazta, és a mérés szerint a tile-ok ~22%-a került volna más oldalra
-/// a tengerszinthez képest. A GPU-KLASSZIFIKÁCIÓ útja ezért **2026-09-21-én
-/// törölve** lett. A teszt viszont MARAD, mert az állítása független attól,
-/// hogy van-e GPU-út: **ez a két tag nem elhanyagolható.**
+/// ELŐZMÉNY ÉS AKTUÁLIS SZEREP. Ezek a számok döntötték el az ND-120-at és az
+/// ND-128-at: a `TileClassification.compute` `BaseElevationF`-je mindkét
+/// tagot NEM tartalmazta, és a mérés szerint a tile-ok ~22%-a került volna
+/// más oldalra a tengerszinthez képest. Emiatt **2026-09-21-én a teljes
+/// GPU-út törölve lett** — előbb a klasszifikáció (ND-120), majd a geometria
+/// és maga a shader (ND-128). A teszt viszont MARAD, mert az állítása
+/// független attól, hogy van-e GPU-út: **ez a két tag nem elhanyagolható.**
 ///
-/// Két konkrét dolgot véd:
-///  - a `useGpuGeometry` út UGYANAZT a shadert (és ugyanazt az elavult
-///    `BaseElevationF`-et) használja, tehát a kockázat ott ÉL;
-///  - ha valaki bármikor „egyszerűsített" eleváció-közelítést vezetne be
-///    (GPU-n, előre számolt textúrában, LOD-proxyban), ez megmondja, mit
-///    veszít vele.
+/// Amit innentől véd: ha valaki bármikor „egyszerűsített" eleváció-közelítést
+/// vezetne be (új GPU-út, előre számolt textúra, LOD-proxy, mentett cache),
+/// ez megmondja, mit veszít vele — a tile-ok ~22%-át a tengerszint rossz
+/// oldalán. Ugyanez a kapu egy jövőbeli, ELLENŐRZÖTT GPU-út belépési
+/// feltétele is.
 ///
 /// A küszöbök szándékosan LAZÁK (nagyságrendet rögzítenek, nem pontos
 /// darabszámot), hogy a jövőbeli hangolások ne törjék el őket.
 ///
 /// A HATÓKÖR PONTOSAN: alap-domborzat t=0-ban, kráterek és deep-time erózió
-/// NÉLKÜL, MINDKÉT oldalon float64-gyel. Tehát NEM tartalmazza a shader
-/// float32-es pontosságvesztését és semmilyen egyéb shader-elcsúszást — a
-/// mért érték ALSÓ KORLÁT a tényleges GPU/CPU eltérésre.
+/// NÉLKÜL, MINDKÉT oldalon float64-gyel. Tehát NEM tartalmazza egy float32-es
+/// közelítés pontosságvesztését — a mért érték ALSÓ KORLÁT.
 /// </summary>
 public class GpuShaderElevationParityTests
 {

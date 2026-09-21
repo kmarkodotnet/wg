@@ -565,9 +565,7 @@ namespace WorldGen.Viewer
                  "BuildCut TISZTA fuggveny (nulla megosztott allapot/Unity-API), " +
                  "ezert ez biztonsagos. Single-flight + try/catch fallback: " +
                  "barmilyen hiba eseten a kovetkezo kor a REGI szinkron uton fut. " +
-                 "GPU-geometria (useGpuGeometry) mellett KIKAPCSOL (az GPU-dispatch " +
-                 "fo szalat igenyel). Ha gyanus viselkedes, kapcsold KI a regi, " +
-                 "szinkron viselkedeshez.")]
+                 "Ha gyanus viselkedes, kapcsold KI a regi, szinkron viselkedeshez.")]
         private bool useAsyncMeshRebuild = true;
 
         // FAZIS 3: a folyamatban levo async BuildCut+emit task (single-flight) es
@@ -695,42 +693,6 @@ namespace WorldGen.Viewer
                  "amortizacio/Job-System aszinkron epites halasztott munka, ld. " +
                  "docs/04-decisions.md ND-40).")]
         private double adaptiveRebuildWarningMs = 50.0;
-
-        [Header("GPU-alapú tile-klasszifikáció (kísérleti)")]
-        [SerializeField]
-        [Tooltip("A TileClassification.compute shader asset - a useGpuGeometry úthoz " +
-                 "kötelező (üresen hagyva az a GPU-út is kikapcsolt módra esik vissza). " +
-                 "FIGYELEM (ND-120, 2026-09-21): ez a shader UGYANAZT az elavult " +
-                 "BaseElevationF-et használja, amiből a TÖRÖLT GPU-klasszifikáció is " +
-                 "dolgozott - hiányzik belőle az ND-52 másodlagos zaj és az ND-90 " +
-                 "határkeverés. Offline mérve (GpuShaderElevationParityTests) a tile-ok " +
-                 "~22%-a kerülne más oldalra a tengerszinthez képest, ~24%-a más biome-ot " +
-                 "kapna. A useGpuGeometry bekapcsolása tehát UGYANEZT a kockázatot " +
-                 "hordozza - előbb a shadert kell felzárkóztatni.")]
-        private ComputeShader tileClassificationCompute;
-
-        [SerializeField]
-        [Tooltip("M13 Fazis 3: a dinamikus reteg NEGYSZOG-GEOMETRIAJAT (sarok-" +
-                 "pozicio + folytonos szin) is GPU-n szamolja (CSGenerateTerrainGeometry, " +
-                 "ugyanabban a tileClassificationCompute assetben), nem csak a " +
-                 "klasszifikaciot. Az eredmeny VISSZAOLVASODIK es a MEGLEVO Mesh-epito " +
-                 "csovezetekbe toltodik (NEM zero-masolasos DrawProceduralIndirect - " +
-                 "az kulon, elo Unity-tesztelest igenylo kovetkezo lepes lenne). " +
-                 "ISMERT KORLATOZAS 1: a geomorphing (LOD-valtasnal a fokozatos atmenet) " +
-                 "GPU-agon MEG NINCS portolva - bekapcsolva apro 'pattanas' lathato " +
-                 "lehet finomodaskor. ISMERT KORLATOZAS 2 (SULYOS, 2026-09-02-i eles " +
-                 "teszt: ~50s/ujraepites): a GPU kernel MINDEN egyes tile-hoz KULON " +
-                 "szamolja mind a 4 sarkat + a kozeppontot (5x a teljes fraktal-zaj-" +
-                 "lancot tile-onkent), a CPU-s EmitAdaptiveTile-lal ellentetben, ami a " +
-                 "_persistentCornerColorCache-en keresztul a SZOMSZEDOS tile-ok kozott " +
-                 "MEGOSZTOTT sarkakat csak EGYSZER szamolja - a GPU-agnak nincs ilyen " +
-                 "sarok-dedup ja, tehat egy belso sarkot akar 4x is ujraszamol. Emiatt a " +
-                 "GPU-ag jelenleg LASSABB, mint a CPU-s ag, nagy (targetTilePixelSize<~48) " +
-                 "finomodasnal. Rendes javitashoz sarok-szintu (nem tile-szintu) dispatch " +
-                 "kellene. Alapbol KIKAPCSOLVA, amig ez nincs megoldva.")]
-        private bool useGpuGeometry = false;
-
-        private WorldGen.Viewer.Gpu.GpuTerrainGeometryGenerator _gpuGeometryGenerator;
 
         private HashSet<TileId> _currentCut;
 
@@ -1256,7 +1218,7 @@ namespace WorldGen.Viewer
                 System.IO.File.AppendAllText(path,
                     $"=== PlanetGridMesh perf log started {DateTime.Now:O} ===\n" +
                     $"adaptiveBaseLevel={adaptiveBaseLevel} adaptiveMaxLevel={adaptiveMaxLevel} " +
-                    $"targetTilePixelSize={targetTilePixelSize} initialRefinementPixelSize={initialRefinementPixelSize} useGpuGeometry={useGpuGeometry} " +
+                    $"targetTilePixelSize={targetTilePixelSize} initialRefinementPixelSize={initialRefinementPixelSize} " +
                     $"radius={radius}\n");
                 _perfLogPath = path; // CSAK sikeres init utan
             }
@@ -3282,7 +3244,7 @@ namespace WorldGen.Viewer
             => (int)category * OceanRockBucketCount + bucket;
 
         private TerrainLodProxy? DesiredTerrainLodProxy()
-            => useTerrainLodProxy && !useGpuGeometry && adaptiveMaxLevel >= adaptiveBaseLevel
+            => useTerrainLodProxy && adaptiveMaxLevel >= adaptiveBaseLevel
                 && _terrainLodProxy?.BaseLevel == adaptiveBaseLevel ? _terrainLodProxy : null;
 
         /// <summary>
@@ -3349,7 +3311,7 @@ namespace WorldGen.Viewer
             _currentTargetAngularRadiusRadians = targetAngularRadiusRadians;
             double initialAngularRadius = AdaptiveViewState.AngularRadiusForPixelDiameter(
                 initialRefinementPixelSize, verticalFovRad, (int)screenHeightPixels);
-            double baseSplitScale = useGpuGeometry ? 1 : AdaptiveViewState.EarlierBaseSplitScale(
+            double baseSplitScale = AdaptiveViewState.EarlierBaseSplitScale(
                 targetAngularRadiusRadians, mergeAngularRadiusRadians, initialAngularRadius);
             _currentBaseTargetAngularRadiusRadians = targetAngularRadiusRadians * baseSplitScale;
             _currentGeomorphRangeFraction = geomorphRangeFraction;
@@ -3405,7 +3367,7 @@ namespace WorldGen.Viewer
             // a fo szal a _currentCut-ot csak az ALKALMAZASKOR - TryApplyCompletedAsyncCut,
             // Update - irja, amikor mar nem fut task). Az alkalmazas (a mesh-upldoad,
             // Unity-API) az Update()-ben, a fo szalon tortenik.
-            if (useAsyncMeshRebuild && !useGpuGeometry && !_asyncMeshRebuildDisabledAfterError)
+            if (useAsyncMeshRebuild && !_asyncMeshRebuildDisabledAfterError)
             {
                 // FAZIS 3: a TELJES nehez munka (BuildCut + a geometria-emit) a
                 // WORKER szalon fut; a fo szalon csak a mesh-feltoltes marad
@@ -4134,205 +4096,23 @@ namespace WorldGen.Viewer
 
         /// <summary>
         /// A jelenlegi `_currentCut` (valtozo-szintu aktiv level-ek) mesh-be
-        /// epitese - ugyanazokat a megjelenitesi segedfuggvenyeket hasznalja,
-        /// mint a fix-szintu Build() (BuildMultiMaterialMesh/BuildBorders/
-        /// BuildWaterSurface/BuildCraterMarkers), csak a bemeneti tile-halmaz
-        /// valtozo szintu es a per-tile adatok (eleváció/biome/ocean) PONTSZERUEN,
-        /// az adott level-en szamolodnak (ld. EmitAdaptiveTile), nem egy elore
-        /// kiszamolt, egyetlen-szintu dictionary-bol.
+        /// epitese. ND-128 (2026-09-21) ota EGYETLEN ut van: a CPU-emit
+        /// (`ComputeAdaptiveMeshBuffersCpu`) - ugyanaz, amit az aszinkron ag
+        /// is futtat worker szalon, tehat a ket ut azonos fedest/varratot ad
+        /// (ND-70). A korabbi GPU-geometria ag torolve: merve LASSABB volt
+        /// (sarok-dedup nelkul tile-onkent 5x szamolta a zaj-lancot),
+        /// geomorphing nelkul futott, es az elavult shader-elevacio miatt a
+        /// tile-ok ~22%-at a tengerszint MASIK oldalara tette volna.
+        /// A metodus itteni, kulon CPU-aga IS torolve lett: elerhetetlen
+        /// (halott) kod volt, mert a GPU-kapcsolo nelkul a fenti hivas mar
+        /// visszatert. Ld. docs/04-decisions.md ND-128 es ND-120.
         /// </summary>
         private void RebuildAdaptiveMesh()
         {
             if (_currentCut == null)
                 return;
 
-            // ND-70: szinkron és async CPU-út ugyanazt a fedést/varratot állítja elő.
-            if (!useGpuGeometry || tileClassificationCompute == null)
-            {
-                ApplyAdaptiveMeshBuffers(ComputeAdaptiveMeshBuffersCpu(_currentCut));
-                return;
-            }
-            ApplyTerrainCoverage(Array.Empty<TileId>());
-            ResetIndependentWaterRendering();
-            ClearAllDynamicChunks();
-
-            // GPU-CALC / teljesitmeny: a DRAGA per-tile Core-kiertekeleseket
-            // (klasszifikacio: eleváció+homerseklet+biome; sarkak: eleváció a
-            // sarokpontokban) TOBB SZALON, elore kiszamoljuk es a cache-be
-            // toltjuk - a WorldGen.Core lanc igazoltan tiszta fuggvenyekbol
-            // all (nincs megosztott mutable allapot, nincs heap-allokacio
-            // hivasonkent), tehat Parallel.For-ral biztonsagosan
-            // parhuzamosithato. A CACHE-BE IRAS maga NEM parhuzamos (a
-            // Dictionary/LinkedList LRU nem szalbiztos) - ezert ket fazisu:
-            // (1) parhuzamosan szamoljuk a hianyzo ertekeket kulon
-            // tombbe, (2) egyszalon irjuk be a cache-be. Az ezutani
-            // EmitAdaptiveTile-hivasok mar csupa cache-talalatot csak
-            // olvasnak, tehat gyorsak maradnak.
-            // INKREMENTALIS RETEG-SZETVALASZTAS (ld. BuildStaticBaseLayer):
-            // a base-level (<=adaptiveBaseLevel) tile-ok MAR a statikus
-            // reteg reszei (egyszer epulnek fel, sosem erintve tobbet) -
-            // ez a DINAMIKUS ujraepites CSAK a ténylegesen finomitott
-            // (level > adaptiveBaseLevel) leveleket dolgozza fel, tehat a
-            // koltsege FUGGETLEN adaptiveBaseLevel nagysagatol (pl. 8-nal
-            // 393216 helyett csak a nehany ezres, kamera koruli finomitott
-            // reszt kell ujraepiteni minden mozgasnal).
-            // FELHASZNALOI KERES (2026-09-02): az oceani (viz alatti) teruletek
-            // NE finomodjanak a dinamikus retegben - a tengerfenek ugyis nagyreszt
-            // takarva van a kulon VIZ-feluletrel (DynamicWater/WaterSurface), tehat
-            // a finom domborzat ott vizualisan alig latszik, viszont ugyanannyi
-            // draga korrekcio+sarok+szin-szamitast igenyelne, mint a szarazfoldi
-            // teruletek. OLCSO ellenorzes: a BuildStaticBaseLayer() MAR
-            // leklasszifikalta MINDEN base-szintu tile-t (a cache-mininum ezt a
-            // labnyomot garantaltan sose engedi kilakoltatni), tehat a tile
-            // base-szintu OSENEK cache-elt IsOceanic-jat egy egyszeru, uj
-            // szamitas nelkuli TryGetValue-val megnezhetjuk, MIELOTT barmilyen
-            // draga munkat (korrekcio a kvadfaban mar megtortent, de a sarok/
-            // szin-szamitas meg nem) elvegeznenk ra.
-            var dynamicLeavesStopwatch = Stopwatch.StartNew();
-            var dynamicLeaves = new List<TileId>();
-            int skippedOceanicCount = 0;
-            foreach (TileId t in _currentCut)
-            {
-                if (t.Level <= adaptiveBaseLevel)
-                    continue;
-                if (IsBaseAncestorOceanic(t))
-                {
-                    skippedOceanicCount++;
-                    continue;
-                }
-                dynamicLeaves.Add(t);
-            }
-
-            TileId[] leaves = dynamicLeaves.ToArray();
-            dynamicLeavesStopwatch.Stop();
-
-            // Ideiglenes teljesitmeny-diagnosztika (2026-09-02) - szint-
-            // eloszlas a naplohoz (melyik szinteken van a legtobb dinamikus
-            // tile - ez kozvetlenul jelzi, mennyire "mely" a finomodas).
-            var levelHistogram = new SortedDictionary<int, int>();
-            foreach (TileId t in leaves)
-            {
-                levelHistogram.TryGetValue(t.Level, out int c);
-                levelHistogram[t.Level] = c + 1;
-            }
-
-            var verticesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
-            var normalsByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
-            var trianglesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<int>>();
-            var colorsByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Color>>();
-            var waterVerticesByBucket = new Dictionary<int, List<Vector3>>();
-            var waterNormalsByBucket = new Dictionary<int, List<Vector3>>();
-            var waterTrianglesByBucket = new Dictionary<int, List<int>>();
-            var waterColorsByBucket = new Dictionary<int, List<Color>>();
-            var borderVerts = new List<Vector3>();
-            var borderIndices = new List<int>();
-            float waterSurfaceRadius = radius + (float)(_adaptiveSeaLevel * elevationScale);
-
-            var gpuEmitStopwatch = Stopwatch.StartNew();
-            ClassificationDiag classDiag = default;
-            var classStopwatch = Stopwatch.StartNew();
-            (int NeededCount, int MissingCount) cornerDiag = default;
-            var cornerStopwatch = Stopwatch.StartNew();
-            var emitLoopStopwatch = Stopwatch.StartNew();
-            gpuEmitStopwatch.Stop(); classStopwatch.Stop(); cornerStopwatch.Stop(); emitLoopStopwatch.Stop();
-            bool tookGpuPath = useGpuGeometry && tileClassificationCompute != null;
-
-            if (tookGpuPath)
-            {
-                // M13 Fazis 3: a DRAGA per-tile lancot (fraktal-zaj+homerseklet+
-                // folytonos szin) egyetlen GPU dispatch-csel, az OSSZES dynamicLeaves
-                // tile-ra egyszerre szamoljuk - nincs geomorphing ezen az agon
-                // (ld. useGpuGeometry Inspector-doksija), a CPU-s klasszifikacio-/
-                // sarok-cache-t sem hasznalja/tolti (nem kell neki).
-                gpuEmitStopwatch = Stopwatch.StartNew();
-                EmitAdaptiveTilesGpu(
-                    leaves, verticesByKey, normalsByKey, trianglesByKey, colorsByKey,
-                    waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, waterColorsByBucket,
-                    borderVerts, borderIndices, waterSurfaceRadius);
-                gpuEmitStopwatch.Stop();
-            }
-            else
-            {
-                // GPU-CALC / teljesitmeny: a DRAGA per-tile Core-kiertekeleseket
-                // (klasszifikacio: eleváció+homerseklet+biome; sarkak: eleváció a
-                // sarokpontokban) TOBB SZALON, elore kiszamoljuk es a cache-be
-                // toltjuk - a WorldGen.Core lanc igazoltan tiszta fuggvenyekbol
-                // all (nincs megosztott mutable allapot, nincs heap-allokacio
-                // hivasonkent), tehat Parallel.For-ral biztonsagosan
-                // parhuzamosithato. A CACHE-BE IRAS maga NEM parhuzamos (a
-                // Dictionary/LinkedList LRU nem szalbiztos) - ezert ket fazisu:
-                // (1) parhuzamosan szamoljuk a hianyzo ertekeket kulon
-                // tombbe, (2) egyszalon irjuk be a cache-be. Az ezutani
-                // EmitAdaptiveTile-hivasok mar csupa cache-talalatot csak
-                // olvasnak, tehat gyorsak maradnak.
-                classStopwatch = Stopwatch.StartNew();
-                classDiag = PrecomputeClassificationsInParallel(leaves, forceCpu: true);
-                classStopwatch.Stop();
-
-                cornerStopwatch = Stopwatch.StartNew();
-                cornerDiag = PrecomputeCornersInParallel(leaves);
-                cornerStopwatch.Stop();
-
-                emitLoopStopwatch = Stopwatch.StartNew();
-                foreach (TileId leaf in leaves)
-                {
-                    EmitAdaptiveTile(
-                        leaf, verticesByKey, normalsByKey, trianglesByKey, colorsByKey,
-                        waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, waterColorsByBucket,
-                        borderVerts, borderIndices, waterSurfaceRadius, dynamicLayerRadialBias);
-                }
-                emitLoopStopwatch.Stop();
-            }
-
-            // A dinamikus (finomitott) reteg KULON GameObject-eken el, hogy
-            // ne irja felul a statikus alap-reteget (`this.gameObject` +
-            // "WaterSurface"/"Borders") - ld. BuildStaticBaseLayer.
-            var meshBuildStopwatch = Stopwatch.StartNew();
-            GameObject dynamicTerrainGo = GetOrCreateChildRenderTarget("DynamicRefined");
-            BuildMultiMaterialMesh(verticesByKey, normalsByKey, trianglesByKey, colorsByKey, dynamicTerrainGo);
-            meshBuildStopwatch.Stop();
-
-            var bordersStopwatch = Stopwatch.StartNew();
-            BuildBorders(borderVerts, borderIndices, "DynamicBorders");
-            bordersStopwatch.Stop();
-            // MEGJEGYZES: BuildCraterMarkers() SZANDEKOSAN NINCS itt - a
-            // krater-markerek GameObject.CreatePrimitive()-mel dolgoznak,
-            // ami Unity-ben soronkent DRAGA (nem csak egy Mesh-adat-frissites).
-            // A krater-lista (_adaptiveCraters) a kamera-kivaltotta adaptiv
-            // ujraepitesek kozott NEM valtozik (csak a Build() valtoztatja,
-            // ott mar meghivodik lent) - ide betenni azt jelentette, hogy
-            // MOZGAS KOZBEN, masodpercenkent akar 10-szer ujra le- es
-            // felepitette az OSSZES kratert, ami a felhasznalo altal eszlelt
-            // "teljesen halott" egerkezeles fo oka volt.
-            var waterStopwatch = Stopwatch.StartNew();
-            BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, waterColorsByBucket, "DynamicWater");
-            waterStopwatch.Stop();
-
-            int cornerCacheBefore = _persistentCornerCache.Count;
-            int classCacheBefore = _tileClassificationCache.Count;
-            var evictCornerStopwatch = Stopwatch.StartNew();
-            EvictCornerCacheIfNeeded();
-            evictCornerStopwatch.Stop();
-            var evictClassStopwatch = Stopwatch.StartNew();
-            EvictTileClassificationCacheIfNeeded();
-            evictClassStopwatch.Stop();
-
-            string levelHistogramText = string.Join(", ", System.Linq.Enumerable.Select(levelHistogram, kv => $"L{kv.Key}={kv.Value}"));
-            PerfLog(
-                $"[{DateTime.Now:HH:mm:ss.fff}] RebuildAdaptiveMesh: dynamicLeaves={leaves.Length} " +
-                $"(gyujtes {dynamicLeavesStopwatch.Elapsed.TotalMilliseconds:F2}ms, kihagyott oceani={skippedOceanicCount}) gpuPath={tookGpuPath} | " +
-                $"szint-eloszlas: {levelHistogramText} | " +
-                $"classification: {classStopwatch.Elapsed.TotalMilliseconds:F2}ms " +
-                $"(missing={classDiag.MissingCount}, usedGpu={classDiag.UsedGpu}, gpuDispatch={classDiag.GpuDispatchMs:F2}ms, " +
-                $"cpuTempLoop={classDiag.CpuTemperatureLoopMs:F2}ms) | " +
-                $"corners: {cornerStopwatch.Elapsed.TotalMilliseconds:F2}ms (needed={cornerDiag.NeededCount}, missing={cornerDiag.MissingCount}) | " +
-                $"emitLoop={emitLoopStopwatch.Elapsed.TotalMilliseconds:F2}ms | " +
-                $"gpuEmit={gpuEmitStopwatch.Elapsed.TotalMilliseconds:F2}ms | " +
-                $"meshBuild={meshBuildStopwatch.Elapsed.TotalMilliseconds:F2}ms | " +
-                $"borders={bordersStopwatch.Elapsed.TotalMilliseconds:F2}ms | " +
-                $"water={waterStopwatch.Elapsed.TotalMilliseconds:F2}ms | " +
-                $"evictCorner={evictCornerStopwatch.Elapsed.TotalMilliseconds:F2}ms (cache {cornerCacheBefore}->{_persistentCornerCache.Count}) | " +
-                $"evictClass={evictClassStopwatch.Elapsed.TotalMilliseconds:F2}ms (cache {classCacheBefore}->{_tileClassificationCache.Count})");
+            ApplyAdaptiveMeshBuffers(ComputeAdaptiveMeshBuffersCpu(_currentCut));
         }
 
         /// <summary>
@@ -4545,152 +4325,6 @@ namespace WorldGen.Viewer
                 borderIndices.Add(b + 1); borderIndices.Add(b + 2);
                 borderIndices.Add(b + 2); borderIndices.Add(b + 3);
                 borderIndices.Add(b + 3); borderIndices.Add(b + 0);
-            }
-        }
-
-        /// <summary>
-        /// M13 Fazis 3: a `leaves` TELJES kotegenek geometriaja/szine EGYETLEN
-        /// GPU dispatch-csel (ld. GpuTerrainGeometryGenerator/
-        /// CSGenerateTerrainGeometry) - az EmitAdaptiveTile-lal egyenertekiu
-        /// kimenetet allit elo (ugyanazok a lista-dictionaryk, ugyanaz a
-        /// hatarvonal-/viz-logika), de a draga per-tile Core-lancot
-        /// (fraktal-zaj+homerseklet+folytonos szin a 4 sarokra ES a
-        /// kozeppontra) nem hivja - azt mar a GPU elvegezte. A geomorphing
-        /// (§9.2, level-atmenet blend) ezen az agon NINCS portolva (ld.
-        /// useGpuGeometry Inspector-doksija) - a sarkak mindig a "fine"
-        /// (vegleges) pozicioban jelennek meg.
-        /// </summary>
-        private void EmitAdaptiveTilesGpu(
-            TileId[] leaves,
-            Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> verticesByKey,
-            Dictionary<(RenderCategory Category, int Bucket), List<Vector3>> normalsByKey,
-            Dictionary<(RenderCategory Category, int Bucket), List<int>> trianglesByKey,
-            Dictionary<(RenderCategory Category, int Bucket), List<Color>> colorsByKey,
-            Dictionary<int, List<Vector3>> waterVerticesByBucket,
-            Dictionary<int, List<Vector3>> waterNormalsByBucket,
-            Dictionary<int, List<int>> waterTrianglesByBucket,
-            Dictionary<int, List<Color>> waterColorsByBucket,
-            List<Vector3> borderVerts, List<int> borderIndices,
-            float waterSurfaceRadius)
-        {
-            if (leaves.Length == 0)
-                return;
-
-            _gpuGeometryGenerator ??= new WorldGen.Viewer.Gpu.GpuTerrainGeometryGenerator(tileClassificationCompute);
-
-            var tileDescs = new (int Face, int Level, uint U, uint V)[leaves.Length];
-            for (int i = 0; i < leaves.Length; i++)
-            {
-                leaves[i].GetUV(out uint u, out uint v);
-                tileDescs[i] = (leaves[i].Face, leaves[i].Level, u, v);
-            }
-
-            // Ugyanaz a plate-oceanic elokeszites, mint PrecomputeClassificationsOnGpu-ban.
-            var plateIsOceanic = new bool[_adaptiveSeeds.Length];
-            for (int p = 0; p < _adaptiveSeeds.Length; p++)
-                plateIsOceanic[p] = CrustElevation.IsOceanic(_adaptiveSeed, p);
-
-            WorldGen.Viewer.Gpu.GpuQuadResult[] results = _gpuGeometryGenerator.GenerateGeometry(
-                tileDescs, _adaptiveSeed, _adaptiveSeeds, plateIsOceanic, _adaptiveCraters,
-                _adaptiveSeaLevel, climateDayT, climateOrbitalPeriodDays, climateRotationPeriodDays,
-                _adaptiveAxialTiltRad, radius, elevationScale);
-
-            for (int i = 0; i < leaves.Length; i++)
-            {
-                TileId id = leaves[i];
-                WorldGen.Viewer.Gpu.GpuQuadResult r = results[i];
-
-                Vector3 p00 = r.P00, p10 = r.P10, p11 = r.P11, p01 = r.P01;
-                if (dynamicLayerRadialBias != 0f)
-                {
-                    p00 += p00.normalized * dynamicLayerRadialBias;
-                    p10 += p10.normalized * dynamicLayerRadialBias;
-                    p11 += p11.normalized * dynamicLayerRadialBias;
-                    p01 += p01.normalized * dynamicLayerRadialBias;
-                }
-
-                var biome = (Biome)r.CenterBiome;
-                TileGeometry.ToPosition(id, out double cx, out double cy, out double cz);
-                bool isCratered = _adaptiveCraters.Count > 0 && ImpactCratering.IsInsideAnyCrater(cx, cy, cz, _adaptiveCraters);
-                bool isLake = !isCratered && showLakesIce && IsAdaptiveLakeTile(id);
-                bool isIce = !isCratered && showLakesIce && IsAdaptiveIceTile(id);
-                RenderCategory category = isCratered ? RenderCategory.Crater
-                    : isIce ? RenderCategory.IceSheet
-                    : isLake ? RenderCategory.Lake
-                    : ToRenderCategory(biome); // folyok: kulon vonal-reteg (BuildRiverNetwork)
-                int bucket = category == RenderCategory.Ocean ? OceanRockBucket(r.CenterElevation) : 0;
-                var key = (category, bucket);
-
-                GetOrAddLists(verticesByKey, normalsByKey, trianglesByKey, colorsByKey, key,
-                    out List<Vector3> vertices, out List<Vector3> normals, out List<int> triangles, out List<Color> colors);
-
-                // ND-55: ugyanaz a megosztott, lejto-erzekeny normal-cache,
-                // mint a CPU-adaptiv utvonalon - a normal FUGGETLEN attol,
-                // hogy a pozicio GPU-rol vagy CPU-rol jott (mindket esetben
-                // ugyanabbol a CPU elevacio-fuggvenybol szarmazik).
-                id.GetUV(out uint gu, out uint gv);
-                int glvl = id.Level;
-                Vector3 gpn00 = GetOrComputePersistentCornerNormal(id.Face, glvl, gu, gv);
-                Vector3 gpn10 = GetOrComputePersistentCornerNormal(id.Face, glvl, gu + 1, gv);
-                Vector3 gpn11 = GetOrComputePersistentCornerNormal(id.Face, glvl, gu + 1, gv + 1);
-                Vector3 gpn01 = GetOrComputePersistentCornerNormal(id.Face, glvl, gu, gv + 1);
-                if (IsContinuousTerrainCategory(category))
-                {
-                    AddQuad(vertices, normals, triangles, colors, r.C00, r.C10, r.C11, r.C01, gpn00, gpn10, gpn11, gpn01, p00, p10, p11, p01);
-                }
-                else
-                {
-                    Color cUniform = CategoryColor(category, bucket);
-                    AddQuad(vertices, normals, triangles, colors, cUniform, cUniform, cUniform, cUniform, gpn00, gpn10, gpn11, gpn01, p00, p10, p11, p01);
-                }
-
-                // ND-60: SeaIce is beleertve (nem csak Ocean) - kulonben ezeken
-                // a tile-okon EGYALTALAN nem epul vizfelszin, es a mely
-                // oceanfenek-terep latszik (ld. EmitAdaptiveTile azonos, mar
-                // korabban helyes feltetele - ez a GPU-s "port" korabban
-                // lemaradt errol).
-                if (r.CenterIsOceanic && (biome == Biome.Ocean || biome == Biome.SeaIce))
-                {
-                    TileGeometry.GetContinuousBounds(id, out double uMin, out double uMax, out double vMin, out double vMax);
-                    Vector3 wp00 = ToWaterVector3(id.Face, uMin, vMin, waterSurfaceRadius);
-                    Vector3 wp10 = ToWaterVector3(id.Face, uMax, vMin, waterSurfaceRadius);
-                    Vector3 wp11 = ToWaterVector3(id.Face, uMax, vMax, waterSurfaceRadius);
-                    Vector3 wp01 = ToWaterVector3(id.Face, uMin, vMax, waterSurfaceRadius);
-                    if (dynamicLayerRadialBias != 0f)
-                    {
-                        wp00 += wp00.normalized * dynamicLayerRadialBias;
-                        wp10 += wp10.normalized * dynamicLayerRadialBias;
-                        wp11 += wp11.normalized * dynamicLayerRadialBias;
-                        wp01 += wp01.normalized * dynamicLayerRadialBias;
-                    }
-
-                    double depth = _adaptiveSeaLevel - r.CenterElevation;
-                    int waterBucket = WaterDepthBucket(depth);
-                    if (!waterVerticesByBucket.TryGetValue(waterBucket, out List<Vector3> waterVerts))
-                    {
-                        waterVerts = new List<Vector3>();
-                        waterVerticesByBucket[waterBucket] = waterVerts;
-                        waterNormalsByBucket[waterBucket] = new List<Vector3>();
-                        waterTrianglesByBucket[waterBucket] = new List<int>();
-                        waterColorsByBucket[waterBucket] = new List<Color>();
-                    }
-                    Color wc00 = ContinuousWaterCornerColor(p00, _adaptiveSeaLevel);
-                    Color wc10 = ContinuousWaterCornerColor(p10, _adaptiveSeaLevel);
-                    Color wc11 = ContinuousWaterCornerColor(p11, _adaptiveSeaLevel);
-                    Color wc01 = ContinuousWaterCornerColor(p01, _adaptiveSeaLevel);
-                    AddQuad(waterVerts, waterNormalsByBucket[waterBucket], waterTrianglesByBucket[waterBucket],
-                        waterColorsByBucket[waterBucket], wc00, wc10, wc11, wc01, wp00, wp10, wp11, wp01);
-                }
-
-                if (showBorders)
-                {
-                    int b = borderVerts.Count;
-                    borderVerts.Add(p00); borderVerts.Add(p10); borderVerts.Add(p11); borderVerts.Add(p01);
-                    borderIndices.Add(b + 0); borderIndices.Add(b + 1);
-                    borderIndices.Add(b + 1); borderIndices.Add(b + 2);
-                    borderIndices.Add(b + 2); borderIndices.Add(b + 3);
-                    borderIndices.Add(b + 3); borderIndices.Add(b + 0);
-                }
             }
         }
 

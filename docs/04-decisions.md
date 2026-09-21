@@ -5790,6 +5790,102 @@ legalsó kvintilisbe a 20% helyett. **Ez ebben a menetben megtörtént**: az
 a Habitability és a CoastalComplexity vágópontjai BITRE ugyanazok
 maradtak, tehát tényleg csak a talaj-populáció változott.
 
+### ND-128 — A `useGpuGeometry` út: az ND-120 másik fele (LEZÁRVA: (A) — törölve)
+
+**2026-09-21.** Az ND-120 a GPU-**osztályozó** utat törölte, de a
+`TileClassification.compute` assetet megtartotta, mert a
+`useGpuGeometry` (GPU-**geometria**) ág is azt hívja — és **az is ugyanazt
+az elavult `BaseElevationF`-et**. Az ND-120 ezt kimondottan a hatókörén
+kívül hagyta („nem volt része a döntésnek, ezért nem nyúltam hozzá"). Ez a
+döntés zárja be azt a rést.
+
+**A hiba MÉRVE, ma is érvényes.** A `GpuShaderElevationParityTests`
+(seed `0xA7C944210000`, 20 lemez, level 6; ma újrafuttatva: 3/3 zöld) a
+shaderből hiányzó két tagot méri:
+
+| hiányzó tag | \|Δ\| átlag | \|Δ\| max | óceán/szárazföld átfordulás | biome-átfordulás |
+|---|---|---|---|---|
+| ND-52 másodlagos zaj | 282,0 m | 890 m | 21,83% | 23,43% |
+| ND-90 határkeverés | 23,4 m | 3071 m | 0,39% | 0,40% |
+| **a shader tényleges állapota** | **300,8 m** | **3116 m** | **~22%** | **~24%** |
+
+A teszt küszöbe (`OceanFlipFraction` 0,15–0,30) ma is teljesül, tehát a
+szám nem avult el. A mérés mindkét oldalon float64 — a shader float32-es
+vesztesége **nincs** benne, vagyis ez ALSÓ korlát.
+
+**Amit a vizsgálat ezen FELÜL talált — és ami eldöntötte a kérdést.**
+
+1. **A GPU-ág mérve LASSABB, mint a CPU-ág.** A mező saját doksija rögzíti
+   a 2026-09-02-i élő mérést: **~50 s/újraépítés**, mert a kernel minden
+   tile-hoz külön számolja mind a 4 sarkot + a középpontot (5× a teljes
+   fraktál-zaj-lánc tile-onként), míg a CPU-út a
+   `_persistentCornerColorCache`-en keresztül a SZOMSZÉDOS tile-ok között
+   megosztott sarkokat csak egyszer számolja. Sarok-szintű (nem tile-szintű)
+   dispatch kellene hozzá — az újraírás, nem karbantartás.
+2. **Hiányzik belőle a geomorphing** (a LOD-váltás fokozatos átmenete), tehát
+   bekapcsolva „pattanás" látszik finomodáskor.
+3. **Öt másik, ma is fejlesztett út köré fonódik** `!useGpuGeometry`
+   feltételként: aszinkron mesh-újraépítés (ND-47 3. fázis), szakaszolt
+   terep-upload (ND-85), önálló víz-finomítás (ND-82/83), terep-LOD-proxy
+   (ND-74) és a kirajzolt méret diagnosztika (ND-75). Mindegyik azt jelenti:
+   *ha ezt bekapcsolod, a fél viewer visszaesik egy régebbi útvonalra.*
+4. **A `RebuildAdaptiveMesh` CPU-ága ELÉRHETETLEN kód volt.** A metódus
+   elején `if (!useGpuGeometry || tileClassificationCompute == null) { CPU; return; }`
+   áll, tehát a lentebbi `else` ág (klasszifikáció + sarkak +
+   `EmitAdaptiveTile` ciklus) sosem futhatott — a szinkron CPU-utat az
+   ND-47 óta a `ComputeAdaptiveMeshBuffersCpu` viszi. Ez ~90 sornyi halott
+   kód volt, ami mellesleg úgy nézett ki, mintha a CPU-út két helyen élne.
+
+**Opciók.**
+
+- **(A) Az út törlése** (mező, `EmitAdaptiveTilesGpu`,
+  `GpuTerrainGeometryGenerator.cs`, `TileClassification.compute`, a
+  jelenetbeli hivatkozások és az öt `!useGpuGeometry` feltétel). Ugyanaz az
+  indoklás, amit az ND-120-nál elfogadtunk: halott kód, ami minden jövőbeli
+  Core-változásnál kézi utánavezetést követelne, és amíg létezik, egy
+  Inspector-kattintással más bolygót lehet renderelni.
+- **(B) A shader felzárkóztatása** (ND-52 + ND-90 HLSL-portolása) + GPU-s
+  egyezési teszt. A CI-gépeken nincs GPU, a shader kétszer futott
+  „Compiler timed out"-ba, és a végeredmény **továbbra is lassabb** lenne a
+  CPU-útnál (1. pont) — vagyis a karbantartási terhet egy negatív előjelű
+  gyorsításért vállalnánk.
+- **(C) Marad, figyelmeztető tooltippel** (a mai állapot). A kockázat
+  ilyenkor egyetlen kattintás távolságra marad, és minden Core-változásnál
+  újra kell gondolni.
+
+**Javaslat: (A).** (B) akkor lenne védhető, ha a GPU-ág gyorsabb lenne —
+mérve nem az. (C)-t az ND-120 már „elfogadható átmenetnek" minősítette; az
+átmenet most véget ér.
+
+**Verziózás:** nem seed-törő. A törölt ág **nem futott** (alapból kikapcsolt,
+és a jelenetben is `0`), tehát egyetlen generált világ sem függ tőle. A
+világmodell (`src/WorldGen.Core`) érintetlen.
+
+---
+
+**LEZÁRVA (A), 2026-09-21** — végrehajtva:
+
+- törölve a `useGpuGeometry` és `tileClassificationCompute` mező, a
+  `_gpuGeometryGenerator`, az `EmitAdaptiveTilesGpu` (~150 sor),
+  `Assets/Scripts/Viewer/Gpu/GpuTerrainGeometryGenerator.cs` és
+  `TileClassification.compute` (a `Gpu` mappa egészében, `.meta`-kkal);
+- a `RebuildAdaptiveMesh` a fenti 4. pont miatt **három sorra** egyszerűsödött
+  (a cut átadása a CPU-útnak) — a halott ág is elment;
+- az öt `!useGpuGeometry` feltétel eltűnt: az aszinkron újraépítés, a
+  szakaszolt upload, a víz-finomítás, a terep-LOD-proxy és az ND-75
+  diagnosztika innentől feltétel nélkül a normál úton fut;
+- a `PlanetView.unity`-ból kikerült a shader-hivatkozás és a kapcsoló.
+
+**A `GpuShaderElevationParityTests` MARAD**, immár egyetlen szereppel: ha
+valaki bármikor „egyszerűsített" eleváció-közelítést vezetne be (GPU-n,
+előre számolt textúrában, LOD-proxyban), ez megmondja, mit veszít vele —
+a tile-ok ~22%-át a tengerszint rossz oldalán.
+
+**Amit ez NEM old meg:** ha a klasszifikáció/geometria valaha tényleg szűk
+keresztmetszet lesz, a GPU-út újraírható — de sarok-szintű dispatchcsel,
+a Core-eleváció megosztott forrásából, és egy CPU/GPU egyezési kapuval.
+A mai shader ehhez nem alap.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

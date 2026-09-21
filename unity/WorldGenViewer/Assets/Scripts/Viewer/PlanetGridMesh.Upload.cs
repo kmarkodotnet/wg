@@ -107,7 +107,7 @@ namespace WorldGen.Viewer
         {
             PendingTerrainUpload pending = _pendingTerrainUpload!;
             if (_fullBuildRequestedAfterCut || WorldConfigChangedSinceBuild()
-                || pending.ConfigRevision != _uploadConfigRevision || !useStagedTerrainUpload || useGpuGeometry)
+                || pending.ConfigRevision != _uploadConfigRevision || !useStagedTerrainUpload)
             {
                 CancelStagedTerrainUpload();
                 return;

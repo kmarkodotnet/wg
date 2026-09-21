@@ -11,7 +11,6 @@ A kód, amire hivatkozik:
 | Rács-matek (motorfüggetlen) | `src/WorldGen.Core/Grid/` |
 | LOD-kiválasztás (motorfüggetlen) | `unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/` |
 | Renderelés, feltöltés (Unity) | `unity/WorldGenViewer/Assets/Scripts/Viewer/PlanetGridMesh*.cs` |
-| GPU-ág | `unity/WorldGenViewer/Assets/Scripts/Viewer/Gpu/TileClassification.compute` |
 
 ---
 
@@ -496,32 +495,33 @@ többi fázisa nem — az csak akkor, ha a világ-konfiguráció változik
 
 ---
 
-## 12. A GPU-ág
+## 12. A GPU-ág — MÁR NINCS (ND-120, ND-128)
 
-`Gpu/TileClassification.compute`, két kernel:
+Volt egy `Gpu/TileClassification.compute` shader két kernellel
+(`CSClassifyTiles` tile-osztályozás, `CSGenerateTerrainGeometry` geometria),
+és két kapcsoló, ami rájuk kötött (`useGpuClassification`, `useGpuGeometry`).
+**2026-09-21-én mindkettő törölve lett**, a shaderrel együtt. Érdemes tudni,
+miért — mert a tanulság általános.
 
-- `CSClassifyTiles` — tile-onként elevációt, óceán-flaget, biome-ot,
-  kráter-flaget számol
-- `CSGenerateTerrainGeometry` — geometria közvetlenül GPU-n
+A shader **újraimplementálta** a Threefry4x64 PRNG-t (32 bites párokon, mert
+HLSL-ben nincs natív 64 bites egész) és a trigonometriát Taylor-sorral. Vagyis
+a világmodell egy darabja **kétszer** létezett: egyszer C#-ban, egyszer
+HLSL-ben. Két, egymástól független implementáció pedig elcsúszik — és itt el
+is csúszott: a shader `BaseElevationF`-je az ND-52 (másodlagos részlet-zaj) és
+az ND-90 (lemezhatár-keverés) ELŐTTI állapotban maradt.
 
-A shader **újraimplementálja** a Threefry4x64 PRNG-t (`U64Add`, `U64Xor`,
-`U64RotL` — 32 bites párokon, mert HLSL-ben nincs natív 64 bites egész), és
-a trigonometriát Taylor-sorral (`TaylorSinF`, `TaylorCosF`), hogy a
-`SinCosF` determinisztikus legyen.
+**Mennyit jelent ez számokban?** `GpuShaderElevationParityTests`: átlagos
+eltérés 300,8 m, a tile-ok **~22%-a** kerülne a tengerszint másik oldalára,
+**~24%-a** más biome-ot kapna. Ez nem árnyalatnyi hiba — más bolygó.
 
-### Itt van egy AKTÍV eltérés
+A törlés mellett szólt az is, hogy a GPU-geometria élő mérésben **lassabb**
+volt a CPU-útnál (~50 s/újraépítés): a kernel tile-onként külön számolta mind
+a négy sarkot, míg a CPU-út a szomszédos tile-ok között megosztott sarkakat
+csak egyszer (sarok-cache).
 
-A scene-ben `useGpuClassification: 1`. A shader `BaseElevationF` függvénye
-viszont az **ND-52 előtti** képletre lett visszaállítva (nincs benne a
-másodlagos részlet-zaj), míg a CPU-oldali `CrustElevation` tartalmazza.
-
-Ez azt jelenti, hogy a **klasszifikáció és a geometria eltérő elevációt lát**
-a tengerszint és a jég-küszöb környékén. Az ok történeti: a shader-javítás
-kétszer futott „Compiler timed out" hibába, ezért teljes visszavonás történt.
-
-Ez a `todo.md` 1. táblázatának 2. sora — a következő lépés **nem** a shader
-javítása, hanem az eltérés **számszerűsítése** (hány tile osztályozása fordul
-át), mert az adja meg, érdemes-e egyáltalán kockáztatni.
+**Ha valaha újra kell:** sarok-szintű (nem tile-szintű) dispatch, a Core
+elevációjából származó KÖZÖS adat (nem újraimplementált képlet), és egy
+CPU/GPU egyezési kapu, ami a különbséget méri. A régi shader ehhez nem alap.
 
 ---
 
@@ -541,7 +541,7 @@ Ezért van az, hogy:
 - a tan-warp **baked**, nem futásidejű (ND-24),
 - a vágás best-first bejárása **egyszálú**, teljes rendezéssel,
 - a horizont-teszt koszinuszban van kifejtve, hogy elkerülje az `acos`-t,
-- a GPU-shader saját Taylor-sort használ a `sin`/`cos` helyett.
+- és ezért nincs többé GPU-oldali, ÚJRAÍRT világmodell-matek (§12).
 
 ---
 
