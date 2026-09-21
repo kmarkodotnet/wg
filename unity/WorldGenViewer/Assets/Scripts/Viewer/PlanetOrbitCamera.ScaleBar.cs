@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using UnityEngine;
 using WorldGen.Core;
 
@@ -75,52 +76,74 @@ namespace WorldGen.Viewer
             //      eldobja (ezert latszik ilyenkor "Leptek: —").
             // Igy a koltseg ~kameramegallasonkent EGY szamitas, a korabbi
             // masodpercenkenti 6-7 helyett.
-            if (Event.current.type == EventType.Repaint
-                && Time.unscaledTime >= _nextScaleBarRefreshTime
-                && ShouldRecomputeScaleBarNow())
+            if (Event.current.type == EventType.Repaint)
             {
-                _nextScaleBarRefreshTime = Time.unscaledTime
-                    + Mathf.Max(0.05f, scaleBarRefreshIntervalSeconds);
-                _scaleBarComputedForCurrentView = true;
-                _lastScaleBarComputeTime = Time.unscaledTime;
-                RecomputePhysicalScaleBar();
+                // #8 (2026-09-21): a KESZ hatterszalas eredmeny atvetele - ez
+                // a fo szalon csak ket double ertekadas.
+                TryAdoptCompletedScaleBar();
+
+                if (Time.unscaledTime >= _nextScaleBarRefreshTime && ShouldRecomputeScaleBarNow())
+                {
+                    _nextScaleBarRefreshTime = Time.unscaledTime
+                        + Mathf.Max(0.05f, scaleBarRefreshIntervalSeconds);
+                    _scaleBarComputedForCurrentView = true;
+                    _lastScaleBarComputeTime = Time.unscaledTime;
+                    StartScaleBarComputation();
+                }
             }
 
             DrawPhysicalScaleBar();
         }
 
-        // IDEIGLENES DIAGNOSZTIKA (2026-09-13, felhasznaloi keres: rotacio/zoom
-        // szaggatas). Meri, mennyi ideig fut RecomputePhysicalScaleBar es
-        // hany ComputeElevationAtPoint hivast valt ki - ld.
-        // history/2026-09-13-scale-bar-rugged-terrain-fix.md. Csak akkor
-        // naplozunk, ha a hivas maga eleri a kuszobot, hogy ne floodolja a
-        // fajlt uresjarat kozben (a metodus masodpercenkent ~6-7-szer fut).
         private const double ScaleBarPerfLogThresholdMs = 1.0;
 
-        private void RecomputePhysicalScaleBar()
-        {
-            if (_scaleBarPlanet == null && target != null) _scaleBarPlanet = target.GetComponent<PlanetGridMesh>();
-            PlanetGridMesh? diagPlanet = _scaleBarPlanet;
-            diagPlanet?.ResetScaleSurfaceEvaluationCount();
-            var diagTimer = System.Diagnostics.Stopwatch.StartNew();
-            try
-            {
-                RecomputePhysicalScaleBarCore();
-            }
-            finally
-            {
-                diagTimer.Stop();
-                double ms = diagTimer.Elapsed.TotalMilliseconds;
-                if (diagPlanet != null && ms >= ScaleBarPerfLogThresholdMs)
-                {
-                    diagPlanet.LogCameraSurface(FormattableString.Invariant(
-                        $"[ND-84 scale diag] recomputeMs={ms:F2} evalCount={diagPlanet.ScaleSurfaceEvaluationCount} valid={_scaleBarValid} frame={Time.frameCount}"));
-                }
-            }
-        }
+        // ====================================================================
+        // #8 (2026-09-21, felhasznaloi keres): "a kalkulacio hatterszalban
+        // fusson, de NE blokkolja a fo szalat".
+        //
+        // A MERT PROBLEMA. A szamitas 30-180 ms a FO SZALON, keresenkent
+        // 658-3393 ComputeElevationAtPoint hivassal. Tengelyforgas-modban a
+        // nezet SOHA nem nyugszik meg (a bolygo transformja minden kepkockaban
+        // valtozik), ezert az eredmeny azonnal ervenytelenne valt, a
+        // garancia-ag pedig masodpercenkent ujraszamolt - innen a
+        // "tengelyforgas eseten folyamatosan akad" visszajelzes.
+        //
+        // AMI A FO SZALON MARAD (mikroszekundumok): a kamera bazisanak
+        // osszeallitasa. A Camera.ScreenPointToRay es a Transform-hivasok CSAK
+        // a fo szalrol engedelyezettek, ezert a sugarat NEM azokkal allitjuk
+        // elo a hatterben, hanem a ScaleBarMath.CameraRayBasis tiszta
+        // aritmetikajaval (offline tesztelve: CameraRayBasisTests - a szogek
+        // 1e-12-ig egyeznek a perspektiv projekcio definiciojaval).
+        //
+        // AMI HATTERSZALRA KERUL: a teljes kereses (TryFindMeasurableWidth +
+        // TrySolveScale) es benne minden felszin-mintavetel. Ezek tiszta
+        // olvasasok a Build ota valtozatlan mezokbol.
+        //
+        // EGYSZERRE EGY szamitas fut (single-flight), es az eredmenyt csak
+        // akkor vesszuk at, ha a nezet-pillanatkep MEG ervenyes - kulonben
+        // eldobjuk, ES a korabbi ertek marad kirajzolva (nem ugrik "—"-re).
+        // A hatterszal SOSEM ir kozvetlenul a kirajzolt ertekekbe.
+        // ====================================================================
 
-        private void RecomputePhysicalScaleBarCore()
+        private Task _scaleBarTask;
+        private int _scaleBarTaskGeneration;
+        private volatile bool _scaleBarTaskDone;
+        private volatile bool _scaleBarTaskSucceeded;
+        private double _scaleBarTaskWidth;
+        private double _scaleBarTaskDistance;
+        private double _scaleBarTaskMilliseconds;
+        private int _scaleBarTaskEvaluations;
+
+        /// <summary>
+        /// Osszeallitja a kamera lokalis bazisat es elinditja a hatterszalas
+        /// kereseset. A fo szalon CSAK nehany Transform-transzformacio fut, a
+        /// draga resz nem.
+        /// </summary>
+        private void StartScaleBarComputation()
         {
+            if (_scaleBarTask != null && !_scaleBarTaskDone)
+                return; // MAR fut egy szamitas - a kovetkezo tick ujra probalja.
+
             if (_scaleBarCamera == null) _scaleBarCamera = GetComponent<Camera>();
             if (target == null) _scaleBarPlanet = null;
             else if (_scaleBarPlanet == null || _scaleBarPlanet.transform != target)
@@ -149,47 +172,160 @@ namespace WorldGen.Viewer
                 InvalidateScaleBar();
                 return;
             }
-            if (_scaleBarValid && !IsScaleBarContextCurrent()) InvalidateScaleBar();
+
             _scaleReferenceCenterX = viewport.x + viewport.width * 0.5f;
             _scaleReferenceCenterY = viewport.y + viewport.height * 0.5f;
             _scaleViewportBottomGuiY = Screen.height - viewport.y;
+
+            // A kamera bazisa a BOLYGO LOKALIS tereben.
+            Transform cameraTransform = _scaleBarCamera.transform;
+            Vector3 localOrigin = target.InverseTransformPoint(cameraTransform.position);
+            Vector3 localForward = target.InverseTransformDirection(cameraTransform.forward);
+            Vector3 localRight = target.InverseTransformDirection(cameraTransform.right);
+            Vector3 localUp = target.InverseTransformDirection(cameraTransform.up);
+            double tanHalfVertical = Math.Tan(_scaleBarCamera.fieldOfView * Math.PI / 360.0);
+            double aspect = viewport.width / (double)viewport.height;
+
+            var basis = new ScaleBarMath.CameraRayBasis(
+                new ScaleBarMath.Vector3d(localOrigin.x, localOrigin.y, localOrigin.z),
+                new ScaleBarMath.Vector3d(localForward.x, localForward.y, localForward.z),
+                new ScaleBarMath.Vector3d(localRight.x, localRight.y, localRight.z),
+                new ScaleBarMath.Vector3d(localUp.x, localUp.y, localUp.z),
+                tanHalfVertical, aspect);
+            if (!basis.IsUsable)
+            {
+                InvalidateScaleBar();
+                return;
+            }
+
+            double viewportWidth = viewport.width;
             double preferredWidth = Math.Min(
                 Math.Max(20.0, scaleBarTargetWidthPixels),
-                Math.Max(20.0, viewport.width * 0.45));
+                Math.Max(20.0, viewportWidth * 0.45));
+            PlanetGridMesh planet = _scaleBarPlanet;
+            double baseRadius = planet.SurfaceMeasurementBaseRadius;
+
+            CaptureScaleBarContext();
+            _scaleBarTaskGeneration++;
+            int generation = _scaleBarTaskGeneration;
+            _scaleBarTaskDone = false;
+            planet.ResetScaleSurfaceEvaluationCount();
+
+            _scaleBarTask = Task.Run(() =>
+            {
+                var timer = System.Diagnostics.Stopwatch.StartNew();
+                bool ok = false;
+                double solvedWidth = 0.0;
+                double roundDistance = 0.0;
+                try
+                {
+                    ok = SolveScaleBarOffThread(
+                        basis, viewportWidth, preferredWidth, baseRadius, planet,
+                        out solvedWidth, out roundDistance);
+                }
+                catch (Exception)
+                {
+                    // A hatterszal SOHA nem dobhat a Unityre: ha a vilag
+                    // kozben ujraepult (a planet mezoi lecserelodtek), az
+                    // eredmenyt egyszeruen eldobjuk - a generacio-ellenorzes
+                    // es az IsScaleBarContextCurrent ugyanezt tenne.
+                    ok = false;
+                }
+                timer.Stop();
+                if (generation != _scaleBarTaskGeneration)
+                {
+                    _scaleBarTaskDone = true;
+                    return;
+                }
+                _scaleBarTaskWidth = solvedWidth;
+                _scaleBarTaskDistance = roundDistance;
+                _scaleBarTaskMilliseconds = timer.Elapsed.TotalMilliseconds;
+                _scaleBarTaskEvaluations = planet.ScaleSurfaceEvaluationCount;
+                _scaleBarTaskSucceeded = ok;
+                _scaleBarTaskDone = true;
+            });
+        }
+
+        /// <summary>
+        /// A teljes kereses, TISZTA szamitassal - ez fut a hatterszalon.
+        /// Unity API-t nem hiv: a sugarat a CameraRayBasis adja, a felszint a
+        /// planet Build ota valtozatlan mezoi.
+        /// </summary>
+        private static bool SolveScaleBarOffThread(
+            ScaleBarMath.CameraRayBasis basis, double viewportWidth, double preferredWidth,
+            double baseRadius, PlanetGridMesh planet,
+            out double solvedWidth, out double roundDistance)
+        {
+            solvedWidth = 0.0;
+            roundDistance = 0.0;
+
+            bool RadiusAt(ScaleBarMath.Vector3d direction, out double displayedRadius)
+                => planet.TryGetScaleSurfaceRadius(
+                    new Vector3((float)direction.X, (float)direction.Y, (float)direction.Z),
+                    out displayedRadius);
+
+            bool Measure(double pixelWidth, out double distanceMeters)
+            {
+                distanceMeters = 0.0;
+                if (!(pixelWidth > 0.0) || !(viewportWidth > 0.0)) return false;
+                // A ket mintapont a viewport KOZEPETOL +-pixelWidth/2-re van;
+                // NDC-ben ez +-(pixelWidth / viewportWidth), mert az NDC a FEL
+                // szelessegre normalizal.
+                double ndcHalf = pixelWidth / viewportWidth;
+                ScaleBarMath.Vector3d leftDirection = ScaleBarMath.RayDirectionAtNdc(basis, -ndcHalf, 0.0);
+                ScaleBarMath.Vector3d rightDirection = ScaleBarMath.RayDirectionAtNdc(basis, ndcHalf, 0.0);
+                if (!ScaleBarMath.TryIntersectRadialSurface(
+                        basis.Origin, leftDirection, baseRadius, RadiusAt, out ScaleBarMath.Vector3d left)
+                    || !ScaleBarMath.TryIntersectRadialSurface(
+                        basis.Origin, rightDirection, baseRadius, RadiusAt, out ScaleBarMath.Vector3d right))
+                {
+                    return false;
+                }
+                distanceMeters = ScaleBarMath.GreatCircleDistanceMeters(
+                    left, right, PlanetConstants.RadiusMeters);
+                return distanceMeters > 0.0
+                    && !double.IsNaN(distanceMeters) && !double.IsInfinity(distanceMeters);
+            }
+
             if (!ScaleBarMath.TryFindMeasurableWidth(
-                TryMeasureCenteredSurfaceDistance,
-                preferredWidth,
-                20.0,
-                out double maximumWidth,
-                out double maximumDistance))
+                    Measure, preferredWidth, 20.0, out double maximumWidth, out double maximumDistance))
+            {
+                return false;
+            }
+
+            return ScaleBarMath.TrySolveScale(
+                Measure, maximumWidth, maximumDistance, 4,
+                out solvedWidth, out roundDistance, out _, out _, out _);
+        }
+
+        /// <summary>
+        /// A kesz hatterszalas eredmeny atvetele a FO SZALON - ket
+        /// ertekadas, itt nincs szamitas. Ha a nezet kozben elmozdult, az
+        /// eredmenyt eldobjuk, es a korabbi ertek marad kirajzolva.
+        /// </summary>
+        private void TryAdoptCompletedScaleBar()
+        {
+            if (_scaleBarTask == null || !_scaleBarTaskDone) return;
+            _scaleBarTask = null;
+
+            if (_scaleBarPlanet != null && _scaleBarTaskMilliseconds >= ScaleBarPerfLogThresholdMs)
+            {
+                _scaleBarPlanet.LogCameraSurface(FormattableString.Invariant(
+                    $"[ND-84 scale diag] hatterszal={_scaleBarTaskMilliseconds:F2}ms evalCount={_scaleBarTaskEvaluations} ok={_scaleBarTaskSucceeded} frame={Time.frameCount} foSzalonMs=0"));
+            }
+
+            if (!_scaleBarTaskSucceeded)
             {
                 RegisterTransientScaleBarFailure();
                 return;
             }
-
-            // A felirat mindig kerek érték; meredek domborzaton (nem folytonos
-            // távolság, 2026-09-13) a csík szélessége a legközelebbi mért
-            // távolsághoz igazodik - ld. ScaleBarMath.TrySolveScale.
-            if (!ScaleBarMath.TrySolveScale(
-                TryMeasureCenteredSurfaceDistance,
-                maximumWidth,
-                maximumDistance,
-                4,
-                out double solvedWidth,
-                out double roundDistance,
-                out _,
-                out _,
-                out _))
-            {
-                RegisterTransientScaleBarFailure();
+            if (!IsScaleBarContextCurrent())
                 return;
-            }
 
-            _scaleBarPixelWidth = (float)solvedWidth;
-            _scaleBarDistanceMeters = roundDistance;
+            _scaleBarPixelWidth = (float)_scaleBarTaskWidth;
+            _scaleBarDistanceMeters = _scaleBarTaskDistance;
             _scaleBarConsecutiveFailures = 0;
             _scaleBarValid = true;
-            CaptureScaleBarContext();
         }
 
         // MOZGAS-DETEKTALAS (2026-09-18) a fenti kapuhoz. SZANDEKOSAN kulon
@@ -350,6 +486,26 @@ namespace WorldGen.Viewer
         /// RELATIV tures, mert a felszinkoveto korrekcio aranyos nagysagu
         /// aprosagokat mozdit; a szogeknel 0.01 fok. Ezek a nagysagrendek a
         /// KEREKITETT feliratot ("10 km") nem befolyasoljak.
+        ///
+        /// #8 (2026-09-21): A BOLYGO FORGATASA SZANDEKOSAN NEM SZAMIT.
+        ///
+        /// Korabban itt `targetMatrix.Equals(target.localToWorldMatrix)` allt,
+        /// ami tengelyforgas-modban MINDEN kepkockaban hamis (a bolygo
+        /// transformja folyamatosan valtozik). Emiatt a frissen kiszamolt
+        /// erteket azonnal eldobtuk, es a csik VEGLEG "—"-en maradt - ez volt
+        /// a felhasznaloi "ugral" visszajelzes masik fele.
+        ///
+        /// MIERT HELYES a forgatast kihagyni: a kiirt lepteket a KAMERA-
+        /// GEOMETRIA hatarozza meg (magassag, latoszog, viewport) - a bolygo
+        /// elfordulasa csak azt valtoztatja meg, MELYIK domborzat van a ket
+        /// mintapont alatt. Az ebbol szarmazo elteres a domborzati relief
+        /// nagysagrendje, a felirat viszont 1-2 ertekes jegyre KEREKITETT
+        /// ("10 km", "43 km") - ezt a valtozas nem tudja elmozditani.
+        ///
+        /// AMI VISZONT SZAMIT es ellenorzott marad: a bolygo SKALAJA es
+        /// POZICIOJA (ezek tenylegesen atskalaznak/athelyeznek mindent), a
+        /// kamera szoge/tavolsaga/latoszoge, a viewport, es EGZAKTAN a
+        /// vilag-revizio (uj vilag = uj meres).
         /// </summary>
         private bool IsSameScaleBarView(
             float yaw, float pitch, float sampleDistance, float fov,
@@ -357,11 +513,22 @@ namespace WorldGen.Viewer
         {
             if (_scaleBarCamera == null || target == null) return false;
             float distanceEpsilon = Mathf.Max(1e-4f, Mathf.Abs(distance) * 1e-4f);
+
+            // A pillanatkep matrixabol CSAK a skalat es a poziciot vesszuk -
+            // a forgatast nem (ld. a doksit).
+            Vector3 sampledPosition = targetMatrix.GetColumn(3);
+            Vector3 sampledScale = targetMatrix.lossyScale;
+            Vector3 currentPosition = target.position;
+            Vector3 currentScale = target.lossyScale;
+            float scaleEpsilon = Mathf.Max(1e-5f, currentScale.magnitude * 1e-4f);
+            float positionEpsilon = Mathf.Max(1e-4f, Mathf.Abs(distance) * 1e-4f);
+
             return Mathf.Abs(Mathf.DeltaAngle(yaw, _yaw)) < 0.01f
                 && Mathf.Abs(Mathf.DeltaAngle(pitch, _pitch)) < 0.01f
                 && Mathf.Abs(sampleDistance - distance) < distanceEpsilon
                 && Mathf.Abs(fov - _scaleBarCamera.fieldOfView) < 1e-3f
-                && targetMatrix.Equals(target.localToWorldMatrix)
+                && (sampledScale - currentScale).magnitude < scaleEpsilon
+                && (sampledPosition - currentPosition).magnitude < positionEpsilon
                 && viewport.Equals(_scaleBarCamera.pixelRect)
                 && screenHeight == Screen.height;
         }

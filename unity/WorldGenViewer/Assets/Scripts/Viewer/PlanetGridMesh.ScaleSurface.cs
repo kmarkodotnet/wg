@@ -16,8 +16,13 @@ namespace WorldGen.Viewer
         // szaggatas - ld. history/2026-09-13-scale-bar-rugged-terrain-fix.md
         // folytatasa). Szamolja, hanyszor fut le a draga ComputeElevationAtPoint
         // egy-egy PlanetOrbitCamera.RecomputePhysicalScaleBar() hivas alatt.
-        internal int ScaleSurfaceEvaluationCount { get; private set; }
-        internal void ResetScaleSurfaceEvaluationCount() => ScaleSurfaceEvaluationCount = 0;
+        // #8 (2026-09-21): a leptekcsik szamitasa MAR HATTERSZALON fut, ezert
+        // ez a diagnosztikai szamlalo Interlocked - kulonben a novelesek
+        // elveszhetnenek, es a naplozott evalCount alabecsulne.
+        private int _scaleSurfaceEvaluationCount;
+        internal int ScaleSurfaceEvaluationCount => _scaleSurfaceEvaluationCount;
+        internal void ResetScaleSurfaceEvaluationCount()
+            => System.Threading.Interlocked.Exchange(ref _scaleSurfaceEvaluationCount, 0);
 
         internal bool TryGetCameraSurfaceRadius(Vector3 localDirection, out double surfaceRadius)
         {
@@ -55,7 +60,7 @@ namespace WorldGen.Viewer
 
             localDirection.Normalize();
             BodyFrameConversion.ToCore(localDirection, out double x, out double y, out double z);
-            ScaleSurfaceEvaluationCount++;
+            System.Threading.Interlocked.Increment(ref _scaleSurfaceEvaluationCount);
             double elevation = ComputeElevationAtPoint(
                 x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters, _adaptiveErosionTimeMyr);
             if (double.IsNaN(elevation) || double.IsInfinity(elevation))

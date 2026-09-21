@@ -47,6 +47,69 @@ namespace WorldGen.Viewer
                 => a.X * b.X + a.Y * b.Y + a.Z * b.Z;
         }
 
+        /// <summary>
+        /// Egy perspektív kamera sugárkúpja a BOLYGÓ LOKÁLIS terében, Unity
+        /// API nélkül. #8 (2026-09-21): a léptékcsík számítása ezért futhat
+        /// HÁTTÉRSZÁLON - a `Camera.ScreenPointToRay` és a `Transform`
+        /// hívások CSAK a fő szálról engedélyezettek, ez a struktúra viszont
+        /// tiszta adat, amit a fő szál egyszer összeállít.
+        ///
+        /// A négy vektor a kamera lokális térbe transzformált bázisa
+        /// (előre/jobbra/fel) és origója. A sugár innen tisztán aritmetikával
+        /// áll elő, ugyanazzal a képlettel, amit a perspektív projekció
+        /// használ: a képsík a `Forward` végén van, a vízszintes/függőleges
+        /// kitérés a fél-látószög tangensével skálázódik.
+        /// </summary>
+        internal readonly struct CameraRayBasis
+        {
+            public readonly Vector3d Origin;
+            public readonly Vector3d Forward;
+            public readonly Vector3d Right;
+            public readonly Vector3d Up;
+
+            /// <summary>tan(függőleges látószög / 2).</summary>
+            public readonly double TanHalfVertical;
+
+            /// <summary>Viewport szélesség / magasság.</summary>
+            public readonly double Aspect;
+
+            public CameraRayBasis(
+                Vector3d origin, Vector3d forward, Vector3d right, Vector3d up,
+                double tanHalfVertical, double aspect)
+            {
+                Origin = origin;
+                Forward = forward;
+                Right = right;
+                Up = up;
+                TanHalfVertical = tanHalfVertical;
+                Aspect = aspect;
+            }
+
+            public bool IsUsable =>
+                IsFinite(TanHalfVertical) && TanHalfVertical > 0.0
+                && IsFinite(Aspect) && Aspect > 0.0
+                && Forward.MagnitudeSquared > 0.0
+                && Right.MagnitudeSquared > 0.0
+                && Up.MagnitudeSquared > 0.0;
+        }
+
+        /// <summary>
+        /// A viewport egy pontján átmenő sugár iránya (NEM normalizált - a
+        /// hívó metszés-számítása amúgy is normalizál). A bemenet NDC:
+        /// [-1, +1] mindkét tengelyen, a viewport KÖZEPE a (0, 0).
+        ///
+        /// A kimenet a `Camera.ScreenPointToRay` irányával EGYEZIK (a
+        /// hosszától eltekintve) - ezt az élő Editorban egyszer
+        /// összehasonlítva ellenőrizzük (ld. PlanetOrbitCamera.ScaleBar),
+        /// mert erre offline nincs orákulum.
+        /// </summary>
+        internal static Vector3d RayDirectionAtNdc(in CameraRayBasis basis, double ndcX, double ndcY)
+        {
+            double horizontal = ndcX * basis.TanHalfVertical * basis.Aspect;
+            double vertical = ndcY * basis.TanHalfVertical;
+            return basis.Forward + basis.Right * horizontal + basis.Up * vertical;
+        }
+
         internal delegate bool SurfaceRadiusProvider(Vector3d direction, out double radius);
         internal delegate bool DistanceForPixelWidth(double pixelWidth, out double distanceMeters);
 
