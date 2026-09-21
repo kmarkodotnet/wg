@@ -70,15 +70,16 @@ együtt döntöttek:
   a ~22%-os küszöb ma is teljesül.
 - Offline Unity fordítási kapuk: 0 hiba mindkettőn
   (`WorldGen.Viewer.Compile`, `WorldGen.App.UnityBinding.Compile`).
-- **Unity Editor-fordítás: MÉG NEM IGAZOLT.** Az Editor a törlés idején
-  foglalt volt (a `Logs/PerfLog_20260921_203109.txt` szerint 20:31–21:16
-  között Play-menet futott), a pipeline-parancsok 60 s-os időtúllépéssel
-  tértek vissza, és a `recompile` nem tudott lefutni. A konzolban ebből két
-  `Failed to handle /api/exec request: Main thread operation timed out`
-  hibasor keletkezett — ezek a PIPELINE időtúllépései, nem fordítási hibák.
-  **Teendő a következő szabad Editor-állapotban:** `AssetDatabase.Refresh` +
-  recompile + konzol-ellenőrzés. A `Gpu/` mappa törlése asset-import, amit a
-  glob-alapú offline kapu definíció szerint nem lát (ld. CLAUDE.md).
+- **Unity Editor-fordítás: IGAZOLVA** (22:27, a törlés után). Az Editor a
+  munka alatt foglalt volt (a `Logs/PerfLog_20260921_203109.txt` szerint
+  20:31–21:16 között Play-menet futott), ezért a pipeline-parancsok előbb
+  60 s-os időtúllépéssel tértek vissza — a konzolban látszó két
+  `Failed to handle /api/exec request: Main thread operation timed out` sor
+  EZ, nem fordítási hiba. Felszabadulás után az Editor magától újrafordított:
+  `compilationFailed=False`, `compiling=False`, **consoleErrors=0**, és az
+  `Assembly-CSharp.dll` 276 992 → 265 728 bájtra csökkent. A törölt shader
+  GUID-jára (`d747bc66…`) **nincs maradék hivatkozás** az `Assets/` és a
+  `ProjectSettings/` alatt.
 - **Élő Play-ellenőrzés nem szükséges** ehhez a tételhez: a törölt ág nem
   futott (alapból ki, a jelenetben is `0`), tehát a képen semmi nem változik.
   Ha mégis eltérést látsz, az önmagában információ.
