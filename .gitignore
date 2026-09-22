@@ -1,3 +1,5 @@
+claude_sessions*
+
 bin/
 obj/
 *.user
@@ -30,3 +32,4 @@ pics/
 
 # Claude Code helyi (gépspecifikus) beállítások - nem projekt-tartalom
 .claude/settings.local.json
+
