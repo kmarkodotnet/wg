@@ -6945,11 +6945,64 @@ namespace WorldGen.Viewer
         private Material _lakeSurfaceMaterial;
 
         /// <summary>
+        /// ND-129: a part menti tó-tile-ok al-osztása N×N al-quadra. A lapos
+        /// quad a gömb HÚRJA: egy level-8 (~36 km) tile közepe R·θ²/8 ≈ 25 m-rel
+        /// a helyes sugár ALATT van, ami a part menti sávban a terep alá viszi
+        /// a vízfelszínt (MÉRVE, élő Editor: a tó-sarkok 14,8%-a a vízszinttől
+        /// ±25 m-en belül van). N=4 (level 10) mellett a behúrás 25 m → 1,6 m.
+        /// EGYENLETES al-osztás a part menti tile-okon: így két al-osztott
+        /// szomszéd között nincs T-csomópont; a durván maradt szomszéd felé az
+        /// él-pontokat a húrra ejtjük (ld. SnapEdgeToChord).
+        /// </summary>
+        private const int LakeSurfaceSubdivision = 4;
+
+        /// <summary>
+        /// ND-129: ha egy tile MIND a négy sarka legalább ennyivel a vízszint
+        /// alatt van, a tile egyetlen quad marad - ott a húr-behúrás
+        /// láthatatlan (a terep sosem metszi a vízfelszínt a tile-on belül).
+        /// </summary>
+        private const double LakeSurfaceFlatMarginMeters = 40.0;
+
+        /// <summary>
+        /// ND-129: hányszor terjeszthető TOVÁBB a vízfelszín a tó-tile-ok
+        /// 1-gyűrűjén túl. A további körök CSAK azok körül futnának, amik
+        /// TELJESEN víz alá kerültek (mind a négy sarok a vízszint alatt) -
+        /// ott ugyanis a part még mindig nyers tile-él marad.
+        ///
+        /// AZ ÉRTÉK 1, MÉRÉS ALAPJÁN. Az első gyűrű 9281 tile-jából 129 (1,4%)
+        /// kerül teljesen víz alá. A 4 körös változat élőben MÉRVE: +528 tile
+        /// (+2,5%), DE a nyitott (teljesen elöntött) határ NEM fogyott el,
+        /// hanem NŐTT (129 → 154), és az idő 724 ms → 1054 ms. Vagyis a
+        /// terjesztés nem konvergál: a LEFOLYÁSNÁL a völgytalp hosszan a
+        /// feltöltési szint alatt marad, tehát a tó a folyó medrében „elfolyna",
+        /// miközben a blokkos maradék ugyanakkora. Egy gyűrű a jó kompromisszum;
+        /// a konstans emelése egysoros, ha a vizuális ítélet mást mond.
+        /// </summary>
+        private const int LakeSurfaceMaxRingExpansions = 1;
+
+        /// <summary>
         /// LAPOS tó-vízfelszín a (szűrt) tavak feltöltési szintjén: opak, kék,
-        /// megvilágított lap MINDEN tó-tile fölé a tó-felszín sugaránál. Így a tó
-        /// sima vízfelület, NEM blokkos sötét tile-kitöltés (a fill-szint a fenék
-        /// FÖLÖTT van, az opak lap elrejti a blokkos fenék-geometriát). EGYSZER
+        /// megvilágított lap a tó-tile-ok fölé a tó-felszín sugaránál. EGYSZER
         /// épül fel (Build), referencia-szintű, statikus - mint a folyó-réteg.
+        ///
+        /// ND-129 (felhasználói visszajelzés: "a tavak zoomra nagy tile-okból
+        /// összerakottnak néznek ki"). A KORÁBBI változat tile-onként EGYETLEN
+        /// quadot rakott le, és a vízfelszín a tó-tile halmaz szélén VÉGET ért
+        /// a tile-határon - ezért a partvonal tengelypárhuzamos, 36 km-es
+        /// lépcsőkből állt. A partvonal forrása MOSTANTÓL a TEREP: a vízfelszín
+        /// TÚLNYÚLIK a valódi parton (tó-tile-ok + 1 gyűrű szomszéd), és a már
+        /// renderelt, adaptív terep-mesh vágja ki belőle a partot a z-bufferrel.
+        /// Így a partvonal NULLA új eleváció-kiértékelésből adódik, egyetlen
+        /// definíció szerint (a terep), és a részletessége AUTOMATIKUSAN
+        /// követi a terep-LOD-ot (level 20-ig) - vagyis zoomra magától finomodik.
+        ///
+        /// MÉRT alap a kiterjesztés biztonságához (élő Editor, seed
+        /// 0xA7C944210000, a legnagyobb tó 404 tile-ja): az 1-gyűrű
+        /// szomszédok 78,1%-a VEGYES (a vízszint áthalad rajtuk) és EGYETLEN
+        /// EGY SINCS, amelyik teljes egészében víz alatt lenne - egy gyűrűnyi
+        /// kiterjesztés tehát sehol nem önt el egész tile-t. A csupa víz
+        /// FELETTI sarkú gyűrű-tile-okat (mérve 21,9%) kihagyjuk: ott a
+        /// vízfelszín amúgy is teljesen takarva lenne.
         /// </summary>
         private void BuildLakeSurface()
         {
@@ -6960,21 +7013,189 @@ namespace WorldGen.Viewer
                 return;
             }
 
-            var verts = new List<Vector3>();
-            var normals = new List<Vector3>();
-            var tris = new List<int>();
-            var colors = new List<Color>();
+            var lakeSurfaceStopwatch = Stopwatch.StartNew();
+            int lakeLevel = -1;
+            foreach (KeyValuePair<TileId, double> first in _adaptiveLakeSurface) { lakeLevel = first.Key.Level; break; }
+
+            // 1. Sarok-elevációk. A level-8 SAROK terrain-bázisa MÁR MEGVAN
+            //    (ND-63/ND-122 lemez-cache, EnsureStaticTerrainBasisCache) -
+            //    ezért itt nincs új TerrainPointBasis.Compute, csak Evaluate.
+            //    A cache lap-lokális sarok-rácspontra kulcsol, tehát a négy
+            //    szomszédos tile ugyanazt a sarkot EGYSZER számolja ki.
+            var cornerElevations = new Dictionary<(int Face, uint U, uint V), double>();
+            int cornerBasisHits = 0, cornerBasisMisses = 0;
+
+            double CornerElevation(int face, uint cornerU, uint cornerV)
+            {
+                var key = (face, cornerU, cornerV);
+                if (cornerElevations.TryGetValue(key, out double cached)) return cached;
+                int n = 1 << lakeLevel;
+                double uc = (double)cornerU / n * 2.0 - 1.0;
+                double vc = (double)cornerV / n * 2.0 - 1.0;
+                TileGeometry.PositionFromFaceUV(face, uc, vc, out double x, out double y, out double z);
+                double elevation;
+                if (TryGetStaticTerrainBasis(face, lakeLevel, cornerU, cornerV,
+                        out TerrainPointBasis basis, out _, out _))
+                {
+                    cornerBasisHits++;
+                    elevation = ComputeElevationAtPointFromBasis(
+                        x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
+                        _adaptiveErosionTimeMyr, in basis);
+                }
+                else
+                {
+                    cornerBasisMisses++;
+                    elevation = ComputeElevationAtPoint(
+                        x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters, _adaptiveErosionTimeMyr);
+                }
+                cornerElevations[key] = elevation;
+                return elevation;
+            }
+
+            // 2. A RAJZOLT tile-halmaz: a tó-tile-ok + a szomszédjaik.
+            //    Egy gyűrű-tile a szomszédos tó vízszintjét kapja; ha többhöz is
+            //    hozzáér (ritka), a LEGALACSONYABBAT - az a konzervatív (legkisebb
+            //    túlnyúlású) választás, és a minimum sorrendfüggetlen.
+            //    A gyűrű CSAK ott terjed tovább, ahol az új tile TELJESEN víz alá
+            //    került (ott a part még mindig nyers tile-él lenne) - legfeljebb
+            //    LakeSurfaceMaxRingExpansions körig, ld. a konstans doksiját.
+            bool FullyFlooded(TileId id, double surface)
+            {
+                id.GetUV(out uint fu, out uint fv);
+                return CornerElevation(id.Face, fu, fv) < surface
+                    && CornerElevation(id.Face, fu + 1, fv) < surface
+                    && CornerElevation(id.Face, fu + 1, fv + 1) < surface
+                    && CornerElevation(id.Face, fu, fv + 1) < surface;
+            }
+
+            var surfaceByTile = new Dictionary<TileId, double>(_adaptiveLakeSurface);
+            var frontier = new List<TileId>(_adaptiveLakeSurface.Keys);
+            int ringRounds = 0, ringUnfinished = 0;
+            for (int round = 0; round < LakeSurfaceMaxRingExpansions; round++)
+            {
+                var added = new List<TileId>();
+                foreach (TileId from in frontier)
+                {
+                    double surface = surfaceByTile[from];
+                    for (int d = 0; d < 4; d++)
+                    {
+                        TileId nb = TileNeighbors.Neighbor(from, (TileDirection)d);
+                        if (_adaptiveLakeSurface.ContainsKey(nb)) continue;
+                        if (surfaceByTile.TryGetValue(nb, out double existing))
+                        {
+                            if (surface < existing) surfaceByTile[nb] = surface;
+                            continue;
+                        }
+                        surfaceByTile[nb] = surface;
+                        added.Add(nb);
+                    }
+                }
+                ringRounds++;
+                if (added.Count == 0) break;
+                var next = new List<TileId>();
+                foreach (TileId id in added)
+                    if (FullyFlooded(id, surfaceByTile[id])) next.Add(id);
+                frontier = next;
+                ringUnfinished = next.Count;
+                if (next.Count == 0) break;
+            }
+
+            // 3. Tile-onkénti besorolás: kihagyott / lapos (1 quad) / al-osztott.
+            //    A "kihagyott" az a tile, aminek MIND a négy sarka a vízszint
+            //    FÖLÖTT van - ott a terep úgyis teljesen eltakarná a vizet.
+            var subdivided = new HashSet<TileId>();
+            var drawn = new Dictionary<TileId, double>(surfaceByTile.Count);
+            int skipped = 0;
+            // DIAGNOSZTIKA (ND-129): hany GYURU-tile kerul TELJES egeszeben viz
+            // ala? Az ilyen tile-nal a vizfelszin a gyurun TULRA is folytatodna,
+            // tehat egy gyuru nem elegendo - a partvonal ott megint nyers
+            // tile-el lenne. A mert ertek dontse el, kell-e masodik gyuru.
+            int ringFullyFlooded = 0;
+            foreach (KeyValuePair<TileId, double> kv in surfaceByTile)
+            {
+                TileId id = kv.Key;
+                double surface = kv.Value;
+                id.GetUV(out uint u, out uint v);
+                double e00 = CornerElevation(id.Face, u, v);
+                double e10 = CornerElevation(id.Face, u + 1, v);
+                double e11 = CornerElevation(id.Face, u + 1, v + 1);
+                double e01 = CornerElevation(id.Face, u, v + 1);
+                if (e00 > surface && e10 > surface && e11 > surface && e01 > surface) { skipped++; continue; }
+                if (!_adaptiveLakeSurface.ContainsKey(id)
+                    && e00 < surface && e10 < surface && e11 < surface && e01 < surface)
+                    ringFullyFlooded++;
+                drawn[id] = surface;
+                if (surface - e00 < LakeSurfaceFlatMarginMeters
+                    || surface - e10 < LakeSurfaceFlatMarginMeters
+                    || surface - e11 < LakeSurfaceFlatMarginMeters
+                    || surface - e01 < LakeSurfaceFlatMarginMeters)
+                    subdivided.Add(id);
+            }
+
+            // 4. Emisszió. A csúcsszám ITT MÁR PONTOSAN ISMERT (a besorolás
+            //    lezárult), ezért előre foglalunk - egy ~1 M csúcsos mesh-nél a
+            //    List<T> duplázgatása önmagában tíz MB-os újramásolás.
+            const int n4 = LakeSurfaceSubdivision;
+            int expectedQuads = (drawn.Count - subdivided.Count) + subdivided.Count * n4 * n4;
+            int expectedVerts = expectedQuads * 4;
+            var verts = new List<Vector3>(expectedVerts);
+            var normals = new List<Vector3>(expectedVerts);
+            var tris = new List<int>(expectedQuads * 6);
+            var colors = new List<Color>(expectedVerts);
             Color lakeColor = new Color(0.13f, 0.40f, 0.62f); // edesviz-kek
-            foreach (KeyValuePair<TileId, double> kv in _adaptiveLakeSurface)
+            var grid = new Vector3[n4 + 1, n4 + 1];
+            int quadCount = 0;
+            foreach (KeyValuePair<TileId, double> kv in drawn)
             {
                 TileId t = kv.Key;
                 float r = radius + (float)(DisplayElevation(kv.Value) * elevationScale);
                 TileGeometry.GetContinuousBounds(t, out double uMin, out double uMax, out double vMin, out double vMax);
-                Vector3 p00 = ToWaterVector3(t.Face, uMin, vMin, r);
-                Vector3 p10 = ToWaterVector3(t.Face, uMax, vMin, r);
-                Vector3 p11 = ToWaterVector3(t.Face, uMax, vMax, r);
-                Vector3 p01 = ToWaterVector3(t.Face, uMin, vMax, r);
-                AddQuad(verts, normals, tris, colors, lakeColor, p00, p10, p11, p01);
+                if (!subdivided.Contains(t))
+                {
+                    Vector3 q00 = ToWaterVector3(t.Face, uMin, vMin, r);
+                    Vector3 q10 = ToWaterVector3(t.Face, uMax, vMin, r);
+                    Vector3 q11 = ToWaterVector3(t.Face, uMax, vMax, r);
+                    Vector3 q01 = ToWaterVector3(t.Face, uMin, vMax, r);
+                    AddQuad(verts, normals, tris, colors, lakeColor, q00, q10, q11, q01);
+                    quadCount++;
+                    continue;
+                }
+
+                for (int i = 0; i <= n4; i++)
+                {
+                    double uc = uMin + (uMax - uMin) * i / n4;
+                    for (int j = 0; j <= n4; j++)
+                    {
+                        double vc = vMin + (vMax - vMin) * j / n4;
+                        grid[i, j] = ToWaterVector3(t.Face, uc, vc, r);
+                    }
+                }
+
+                // T-CSOMÓPONT: ha a szomszéd RAJZOLT, de NEM al-osztott, az ő
+                // éle egyetlen egyenes húr a két közös sarok között, a miénk
+                // viszont a helyes sugáron futó törtvonal - a kettő között
+                // hajszálrés maradna. Ezért a KÖZÖS él belső pontjait a húrra
+                // ejtjük. Ahol a szomszéd NINCS rajzolva, ott nincs mihez
+                // illeszteni, és a húrra ejtés csak fölöslegesen süllyesztené
+                // a vízfelszín szélét - ott a helyes sugár marad.
+                if (IsCoarseDrawnNeighbor(t, TileDirection.Left, drawn, subdivided))
+                    SnapEdgeToChord(grid, n4, 0, false);
+                if (IsCoarseDrawnNeighbor(t, TileDirection.Right, drawn, subdivided))
+                    SnapEdgeToChord(grid, n4, n4, false);
+                if (IsCoarseDrawnNeighbor(t, TileDirection.Down, drawn, subdivided))
+                    SnapEdgeToChord(grid, n4, 0, true);
+                if (IsCoarseDrawnNeighbor(t, TileDirection.Up, drawn, subdivided))
+                    SnapEdgeToChord(grid, n4, n4, true);
+
+                for (int i = 0; i < n4; i++)
+                {
+                    for (int j = 0; j < n4; j++)
+                    {
+                        AddQuad(verts, normals, tris, colors, lakeColor,
+                            grid[i, j], grid[i + 1, j], grid[i + 1, j + 1], grid[i, j + 1]);
+                        quadCount++;
+                    }
+                }
             }
 
             GameObject go;
@@ -7005,6 +7226,46 @@ namespace WorldGen.Viewer
             mesh.SetTriangles(tris, 0);
             mesh.RecalculateBounds();
             mf.sharedMesh = mesh;
+
+            PerfLog(
+                $"[ND-129 lake surface] level={lakeLevel} lakeTiles={_adaptiveLakeSurface.Count} " +
+                $"withRing={surfaceByTile.Count} drawn={drawn.Count} skippedAboveWater={skipped} " +
+                $"subdivided={subdivided.Count} (N={n4}) ringRounds={ringRounds} " +
+                $"ringFullyFlooded={ringFullyFlooded} stillFlooded={ringUnfinished} " +
+                $"quads={quadCount} verts={verts.Count} " +
+                $"cornerSamples={cornerElevations.Count} (basisHits={cornerBasisHits} misses={cornerBasisMisses}) " +
+                $"{lakeSurfaceStopwatch.Elapsed.TotalMilliseconds:F1}ms");
+        }
+
+        /// <summary>
+        /// ND-129: a <paramref name="direction"/> irányú szomszéd RAJZOLT-e, de
+        /// NEM al-osztott - vagyis keletkezne-e T-csomópont a közös élen.
+        /// </summary>
+        private static bool IsCoarseDrawnNeighbor(
+            TileId tile, TileDirection direction,
+            Dictionary<TileId, double> drawn, HashSet<TileId> subdivided)
+        {
+            TileId nb = TileNeighbors.Neighbor(tile, direction);
+            return drawn.ContainsKey(nb) && !subdivided.Contains(nb);
+        }
+
+        /// <summary>
+        /// ND-129: egy al-osztott tile EGYIK élének belső pontjait a két
+        /// végpont közti EGYENESRE (húrra) ejti - ez az, amit a szomszéd durva
+        /// quad éle ténylegesen kirajzol, tehát így nem marad rés. Az
+        /// <paramref name="alongV"/> azt mondja meg, melyik irányban fut az él:
+        /// hamis = fix i (u-szélső oszlop), igaz = fix j (v-szélső sor).
+        /// </summary>
+        private static void SnapEdgeToChord(Vector3[,] grid, int n, int fixedIndex, bool alongV)
+        {
+            Vector3 a = alongV ? grid[0, fixedIndex] : grid[fixedIndex, 0];
+            Vector3 b = alongV ? grid[n, fixedIndex] : grid[fixedIndex, n];
+            for (int k = 1; k < n; k++)
+            {
+                Vector3 p = Vector3.Lerp(a, b, (float)k / n);
+                if (alongV) grid[k, fixedIndex] = p;
+                else grid[fixedIndex, k] = p;
+            }
         }
 
         /// <summary>

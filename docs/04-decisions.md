@@ -5886,6 +5886,119 @@ keresztmetszet lesz, a GPU-út újraírható — de sarok-szintű dispatchcsel,
 a Core-eleváció megosztott forrásából, és egy CPU/GPU egyezési kapuval.
 A mai shader ehhez nem alap.
 
+### ND-129 — Tó-blokkosság (A9): a partvonalat a TEREP messe ki, ne a tó-poligon
+
+**2026-09-22.** A `todo2.md` A9 sora, felhasználói visszajelzés alapján
+(„a tavak zoomra nagy tile-okból összerakottnak néznek ki"). Az ND-49/
+ND-124 a FOLYÓ-vonalat vitte finom nyomvonalra; a tavakra a javítás soha
+nem terjedt ki.
+
+**A MÉRT diagnózis** (élő Editor, seed `0xA7C944210000`, `hydrologyLevel=8`,
+`adaptiveBaseLevel=8`, `level=5`):
+
+| | érték |
+|---|---|
+| tó-tile összesen (level 8) | **11 505** |
+| egy level-8 tile oldala | **~36 km** |
+| a legnagyobb tó | 404 tile, felszín **1975,7 m** |
+| a tó-tile-ok terep-tartománya | 1602,4 – 2097,2 m |
+| tó-tile SARKOK a vízfelszín FÖLÖTT | **10,3%** (166/1616) |
+| tó-tile KÖZEPEK a vízfelszín fölött | **0** (0/404) |
+| a vízszinthez ±25 m-en belüli sarkok | **14,8%** (239/1616) |
+| 1-gyűrű szomszéd, csupa víz alatti sarokkal | **0** (0/146) |
+| 1-gyűrű szomszéd, VEGYES (metszi a vízszintet) | **78,1%** (114/146) |
+| 1-gyűrű szomszéd, csupa víz feletti sarokkal | 21,9% (32/146) |
+
+**Három, egymástól független ok — ebből kettő valódi:**
+
+1. **A rajzolt tó a level-8 tile-halmaz uniója.** A `BuildLakeSurface`
+   tile-onként EGYETLEN quadot rak le (`GetContinuousBounds` → 4 sarok), és
+   a halmaz szélén a vízfelszín egyszerűen VÉGET ér a tile-határon. A
+   partvonal ezért tengelypárhuzamos, 36 km-es lépcsőkből áll. **Ez a fő ok.**
+2. **A lapos quad behúr a gömbbe.** Egy 36 km-es húr közepe
+   `R·θ²/8 ≈ 25 m`-rel a helyes sugár ALATT van. A tó-sarkok **14,8%-a**
+   ezen a sávon belül van, tehát a behúrás a part menti sávban ténylegesen
+   a terep alá viszi a vízfelszínt.
+3. **A `RenderCategory.Lake` adaptív ága halott kód.** Az
+   `IsAdaptiveLakeTile` az `IsInReferenceLevelSet`-en át a megjelenítési
+   `level`-ig (5) sétál vissza, a halmaz viszont level-8 tile-okból áll —
+   SOHA nem talál. Nem okoz hibát (az opak vízfelszín úgyis takar), de azt
+   jelenti, hogy a tónak NINCS más geometriai forrása a vízfelszín-mesh-en
+   kívül. Külön takarítandó.
+
+**A kulcs-megfigyelés.** A terep-mesh adaptív, level 20-ig finomodik, és a
+tó vízfelszíne egy ISMERT magasságú, VÍZSZINTES sík. Ahol a terep a sík
+fölé emelkedik, ott a terep — pusztán a z-bufferből — KIVÁGJA a vízfelszínt.
+Ez ma is működik, csak a tó-tile-ok **10,3%-ányi** sarkánál fordul elő; a
+partvonal maradék ~90%-a nyers tile-él. Ha a vízfelszín TÚLNYÚLNA a valódi
+parton, a partvonal 100%-ban terep-metszet lenne — és a részletessége
+AUTOMATIKUSAN követné a terep-LOD-ot, vagyis zoomra magától finomodna.
+A mérés azt is kimondja, hogy ez biztonságos: az 1-gyűrű szomszédok
+**78,1%-a VEGYES** (a vízszint áthalad rajtuk), és **egyetlen egy sincs**,
+amelyik teljes egészében víz alatt lenne — tehát egy gyűrűnyi kiterjesztés
+sehol nem önt el egész tile-t.
+
+**Opciók.**
+
+- **(A) Újramintavételezéses kontúr (marching squares).** A tó-tile-okon
+  al-rácson mintázzuk a terepet, és a vízszint-szintvonalat interpolálva
+  vágjuk ki a vízfelületet. *ELVETVE, mérés alapján:* a
+  `ComputeElevationAtPoint` élőben mért költsége **~53 µs/hívás**
+  (`history/2026-09-20-flyto-wind-overlay-split-quota.md`: 4 hívás = 212 µs).
+  Egy egyenletes level-12 rács a 11 505 tó-tile-ra 2,9 M hívás ≈ **2,5 perc
+  CPU**. Adaptívan (csak a part menti cellák) olcsóbb lenne, de egy MÁSODIK,
+  a terep-mesh-től FÜGGETLEN partvonal-definíciót vezetne be — két forrás,
+  amik zoomon elcsúszhatnak egymástól.
+- **(B) A partvonal a MEGLÉVŐ terep-mesh metszete. ← VÁLASZTOTT.** A tó
+  vízfelszíne kiterjed a valódi parton túlra (a tó-tile-ok + 1 gyűrű
+  szomszéd), és a már renderelt, adaptív terep vágja ki belőle a partot.
+  **Nulla új eleváció-kiértékelés a partvonalhoz**; egyetlen partvonal-
+  definíció (a terep), tehát nem csúszhat el; a részletesség a terep-LOD-dal
+  együtt, level 20-ig finomodik. A 2. okra (behúrás) a vízfelszín-quadok
+  al-osztása a válasz.
+- **(C) A globális `hydrologyLevel` emelése.** Ugyanaz az érv veti el, mint
+  az ND-49-nél: a `FlowNetwork.PriorityFlood` szekvenciális, level 10+-on
+  6,3 M tile-ra kezelhetetlen — és a blokkosságot csak eltolná, nem szüntetné meg.
+
+**A (B) végrehajtási terve.**
+
+1. **Kiterjesztés 1 gyűrűvel.** A `BuildLakeSurface` a tó-tile-ok
+   `TileNeighbors.Neighbor` szerinti 1-gyűrűjét is megrajzolja, a tó SAJÁT
+   felszín-magasságán. A csupa víz FELETTI sarkú gyűrű-tile-ok (mérve
+   21,9%) kimaradnak — ott a vízfelszín amúgy is teljesen takarva lenne.
+2. **Al-osztás a behúrás ellen.** Minden rajzolt tile N×N al-quadra bomlik.
+   `N=4` (level 10) mellett a behúrás **25 m → 1,6 m**. EGYENLETES al-osztás,
+   mert így nincs T-csomópont/hajszálrés a szomszédos tile-ok között.
+   Takarékosság: az a tile, aminek MIND a négy sarka legalább 40 m-rel a
+   vízszint alatt van, egyetlen quad marad (ott a behúrás láthatatlan) —
+   ehhez a T-csomópont a tile ÉLÉN a durva húrra ejtett al-sarkokkal
+   kezelendő.
+3. **A sarok-elevációk INGYEN vannak.** A döntésekhez (kihagyás/al-osztás)
+   level-8 SAROK-elevációk kellenek — a `TryGetStaticTerrainBasis`
+   (ND-63/ND-122, lemezre cache-elt) pontosan ezeket adja, tehát nem kell
+   új `TerrainPointBasis.Compute`.
+4. **`SurfaceElevation` finomítás.** A `LakeInfo.SurfaceElevation` a
+   komponens `filled` értékeinek ÁTLAGA. Egy több, eltérő szintű mélyedésből
+   összeolvadt komponensnél ez se nem a felső, se nem az alsó szint. A
+   per-tile `filled` érték a helyes vízszint — a `MinSurface`/`MaxSurface`
+   eltérése mérendő, és ha érdemi, a per-tile érték a rajzoláshoz.
+
+**Amit ez NEM old meg (tudatosan, v1-ben):** a lefolyónál (spill-pont) a
+völgytalp a feltöltési szint ALATT van, tehát a gyűrű-kiterjesztés ott egy
+legfeljebb egy tile-nyi „nyelvet" adhat a folyó irányába. A mérés szerint
+egész gyűrű-tile sosem kerül víz alá, tehát ez korlátos és terep-alakú.
+Ha a vizuális ellenőrzésen (B3) zavaró, a `FlowNetwork` `Parent`-térképe
+alapján a lefolyás-irányú gyűrű-tile-ok kizárhatók.
+
+**Ha a (2) al-osztás kevésnek bizonyul közeli zoomnál**, a vízfelszín a
+meglévő ND-82/ND-83 gépezettel (`WaterLodSource`, `LodCoverage`,
+`LodCornerResolver`) kamera-adaptívvá tehető — a partvonal-definíció
+ettől NEM változik, csak a sík geometriai pontossága.
+
+**Verziózás:** nem seed-törő (tisztán megjelenítési döntés; a
+`LakesIceErosion` detektálása, a `filled` mező és minden szimulációs érték
+változatlan, I1–I4 érintetlen).
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |
