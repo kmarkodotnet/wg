@@ -13,12 +13,13 @@ Build() TELJES = 1000ms
 Build() seeds+craters=0ms
   BuildStaticBaseLayer reszletek: total=80ms terrainBasis=0ms (reused=True) mesh=40ms
 [A5 static profile] complete=True
-[A5 static phase] name=WorldGen.StaticBase.meshUpload ms=12.500 mainThreadBytes=1024 gc0=1 gc1=0 gc2=0 heapDeltaBytes=-4096
+[A5 static phase] name=WorldGen.StaticBase.meshUpload ms=12.500 mainThreadBytes=1024 gc0=1 gc1=0 gc2=0 heapDeltaBytes=-4096 threadCpuMs=0.000
+[A5 static phase] name=WorldGen.StaticBase.legacy ms=1.000 mainThreadBytes=0 gc0=0 gc1=0 gc2=0 heapDeltaBytes=0
 Build() TELJES = 500ms
 Build() seeds+craters=0ms
   BuildStaticBaseLayer reszletek: total=90ms terrainBasis=0ms (reused=True)
 [A5 static profile] allocationCounterSupported=False complete=True
-[A5 static phase] name=WorldGen.StaticBase.emit ms=25.000 mainThreadBytes=-1 gc0=0 gc1=0 gc2=0 heapDeltaBytes=4096
+[A5 static phase] name=WorldGen.StaticBase.emit ms=25.000 mainThreadBytes=-1 gc0=0 gc1=0 gc2=0 heapDeltaBytes=4096 threadCpuMs=-1.000
 Build() TELJES = 700ms
 Build() seeds+craters=0ms
   BuildStaticBaseLayer reszletek: total=99999ms terrainBasis=0ms (reused=True)
@@ -44,5 +45,13 @@ if ($allocation.mainThreadBytes -ne 1024 -or $allocation.heapDeltaBytes -ne -409
 }
 if ($null -ne $r.builds[2].allocationPhases[0].mainThreadBytes) {
     throw 'A nem támogatott allokációszámláló nem jelenhet meg mért nullaként.'
+}
+if ($allocation.threadCpuMs -ne 0 -or $null -ne $r.builds[2].allocationPhases[0].threadCpuMs -or $null -ne $r.builds[1].allocationPhases[1].threadCpuMs) {
+    throw 'A mért nulla CPU-idő és a hiányzó/nem támogatott CPU-idő eltérő adat.'
+}
+& (Join-Path $PSScriptRoot 'analyze-deep-time.ps1') -LogPath $logPath -OutputPath $reportPath -Cache warm -Instrumentation profile -SkipBuilds 1 -MaxBuilds 1
+$filtered = Get-Content -Raw -LiteralPath $reportPath | ConvertFrom-Json
+if ($filtered.selectedBuilds -ne 1 -or $filtered.groups.warm.phasesMs.'build.total'.mean -ne 700 -or $filtered.groups.cold.count -ne 0) {
+    throw 'A kontroll/profil szétválasztása vagy a bemelegítések kihagyása hibás.'
 }
 Write-Output 'PASS: Build-határok, cache, tizedesvessző, statisztika, hiányzó fázis, allokáció/heap.'

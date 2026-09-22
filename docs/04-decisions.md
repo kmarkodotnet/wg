@@ -6281,7 +6281,7 @@ munka ütemezése, megszakíthatósága és a viewer átadási ideje változik.
 ismétlődött. A4 a felhasználó kérésére lezárva, az elért eredmény elfogadva;
 a <1 s numerikus küszöb ettől még nem igazolt. A további profilozás A5/ND-133.
 
-### ND-133 — Deep-time variancia és allokációprofil (FOLYAMATBAN)
+### ND-133 — Deep-time variancia és allokációprofil (LEZÁRVA)
 
 **Döntés (2026-09-22, implementáció előtt):** az A5 első lépése a jelenlegi
 PerfLog megismételhető elemzése és opcionális, fázisonkénti viewer-mérés.
@@ -6308,6 +6308,96 @@ ismételt, profilozás nélküli kontroll és Profiler-menet szükséges.
 A műszerezés ezt a fázisok előtt ellenőrzi; nem támogatott számlálónál
 `allocationCounterSupported=False`, bájtérték `-1`, a JSON-ban `null`.
 Ez nem allokációmentesség. Részletes mérés: `history/2026-09-22-deep-time-allocation-profile.md`.
+
+**A5 második folytatás, mérési terv:** a vízfázis külön setup/összefűzés/
+upload/diagnosztikai másolat/layout/maszk/LOD-forrás mintákra bomlik, az
+összesített PerfLog-vízidő megmarad. Először azonos konfigurációjú élő
+profil készül; a mérés nem változtat GC-módot vagy szimulációs viselkedést.
+
+**Lezárási kapu pontosítása (2026-09-22):** az A5 véges profilozási feladat:
+megismételhető fázis-/allokációmérés, igazolt pazarlás javítása, Editor és
+Player elkülönítése, majd változó világidős ismétlési ellenőrzés. A záró
+menet a Build-időt, a memóriaállományt és külön a visszatérő időpontok
+terrain/víz/tó mesh-hashét vizsgálja. A rövid sorozat nem hosszú távú
+szivárgásbizonyítás és nem vizuális átvétel. Az Editor belső allokátorának
+teljes feltárása és minden natív allokáció eseményszintű követése korábban
+túl tágra nyitotta a feladatot: ezek opcionális további vizsgálatok, nem
+A5-zárókövetelmények. A <1 s cél elérését ez a profilozási lezárás nem jelenti.
+
+**Záró eredmény (2026-09-22):** 2 bemelegítés után 20 kontrollált Build,
+0/100/500/100/0 Myr négyszer: 1,873–2,374 s, azonos időpontok között a
+Unity-állomány min–max eltérése legfeljebb 115 626 bájt. Külön hat Buildben
+a három időpont ismételt terrain/víz/tó-hash-e páronként bitazonos;
+a különböző időpontok eltérő terepet adnak. Console: 0 hiba. A rövid
+ismétlésben nincs jelentős felhalmozódás; hosszú szivárgásmentesség és
+vizuális átvétel nincs állítva. A pontosított profilozási feladat lezárva.
+Részletes bizonyíték: `history/2026-09-22-a5-water-cpu-player-profile.md`.
+
+### ND-134 — Mesh-összefűzés pontos előfoglalással (A5)
+
+**Döntés (2026-09-22, implementáció előtt):** a terrain és a statikus víz
+összefűző listái a nem üres bucketek tényleges elemszámából számolt
+kapacitással indulnak. A bucketek rendezése, bejárása, elemei, indexeltolása
+és bounds-számítása változatlan. Nincs megosztott buffer, új tulajdonjogi
+szerződés, Core- vagy seed-változás.
+
+**Bizonyíték:** három valódi Unity Profiler-mintában a főszálú managed
+allokáció a terrain mesh-összeállításban 204 070 380 bájt/Build, a
+statikus vízfázisban 132 805 219 bájt/Build. A külön `GC.Alloc` hívásláncos
+menet a `ConcatenateMultiMaterialBuckets`-hez, illetve `BuildWaterSurface`-
+hez köti a 3,8 → 7,7 → 15,3 → 30,6 MB és további növekvő tömböket.
+Az input bucketek darabszáma már ismert: a kapacitásnövelés elkerülhető.
+
+**Kapuk:** azonos konfiguráción ismételt kontroll és profilos előtte/utána
+mérés; a statikus terep/víz/tó csúcs-, normál-, szín-, submesh-index- és
+bounds-adatainak azonos SHA-256 értéke; élő Unity-fordítás/Console és viewer
+ellenőrzés. A bitazonosság fontosabb, mint a mért idő. A maradék bucket- és
+maszk-varianciát nem nyilvánítjuk ezzel automatikusan lezártnak.
+
+**Eredmény (2026-09-22):** implementálva, élő Editorban mérve. A terrain
+összeállítás 204 070 380 → 75 500 252, a vízfázis 132 805 219 → 84 171 555
+főszálú managed bájt/Build (3–3 Profiler-minta). A teljes Build allokációja
+~692 → ~515 MB. Két bemelegítés után 10–10 profilozás nélküli kontroll
+átlaga 2375,08 → 2150,30 ms, szórása 119,09 → 73,68 ms. A terep, víz és
+tó geometriájának SHA-256 értéke azonos. A vízfázis kontrollszórása ugyanakkor
+14,75 → 151,84 ms: az allokációcsökkenés nem oldotta meg minden fázis
+varianciáját. Ebben a mérési körben A5 még nyitott volt; a későbbi lezárás
+az ND-133-ban, a részletes korlátok és reprodukció a mérési naplóban.
+
+### ND-135 — A5 külön Development Player-kontroll
+
+**Döntés (2026-09-22, implementáció előtt):** az Editor-függő variancia
+leválasztására ugyanaz a PlanetView scene külön Windows Development
+Playerként épül az `artifacts/` alá. A mérőkomponens csak Development
+Playerben és explicit `-a5-output` indítási argumentummal aktiválódik;
+nem kerül scene-be és nem módosít projektbeállítást. Azonos világ/kamera,
+bemelegítés és teljes Build-minták, külön fázismérős menet.
+
+A főszál CPU-ideje Windows Editorban/Playerben `GetThreadTimes`-ból,
+kernel+user időként mérhető; más platformon -1, a JSON-ban null. Az OS
+számláló durva felbontása miatt rövid szakaszoknál nulla vagy a falióránál
+kicsivel nagyobb idő is lehet. A mért ~90 ms CPU-csúcsok viszont nem
+magyarázhatók kizárólag deschedulinggel.
+
+Külön, legfeljebb három Buildes **diagnosztikai** Player-próbában a GC
+csak az egyes Build hívás idejére kikapcsolható, `finally` visszaállítással
+és 4 GiB managed-heap indítási korláttal. Nincs explicit `GC.Collect`,
+nincs termékbeli GC-szabályváltás. A Unity API Editorban nem támogatott,
+ezért ott nem színlelünk ilyen összehasonlítást. A próba befejezésekor a
+Player kilép; kimeneti fájlt nem ír felül.
+
+Források: [Unity GCMode](https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Scripting.GarbageCollector.GCMode.html),
+[Microsoft GetThreadTimes](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getthreadtimes).
+
+**Mérve:** a Development Player 10 kontrolljának átlaga 2037,56 ms,
+szórása 32,76 ms, vízfázisa 62,1–71,0 ms. Az Editor CPU-csúcsai ebben a
+Player-sorozatban nem ismétlődtek. Normál / GC-disabled / ismételt normál,
+3–3 fázismérős Build átlaga 2011,77 / 1963,00 / 2010,07 ms; GC-disabled
+alatt mindhárom gyűjtésszámláló-delta 0, a Build utáni managed heap
+0,933–1,137 GB. Ez rövid diagnózis, nem GC-kikapcsolási termékjavaslat.
+A tíz kontroll utáni Unity-nyilvántartott memória 328,272–328,300 MB;
+állomány, nem natív allokációs forgalom. Részletek és korlátok:
+`history/2026-09-22-a5-water-cpu-player-profile.md`.
 
 ### A többi nyitott döntés
 

@@ -234,7 +234,24 @@ GC-számlálót és managed heap-változást rögzít, Unity Profiler-mintákkal
 A heap-különbség nem allokált bájt, a GC-számláló nem szünetidő, a főszál
 allokációja nem tartalmazza a workereket vagy a natív/GPU memóriát.
 A mérés nem kényszerít GC-t, és nem módosítja a Core számítását.
+
+**ND-134:** a terrain és víz mesh-összefűzése a kész bucketek elemszámából
+pontos listakapacitást foglal. A bejárási sorrend és a buffer-tulajdonjog
+változatlan. Az A5 külső diagnosztikai runner a Unity `RawFrameDataView`
+`GC.Alloc` metaadatait is kiolvassa; a Mono-számláló hiányát ez hidalja át.
+A Profiler-menetek és a profilozás nélküli kontrollok külön minták.
 A profil alapból kikapcsolt; kontrollmérés szükséges nélküle is.
+Az Editor-runner opcionális világidősorozata az eredeti időpontra tér
+vissza, és mintánként kamera-pózt, abszolút Unity-/Mono-memóriaállományt
+rögzít. Az ismételt időpontok mesh-hash-vizsgálata külön menetben fut;
+az állománymérés nem az allokált bájtforgalom és nem vizuális átvétel.
+
+**ND-135:** a vízprofil külön méri az összefűzés, natív upload,
+diagnosztikai nyilvántartás, layout, maszk és LOD-forrás idejét. Windows
+Editor/Player alatt opcionális kernel+user főszálú CPU-idő is készül;
+ez nem falióra és nem GC-szünetidő. A `DeepTimePlayerProbe` kizárólag
+Development Playerben, explicit indítási kapcsolóval aktív, scene-bekötés
+nélkül. A korlátos GC-kikapcsolási próba csak diagnosztikai üzemmód.
 
 A teljes, fix levelű cubed-sphere mezők nem ritka adatszerkezetek. A
 teljesítménykritikus deep-time út ezért használhat `face/u/v` szerint

@@ -26,7 +26,8 @@ namespace WorldGen.Viewer
         private int _waterColorSamples;
 
         // A tényleges emit sorrendjét kapcsoljuk az upload tényleges index-layoutjához.
-        private void InitializeIndependentWater(StaticMeshBuckets? buckets, float seaRadius)
+        private void InitializeIndependentWater(StaticMeshBuckets? buckets, float seaRadius,
+            StaticBuildAllocationProfile allocationProfile = null)
         {
             _waterLodSource = null;
             _waterEvaluationCache = null;
@@ -81,8 +82,10 @@ namespace WorldGen.Viewer
                 submesh++;
             }
             if (submesh != mesh.subMeshCount) throw new InvalidOperationException("Hiányos víz-bucket térkép.");
+            allocationProfile?.Next("WorldGen.StaticBase.water.mask");
             _waterIndexMask = new TerrainIndexMask(adaptiveBaseLevel, offsets, indices, allowMissingTiles: true);
             _staticWaterMesh = mesh;
+            allocationProfile?.Next("WorldGen.StaticBase.water.source");
             _waterLodSource = new WaterLodSource(adaptiveBaseLevel, seaRadius, roots);
             PerfLog($"[ND-83 water source] base={adaptiveBaseLevel} roots={roots.Count} seaRadius={seaRadius:R} " +
                 $"leafBudget={WaterLeafBudget} splitLimit={WaterSplitsPerRequest}");

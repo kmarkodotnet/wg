@@ -3,8 +3,22 @@
 **2026-09-22, aktuális M9/M10-részfeladat:** a `todo2.md` A4 deep-time
 újraépítési tétele felhasználói kérésre lezárva (12 meleg Build átlaga
 2,479 s; az eredeti <1 s küszöb nem igazolt). A5 variancia-/allokációprofil
-folyamatban: ND-133, kapcsolható fázismérés és első élő GC-megfigyelés.
-[Mérési napló és fennmaradó kapuk](../history/2026-09-22-deep-time-allocation-profile.md).
+lezárva (a pontosított profilozási részfeladat 100%): ND-133–135, kontrollált mérés és a mesh-listák pontos
+előfoglalása elkészült. Azonos konfigurációjú 10–10 kontroll átlaga
+2375 → 2150 ms, főszálú allokáció ~692 → ~515 MB; három mesh-hash azonos.
+A részletes víz- és CPU-profil, worker-hívásláncok és Development Player-
+kontroll elkészült: a Player 10 mért Buildje 2038 ± 33 ms, a víz 62–71 ms.
+A Build alatti GC-kikapcsolás rövid próbája csak ~2,4% időeltérést adott,
+nagy managed heap mellett; termékbeli GC-változás nincs. Az Editorban mért
+CPU-csúcsok belső futtatókörnyezeti oka és a natív allokációs események
+részletes követése opcionális további vizsgálat, nem elvégzett munka.
+Záró ellenőrzés: 20 időváltásos Editor-Build 1,87–2,37 s, ugyanahhoz az
+időponthoz visszatérve legfeljebb 116 kB követett memóriaingadozás;
+0/100/500 Myr ismételt terep-/víz-/tó-hash-e azonos. A rövid mérés nem
+hosszú szivárgásteszt vagy vizuális átvétel. Durva összes ráfordítás
+5–7 munkaóra, ebben a profilozási feladatban hátralévő 0 óra.
+[Második mérési napló](../history/2026-09-22-a5-water-cpu-player-profile.md).
+[Első mérési kör naplója](../history/2026-09-22-deep-time-allocation-profile.md).
 A lentebbi történeti milestone-sorok nem friss teljesprojektes auditok.
 
 A render **nem a végén van**. M2-től minden fázisnak van vizuális kimenete, mert

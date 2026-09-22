@@ -3125,19 +3125,38 @@ namespace WorldGen.Viewer
             private struct Sample
             {
                 public string Name;
-                public double Milliseconds;
+                public double Milliseconds, ThreadCpuMilliseconds;
                 public long MainThreadBytes, HeapDeltaBytes;
                 public int Gen0, Gen1, Gen2;
             }
 
             private readonly PlanetGridMesh _owner;
-            private readonly Sample[] _samples = new Sample[20];
+            private readonly Sample[] _samples = new Sample[32];
             private readonly bool _allocationCounterSupported;
             private int _count;
             private string _name;
-            private long _startTicks, _startBytes, _startHeap;
+            private long _startTicks, _startBytes, _startHeap, _startCpu;
             private int _gen0, _gen1, _gen2;
             private bool _complete;
+
+            // Csak Windows-diagnosztika: kernel+user CPU-idő, 100 ns
+            // egységben. Más platformon/hibánál -1; a rövid fázisoknál az OS
+            // számláló felbontása miatt nulla is lehet. Nem szimulációs óra.
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+            [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+            private static extern IntPtr GetCurrentThread();
+            [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+            [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+            private static extern bool GetThreadTimes(IntPtr thread, out long created, out long exited, out long kernel, out long user);
+#endif
+            private static long ReadThreadCpu()
+            {
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+                return GetThreadTimes(GetCurrentThread(), out _, out _, out long kernel, out long user) ? kernel + user : -1;
+#else
+                return -1;
+#endif
+            }
 
             public StaticBuildAllocationProfile(PlanetGridMesh owner)
             {
@@ -3161,6 +3180,7 @@ namespace WorldGen.Viewer
                 _gen1 = GC.CollectionCount(1);
                 _gen2 = GC.CollectionCount(2);
                 _startBytes = GC.GetAllocatedBytesForCurrentThread();
+                _startCpu = ReadThreadCpu();
                 _startTicks = Stopwatch.GetTimestamp();
             }
 
@@ -3168,11 +3188,13 @@ namespace WorldGen.Viewer
             {
                 if (_name == null) return;
                 long endTicks = Stopwatch.GetTimestamp();
+                long endCpu = ReadThreadCpu();
                 long endBytes = GC.GetAllocatedBytesForCurrentThread();
                 var sample = new Sample
                 {
                     Name = _name,
                     Milliseconds = (endTicks - _startTicks) * 1000.0 / Stopwatch.Frequency,
+                    ThreadCpuMilliseconds = _startCpu >= 0 && endCpu >= _startCpu ? (endCpu - _startCpu) / 10000.0 : -1,
                     MainThreadBytes = _allocationCounterSupported ? endBytes - _startBytes : -1,
                     Gen0 = GC.CollectionCount(0) - _gen0,
                     Gen1 = GC.CollectionCount(1) - _gen1,
@@ -3199,7 +3221,7 @@ namespace WorldGen.Viewer
                 {
                     Sample s = _samples[i];
                     _owner.PerfLog(FormattableString.Invariant(
-                        $"[A5 static phase] name={s.Name} ms={s.Milliseconds:F3} mainThreadBytes={s.MainThreadBytes} gc0={s.Gen0} gc1={s.Gen1} gc2={s.Gen2} heapDeltaBytes={s.HeapDeltaBytes}"));
+                        $"[A5 static phase] name={s.Name} ms={s.Milliseconds:F3} mainThreadBytes={s.MainThreadBytes} gc0={s.Gen0} gc1={s.Gen1} gc2={s.Gen2} heapDeltaBytes={s.HeapDeltaBytes} threadCpuMs={s.ThreadCpuMilliseconds:F3}"));
                 }
             }
         }
@@ -3354,10 +3376,11 @@ namespace WorldGen.Viewer
             BuildBorders(borderVerts, borderIndices, "Borders");
             double bordersMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
-            allocationProfile?.Next("WorldGen.StaticBase.water");
+            allocationProfile?.Next("WorldGen.StaticBase.water.setup");
             phaseStopwatch.Restart();
-            BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, waterColorsByBucket, "WaterSurface");
-            InitializeIndependentWater(staticBuckets, waterSurfaceRadius);
+            BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, waterColorsByBucket, "WaterSurface", allocationProfile);
+            allocationProfile?.Next("WorldGen.StaticBase.water.layout");
+            InitializeIndependentWater(staticBuckets, waterSurfaceRadius, allocationProfile);
             double waterMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
             allocationProfile?.Next("WorldGen.StaticBase.eviction");
@@ -6762,6 +6785,22 @@ namespace WorldGen.Viewer
             var keys = new List<(RenderCategory Category, int Bucket)>(verticesByKey.Keys);
             keys.Sort((a, b) => a.Category != b.Category ? a.Category.CompareTo(b.Category) : a.Bucket.CompareTo(b.Bucket));
 
+            // ND-134: az összes bemenet már kész; a növekvő listák újrafoglalása
+            // L8-on több mint 100 MiB fölösleges átmeneti tömböt hozott létre.
+            int vertexCount = 0, normalCount = 0, colorCount = 0;
+            foreach (var key in keys)
+            {
+                if (verticesByKey[key].Count == 0) continue;
+                vertexCount = checked(vertexCount + verticesByKey[key].Count);
+                normalCount = checked(normalCount + normalsByKey[key].Count);
+                colorCount = checked(colorCount + colorsByKey[key].Count);
+            }
+            cm.Vertices.Capacity = vertexCount;
+            cm.Normals.Capacity = normalCount;
+            cm.Colors.Capacity = colorCount;
+            cm.SubmeshTriangles.Capacity = keys.Count;
+            cm.SubmeshKeys.Capacity = keys.Count;
+
             var min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
             var max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
             foreach ((RenderCategory Category, int Bucket) key in keys)
@@ -7921,7 +7960,7 @@ namespace WorldGen.Viewer
             Dictionary<int, List<Vector3>> normalsByBucket,
             Dictionary<int, List<int>> trianglesByBucket,
             Dictionary<int, List<Color>> colorsByBucket,
-            string childName)
+            string childName, StaticBuildAllocationProfile allocationProfile = null)
         {
             Transform waterChild = transform.Find(childName);
             GameObject waterGo;
@@ -7945,14 +7984,24 @@ namespace WorldGen.Viewer
             waterGo.SetActive(true);
             _drawnDiagnosticMeshes.Remove(waterGo);
 
-            var allVertices = new List<Vector3>();
-            var allNormals = new List<Vector3>();
-            var allColors = new List<Color>();
-            var submeshTriangleLists = new List<int[]>();
-            var materials = new List<Material>();
-
+            allocationProfile?.Next("WorldGen.StaticBase.water.assemble");
             var buckets = new List<int>(verticesByBucket.Keys);
             buckets.Sort();
+
+            // ND-134: ugyanaz az előfoglalás, mint a terrain összefűzésénél.
+            int vertexCount = 0, normalCount = 0, colorCount = 0;
+            foreach (int bucket in buckets)
+            {
+                if (verticesByBucket[bucket].Count == 0) continue;
+                vertexCount = checked(vertexCount + verticesByBucket[bucket].Count);
+                normalCount = checked(normalCount + normalsByBucket[bucket].Count);
+                colorCount = checked(colorCount + colorsByBucket[bucket].Count);
+            }
+            var allVertices = new List<Vector3>(vertexCount);
+            var allNormals = new List<Vector3>(normalCount);
+            var allColors = new List<Color>(colorCount);
+            var submeshTriangleLists = new List<int[]>(buckets.Count);
+            var materials = new List<Material>(buckets.Count);
 
             foreach (int bucket in buckets)
             {
@@ -7971,6 +8020,7 @@ namespace WorldGen.Viewer
             }
 
             // TELJESITMENY: meglevo Mesh ujrahasznositasa (ld. BuildMultiMaterialMesh doksija).
+            allocationProfile?.Next("WorldGen.StaticBase.water.upload");
             MeshFilter waterMeshFilter = waterGo.GetComponent<MeshFilter>();
             Mesh mesh = waterMeshFilter.sharedMesh;
             if (mesh == null)
@@ -7988,6 +8038,7 @@ namespace WorldGen.Viewer
 
             waterMeshFilter.sharedMesh = mesh;
             waterGo.GetComponent<MeshRenderer>().sharedMaterials = materials.ToArray();
+            allocationProfile?.Next("WorldGen.StaticBase.water.diagnostics");
             RememberDrawnSurface(waterGo, allVertices, submeshTriangleLists,
                 childName == "WaterSurface" ? 3 : 4);
         }
