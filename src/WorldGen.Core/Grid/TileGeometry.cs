@@ -85,8 +85,23 @@ namespace WorldGen.Core.Grid
             z = p[2] / length;
         }
 
-        /// <summary>Egységvektor -> a hozzá tartozó TileId adott LOD-szinten.</summary>
-        public static TileId FromPosition(double x, double y, double z, int level)
+        /// <summary>
+        /// Egységvektor -> a lap és a lap-lokális FOLYTONOS (uc,vc)
+        /// koordináta: a <see cref="PositionFromFaceUV"/> INVERZE.
+        ///
+        /// Ez a <see cref="FromPosition"/> első fele, külön kiemelve - azért
+        /// publikus, mert a hívónak néha nem a tile-INDEX kell, hanem a
+        /// pontos hely a tile-on BELÜL (pl. egy diszkrét, referencia-szintű
+        /// mező folytonos interpolációjához, ld. ND-130). A kiemelés NEM
+        /// változtat a <see cref="FromPosition"/> viselkedésén: az innentől
+        /// ezt hívja, tehát a két út definíció szerint ugyanazt a (uc,vc)-t
+        /// látja.
+        ///
+        /// FIGYELEM: ugyanaz az ND-23b/ND-24 korlát vonatkozik rá, mint az
+        /// egész osztályra - a Math.Atan nem garantáltan bitpontos
+        /// platformok között, tehát ez sem való a szimuláció kritikus útjára.
+        /// </summary>
+        public static void ToFaceUV(double x, double y, double z, out int face, out double uc, out double vc)
         {
             Span<double> p = stackalloc double[3] { x, y, z };
 
@@ -95,7 +110,7 @@ namespace WorldGen.Core.Grid
             if (Math.Abs(p[2]) > Math.Abs(p[dominant])) dominant = 2;
             int dominantSign = p[dominant] >= 0 ? 1 : -1;
 
-            int face = -1;
+            face = -1;
             for (int f = 0; f < 6; f++)
             {
                 if (NormalAxis[f] == dominant && NormalSign[f] == dominantSign)
@@ -113,8 +128,14 @@ namespace WorldGen.Core.Grid
 
             double warpedX = pnRight * RightSign[face];
             double warpedY = pnUp * UpSign[face];
-            double uc = UnwarpTan(warpedX);
-            double vc = UnwarpTan(warpedY);
+            uc = UnwarpTan(warpedX);
+            vc = UnwarpTan(warpedY);
+        }
+
+        /// <summary>Egységvektor -> a hozzá tartozó TileId adott LOD-szinten.</summary>
+        public static TileId FromPosition(double x, double y, double z, int level)
+        {
+            ToFaceUV(x, y, z, out int face, out double uc, out double vc);
 
             long n = 1L << level;
             long u = (long)((uc + 1.0) / 2.0 * n);

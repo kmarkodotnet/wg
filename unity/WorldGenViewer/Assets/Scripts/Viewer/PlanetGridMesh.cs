@@ -800,10 +800,35 @@ namespace WorldGen.Viewer
         private BiomeClassification.PrecipitationThresholds _adaptiveBiomeThresholds;
 
         /// <summary>
-        /// Egy pont csapadeka a REFERENCIA-szintu mezobol (_adaptivePrecip),
-        /// a pontot tartalmazo referencia-tile szerint. Ugyanaz a minta, mint
-        /// a PrecipitationColorAt-ban. Csak OLVAS (Build ota valtozatlan) ->
-        /// szalbiztos a parhuzamos sarok-/tile-klasszifikaciobol.
+        /// ND-130: a referencia-szintu csapadek-mezo SAROK-ertekei (lap-lokalis
+        /// (n+1)x(n+1) racs lapokent), a <see cref="PrecipitationAtCore"/>
+        /// bilinearis interpolaciojahoz. Egyszer epul (Build), utana csak
+        /// OLVASSUK -> szalbiztos a parhuzamos klasszifikaciobol.
+        /// </summary>
+        private double[] _adaptivePrecipCorners;
+        private int _adaptivePrecipCornerLevel = -1;
+
+        /// <summary>
+        /// Egy pont csapadeka a REFERENCIA-szintu mezobol, a tile-sarkok
+        /// kozott BILINEARISAN interpolalva. Csak OLVAS (Build ota valtozatlan)
+        /// -> szalbiztos a parhuzamos sarok-/tile-klasszifikaciobol.
+        ///
+        /// ND-130 (felhasznaloi visszajelzes: "a zold biom nagy negyszog alaku
+        /// regiokban jelenik meg"). A KORABBI valtozat a pontot tartalmazo
+        /// REFERENCIA-TILE erteket adta vissza valtozatlanul. A referencia-szint
+        /// a jelenetben `level`=5, ahol egy tile ~288 km oldalu - a csapadek
+        /// tehat egy 288 km-es, TENGELYPARHUZAMOS lepcsos fuggveny volt, es
+        /// mivel az ND-126 ota a biome-osztalyozas BEMENETE, a szarazfoldi
+        /// biome-hatarok pontosan ezeket a negyzet-eleket vettek fel.
+        ///
+        /// A javitas ugyanaz a minta, amit a FELHO-reteg mar hasznal
+        /// (<see cref="PrecipAndOceanFractionAtCorner"/> + GPU-interpolacio):
+        /// tile-SAROK ertekek (a sarkot oszto tile-ok atlaga, lap-hataron is
+        /// helyesen, TileNeighbors-szal), majd a saroknegyes kozott bilinearis
+        /// interpolacio a pont tile-on BELULI helye szerint. A mezo ettol
+        /// folytonos (C0) lesz, tehat a biome-hatar sima szintvonal, nem
+        /// tile-el. NEM talal ki adatot: a MAR MEGLEVO mezo ertekeit
+        /// interpolalja, tehat I3/I4 ervenyben marad.
         ///
         /// Ha nincs csapadek-mezo (elvben nem fordulhat elo, mert az ND-126
         /// ota a Build() MINDIG kiszamolja), 0-t ad - az a legszarazabb
@@ -812,8 +837,81 @@ namespace WorldGen.Viewer
         private double PrecipitationAtCore(double cx, double cy, double cz)
         {
             if (_adaptivePrecip == null) return 0.0;
-            TileId t = TileGeometry.FromPosition(cx, cy, cz, level);
-            return _adaptivePrecip.TryGetValue(t, out double p) ? p : 0.0;
+            if (_adaptivePrecipCorners == null || _adaptivePrecipCornerLevel != level)
+            {
+                // Tartalek: a sarok-tabla meg nem epult fel (elvben csak a
+                // Build kozbeni, tabla elotti hivasoknal) - a regi, tile-szintu
+                // ertek helyes, csak blokkos.
+                TileId fallback = TileGeometry.FromPosition(cx, cy, cz, level);
+                return _adaptivePrecip.TryGetValue(fallback, out double fp) ? fp : 0.0;
+            }
+
+            TileGeometry.ToFaceUV(cx, cy, cz, out int face, out double uc, out double vc);
+            int n = 1 << level;
+            int side = n + 1;
+            double fu = (uc + 1.0) * 0.5 * n;
+            double fv = (vc + 1.0) * 0.5 * n;
+            int u = (int)fu;
+            int v = (int)fv;
+            if (u < 0) u = 0; else if (u > n - 1) u = n - 1;
+            if (v < 0) v = 0; else if (v > n - 1) v = n - 1;
+            double s = fu - u;
+            double t = fv - v;
+            if (s < 0.0) s = 0.0; else if (s > 1.0) s = 1.0;
+            if (t < 0.0) t = 0.0; else if (t > 1.0) t = 1.0;
+
+            int baseIndex = face * side * side;
+            double c00 = _adaptivePrecipCorners[baseIndex + u * side + v];
+            double c10 = _adaptivePrecipCorners[baseIndex + (u + 1) * side + v];
+            double c11 = _adaptivePrecipCorners[baseIndex + (u + 1) * side + (v + 1)];
+            double c01 = _adaptivePrecipCorners[baseIndex + u * side + (v + 1)];
+            return (c00 * (1.0 - s) + c10 * s) * (1.0 - t) + (c01 * (1.0 - s) + c11 * s) * t;
+        }
+
+        /// <summary>
+        /// ND-130: a sarok-tabla felepitese a referencia-szintu csapadek-mezobol.
+        /// Minden lap-lokalis (cu,cv) racspontra a sarkot oszto (legfeljebb 4)
+        /// tile atlaga - a MAR MEGLEVO, lap-hatarra is helyes
+        /// <see cref="PrecipAndOceanFractionAtCorner"/>-rel (az TileNeighbors-t
+        /// hasznal, nem nyers index-aritmetikat; a kockale-elek menti varrat
+        /// elkerulesenek mert indoklasat ld. ott).
+        /// </summary>
+        private void BuildPrecipitationCornerTable(MoisturePrecipitation.PrecipitationField field)
+        {
+            if (field == null || level < 0 || level > 12)
+            {
+                _adaptivePrecipCorners = null;
+                _adaptivePrecipCornerLevel = -1;
+                return;
+            }
+
+            int n = 1 << level;
+            int side = n + 1;
+            var corners = new double[6 * side * side];
+            for (int face = 0; face < 6; face++)
+            {
+                int baseIndex = face * side * side;
+                for (int cu = 0; cu <= n; cu++)
+                {
+                    for (int cv = 0; cv <= n; cv++)
+                    {
+                        // A sarkot oszto negy tile-t UGY fogjuk at, hogy a
+                        // kivalasztott tile a lapon BELUL legyen, a ket irany
+                        // pedig a sarok fele mutasson.
+                        uint tu = (uint)(cu == n ? n - 1 : cu);
+                        uint tv = (uint)(cv == n ? n - 1 : cv);
+                        TileDirection hDir = cu == n ? TileDirection.Right : TileDirection.Left;
+                        TileDirection vDir = cv == n ? TileDirection.Up : TileDirection.Down;
+                        TileId tile = TileId.FromFaceLevelUV(face, level, tu, tv);
+                        (double precip, double _) = PrecipAndOceanFractionAtCorner(
+                            field.Precipitation, field.IsOcean, tile, hDir, vDir);
+                        corners[baseIndex + cu * side + cv] = precip;
+                    }
+                }
+            }
+
+            _adaptivePrecipCorners = corners;
+            _adaptivePrecipCornerLevel = level;
         }
         // Dendritikus, csapadek-forrasu, finom-szintu folyo-nyomvonalak (ND-49,
         // RiverPathTracing) - ld. BuildRiverNetwork (viewer). Ez VALTJA FEL a
@@ -2817,6 +2915,11 @@ namespace WorldGen.Viewer
                 ? GetOrComputePrecipitationField(seed, plateCount, level, targetWaterFraction)
                 : null;
             _adaptivePrecip = precipField?.Precipitation;
+            // ND-130: a sarok-tabla MEG a vagopontok elott - a kuszoboket
+            // UGYANABBOL a (mar interpolalt) fuggvenybol kell szamolni, amivel
+            // kesobb osztalyozunk, kulonben a 20/45/75 percentilis mas
+            // eloszlasra vonatkozna, mint amit a biome-dontes lat.
+            BuildPrecipitationCornerTable(precipField);
 
             // ND-126: a vagopontok CSAK a VEGETALT szarazfoldbol - az oceani
             // ertekek benne torzitanak (a nedvesseg az ocean folott
@@ -2833,7 +2936,9 @@ namespace WorldGen.Viewer
                     TileGeometry.ToPosition(pkv.Key, out double px, out double py, out double pz);
                     double pt = TemperatureKelvinAt(px, py, pz, axialTiltRad, false,
                         precipField.Elevation[pkv.Key], precipField.SeaLevel);
-                    landSamples.Add((pt, pkv.Value));
+                    // ND-130: a NYERS `pkv.Value` helyett az INTERPOLALT ertek a
+                    // tile kozepen - ez az, amit a biome-osztalyozas is latni fog.
+                    landSamples.Add((pt, PrecipitationAtCore(px, py, pz)));
                 }
                 _adaptiveBiomeThresholds =
                     BiomeClassification.ComputeThresholdsForVegetatedLand(landSamples);
@@ -8539,12 +8644,10 @@ namespace WorldGen.Viewer
         {
             Vector3 dir = displacedCornerPos.normalized;
             BodyFrameConversion.ToCore(dir, out double cx, out double cy, out double cz);
-            double precip = 0.0;
-            if (_adaptivePrecip != null)
-            {
-                TileId t = TileGeometry.FromPosition(cx, cy, cz, level);
-                if (_adaptivePrecip.TryGetValue(t, out double pp)) precip = pp;
-            }
+            // ND-130: UGYANAZ az (interpolalt) fuggveny, amit a biome-osztalyozas
+            // hasznal - kulonben az overlay mast mutatna, mint amit a felszin
+            // szine tenylegesen kovet.
+            double precip = PrecipitationAtCore(cx, cy, cz);
             double maxMm = precipitationColorMax <= 0.0 ? 1.0 : precipitationColorMax;
             float f = (float)Math.Min(1.0, precip / maxMm);
             return PrecipitationRamp(f);

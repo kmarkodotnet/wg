@@ -5999,6 +5999,106 @@ ettől NEM változik, csak a sík geometriai pontossága.
 `LakesIceErosion` detektálása, a `filled` mező és minden szimulációs érték
 változatlan, I1–I4 érintetlen).
 
+### ND-130 — A szárazföldi biome-ok „nagy négyszögekben": a csapadék-bemenet egy 288 km-es lépcsős függvény
+
+**2026-09-22.** Felhasználói visszajelzés: *„a zöld színű biom a bolygó
+felszínén nagy méretű négyszög alakú régiókban jelenik meg… mintha a biom
+determináltan egy-egy nagyon nagy négyszög területre lenne kiszámolva"* —
+képpel, pirossal bejelölt, tengelypárhuzamos téglalapokkal. A `todo2.md`-ben
+korábban nem szerepelt.
+
+**A gyökérok — kódból egyértelmű.** Az ND-126 óta a biome-osztályozás
+KÉTDIMENZIÓS: `BiomeClassification.Classify(temperatureK, isOceanic,
+precipitation, thresholds)`. A két bemenet természete viszont
+GYÖKERESEN KÜLÖNBÖZŐ:
+
+| bemenet | forrás | felbontás |
+|---|---|---|
+| hőmérséklet | `TemperatureKelvinAt(x,y,z,…)` — pontszerű, folytonos függvény | LOD-független |
+| csapadék | `PrecipitationAtCore` → `_adaptivePrecip[FromPosition(x,y,z, level)]` | **diszkrét, `level` (=5) szintű tile-érték** |
+
+A `MoisturePrecipitation.Compute` globális, iteratív nedvesség-advekció, ezért
+csak egy FIX rácson értelmezett; a viewer a REFERENCIA-szinten (`level`) kéri.
+A jelenetben `level`=5 → 6·4⁵ = **6144 tile** → egy tile **~288 km** oldalú
+(mérve élőben: `precipTiles=6144`).
+
+A régi `PrecipitationAtCore` ennek a mezőnek a NYERS, tile-szintű értékét adta
+vissza. Egy küszöb-alapú osztályozó bemeneteként ez azt jelenti, hogy a
+szárazföldi biome-határ **pontosan a level-5 tile-élekre esik** — 288 km-es,
+tengelypárhuzamos négyzetek. Pontosan ez látszik a képen.
+
+**Ezt a hibát az ND-126 vezette be, és a saját kódja ki is mondta a téves
+feltevést.** A `JitteredRenderBiome` kommentje: *„a jitter SZÁNDÉKOSAN csak a
+hőmérsékletre hat, a csapadékra nem… a csapadék-határok már eleve
+szabálytalanok (a nedvesség-transzport a domborzatot követi), azokat nem kell
+rongyolni."* Az ÉRTÉKEK valóban a domborzatot követik — a MINTAVÉTEL viszont
+288 km-es lépcsős függvény, tehát a HATÁROK nem szabálytalanok, hanem
+négyzetesek.
+
+**MÉRT hatás** (élő Editor, seed `0xA7C944210000`, 98 304 level-7 mintapont a
+teljes gömbön, a `_adaptiveBiomeThresholds` vágópontjaival sávokba sorolva):
+
+| | érték |
+|---|---|
+| megváltozott csapadék-sávú mintapont | **21,0%** (20 597 / 98 304) |
+| sáv-eloszlás ELŐTTE | [35 008, 9 920, 21 792, 31 584] |
+| sáv-eloszlás UTÁNA | [27 347, 11 324, 23 051, 36 582] |
+
+**Opciók.**
+
+- **(A) A `hydrologyLevel`-hez hasonlóan a csapadék-szint emelése.** Level 6-on
+  4×, level 7-en 16× tile. A `MoisturePrecipitation.Compute` per-tile szél + 24
+  advekciós iteráció; jelenleg hidegen 300–400 ms, tehát level 7-en 5–6 s
+  lenne. ÉS csak KISEBB négyzeteket adna, nem szüntetné meg a lépcsőt.
+  Elvetve.
+- **(B) A mező BILINEÁRIS interpolációja a tile-sarkok között. ← VÁLASZTOTT.**
+  A mező marad a jelenlegi (olcsó) szinten, de a KIÉRTÉKELÉS lesz folytonos.
+  Pontosan ez a minta, amit a FELHŐ-réteg 2026-09-06 óta már használ
+  (`PrecipAndOceanFractionAtCorner` + GPU-interpoláció) — csak a
+  biome-osztályozás sosem kapta meg. Nulla új szimulációs számítás, a mező
+  saját értékeiből interpolál, tehát I3/I4 érintetlen.
+- **(C) Zaj-perturbáció a csapadékra** (mint az ND-57/ND-59 a hőmérsékletre).
+  Ez csak FELRONGYOLNÁ a négyzet-éleket; a 288 km-es blokk-szerkezet
+  megmaradna. Önmagában nem elég; a (B) után szükség esetén kiegészítésként
+  hozzáadható.
+
+**A (B) végrehajtása.**
+
+1. **Core-kiegészítés:** `TileGeometry.ToFaceUV(x,y,z, out face, out uc, out vc)`
+   — a `PositionFromFaceUV` inverze, ami eddig a `FromPosition` TÖRZSÉBEN volt
+   elrejtve. A `FromPosition` innentől ezt hívja, tehát a két út definíció
+   szerint ugyanazt a (uc,vc)-t látja (nincs viselkedésváltozás). Kell, mert az
+   interpolációhoz nem a tile-INDEX, hanem a tile-on BELÜLI pont kell. Nem
+   duplikáljuk a verifikált Core-matekot a viewerben.
+   Tesztek: `TileGeometryFaceUvTests` (oda-vissza, index-egyezés a
+   `FromPosition`-nel minden lapon/szinten, tisztaság, lap-normálisok).
+2. **Sarok-tábla** (`BuildPrecipitationCornerTable`): lap-lokális (n+1)×(n+1)
+   rács, sarkonként a sarkot osztó (legfeljebb 4) tile átlaga, a MÁR MEGLÉVŐ,
+   lap-határra is helyes `PrecipAndOceanFractionAtCorner`-rel (az
+   `TileNeighbors`-t használ, nem nyers index-aritmetikát — a kockaél menti
+   varrat-hiba mért indoklását ld. ott). Level 5-ön **6534 bejegyzés**.
+3. **`PrecipitationAtCore`**: `ToFaceUV` → a pont tile-on belüli (s,t) helye →
+   bilineáris interpoláció a négy sarok között.
+4. **A vágópontok UGYANEBBŐL a függvényből.** A `ComputeThresholdsForVegetatedLand`
+   mintái a nyers `pkv.Value` helyett az INTERPOLÁLT értéket kapják a tile
+   közepén — különben a 20/45/75 percentilis más eloszlásra vonatkozna, mint
+   amit a biome-döntés lát. Ezért épül a sarok-tábla a vágópontok ELŐTT.
+5. **A csapadék-overlay** (`PrecipitationColorAt`) is erre a függvényre vált —
+   eddig duplikálta a nyers lekérdezést, így mást mutatott volna, mint amit a
+   felszín színe követ.
+
+**Amit ez NEM old meg:** a bilineáris interpoláció C0, nem C1 — elvileg
+látszódhat a rács-átlós „ránc" a szintvonalon. Élő ellenőrzésen (315 km és
+1079 km magasság, biome-átmeneti zóna) nem látszik; ha később mégis, a (C)
+zaj-perturbáció a következő lépés.
+
+**Verziózás:** nem seed-törő. A `MoisturePrecipitation` mezője, a
+`BiomeClassification` és minden szimulációs érték változatlan; a `ToFaceUV`
+pusztán kiemelés egy meglévő függvényből. A MEGJELENÍTETT biome-ok és a
+belőlük számolt PANEL-statisztikák viszont megváltoznak (21,0% mintapont) —
+ez szándékos, és a panel/overlay/felszín mostantól UGYANABBÓL a függvényből
+dolgozik.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |
