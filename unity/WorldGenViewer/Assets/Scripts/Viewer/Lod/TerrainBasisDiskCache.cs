@@ -5,10 +5,26 @@ using WorldGen.Core.Tectonics;
 namespace WorldGen.Viewer.Lod
 {
     /// <summary>
-    /// A statikus sarok-terrain-bázis (ND-63) LEMEZ-gyorsítótárának formátuma és
-    /// ellenőrzése. Hideg Buildnél a bázis kiszámítása élesben MÉRVE
-    /// 7,4-8,5 másodperc (a `terrainBasis=` PerfLog-sor), level 8-on
-    /// 3 x 396 294 x 48 bájt = 54,4 MiB nyers adat.
+    /// A terrain-bázis LEMEZ-gyorsítótárának formátuma és ellenőrzése.
+    ///
+    /// KÉT FOGYASZTÓJA van, ezért a formátum N TÖMBÖS (ld. <see cref="Key.ArrayCount"/>
+    /// és <see cref="Key.Kind"/>):
+    ///
+    ///  - <see cref="KindStaticCorners"/> (ND-63/ND-122): a statikus SAROK-bázis,
+    ///    HÁROM tömb (center + u/v eltolt a normál véges-differenciájához).
+    ///    Hideg Buildnél élesben MÉRVE 7,4-8,5 s, level 8-on
+    ///    3 x 396 294 x 48 bájt = 54,4 MiB.
+    ///  - <see cref="KindTileCenters"/> (ND-64/ND-131): a hidrológia
+    ///    TILE-KÖZÉPPONT bázisa, EGY tömb (nincs normál-számítás, tehát nincs
+    ///    u/v eltolás). Hideg Buildnél élesben MÉRVE 2,27 s (a
+    ///    `hydrology(...) terrainBasis=` PerfLog-sor), level 8-on
+    ///    393 216 x 48 bájt = 18,0 MiB.
+    ///
+    /// A `Kind` azért külön kulcs-elem, hogy a két gyorsítótár elkülönítése NE
+    /// azon múljon, hogy a darabszámuk ((n+1)² vs n² laponként) és a
+    /// tömbszámuk véletlenül úgyis különbözik - az ilyen "esetleges"
+    /// megkülönböztetés pont az, ami egy későbbi változtatásnál csendben
+    /// elromlik.
     ///
     /// SZÁNDÉKOSAN MOTORFÜGGETLEN (a `WorldGen.Viewer.Lod` asmdef
     /// `noEngineReferences=true`), hogy az offline tesztprojekt fordítsa és
@@ -53,7 +69,35 @@ namespace WorldGen.Viewer.Lod
     public static class TerrainBasisDiskCache
     {
         /// <summary>"WGTB" + a FÁJLFORMÁTUM (nem az algoritmus) verziója.</summary>
-        private const ulong Magic = 0x5747544230303031UL; // "WGTB0001"
+        private const ulong Magic = 0x5747544230303032UL; // "WGTB0002"
+
+        /// <summary>
+        /// A MOSTANI fájlformátum névelőtagja. A takarítás ez alapján ismeri fel
+        /// az elavult (korábbi formátumú) fájlokat - ezeket SOHA nem olvassuk
+        /// többé, tehát csak a helyet foglalnák a kvótából.
+        ///
+        /// A FORMÁTUM MINDEN MEGVÁLTOZÁSAKOR ezt is emelni kell (a `Magic`
+        /// verziószámával együtt) - különben a régi fájlok neve illeszkedne, a
+        /// tartalmuk viszont nem, és minden hideg Build újra beolvasná és újra
+        /// elutasítaná őket.
+        /// </summary>
+        public const string FileNamePrefix = "basis_k";
+
+        /// <summary>
+        /// A takarítás szűrője: ez a fájl a MOSTANI formátum nevét viseli-e.
+        /// A hívó (kvóta-kezelés) a `basis_*.bin` mintával gyűjti a fájlokat -
+        /// ami a KORÁBBI formátumokat is elkapja -, és ami ezen a szűrőn
+        /// elbukik, azt azonnal törli.
+        /// </summary>
+        public static bool IsCurrentFormatFileName(string fileName) =>
+            fileName != null && fileName.StartsWith(FileNamePrefix, StringComparison.Ordinal)
+            && fileName.EndsWith(".bin", StringComparison.Ordinal);
+
+        /// <summary>Statikus SAROK-bázis (ND-63): három tömb, normál-epszilonnal.</summary>
+        public const int KindStaticCorners = 0;
+
+        /// <summary>Hidrológiai TILE-KÖZÉPPONT bázis (ND-64): egy tömb, epszilon nélkül.</summary>
+        public const int KindTileCenters = 1;
 
         /// <summary>Egy <see cref="TerrainPointBasis"/> bájtmérete a fájlban (6 double).</summary>
         public const int BasisByteSize = 48;
@@ -66,51 +110,76 @@ namespace WorldGen.Viewer.Lod
         {
             public readonly ulong WorldSeed;
             public readonly int Level;
+
+            /// <summary>
+            /// A normál véges-differencia UV-eltolása. CSAK a
+            /// <see cref="KindStaticCorners"/> tartalmára hat; a
+            /// <see cref="KindTileCenters"/> nem számol normált, ezért ott 0.0
+            /// - ez nem "hiányzó" érték, hanem az, hogy a tartalom tényleg nem
+            /// függ tőle.
+            /// </summary>
             public readonly double NormalSampleEpsilonUV;
+
             public readonly int Count;
 
-            public Key(ulong worldSeed, int level, double normalSampleEpsilonUV, int count)
+            /// <summary>Hány <see cref="TerrainPointBasis"/> tömb van a fájlban (1 vagy 3).</summary>
+            public readonly int ArrayCount;
+
+            /// <summary>Melyik fogyasztó adata - ld. <see cref="KindStaticCorners"/>.</summary>
+            public readonly int Kind;
+
+            public Key(ulong worldSeed, int level, double normalSampleEpsilonUV, int count,
+                int arrayCount, int kind)
             {
                 WorldSeed = worldSeed;
                 Level = level;
                 NormalSampleEpsilonUV = normalSampleEpsilonUV;
                 Count = count;
+                ArrayCount = arrayCount;
+                Kind = kind;
             }
 
             public bool Equals(Key other) =>
                 WorldSeed == other.WorldSeed && Level == other.Level && Count == other.Count
+                && ArrayCount == other.ArrayCount && Kind == other.Kind
                 && BitConverter.DoubleToInt64Bits(NormalSampleEpsilonUV)
                    == BitConverter.DoubleToInt64Bits(other.NormalSampleEpsilonUV);
 
             public override bool Equals(object? obj) => obj is Key other && Equals(other);
 
             public override int GetHashCode() =>
-                WorldSeed.GetHashCode() ^ (Level * 397) ^ Count
+                WorldSeed.GetHashCode() ^ (Level * 397) ^ Count ^ (ArrayCount * 7919) ^ (Kind * 104729)
                 ^ BitConverter.DoubleToInt64Bits(NormalSampleEpsilonUV).GetHashCode();
 
             /// <summary>Fájlnévbe illő, ütközésmentes alak (a hívó teszi mellé a könyvtárat).</summary>
             public string ToFileName() =>
-                $"basis_{WorldSeed:x16}_L{Level}_e{BitConverter.DoubleToInt64Bits(NormalSampleEpsilonUV):x16}_{Count}.bin";
+                $"{FileNamePrefix}{Kind}_{WorldSeed:x16}_L{Level}"
+                + $"_e{BitConverter.DoubleToInt64Bits(NormalSampleEpsilonUV):x16}_{Count}x{ArrayCount}.bin";
         }
 
-        /// <summary>A három bázistömb - a hívó ilyen alakban tartja őket.</summary>
+        /// <summary>
+        /// A bázistömbök - a hívó ilyen alakban tartja őket. A sorrend a hívó
+        /// dolga, a formátum csak a darabszámot ismeri (ld. <see cref="Key.ArrayCount"/>).
+        /// </summary>
         public sealed class Payload
         {
-            public TerrainPointBasis[] Center;
-            public TerrainPointBasis[] U;
-            public TerrainPointBasis[] V;
+            public readonly TerrainPointBasis[][] Arrays;
 
-            public Payload(TerrainPointBasis[] center, TerrainPointBasis[] u, TerrainPointBasis[] v)
+            public Payload(params TerrainPointBasis[][] arrays)
             {
-                Center = center; U = u; V = v;
+                if (arrays == null || arrays.Length == 0)
+                    throw new ArgumentException("Legalabb egy tomb kell.", nameof(arrays));
+                Arrays = arrays;
             }
+
+            public int ArrayCount => Arrays.Length;
         }
 
-        /// <summary>A fejléc mérete bájtban: magic + seed + level + epszilon + count + hash.</summary>
-        private const int HeaderBytes = 8 + 8 + 4 + 8 + 4 + 8;
+        /// <summary>A fejléc mérete bájtban: magic + seed + level + epszilon + count + arrayCount + kind + hash.</summary>
+        private const int HeaderBytes = 8 + 8 + 4 + 8 + 4 + 4 + 4 + 8;
 
-        public static long ExpectedFileSize(int count) =>
-            HeaderBytes + 3L * count * BasisByteSize;
+        public static long ExpectedFileSize(int count, int arrayCount) =>
+            HeaderBytes + (long)arrayCount * count * BasisByteSize;
 
         /// <summary>
         /// Kiírja a bázist a streambe. A hívó felel azért, hogy a
@@ -121,8 +190,11 @@ namespace WorldGen.Viewer.Lod
         {
             if (stream == null) throw new ArgumentNullException(nameof(stream));
             if (payload == null) throw new ArgumentNullException(nameof(payload));
-            if (payload.Center.Length != key.Count || payload.U.Length != key.Count || payload.V.Length != key.Count)
-                throw new ArgumentException("A tömbök mérete nem egyezik a kulcsban megadott darabszámmal.", nameof(payload));
+            if (payload.ArrayCount != key.ArrayCount)
+                throw new ArgumentException("A tombok szama nem egyezik a kulccsal.", nameof(payload));
+            foreach (TerrainPointBasis[] array in payload.Arrays)
+                if (array.Length != key.Count)
+                    throw new ArgumentException("A tömbök mérete nem egyezik a kulcsban megadott darabszámmal.", nameof(payload));
 
             byte[] body = Serialize(payload, key.Count);
             ulong hash = Fnv1a64(body);
@@ -134,6 +206,8 @@ namespace WorldGen.Viewer.Lod
             WriteInt32(header, ref offset, key.Level);
             WriteUInt64(header, ref offset, (ulong)BitConverter.DoubleToInt64Bits(key.NormalSampleEpsilonUV));
             WriteInt32(header, ref offset, key.Count);
+            WriteInt32(header, ref offset, key.ArrayCount);
+            WriteInt32(header, ref offset, key.Kind);
             WriteUInt64(header, ref offset, hash);
 
             stream.Write(header, 0, header.Length);
@@ -153,13 +227,14 @@ namespace WorldGen.Viewer.Lod
         /// </summary>
         public static Payload? TryRead(
             Stream stream, in Key expectedKey,
-            Action<int, TerrainPointBasis[], TerrainPointBasis[], TerrainPointBasis[]> recompute,
+            Action<int, TerrainPointBasis[][]> recompute,
             out string? rejectionReason)
         {
             rejectionReason = null;
             if (stream == null) throw new ArgumentNullException(nameof(stream));
             if (recompute == null) throw new ArgumentNullException(nameof(recompute));
             if (expectedKey.Count <= 0) { rejectionReason = "ervenytelen darabszam"; return null; }
+            if (expectedKey.ArrayCount <= 0) { rejectionReason = "ervenytelen tombszam"; return null; }
 
             var header = new byte[HeaderBytes];
             if (!ReadExactly(stream, header, header.Length)) { rejectionReason = "csonka fejlec"; return null; }
@@ -170,32 +245,34 @@ namespace WorldGen.Viewer.Lod
             int level = ReadInt32(header, ref offset);
             double epsilon = BitConverter.Int64BitsToDouble((long)ReadUInt64(header, ref offset));
             int count = ReadInt32(header, ref offset);
+            int arrayCount = ReadInt32(header, ref offset);
+            int kind = ReadInt32(header, ref offset);
             ulong storedHash = ReadUInt64(header, ref offset);
 
-            var fileKey = new Key(seed, level, epsilon, count);
+            var fileKey = new Key(seed, level, epsilon, count, arrayCount, kind);
             if (!fileKey.Equals(expectedKey)) { rejectionReason = "kulcs-elteres"; return null; }
 
-            long bodyLength = 3L * count * BasisByteSize;
+            long bodyLength = (long)arrayCount * count * BasisByteSize;
             if (bodyLength > int.MaxValue) { rejectionReason = "tul nagy tartalom"; return null; }
             var body = new byte[(int)bodyLength];
             if (!ReadExactly(stream, body, body.Length)) { rejectionReason = "csonka tartalom"; return null; }
             if (Fnv1a64(body) != storedHash) { rejectionReason = "ellenorzoosszeg-elteres"; return null; }
 
-            Payload payload = Deserialize(body, count);
+            Payload payload = Deserialize(body, count, arrayCount);
 
             // ALGORITMUS-AZONOSSAG: szelesen szort mintak UJRASZAMOLASSAL.
-            var oneCenter = new TerrainPointBasis[1];
-            var oneU = new TerrainPointBasis[1];
-            var oneV = new TerrainPointBasis[1];
+            var one = new TerrainPointBasis[arrayCount][];
+            for (int a = 0; a < arrayCount; a++) one[a] = new TerrainPointBasis[1];
             foreach (int index in ValidationIndices(count))
             {
-                recompute(index, oneCenter, oneU, oneV);
-                if (!SameBasis(oneCenter[0], payload.Center[index])
-                    || !SameBasis(oneU[0], payload.U[index])
-                    || !SameBasis(oneV[0], payload.V[index]))
+                recompute(index, one);
+                for (int a = 0; a < arrayCount; a++)
                 {
-                    rejectionReason = $"algoritmus-elteres a(z) {index}. bejegyzesnel";
-                    return null;
+                    if (!SameBasis(one[a][0], payload.Arrays[a][index]))
+                    {
+                        rejectionReason = $"algoritmus-elteres a(z) {index}. bejegyzesnel";
+                        return null;
+                    }
                 }
             }
 
@@ -235,21 +312,19 @@ namespace WorldGen.Viewer.Lod
 
         private static byte[] Serialize(Payload payload, int count)
         {
-            var body = new byte[3L * count * BasisByteSize];
+            var body = new byte[(long)payload.ArrayCount * count * BasisByteSize];
             int offset = 0;
-            WriteArray(body, ref offset, payload.Center, count);
-            WriteArray(body, ref offset, payload.U, count);
-            WriteArray(body, ref offset, payload.V, count);
+            foreach (TerrainPointBasis[] array in payload.Arrays)
+                WriteArray(body, ref offset, array, count);
             return body;
         }
 
-        private static Payload Deserialize(byte[] body, int count)
+        private static Payload Deserialize(byte[] body, int count, int arrayCount)
         {
             int offset = 0;
-            TerrainPointBasis[] center = ReadArray(body, ref offset, count);
-            TerrainPointBasis[] u = ReadArray(body, ref offset, count);
-            TerrainPointBasis[] v = ReadArray(body, ref offset, count);
-            return new Payload(center, u, v);
+            var arrays = new TerrainPointBasis[arrayCount][];
+            for (int a = 0; a < arrayCount; a++) arrays[a] = ReadArray(body, ref offset, count);
+            return new Payload(arrays);
         }
 
         private static void WriteArray(byte[] target, ref int offset, TerrainPointBasis[] source, int count)

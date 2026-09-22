@@ -9,10 +9,16 @@ namespace WorldGen.Viewer
     public partial class PlanetGridMesh
     {
         // ====================================================================
-        // A statikus sarok-terrain-bazis LEMEZ-GYORSITOTARA (todo.md 1. tabla
-        // 9. sor). Hideg Buildnel a bazis kiszamitasa elesben MERVE
-        // 7,4-8,5 masodperc (a `terrainBasis=` PerfLog-sor), level 8-on
-        // 3 x 396 294 x 48 bajt = 54,4 MiB.
+        // A terrain-bazis LEMEZ-GYORSITOTARA. KET fogyasztoja van, ugyanezzel
+        // a fajlrendszer- es kvota-kezelessel (a formatum a Kind kulcs-elemmel
+        // kuloniti el oket, ld. TerrainBasisDiskCache):
+        //
+        //  - STATIKUS SAROK-bazis (ND-63/ND-122, todo.md 1. tabla 9. sor):
+        //    harom tomb, hideg Buildnel elesben MERVE 7,4-8,5 s, level 8-on
+        //    3 x 396 294 x 48 bajt = 54,4 MiB.
+        //  - HIDROLOGIAI TILE-KOZEPPONT bazis (ND-64/ND-131, todo2.md A2):
+        //    egy tomb, hideg Buildnel elesben MERVE 2,27 s (a
+        //    `hydrology(...) terrainBasis=` sor), level 8-on 18,0 MiB.
         //
         // A formatum es az ervenytelenites a motorfuggetlen
         // WorldGen.Viewer.Lod.TerrainBasisDiskCache-ben van, hogy az offline
@@ -34,31 +40,33 @@ namespace WorldGen.Viewer
         // ====================================================================
 
         [SerializeField]
-        [Tooltip("Hideg Buildnél a statikus sarok-terrain-bázis (7,4-8,5 s) lemezről " +
-                 "töltődjön-e, ha van érvényes gyorsítótár. A betöltött adatot MINDIG " +
-                 "ellenőrizzük (kulcs + ellenőrzőösszeg + 1024 bejegyzés újraszámolása), " +
-                 "és bármilyen eltérésnél újraszámolunk. Kikapcsolva a korábbi, mindig " +
-                 "számoló viselkedés fut.")]
+        [Tooltip("Hideg Buildnél a terrain-bázisok (statikus sarok: 7,4-8,5 s; " +
+                 "hidrológiai tile-középpont: 2,27 s) lemezről töltődjenek-e, ha van " +
+                 "érvényes gyorsítótár. A betöltött adatot MINDIG ellenőrizzük " +
+                 "(kulcs + ellenőrzőösszeg + 1024 bejegyzés újraszámolása), és bármilyen " +
+                 "eltérésnél újraszámolunk. Kikapcsolva a korábbi, mindig számoló " +
+                 "viselkedés fut.")]
         private bool useTerrainBasisDiskCache = true;
 
         /// <summary>
-        /// A gyorsitotar-konyvtar felso merethatara. Level 8-on egy bejegyzes
-        /// 54,4 MiB, tehat ez kb. 9 vilagot tart meg; a legregebben irt fajlok
-        /// esnek ki eloszor. A hatar SZANDEKOSAN konzervativ: a gyorsitotar
-        /// kenyelem, nem adat.
+        /// A gyorsitotar-konyvtar felso merethatara. Level 8-on egy VILAG
+        /// 54,4 MiB (sarok) + 18,0 MiB (tile-kozeppont) = 72,4 MiB, tehat ez
+        /// kb. 7 vilagot tart meg; a legregebben irt fajlok esnek ki eloszor.
+        /// A hatar SZANDEKOSAN konzervativ: a gyorsitotar kenyelem, nem adat.
         /// </summary>
         private const long TerrainBasisCacheQuotaBytes = 512L * 1024 * 1024;
 
         private static string TerrainBasisCacheDirectory =>
             Path.Combine(Application.persistentDataPath, "terrainBasisCache");
 
-        private bool TryLoadStaticTerrainBasisFromDisk(
+        private bool TryLoadTerrainBasisFromDisk(
             in TerrainBasisDiskCache.Key key,
-            Action<int, TerrainPointBasis[], TerrainPointBasis[], TerrainPointBasis[]> recompute,
+            Action<int, TerrainPointBasis[][]> recompute,
             out TerrainBasisDiskCache.Payload payload)
         {
             payload = null;
             if (!useTerrainBasisDiskCache) return false;
+            PurgeStaleTerrainBasisCacheFilesOnce();
             try
             {
                 string path = Path.Combine(TerrainBasisCacheDirectory, key.ToFileName());
@@ -92,10 +100,11 @@ namespace WorldGen.Viewer
             }
         }
 
-        private void SaveStaticTerrainBasisToDisk(
+        private void SaveTerrainBasisToDisk(
             in TerrainBasisDiskCache.Key key, TerrainBasisDiskCache.Payload payload)
         {
             if (!useTerrainBasisDiskCache) return;
+            PurgeStaleTerrainBasisCacheFilesOnce();
             try
             {
                 Directory.CreateDirectory(TerrainBasisCacheDirectory);
@@ -110,7 +119,7 @@ namespace WorldGen.Viewer
                 if (File.Exists(path)) File.Delete(path);
                 File.Move(temporary, path);
                 PerfLog($"[terrain-basis cache] KIIRVA {key.ToFileName()} "
-                    + $"({TerrainBasisDiskCache.ExpectedFileSize(key.Count) / 1048576.0:F1} MiB, "
+                    + $"({TerrainBasisDiskCache.ExpectedFileSize(key.Count, key.ArrayCount) / 1048576.0:F1} MiB, "
                     + $"{timer.Elapsed.TotalMilliseconds:F0} ms)");
                 EnforceTerrainBasisCacheQuota();
             }
@@ -118,6 +127,43 @@ namespace WorldGen.Viewer
             {
                 Debug.LogWarning($"PlanetGridMesh: a terrain-bazis gyorsitotar irasa nem sikerult "
                     + $"({ex.GetType().Name}: {ex.Message}) - a Build ettol fuggetlenul helyes.");
+            }
+        }
+
+        private bool _terrainBasisStaleFilesPurged;
+
+        /// <summary>
+        /// ND-131: a KORÁBBI fájlformátummal írt bejegyzések törlése, mérettől
+        /// függetlenül. Ezeket soha többé nem olvassuk (a nevük sem illeszkedik
+        /// a mostani kulcsra), tehát tisztán helyfoglalás lennének a kvótából -
+        /// egy formátum-váltás így EGYSZER takarít maga után.
+        ///
+        /// Munkamenetenként egyszer fut, és a BETÖLTÉS útjáról is hívjuk, nem
+        /// csak a mentéséről: egy olyan Build, ami minden bázist a
+        /// gyorsítótárból kap, SOHA nem ír, tehát a kvóta-kezelés sem futna le -
+        /// az elavult fájl pedig ott maradna a felhasználó lemezén.
+        /// </summary>
+        private void PurgeStaleTerrainBasisCacheFilesOnce()
+        {
+            if (_terrainBasisStaleFilesPurged || !useTerrainBasisDiskCache) return;
+            _terrainBasisStaleFilesPurged = true;
+            try
+            {
+                var directory = new DirectoryInfo(TerrainBasisCacheDirectory);
+                if (!directory.Exists) return;
+                foreach (FileInfo file in directory.GetFiles("basis_*.bin"))
+                {
+                    if (TerrainBasisDiskCache.IsCurrentFormatFileName(file.Name)) continue;
+                    long size = file.Length;
+                    if (TryDelete(file.FullName))
+                        PerfLog($"[terrain-basis cache] ELAVULT FORMATUM - torolve: {file.Name} "
+                            + $"({size / 1048576.0:F1} MiB)");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"PlanetGridMesh: az elavult terrain-bazis fajlok torlese nem sikerult "
+                    + $"({ex.GetType().Name}: {ex.Message}).");
             }
         }
 

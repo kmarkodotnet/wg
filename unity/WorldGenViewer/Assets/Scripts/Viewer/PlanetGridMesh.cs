@@ -5057,14 +5057,15 @@ namespace WorldGen.Viewer
             }
 
             var cacheKey = new TerrainBasisDiskCache.Key(
-                _adaptiveSeed, adaptiveBaseLevel, NormalSampleEpsilonUV, count);
-            if (TryLoadStaticTerrainBasisFromDisk(cacheKey,
-                    (index, c, u, v) => ComputeAt(index, c, u, v, 0),
+                _adaptiveSeed, adaptiveBaseLevel, NormalSampleEpsilonUV, count,
+                arrayCount: 3, kind: TerrainBasisDiskCache.KindStaticCorners);
+            if (TryLoadTerrainBasisFromDisk(cacheKey,
+                    (index, arrays) => ComputeAt(index, arrays[0], arrays[1], arrays[2], 0),
                     out TerrainBasisDiskCache.Payload cached))
             {
-                _staticCornerCenterBasis = cached.Center;
-                _staticCornerUBasis = cached.U;
-                _staticCornerVBasis = cached.V;
+                _staticCornerCenterBasis = cached.Arrays[0];
+                _staticCornerUBasis = cached.Arrays[1];
+                _staticCornerVBasis = cached.Arrays[2];
                 _staticTerrainBasisSeed = _adaptiveSeed;
                 _staticTerrainBasisLevel = adaptiveBaseLevel;
                 return false;
@@ -5083,7 +5084,7 @@ namespace WorldGen.Viewer
             _staticCornerVBasis = vBasis;
             _staticTerrainBasisSeed = _adaptiveSeed;
             _staticTerrainBasisLevel = adaptiveBaseLevel;
-            SaveStaticTerrainBasisToDisk(cacheKey,
+            SaveTerrainBasisToDisk(cacheKey,
                 new TerrainBasisDiskCache.Payload(centerBasis, uBasis, vBasis));
             return false;
         }
@@ -5120,6 +5121,15 @@ namespace WorldGen.Viewer
         /// előállítja az időfüggetlen terrain-bázist. A célkonfigurációban a
         /// hydrologyLevel és adaptiveBaseLevel egyaránt 8, ezért ugyanaz a tömb
         /// szolgálja ki a két legdrágább fogyasztót.
+        ///
+        /// ND-131 (todo2.md A2): ez eddig CSAK MEMÓRIÁBAN gyorsítótárazott
+        /// (seed+szint kulccsal), ezért minden HIDEG Build újraszámolta -
+        /// élesben MÉRVE 2 267 ms (a `hydrology(...) terrainBasis=` sor).
+        /// Mostantól ugyanazt a validált LEMEZ-gyorsítótárat használja, mint a
+        /// statikus sarok-bázis (ND-122): kulcs + ellenőrzőösszeg + 1024
+        /// bejegyzés ÚJRASZÁMOLÁSOS ellenőrzése, bármilyen eltérésnél
+        /// újraszámolás. A tile-AZONOSÍTÓK számítása olcsó (nincs benne
+        /// terep-matek), ezért azok NEM kerülnek lemezre - csak a drága bázis.
         /// </summary>
         private bool EnsureTileCenterTerrainBasisCache(ulong seed, int targetLevel)
         {
@@ -5140,19 +5150,45 @@ namespace WorldGen.Viewer
                 && _tileCenterTerrainBasis.Length == count)
                 return true;
 
-            var ids = new TileId[count];
-            var bases = new TerrainPointBasis[count];
-            System.Threading.Tasks.Parallel.For(0, count, index =>
+            TileId TileIdAt(int index)
             {
                 int face = index / faceStride;
                 int faceIndex = index - face * faceStride;
                 uint u = (uint)(faceIndex / n);
                 uint v = (uint)(faceIndex - (int)u * n);
-                TileId id = TileId.FromFaceLevelUV(face, targetLevel, u, v);
-                TileGeometry.ToPosition(id, out double x, out double y, out double z);
-                ids[index] = id;
-                bases[index] = TerrainPointBasis.Compute(seed, x, y, z);
-            });
+                return TileId.FromFaceLevelUV(face, targetLevel, u, v);
+            }
+
+            // Az ID-k eloallitasa olcso (tiszta bitmuvelet), ezert MINDIG
+            // futtatjuk - a lemez-gyorsitotar csak a draga bazist tarolja.
+            var ids = new TileId[count];
+            System.Threading.Tasks.Parallel.For(0, count, index => ids[index] = TileIdAt(index));
+
+            void ComputeBasisAt(int index, TerrainPointBasis[] target, int slot)
+            {
+                TileGeometry.ToPosition(TileIdAt(index), out double x, out double y, out double z);
+                target[slot] = TerrainPointBasis.Compute(seed, x, y, z);
+            }
+
+            // Az epszilon 0.0: ez a bazis NEM szamol normalt, tehat a tartalma
+            // tenylegesen nem fugg a veges-differencia eltolastol (ld. a
+            // TerrainBasisDiskCache.Key.NormalSampleEpsilonUV doksijat).
+            var cacheKey = new TerrainBasisDiskCache.Key(
+                seed, targetLevel, 0.0, count,
+                arrayCount: 1, kind: TerrainBasisDiskCache.KindTileCenters);
+            TerrainPointBasis[] bases;
+            if (TryLoadTerrainBasisFromDisk(cacheKey,
+                    (index, arrays) => ComputeBasisAt(index, arrays[0], 0),
+                    out TerrainBasisDiskCache.Payload cached))
+            {
+                bases = cached.Arrays[0];
+            }
+            else
+            {
+                bases = new TerrainPointBasis[count];
+                System.Threading.Tasks.Parallel.For(0, count, index => ComputeBasisAt(index, bases, index));
+                SaveTerrainBasisToDisk(cacheKey, new TerrainBasisDiskCache.Payload(bases));
+            }
 
             _tileCenterTerrainIds = ids;
             _tileCenterTerrainBasis = bases;

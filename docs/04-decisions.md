@@ -6099,6 +6099,95 @@ belőlük számolt PANEL-statisztikák viszont megváltoznak (21,0% mintapont) �
 ez szándékos, és a panel/overlay/felszín mostantól UGYANABBÓL a függvényből
 dolgozik.
 
+### ND-131 — A hidrológiai tile-középpont bázis is a lemez-gyorsítótárba: a formátum N tömbössé általánosítva (LEZÁRVA)
+
+**2026-09-22.** A `todo2.md` A2 sora. Az ND-122 a STATIKUS SAROK-bázist vitte
+validált lemez-gyorsítótárba; a hidrológia TILE-KÖZÉPPONT bázisa
+(`EnsureTileCenterTerrainBasisCache`, ND-64) viszont **csak memóriában**
+gyorsítótárazott (seed+szint kulccsal), ezért minden HIDEG Build
+újraszámolta.
+
+**MÉRT kiindulás** (élő Editor, seed `0xA7C944210000`, level 8, 393 216
+tile-középpont): a `hydrology(...) terrainBasis=` sor **2 295 ms**, a teljes
+hidrológia-fázis **2 625 ms**.
+
+**A döntendő kérdés nem az volt, hogy kell-e lemez-cache** (az ND-122 ezt már
+eldöntötte, az újraszámolásos validációval együtt), **hanem hogy a meglévő
+formátum hogyan szolgálja ki a MÁSODIK fogyasztót**, aminek más az alakja:
+
+| | statikus sarok (ND-63) | tile-középpont (ND-64) |
+|---|---|---|
+| tömbök száma | **3** (center + u/v eltolt a normálhoz) | **1** (nincs normál-számítás) |
+| darabszám level 8-on | 396 294 ((n+1)² laponként) | 393 216 (n² laponként) |
+| normál-epszilon | 1e-4 | **nem értelmezett** |
+| nyers méret | 54,4 MiB | 18,0 MiB |
+
+**Opciók.**
+
+- **(A) A meglévő, háromtömbös formátum újrahasználata** úgy, hogy ugyanazt a
+  tömböt adjuk át háromszor. Nulla formátum-munka, de **háromszoros
+  lemezhasználat** (54,4 MiB a 18,0 helyett) és hazug adat a fájlban.
+  Elvetve.
+- **(B) Külön, párhuzamos formátum + külön betöltő/mentő út.** Duplikálná az
+  ND-122 három biztosítékát (kulcs, ellenőrzőösszeg, újraszámolásos
+  validáció) — épp azt a kódot, aminek a helyessége a legkritikusabb.
+  Elvetve.
+- **(C) A formátum általánosítása N tömbre. ← VÁLASZTOTT.** A fejléc kap egy
+  `ArrayCount` és egy `Kind` mezőt, a `Payload` `TerrainPointBasis[][]`-t tart,
+  a validációs visszahívás `Action<int, TerrainPointBasis[][]>` lesz. A három
+  biztosíték változatlanul EGY helyen marad, mindkét fogyasztóra.
+
+**Miért kell a `Kind` is, ha az `ArrayCount` és a darabszám úgyis különbözik?**
+Mert az „úgyis különbözik" ESETLEGES: a darabszámok (n+1)² vs n² laponként, a
+tömbszám 3 vs 1 — egyik sem a szándékot fejezi ki, és egy későbbi
+változtatásnál (pl. ha a sarok-bázis egy tömbösre egyszerűsödne) csendben
+egybeeshetnének. A `Kind` kimondja, hogy melyik fogyasztó adata; teszt is
+rögzíti, hogy egy tile-középpont fájl sarok-kulccsal `kulcs-elteres`-t ad.
+
+Az epszilon a tile-középpont ágon **0.0** — nem „hiányzó" érték, hanem az,
+hogy a tartalom tényleg nem függ tőle (nincs véges-differencia). A `Key`
+doksija ezt kimondja.
+
+**Formátum-váltás és a régi fájlok.** A fejléc bővült, ezért a `Magic`
+`WGTB0001` → `WGTB0002`, és a fájlnév is más (`basis_k<kind>_…_<count>x<arrays>.bin`).
+A korábbi fájlokat így már a NEVÜK sem találja meg — soha többé nem
+olvasnánk őket, viszont a kvótából helyet foglalnának. Ezért a betöltés ÉS a
+mentés útja is meghív egy munkamenetenként egyszer futó takarítást
+(`PurgeStaleTerrainBasisCacheFilesOnce`), ami a `basis_*.bin` fájlok közül
+törli azokat, amik nem a mostani névelőtagot viselik.
+
+*MÉRT csapda, amiért ez a betöltés útján is kell:* az első változat csak a
+kvóta-kezelésből takarított, az viszont CSAK MENTÉSKOR fut — egy olyan Build,
+ami minden bázist a gyorsítótárból kap, soha nem ír, tehát a takarítás sem
+futott volna le. Élőben ellenőrizve: a 54,4 MiB-os árva fájl ott maradt, amíg
+a hívás át nem került a betöltési ágra is.
+
+**MÉRT eredmény** (ugyanaz a seed, hideg Build, lemez-találattal):
+
+| | előtte | utána |
+|---|---|---|
+| `hydrology(...) terrainBasis=` | **2 295 ms** | **98–104 ms** (~22×) |
+| teljes hidrológia-fázis | 2 625 ms | 417–472 ms |
+| fájlméret | — | 18,0 MiB |
+| kiírás | — | 55 ms |
+| beolvasás + validáció | — | 94–96 ms |
+| gyorsítótár-könyvtár / világ | 54,4 MiB | 72,4 MiB |
+
+**Helyesség-ellenőrzés a formátumon túl:** a `lakes=11505` érték BITRE azonos
+a számoló és a lemezről töltő ágon. A tó-halmaz a teljes tile-középpont
+bázisból származik (eleváció → priority flood → tó-detektálás), tehát ez egy
+végponttól végpontig tartó egyezés-jelzés, nem csak a fájlformátumé.
+
+**Tesztek:** `TerrainBasisDiskCacheTests` 7 → **15 teszt**. Újak: egy tömbös
+oda-vissza, egy tömbös algoritmus-eltérés elutasítása, a két gyorsítótár
+összekeverhetetlensége (`Kind`/`ArrayCount` kulcs-eltérés + eltérő fájlnév),
+az elavult formátumú nevek felismerése, és a méret-terv mindkét alakra.
+490/490 zöld a `WorldGen.Viewer.LodChunking.Tests`-ben.
+
+**Verziózás:** nem seed-törő — a gyorsítótár származtatott adat, a világmodell
+nem függ tőle. A formátum-váltás ára egyetlen lassabb hideg Build világonként
+(a régi fájl nem használható), utána a takarítás visszaadja a helyet.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |
