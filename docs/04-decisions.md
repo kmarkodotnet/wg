@@ -5637,7 +5637,9 @@ Törölve: a halott `ContinuousSurfaceColor`.
 küszöb-függvény), 200 új tesztvektor, és a `features_ref.py` is a
 csapadék-proxyra állt (a szegmentálási referencia nem klíma-referencia).
 
-#### ND-126b — két MÉRT konstans-hiba, amit a vizsgálat mellékesen talált
+#### ND-126b — klíma-konstansok kalibrálása (LEZÁRVA)
+
+**2026-09-22. Megvalósítva Python-referencia és C# regressziós mérés alapján.**
 
 Ezek valódi kalibrációs hibák, az (A)/(B) döntéstől függetlenül:
 
@@ -5648,19 +5650,34 @@ Ezek valódi kalibrációs hibák, az (A)/(B) döntéstől függetlenül:
    ami K/radiánban mér, és a sarkok felé elszabadul. 120 m/s felszíni szél
    nem fizikai (a futóáramlás is 50–70 m/s, magasban). Ez visszahat a
    párolgásra (`EvapWindCoeff`, 30-as sapkával) és az advekció sebességére.
-   Javaslat: a termikus tagot `tanh`-hal korlátozni, ugyanúgy, ahogy az
-   orografikus tag már korlátozott.
+   Döntés: a kétdimenziós termikus vektor irányát megtartva a nagyságát
+   `30 m/s * tanh(|v| / 30 m/s)` alakban korlátozzuk, még a Coriolis-forgatás
+   előtt. A zonális alapkomponens nem része a korlátozásnak.
 
 2. **A sark–egyenlítő hőmérsékleti esés túl meredek.** Szárazföldi átlag a
    70–90° sávban **−62 °C** (napéjegyenlőségi pillanat), az Egyenlítőn
    +27,6 °C. A Földön az évi átlag a Déli-sarkon ~−50 °C, az Északin ~−18 °C.
    Emiatt a szárazföld 58–100%-a jég 50° felett. Ez a `Temperature` modul
    konstansainak kérdése (ND-41), és a felhasználó „efölött meg jég van"
-   megjegyzését közvetlenül magyarázza.
+   megjegyzését közvetlenül magyarázza. Döntés: a hiányzó meridionális
+   hőszállítást `T_transport = 40 K * sin⁴(szélesség)` additív proxyval
+   közelítjük. Ez az Egyenlítőn nulla, a póluson 40 K, és nem használ új
+   transzcendens függvényt, mert a normalizált pozíció `z` komponensének
+   negyedik hatványa adja.
 
-**A sorrend fontos:** az (A) bevezetése UTÁN kell ezeket hangolni, különben
-kétszer kalibrálunk — a biome-küszöbök percentilis-alapúak lesznek, tehát a
-szél/hőmérséklet hangolása automatikusan átrendezi őket.
+**Mért eredmény ugyanazon a kanonikus világon** (`0xA7C944210000`, level 6,
+65% víz, napéjegyenlőség): a hideg szárazföld (`IceSheet + Tundra`) aránya
+**40,71% → 16,91%**; a 70–90° szárazföldi átlag **−62,21 °C → −26,31 °C**;
+az egyenlítői átlag gyakorlatilag változatlan (**27,58 °C**). A teljes szél
+maximuma **36,79 m/s**, a 70–90° sáv átlaga **34,66 m/s**, az egyenlítői
+sávé **7,26 m/s**. A csapadék 20/45/75 percentilis-küszöbei nem változtak;
+azok vizuális elfogadása továbbra is B4.
+
+Az egyszerű és a teljes hőmérsékletút, valamint a diagnosztikai hőmező azonos
+korrekciót kapott; a szélkorlát a régi és az ND-102 hőszélúton is azonos.
+A `ThermalModelParameters.ModelVersion` **1 → 2**. A teljes világmentés
+generátorverzió-kapuja továbbra is az ND-108/A6 nyitott feladata; a jelenlegi
+`.worldpkg` csak definíciót és eleváció-hash-t tárol, klímaállapotot nem.
 
 ### ND-127 — A régiók nem „tartoznak össze": a vízgyűjtő-szegmentálás a torkolat óceán-tile-ja szerint kulcsol (LEZÁRVA: (A))
 

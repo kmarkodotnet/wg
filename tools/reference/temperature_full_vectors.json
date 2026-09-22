@@ -1,5 +1,5 @@
 {
- "note": "A spec \u00a728.1 teljes egyenlete (temperature_kelvin_full) - MEG NINCS C#-portolva (ld. ND-42, docs/04-decisions.md). KULON fajl a regi temperature_vectors.json-tol, hogy a meglevo C# Temperature.cs mero-tesztjei ne torjenek el.",
+ "note": "A spec \u00a728.1 teljes egyenlete (temperature_kelvin_full), C#-ba portolva. Kulon fajl az egyszeru temperature_vectors.json szerzodesetol.",
  "vectors": [
   {
    "worldSeed": 11702703741175834743,
@@ -22,7 +22,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 282.5256451983862
+   "temperatureK": 320.74978214089003
   },
   {
    "worldSeed": 11863219440964928620,
@@ -45,7 +45,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 301.1522071930425
+   "temperatureK": 323.37726359645785
   },
   {
    "worldSeed": 11858469741626825860,
@@ -68,7 +68,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 253.12922617841488
+   "temperatureK": 282.3749861080093
   },
   {
    "worldSeed": 11831768687934475642,
@@ -91,7 +91,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 242.22532109930248
+   "temperatureK": 276.7315351967771
   },
   {
    "worldSeed": 11670086271985956718,
@@ -114,7 +114,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 277.40549981483474
+   "temperatureK": 310.4644170003047
   },
   {
    "worldSeed": 11813214989809356690,
@@ -137,7 +137,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 141.82054825048053
+   "temperatureK": 179.20712619456745
   },
   {
    "worldSeed": 12391041573295312556,
@@ -160,7 +160,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 296.8755720230917
+   "temperatureK": 299.2853381451731
   },
   {
    "worldSeed": 12280599278725262921,
@@ -183,7 +183,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 67.46116845051435
+   "temperatureK": 106.84965498388252
   },
   {
    "worldSeed": 11612696232894278381,
@@ -206,7 +206,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 206.3859856142675
+   "temperatureK": 229.18138636497156
   },
   {
    "worldSeed": 12158564474772200024,
@@ -229,7 +229,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 84.82021625926177
+   "temperatureK": 116.85683659796115
   },
   {
    "worldSeed": 12567959031148111915,
@@ -252,7 +252,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 298.1663036922255
+   "temperatureK": 298.176553262956
   },
   {
    "worldSeed": 11843908428626163857,
@@ -275,7 +275,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 239.68612607570083
+   "temperatureK": 279.13148852861724
   },
   {
    "worldSeed": 12521432123371897641,
@@ -298,7 +298,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 274.40841656574923
+   "temperatureK": 301.0372731647628
   },
   {
    "worldSeed": 12050059733715033922,
@@ -321,7 +321,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 263.47625885102104
+   "temperatureK": 290.11735316736406
   },
   {
    "worldSeed": 12121407170085188175,
@@ -344,7 +344,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 312.99242609596087
+   "temperatureK": 314.55902632315224
   },
   {
    "worldSeed": 12009306113787645765,
@@ -367,7 +367,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 293.0515544020741
+   "temperatureK": 330.8822601585364
   },
   {
    "worldSeed": 11621652318878670569,
@@ -390,7 +390,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 258.47332454021426
+   "temperatureK": 275.75094966907756
   },
   {
    "worldSeed": 11622963623167757720,
@@ -413,7 +413,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 259.28775425437715
+   "temperatureK": 261.2400370266834
   },
   {
    "worldSeed": 11757318466658968326,
@@ -436,7 +436,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 323.7567988242992
+   "temperatureK": 336.50653474882716
   },
   {
    "worldSeed": 11891804755991149452,
@@ -459,7 +459,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 88.41081877900405
+   "temperatureK": 117.27780048531469
   },
   {
    "worldSeed": 11647236555423622443,
@@ -482,7 +482,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 302.7218632235495
+   "temperatureK": 302.7220718781571
   },
   {
    "worldSeed": 11530112353834585401,
@@ -505,7 +505,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 244.6967171596482
+   "temperatureK": 269.1833007036366
   },
   {
    "worldSeed": 12030381210840528139,
@@ -528,7 +528,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 290.27625642444514
+   "temperatureK": 290.54958290874043
   },
   {
    "worldSeed": 12385086546870887905,
@@ -551,7 +551,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 297.0997772166295
+   "temperatureK": 298.3688549735042
   },
   {
    "worldSeed": 12235125319385924380,
@@ -574,7 +574,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 234.0436102193258
+   "temperatureK": 248.66199010734655
   },
   {
    "worldSeed": 12345685371910325469,
@@ -597,7 +597,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 274.7570361596877
+   "temperatureK": 277.25917705375605
   },
   {
    "worldSeed": 11904815275719155497,
@@ -620,7 +620,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 327.69915707356586
+   "temperatureK": 329.5039645786439
   },
   {
    "worldSeed": 12315571468825993062,
@@ -643,7 +643,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 261.3283875315871
+   "temperatureK": 280.55573921703086
   },
   {
    "worldSeed": 11708495581750375948,
@@ -666,7 +666,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 255.54086046506592
+   "temperatureK": 262.73334212295464
   },
   {
    "worldSeed": 11649667220682072228,
@@ -689,7 +689,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 237.61856410268422
+   "temperatureK": 254.06324728188335
   },
   {
    "worldSeed": 11652940820049146683,
@@ -712,7 +712,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 260.15024310347707
+   "temperatureK": 278.37695803825375
   },
   {
    "worldSeed": 12240209342969614286,
@@ -735,7 +735,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 242.33437214872288
+   "temperatureK": 263.32878087996784
   },
   {
    "worldSeed": 11783528438912081993,
@@ -758,7 +758,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 308.4002101818054
+   "temperatureK": 347.73931293852974
   },
   {
    "worldSeed": 12318543231349417721,
@@ -781,7 +781,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 103.20115145536694
+   "temperatureK": 132.8507756627084
   },
   {
    "worldSeed": 12034857258982839884,
@@ -804,7 +804,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 222.70297507864584
+   "temperatureK": 255.57617140689996
   },
   {
    "worldSeed": 12359174481676039212,
@@ -827,7 +827,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 304.58518746424386
+   "temperatureK": 321.40524350325995
   },
   {
    "worldSeed": 12324811938455897108,
@@ -850,7 +850,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 76.69847769928212
+   "temperatureK": 115.08289846695344
   },
   {
    "worldSeed": 11767369045139604197,
@@ -873,7 +873,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 320.55945027799817
+   "temperatureK": 321.06928462864846
   },
   {
    "worldSeed": 12166168262263647317,
@@ -896,7 +896,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 301.4121335241152
+   "temperatureK": 313.15091586825474
   },
   {
    "worldSeed": 11758413619694555168,
@@ -919,7 +919,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 317.51912115928667
+   "temperatureK": 317.9873666543777
   },
   {
    "worldSeed": 11911006513681446238,
@@ -942,7 +942,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 251.5463739338419
+   "temperatureK": 260.0433688800922
   },
   {
    "worldSeed": 12537487638623667643,
@@ -965,7 +965,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 309.8858232753014
+   "temperatureK": 310.449791959787
   },
   {
    "worldSeed": 11904221539288615560,
@@ -988,7 +988,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 295.3775068720912
+   "temperatureK": 302.16226687081536
   },
   {
    "worldSeed": 11896286756308071543,
@@ -1011,7 +1011,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 270.57843097180074
+   "temperatureK": 310.25431768698195
   },
   {
    "worldSeed": 11895571915571636969,
@@ -1034,7 +1034,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 274.54098384036956
+   "temperatureK": 297.2102089255702
   },
   {
    "worldSeed": 11828815775133172715,
@@ -1057,7 +1057,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 211.66830497035565
+   "temperatureK": 231.37542730930116
   },
   {
    "worldSeed": 12048229694405233098,
@@ -1080,7 +1080,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 294.0108941528805
+   "temperatureK": 294.0113005876536
   },
   {
    "worldSeed": 12052345905485892881,
@@ -1103,7 +1103,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 231.01177616479373
+   "temperatureK": 263.8281238573264
   },
   {
    "worldSeed": 12527004554246323639,
@@ -1126,7 +1126,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 305.4142418851285
+   "temperatureK": 309.20843520678744
   },
   {
    "worldSeed": 12376150281139949366,
@@ -1149,7 +1149,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 218.11625694922157
+   "temperatureK": 230.37762977893655
   },
   {
    "worldSeed": 12190734175969422054,
@@ -1172,7 +1172,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 237.39013253140982
+   "temperatureK": 246.0131517522686
   },
   {
    "worldSeed": 11738208807412414689,
@@ -1195,7 +1195,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 221.6530158911399
+   "temperatureK": 261.5509259546665
   },
   {
    "worldSeed": 12074796063475997222,
@@ -1218,7 +1218,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 20.564196696084483
+   "temperatureK": 59.62360183321139
   },
   {
    "worldSeed": 12441573387903199689,
@@ -1241,7 +1241,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 209.61194788154586
+   "temperatureK": 223.25817705500927
   },
   {
    "worldSeed": 11621809158310619131,
@@ -1264,7 +1264,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 257.4679152257459
+   "temperatureK": 279.16643294976427
   },
   {
    "worldSeed": 11586370965784053968,
@@ -1287,7 +1287,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 285.55313176155636
+   "temperatureK": 285.67273166720736
   },
   {
    "worldSeed": 12543534322538733537,
@@ -1310,7 +1310,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 282.3927829591644
+   "temperatureK": 282.64887629559433
   },
   {
    "worldSeed": 11542099644938906463,
@@ -1333,7 +1333,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 241.1575812440666
+   "temperatureK": 262.9105735965876
   },
   {
    "worldSeed": 11682984952047225658,
@@ -1356,7 +1356,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 214.38167784540212
+   "temperatureK": 225.174589511462
   },
   {
    "worldSeed": 11950152747438161555,
@@ -1379,7 +1379,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 299.6089522371628
+   "temperatureK": 302.4391118787585
   },
   {
    "worldSeed": 12310782972821294680,
@@ -1402,7 +1402,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 309.1100826267679
+   "temperatureK": 309.1134346989093
   },
   {
    "worldSeed": 12668707905201271922,
@@ -1425,7 +1425,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 306.9674768363448
+   "temperatureK": 316.3092684439125
   },
   {
    "worldSeed": 12085379678013351358,
@@ -1448,7 +1448,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 38.901606124882164
+   "temperatureK": 76.74213334763552
   },
   {
    "worldSeed": 12657232917776203616,
@@ -1471,7 +1471,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 190.13849989336717
+   "temperatureK": 206.98159313879452
   },
   {
    "worldSeed": 12304207394361530066,
@@ -1494,7 +1494,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 0.7283383435706727
+   "temperatureK": 38.040414094373325
   },
   {
    "worldSeed": 12629706287562764227,
@@ -1517,7 +1517,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 231.91749254486365
+   "temperatureK": 259.4540771825015
   },
   {
    "worldSeed": 11859411745875122923,
@@ -1540,7 +1540,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 307.8441671086354
+   "temperatureK": 307.894291052431
   },
   {
    "worldSeed": 11856889285894258620,
@@ -1563,7 +1563,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 301.44432586498397
+   "temperatureK": 334.81119612129595
   },
   {
    "worldSeed": 11887032623904424145,
@@ -1586,7 +1586,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 311.8525893121266
+   "temperatureK": 311.85258931289786
   },
   {
    "worldSeed": 12283935906236978215,
@@ -1609,7 +1609,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 238.34731997185426
+   "temperatureK": 267.2410119579629
   },
   {
    "worldSeed": 11759598343520401342,
@@ -1632,7 +1632,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 293.62222242493044
+   "temperatureK": 293.6772633469468
   },
   {
    "worldSeed": 11729564321143375261,
@@ -1655,7 +1655,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 275.4624577878912
+   "temperatureK": 294.79399366352806
   },
   {
    "worldSeed": 12422644700806178738,
@@ -1678,7 +1678,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 157.92334214609485
+   "temperatureK": 183.4420196495949
   },
   {
    "worldSeed": 12610488722914648030,
@@ -1701,7 +1701,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 193.1618413398866
+   "temperatureK": 231.2166004561725
   },
   {
    "worldSeed": 12436901921355731345,
@@ -1724,7 +1724,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 236.13273398349978
+   "temperatureK": 237.82457921991525
   },
   {
    "worldSeed": 12662300194562732594,
@@ -1747,7 +1747,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 79.1148339965497
+   "temperatureK": 117.97528326040796
   },
   {
    "worldSeed": 12012963662233706331,
@@ -1770,7 +1770,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 97.04763109590411
+   "temperatureK": 128.2379178914286
   },
   {
    "worldSeed": 12050202633062425127,
@@ -1793,7 +1793,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 247.0114921546601
+   "temperatureK": 252.74140562450995
   },
   {
    "worldSeed": 11803242189556844959,
@@ -1816,7 +1816,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 240.7195007893237
+   "temperatureK": 278.1711079374825
   },
   {
    "worldSeed": 12603378441174997364,
@@ -1839,7 +1839,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 283.61534941414027
+   "temperatureK": 283.6550054612281
   },
   {
    "worldSeed": 12666609424346678250,
@@ -1862,7 +1862,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 271.01857926466295
+   "temperatureK": 272.3526711354655
   },
   {
    "worldSeed": 12081855792880479808,
@@ -1885,7 +1885,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 215.3557304328028
+   "temperatureK": 251.4799621783496
   },
   {
    "worldSeed": 12453205292429084020,
@@ -1908,7 +1908,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 249.1187517306767
+   "temperatureK": 289.09630095699345
   },
   {
    "worldSeed": 12600206919825683810,
@@ -1931,7 +1931,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 316.72928448893265
+   "temperatureK": 316.730919036137
   },
   {
    "worldSeed": 11940460799523710225,
@@ -1954,7 +1954,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 293.0192020834683
+   "temperatureK": 322.49172408995594
   },
   {
    "worldSeed": 12005219697634911368,
@@ -1977,7 +1977,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 323.8913156827341
+   "temperatureK": 326.82580943818624
   },
   {
    "worldSeed": 11817354602098156054,
@@ -2000,7 +2000,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 251.96146385152886
+   "temperatureK": 254.48041129779998
   },
   {
    "worldSeed": 12081012838588227135,
@@ -2023,7 +2023,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 220.8258982800938
+   "temperatureK": 233.16235491658043
   },
   {
    "worldSeed": 12463104153033565008,
@@ -2046,7 +2046,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 272.81870271032216
+   "temperatureK": 289.51485774604424
   },
   {
    "worldSeed": 12164403316832338993,
@@ -2069,7 +2069,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 265.58509002054376
+   "temperatureK": 286.19555646514027
   },
   {
    "worldSeed": 11529632438426040625,
@@ -2092,7 +2092,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 298.99172694860283
+   "temperatureK": 299.4210096957014
   },
   {
    "worldSeed": 11920920232015935089,
@@ -2115,7 +2115,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 308.16097977567586
+   "temperatureK": 308.16099407441186
   },
   {
    "worldSeed": 11890517883901992877,
@@ -2138,7 +2138,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 296.55311944061754
+   "temperatureK": 298.3414272562445
   },
   {
    "worldSeed": 12628088304163589677,
@@ -2161,7 +2161,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 309.60697585226535
+   "temperatureK": 309.98986928543417
   },
   {
    "worldSeed": 12513818952140625681,
@@ -2184,7 +2184,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 309.1202955480837
+   "temperatureK": 318.3342340135458
   },
   {
    "worldSeed": 11530011635230064181,
@@ -2207,7 +2207,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 72.22851354981829
+   "temperatureK": 112.22729756600357
   },
   {
    "worldSeed": 12222388926554267129,
@@ -2230,7 +2230,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 316.891731189883
+   "temperatureK": 324.74967900019664
   },
   {
    "worldSeed": 11696915233913692387,
@@ -2253,7 +2253,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 228.5524515876911
+   "temperatureK": 231.62216829980963
   },
   {
    "worldSeed": 12065642121949987866,
@@ -2276,7 +2276,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 302.75622427309617
+   "temperatureK": 303.70951317064464
   },
   {
    "worldSeed": 12293340067485879957,
@@ -2299,7 +2299,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 315.62346578170724
+   "temperatureK": 315.6601592025144
   },
   {
    "worldSeed": 12045888283201408772,
@@ -2322,7 +2322,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 295.1301676357182
+   "temperatureK": 295.13385121833943
   },
   {
    "worldSeed": 11918783932362511776,
@@ -2345,7 +2345,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 268.03840469927474
+   "temperatureK": 276.5005628020184
   },
   {
    "worldSeed": 12490840352446233902,
@@ -2368,7 +2368,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 306.80755200147325
+   "temperatureK": 308.05571721924855
   },
   {
    "worldSeed": 12526046468704264482,
@@ -2391,7 +2391,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 303.0142338708452
+   "temperatureK": 303.0142350819803
   },
   {
    "worldSeed": 12344703897795298253,
@@ -2414,7 +2414,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 306.8989258291052
+   "temperatureK": 306.8989258300898
   },
   {
    "worldSeed": 11653408025511040951,
@@ -2437,7 +2437,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 301.30124502362173
+   "temperatureK": 317.6770252950861
   },
   {
    "worldSeed": 12520342564987136348,
@@ -2460,7 +2460,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 241.36464929481903
+   "temperatureK": 249.52566881031066
   },
   {
    "worldSeed": 12068561940363828467,
@@ -2483,7 +2483,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 275.5151764693035
+   "temperatureK": 275.7360447513626
   },
   {
    "worldSeed": 12102465793740623877,
@@ -2506,7 +2506,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 296.148626804826
+   "temperatureK": 312.68490380774114
   },
   {
    "worldSeed": 12579752611790778467,
@@ -2529,7 +2529,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 303.5704835869214
+   "temperatureK": 304.2343276180903
   },
   {
    "worldSeed": 11715211636626084850,
@@ -2552,7 +2552,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 309.7129869064169
+   "temperatureK": 310.73539914982865
   },
   {
    "worldSeed": 12315775922316735486,
@@ -2575,7 +2575,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 281.7012824213129
+   "temperatureK": 281.7016929356498
   },
   {
    "worldSeed": 12480443448370819620,
@@ -2598,7 +2598,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 309.2285299571475
+   "temperatureK": 310.0627370663948
   },
   {
    "worldSeed": 12028230646358766022,
@@ -2621,7 +2621,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 234.52002273892552
+   "temperatureK": 245.73236219034746
   },
   {
    "worldSeed": 12255008263621011708,
@@ -2644,7 +2644,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 175.01781327361786
+   "temperatureK": 211.8628015963321
   },
   {
    "worldSeed": 11707541136911498664,
@@ -2667,7 +2667,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 271.3761372225424
+   "temperatureK": 307.8444581846878
   },
   {
    "worldSeed": 11616465469742936816,
@@ -2690,7 +2690,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 132.3567262606428
+   "temperatureK": 158.14420066950407
   },
   {
    "worldSeed": 12081348726180085831,
@@ -2713,7 +2713,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 307.72167306692006
+   "temperatureK": 307.75737215170903
   },
   {
    "worldSeed": 12473947367482738810,
@@ -2736,7 +2736,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 252.37417045780316
+   "temperatureK": 258.59889621737386
   },
   {
    "worldSeed": 11968380926661830365,
@@ -2759,7 +2759,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 212.54224324175573
+   "temperatureK": 223.64458651151244
   },
   {
    "worldSeed": 11830481008058458669,
@@ -2782,7 +2782,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 304.1325961610759
+   "temperatureK": 304.13617322633803
   },
   {
    "worldSeed": 11626996478729303209,
@@ -2805,7 +2805,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 307.1281203042802
+   "temperatureK": 314.0060645618422
   },
   {
    "worldSeed": 11799999048950862255,
@@ -2828,7 +2828,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 239.78315463369657
+   "temperatureK": 246.0283485462005
   },
   {
    "worldSeed": 11791635996537428430,
@@ -2851,7 +2851,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 33.81424778836106
+   "temperatureK": 67.47199915439768
   },
   {
    "worldSeed": 12615412425460506185,
@@ -2874,7 +2874,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 248.00641796356828
+   "temperatureK": 273.41605940401337
   },
   {
    "worldSeed": 11940812203981563954,
@@ -2897,7 +2897,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 287.67245761723893
+   "temperatureK": 302.2424306224693
   },
   {
    "worldSeed": 11620383628481975515,
@@ -2920,7 +2920,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 83.54893785004006
+   "temperatureK": 123.45439445326599
   },
   {
    "worldSeed": 12465676690123760487,
@@ -2943,7 +2943,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 292.52618126806397
+   "temperatureK": 296.361611916258
   },
   {
    "worldSeed": 11751544477637376818,
@@ -2966,7 +2966,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 236.45088092669334
+   "temperatureK": 257.84308197635943
   },
   {
    "worldSeed": 12407088763387973332,
@@ -2989,7 +2989,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 5.096460490093203
+   "temperatureK": 40.8229918570212
   },
   {
    "worldSeed": 12422794707936002152,
@@ -3012,7 +3012,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 326.66695487725946
+   "temperatureK": 326.6859351345472
   },
   {
    "worldSeed": 12113718833293236869,
@@ -3035,7 +3035,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 247.70239070972877
+   "temperatureK": 286.8659086332274
   },
   {
    "worldSeed": 12078127396799870053,
@@ -3058,7 +3058,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 263.1699843212228
+   "temperatureK": 301.23922906145873
   },
   {
    "worldSeed": 12312670285776673355,
@@ -3081,7 +3081,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 317.50435674586305
+   "temperatureK": 320.3841311124395
   },
   {
    "worldSeed": 12574076513688240262,
@@ -3104,7 +3104,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 79.03176047602824
+   "temperatureK": 118.43993668776886
   },
   {
    "worldSeed": 12217572939209140493,
@@ -3127,7 +3127,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 288.6137282251713
+   "temperatureK": 321.6213460214179
   },
   {
    "worldSeed": 12178535808278156801,
@@ -3150,7 +3150,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 281.1603786477155
+   "temperatureK": 307.8624723343067
   },
   {
    "worldSeed": 11637373333794808406,
@@ -3173,7 +3173,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 224.50926582173412
+   "temperatureK": 240.4517749555058
   },
   {
    "worldSeed": 11825142144313410456,
@@ -3196,7 +3196,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 281.60925300069965
+   "temperatureK": 281.6110907344839
   },
   {
    "worldSeed": 12607408687869433047,
@@ -3219,7 +3219,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 307.82283989871274
+   "temperatureK": 307.99699232705
   },
   {
    "worldSeed": 11578559013292642314,
@@ -3242,7 +3242,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 284.9575942273659
+   "temperatureK": 295.12390287239907
   },
   {
    "worldSeed": 12559650169340962802,
@@ -3265,7 +3265,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 306.6475423410828
+   "temperatureK": 307.5095257676816
   },
   {
    "worldSeed": 11622014584727673179,
@@ -3288,7 +3288,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 280.68355098683213
+   "temperatureK": 280.9116453838641
   },
   {
    "worldSeed": 12303084165671269398,
@@ -3311,7 +3311,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 312.89078261018864
+   "temperatureK": 320.81951524989273
   },
   {
    "worldSeed": 12343602560815011993,
@@ -3334,7 +3334,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 263.1903276664178
+   "temperatureK": 269.81319479831393
   },
   {
    "worldSeed": 12147988496614550626,
@@ -3357,7 +3357,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 274.71149365991954
+   "temperatureK": 282.85320408544817
   },
   {
    "worldSeed": 11679606877519683933,
@@ -3380,7 +3380,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 310.1502617209573
+   "temperatureK": 310.2171118980708
   },
   {
    "worldSeed": 11757227210261260197,
@@ -3403,7 +3403,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 262.4060546011878
+   "temperatureK": 269.9136089862486
   },
   {
    "worldSeed": 12406284174353791023,
@@ -3426,7 +3426,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 297.2558789630749
+   "temperatureK": 306.63874674455076
   },
   {
    "worldSeed": 11764185405169986252,
@@ -3449,7 +3449,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 171.63548952244523
+   "temperatureK": 209.65139835198497
   },
   {
    "worldSeed": 12458744374543028316,
@@ -3472,7 +3472,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 243.63343908164626
+   "temperatureK": 273.92836643888626
   },
   {
    "worldSeed": 12400044902405549073,
@@ -3495,7 +3495,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 310.50982809427535
+   "temperatureK": 311.2633950794792
   },
   {
    "worldSeed": 11622463190170521081,
@@ -3518,7 +3518,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 273.3610103296344
+   "temperatureK": 273.3610119285945
   },
   {
    "worldSeed": 11842848161194395413,
@@ -3541,7 +3541,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 291.0552476076505
+   "temperatureK": 291.0637654373403
   },
   {
    "worldSeed": 12247540003813843013,
@@ -3564,7 +3564,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 48.88256060020644
+   "temperatureK": 78.20224031364195
   },
   {
    "worldSeed": 12354672447150790927,
@@ -3587,7 +3587,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 285.93674276803733
+   "temperatureK": 285.9846516489451
   },
   {
    "worldSeed": 11791399671945327454,
@@ -3610,7 +3610,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 302.73555809535407
+   "temperatureK": 302.7370529180258
   },
   {
    "worldSeed": 11831567119533519146,
@@ -3633,7 +3633,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 277.39303391178606
+   "temperatureK": 277.4500709736216
   },
   {
    "worldSeed": 12073485263242484829,
@@ -3656,7 +3656,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 217.58219444153806
+   "temperatureK": 243.63867583279264
   },
   {
    "worldSeed": 12552521213929728122,
@@ -3679,7 +3679,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 236.80210444512244
+   "temperatureK": 268.2619238913902
   },
   {
    "worldSeed": 11835547511360941048,
@@ -3702,7 +3702,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 222.9185721634703
+   "temperatureK": 257.698135043255
   },
   {
    "worldSeed": 11642437168356771591,
@@ -3725,7 +3725,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 323.12833449643927
+   "temperatureK": 323.1283432796396
   },
   {
    "worldSeed": 12552731828098471556,
@@ -3748,7 +3748,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 315.1197006087636
+   "temperatureK": 339.00440906317067
   },
   {
    "worldSeed": 12579425387330545221,
@@ -3771,7 +3771,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 247.01813239772048
+   "temperatureK": 272.5369708766095
   },
   {
    "worldSeed": 12080055965059772727,
@@ -3794,7 +3794,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 282.8460405125802
+   "temperatureK": 283.1501518412772
   },
   {
    "worldSeed": 11891156575589613441,
@@ -3817,7 +3817,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 309.60532771366775
+   "temperatureK": 333.2346803255916
   },
   {
    "worldSeed": 12280812626174609425,
@@ -3840,7 +3840,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 297.3800396844595
+   "temperatureK": 322.2162468897404
   },
   {
    "worldSeed": 11587716535762097154,
@@ -3863,7 +3863,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 280.9088796408029
+   "temperatureK": 281.7865530852181
   },
   {
    "worldSeed": 12233250256284786762,
@@ -3886,7 +3886,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 290.9743970989082
+   "temperatureK": 291.1445571752276
   },
   {
    "worldSeed": 12182670729910206722,
@@ -3909,7 +3909,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 255.43529302388717
+   "temperatureK": 281.45526950996816
   },
   {
    "worldSeed": 11628654691583003198,
@@ -3932,7 +3932,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 332.73300313917974
+   "temperatureK": 333.05036379337025
   },
   {
    "worldSeed": 11631986829698650811,
@@ -3955,7 +3955,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 296.26060653900475
+   "temperatureK": 319.614977214811
   },
   {
    "worldSeed": 11597405567561745984,
@@ -3978,7 +3978,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 298.8488698276479
+   "temperatureK": 300.2201301450339
   },
   {
    "worldSeed": 11594485127031788376,
@@ -4001,7 +4001,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 33.76588723872525
+   "temperatureK": 64.21273251079909
   },
   {
    "worldSeed": 12379267399238024950,
@@ -4024,7 +4024,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 36.6383589843353
+   "temperatureK": 73.38434179770998
   },
   {
    "worldSeed": 11715414981022381042,
@@ -4047,7 +4047,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 273.5701406834892
+   "temperatureK": 281.7193007901622
   },
   {
    "worldSeed": 12512412193200253226,
@@ -4070,7 +4070,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 296.8107399469449
+   "temperatureK": 296.81770276466585
   },
   {
    "worldSeed": 12000945638023255328,
@@ -4093,7 +4093,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 200.04448067441683
+   "temperatureK": 237.66459848644132
   },
   {
    "worldSeed": 12327091013189883389,
@@ -4116,7 +4116,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 260.8591119572609
+   "temperatureK": 300.3708538293347
   },
   {
    "worldSeed": 12211778838856934308,
@@ -4139,7 +4139,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 232.43154738045857
+   "temperatureK": 250.35532243947875
   },
   {
    "worldSeed": 11544239475093862199,
@@ -4162,7 +4162,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 294.45915661045393
+   "temperatureK": 294.48580980895923
   },
   {
    "worldSeed": 12614783291866832951,
@@ -4185,7 +4185,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 292.7377118610649
+   "temperatureK": 292.8430266510318
   },
   {
    "worldSeed": 11769979835090626838,
@@ -4208,7 +4208,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 311.51531126783743
+   "temperatureK": 317.0054452391402
   },
   {
    "worldSeed": 11772270697459271712,
@@ -4231,7 +4231,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 250.51495637524997
+   "temperatureK": 288.2131497944687
   },
   {
    "worldSeed": 12363876545147112196,
@@ -4254,7 +4254,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 281.79906276081675
+   "temperatureK": 321.7925414671712
   },
   {
    "worldSeed": 12117846965226691544,
@@ -4277,7 +4277,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 62.68079765708744
+   "temperatureK": 102.34054241307172
   },
   {
    "worldSeed": 12289228420563667913,
@@ -4300,7 +4300,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 274.12612957185615
+   "temperatureK": 274.9241137470419
   },
   {
    "worldSeed": 11546763449505455742,
@@ -4323,7 +4323,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 325.39145851938144
+   "temperatureK": 328.7596250167303
   },
   {
    "worldSeed": 12299897845752835805,
@@ -4346,7 +4346,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 265.60415501669604
+   "temperatureK": 290.42660051176716
   },
   {
    "worldSeed": 11778466117745377031,
@@ -4369,7 +4369,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 268.3114924124134
+   "temperatureK": 274.91779265846685
   },
   {
    "worldSeed": 11908670511212108385,
@@ -4392,7 +4392,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 280.72494096886965
+   "temperatureK": 309.6643837511715
   },
   {
    "worldSeed": 12119527207992291611,
@@ -4415,7 +4415,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 82.78711232084281
+   "temperatureK": 122.77703913009
   },
   {
    "worldSeed": 12388859103310646327,
@@ -4438,7 +4438,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 296.6161641878368
+   "temperatureK": 324.78733388209315
   },
   {
    "worldSeed": 12378815297095341272,
@@ -4461,7 +4461,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 271.78001678311443
+   "temperatureK": 271.7931789318581
   },
   {
    "worldSeed": 11833026899251773976,
@@ -4484,7 +4484,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 310.2907214918884
+   "temperatureK": 315.14339695169707
   },
   {
    "worldSeed": 11886860569529155994,
@@ -4507,7 +4507,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 40.41638788616375
+   "temperatureK": 79.89541975231865
   },
   {
    "worldSeed": 11672356575114005678,
@@ -4530,7 +4530,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 285.7580851709838
+   "temperatureK": 324.71357664135803
   },
   {
    "worldSeed": 12562347565810739770,
@@ -4553,7 +4553,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 247.9309077224182
+   "temperatureK": 256.5645222459999
   },
   {
    "worldSeed": 11901256329832495320,
@@ -4576,7 +4576,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 289.05751968588686
+   "temperatureK": 289.3987276395839
   },
   {
    "worldSeed": 12351875150013194093,
@@ -4599,7 +4599,7 @@
    "cycleEccentricityAmplitudeK": 2.0,
    "cycleObliquityAmplitudeK": 3.0,
    "cyclePrecessionAmplitudeK": 1.0,
-   "temperatureK": 309.0987829575966
+   "temperatureK": 334.255314824863
   }
  ]
 }

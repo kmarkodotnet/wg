@@ -136,7 +136,8 @@ namespace WorldGen.Core.Climate
             double daily = samples.AverageFactor(g[t], g[t + 1], g[t + 2]);
             double albedo = isOceanic ? Temperature.AlbedoOcean : Temperature.AlbedoLand;
             double tRad = ThermalBaseline.RadiativeTemperature(_parameters.EffectiveFactor(daily, annual), albedo);
-            return tRad + Temperature.DefaultGreenhouseK - Temperature.LapseRateKPerM * Math.Max(0.0, elevationM - _seaLevelM);
+            return tRad + Temperature.DefaultGreenhouseK + Temperature.MeridionalHeatTransportK(g[t + 2])
+                - Temperature.LapseRateKPerM * Math.Max(0.0, elevationM - _seaLevelM);
         }
 
         private void WindFromGeometry(double[] g, int o, in DailyInsolationSampleDirections samples, int owner,
@@ -156,6 +157,7 @@ namespace WorldGen.Core.Climate
             double gradN = (tNp - tNm) / (2.0 * e);
             double rawE = gradE * WindPrecipitation.ThermalWindCoeff;
             double rawN = gradN * WindPrecipitation.ThermalWindCoeff;
+            WindPrecipitation.LimitThermalWind(rawE, rawN, out rawE, out rawN);
 
             double s = z >= 0.0 ? -_coriolisSin : _coriolisSin;
             double thermalE = rawE * _coriolisCos - rawN * s;

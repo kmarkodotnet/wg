@@ -928,6 +928,11 @@ ND-62 ütközését rendezi.
 A mező párhuzamos, diagnosztikai Core-modell: nem írja át a biome-ot, jeget,
 csapadékot, hidrológiát és a `WorldStateHash`-t (ND-103). A munka sorrendje:
 
+Az ND-126b kalibráció óta mind a napi átlagú, mind a diagnosztikai hőút
+`40 K * z⁴` meridionális hőszállítás-proxyt használ. A régi és az ND-102
+szélút termikus komponensének nagysága iránytartó
+`30 m/s * tanh(|v| / 30 m/s)` korlátot kap a Coriolis-forgatás előtt.
+
 1. döntések és baseline-mérés (ND-99–104). **Baseline mérve (2026-09-13,
    level 6, 24 576 cella, egy szál, .NET 8 Release, ismételt futás bitazonos):**
    `TemperatureKelvin` cellánként 24 Nap-iránnyal 79 ms (3,2 µs/cella);

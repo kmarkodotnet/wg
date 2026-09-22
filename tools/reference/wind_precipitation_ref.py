@@ -60,6 +60,11 @@ A NEGY FEDETT RESZ:
    ocean/elevacio erteket NEM ismerjuk ebben az orakulumban - dokumentalt
    egyszerusites, ld. fent).
 
+   DONTES - termikus komponens korlatozasa (ND-126b): a ketdimenzios
+   termikus vektor iranyat megtartva a nagysagat
+   30 m/s * tanh(|v| / 30 m/s) alakban korlatozzuk. Ez sima, nem hoz letre
+   kemeny clamp-hatart, es a zonalis alapkomponenst nem vagja le.
+
    DONTES - hegyi elteri`tes: az elevacio-gradiens IRANYABA eso szelkomponenst
    (azaz a "feldomb" iranyu reszt) csokkentjuk egy tanh-tel korlatozott
    arannyal (MOUNTAIN_DEFLECTION_MAX_DEFAULT), a lejto"vel parhuzamos
@@ -99,6 +104,7 @@ NEM produkcios kod - csak orakulum, a python-reference skill szerint.
 """
 import math
 
+import deterministic_math_ref as dm
 from temperature_ref import temperature_kelvin
 from noise_ref import fbm
 from domain_warp_ref import warp_position
@@ -111,6 +117,7 @@ BASE_WIND_SPEED_DEFAULT = 10.0        # m/s, illusztrativ (foldi passzat-nagysag
 CORIOLIS_DEFLECTION_DEG_DEFAULT = 30.0  # fok, illusztrativ proxy-szog, NEM meres
 GRADIENT_EPS = 1.0e-3                  # radian, veges differencia lepeskoz
 THERMAL_WIND_COEFF_DEFAULT = 0.5       # m/s per (K/radian), illusztrativ skalazas
+THERMAL_WIND_LIMIT_DEFAULT = 30.0       # m/s, ND-126b sima termikus komponens-korlat
 MOUNTAIN_DEFLECTION_MAX_DEFAULT = 0.85  # a "feldomb" szelkomponens max. csokkentesi aranya
 MOUNTAIN_SLOPE_SCALE_DEFAULT = 0.5     # meredekseg-proxy skala (ld. lent, dimenziomentes)
 
@@ -121,6 +128,17 @@ def _normalize(v):
     if length < 1e-12:
         return (0.0, 0.0, 0.0)
     return (x / length, y / length, z / length)
+
+
+def _limit_thermal_wind(east, north, limit=THERMAL_WIND_LIMIT_DEFAULT):
+    if not (limit > 0.0) or math.isinf(limit):
+        raise ValueError("thermal wind limit must be positive and finite")
+    magnitude = math.sqrt(east * east + north * north)
+    if magnitude < 1.0e-12:
+        return east, north
+    limited = limit * dm.tanh(magnitude / limit)
+    scale = limited / magnitude
+    return east * scale, north * scale
 
 
 def _add(a, b):
@@ -219,6 +237,7 @@ def wind_vector(
     thermal_wind_coeff=THERMAL_WIND_COEFF_DEFAULT,
     mountain_deflection_max=MOUNTAIN_DEFLECTION_MAX_DEFAULT,
     mountain_slope_scale=MOUNTAIN_SLOPE_SCALE_DEFAULT,
+    thermal_wind_limit=THERMAL_WIND_LIMIT_DEFAULT,
 ):
     """A tile WindVector-je: (kelet, eszak) erinto-sik komponens + a
     megfelelo 3D erinto-vektor a gomb-feluleten. elevation_gradient_east/
@@ -236,6 +255,9 @@ def wind_vector(
     )
     thermal_e_raw = grad_e * thermal_wind_coeff
     thermal_n_raw = grad_n * thermal_wind_coeff
+    thermal_e_raw, thermal_n_raw = _limit_thermal_wind(
+        thermal_e_raw, thermal_n_raw, thermal_wind_limit,
+    )
 
     coriolis_angle = -math.copysign(1.0, lat) * math.radians(coriolis_deflection_deg)
     thermal_e, thermal_n = _rotate2(thermal_e_raw, thermal_n_raw, coriolis_angle)

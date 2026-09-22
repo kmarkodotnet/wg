@@ -20,7 +20,7 @@
    "v": 0,
    "isOcean": false,
    "elevation": 2151.6027239000264,
-   "precipitation": 0.0749448019937079
+   "precipitation": 0.09123849770147857
   },
   {
    "face": 0,
@@ -28,7 +28,7 @@
    "v": 11,
    "isOcean": false,
    "elevation": 2159.896219655709,
-   "precipitation": 0.07860771622598642
+   "precipitation": 0.5749544416352087
   },
   {
    "face": 0,
@@ -36,7 +36,7 @@
    "v": 6,
    "isOcean": false,
    "elevation": 2099.4417614043264,
-   "precipitation": 0.0026552871698811297
+   "precipitation": 0.11983202425264014
   },
   {
    "face": 0,
@@ -44,7 +44,7 @@
    "v": 1,
    "isOcean": false,
    "elevation": 2888.082334711553,
-   "precipitation": 0.08079519821418361
+   "precipitation": 0.14914682417385747
   },
   {
    "face": 0,
@@ -52,7 +52,7 @@
    "v": 12,
    "isOcean": true,
    "elevation": -3894.7056721149324,
-   "precipitation": 6.802836617608222
+   "precipitation": 7.900339168145031
   },
   {
    "face": 0,
@@ -60,7 +60,7 @@
    "v": 7,
    "isOcean": false,
    "elevation": 1620.7675983589943,
-   "precipitation": 0.6838319683460269
+   "precipitation": 0.7759584620758408
   },
   {
    "face": 0,
@@ -68,7 +68,7 @@
    "v": 2,
    "isOcean": false,
    "elevation": 1905.3195284032684,
-   "precipitation": 0.3444412373705496
+   "precipitation": 0.5804795548416247
   },
   {
    "face": 0,
@@ -76,7 +76,7 @@
    "v": 13,
    "isOcean": true,
    "elevation": 1384.5446674644484,
-   "precipitation": 3.440021165243162
+   "precipitation": 3.2722936843680244
   },
   {
    "face": 0,
@@ -84,7 +84,7 @@
    "v": 8,
    "isOcean": true,
    "elevation": 1245.86607924482,
-   "precipitation": 5.2344489361075395
+   "precipitation": 5.311425465715377
   },
   {
    "face": 0,
@@ -92,7 +92,7 @@
    "v": 3,
    "isOcean": false,
    "elevation": 2073.7904018275003,
-   "precipitation": 2.9534479403890224
+   "precipitation": 3.1032173151938953
   },
   {
    "face": 0,
@@ -100,7 +100,7 @@
    "v": 14,
    "isOcean": true,
    "elevation": 1199.662276547634,
-   "precipitation": 3.3765895523087956
+   "precipitation": 3.150635044937811
   },
   {
    "face": 0,
@@ -108,7 +108,7 @@
    "v": 9,
    "isOcean": false,
    "elevation": 1806.272367299895,
-   "precipitation": 3.6864785094111725
+   "precipitation": 3.3091970863583104
   },
   {
    "face": 0,
@@ -116,7 +116,7 @@
    "v": 4,
    "isOcean": true,
    "elevation": 1492.4331367905334,
-   "precipitation": 3.819177930366158
+   "precipitation": 3.736751963832049
   },
   {
    "face": 0,
@@ -124,7 +124,7 @@
    "v": 15,
    "isOcean": true,
    "elevation": 993.1412392602635,
-   "precipitation": 4.143288573950928
+   "precipitation": 4.035914860335422
   },
   {
    "face": 0,
@@ -132,7 +132,7 @@
    "v": 10,
    "isOcean": true,
    "elevation": 1531.2788508485557,
-   "precipitation": 4.050920604704942
+   "precipitation": 3.6450508527480636
   },
   {
    "face": 0,
@@ -140,7 +140,7 @@
    "v": 5,
    "isOcean": true,
    "elevation": -3805.691034054219,
-   "precipitation": 5.416950572038218
+   "precipitation": 5.230605874381921
   },
   {
    "face": 0,
@@ -148,7 +148,7 @@
    "v": 0,
    "isOcean": true,
    "elevation": -3535.7452804802665,
-   "precipitation": 3.1752194047964735
+   "precipitation": 2.969782565702601
   },
   {
    "face": 0,
@@ -164,7 +164,7 @@
    "v": 6,
    "isOcean": true,
    "elevation": -3760.021515802296,
-   "precipitation": 3.1030399045430777
+   "precipitation": 3.3476575111689746
   },
   {
    "face": 0,
@@ -172,7 +172,7 @@
    "v": 1,
    "isOcean": true,
    "elevation": -3612.87989122554,
-   "precipitation": 1.570074981002554
+   "precipitation": 1.412975803637516
   },
   {
    "face": 0,
@@ -180,7 +180,7 @@
    "v": 12,
    "isOcean": true,
    "elevation": 1271.1156647839268,
-   "precipitation": 1.6789578685255024
+   "precipitation": 1.848467629295949
   },
   {
    "face": 0,
@@ -188,7 +188,7 @@
    "v": 7,
    "isOcean": true,
    "elevation": -3931.368327026684,
-   "precipitation": 0.8432399680092688
+   "precipitation": 1.1945930818894002
   },
   {
    "face": 0,
@@ -196,7 +196,7 @@
    "v": 2,
    "isOcean": true,
    "elevation": -3582.77557927175,
-   "precipitation": 0.7531221466965068
+   "precipitation": 0.5361329838386133
   },
   {
    "face": 0,
@@ -204,7 +204,7 @@
    "v": 13,
    "isOcean": true,
    "elevation": 1445.465204938321,
-   "precipitation": 0.09395535378246346
+   "precipitation": 0.14139511487680118
   },
   {
    "face": 1,
@@ -212,7 +212,7 @@
    "v": 8,
    "isOcean": false,
    "elevation": 2006.77242556481,
-   "precipitation": 0.05237428695799412
+   "precipitation": 0.06579005120665511
   },
   {
    "face": 1,
@@ -220,7 +220,7 @@
    "v": 3,
    "isOcean": true,
    "elevation": -3923.8924519149296,
-   "precipitation": 1.361986112447901
+   "precipitation": 1.5671951352237627
   },
   {
    "face": 1,
@@ -228,7 +228,7 @@
    "v": 14,
    "isOcean": true,
    "elevation": 1411.6325236810717,
-   "precipitation": 0.1853433052065012
+   "precipitation": 0.24025064487825507
   },
   {
    "face": 1,
@@ -236,7 +236,7 @@
    "v": 9,
    "isOcean": true,
    "elevation": 1244.931471444343,
-   "precipitation": 1.5304536068581764
+   "precipitation": 1.4102174772823923
   },
   {
    "face": 1,
@@ -244,7 +244,7 @@
    "v": 4,
    "isOcean": true,
    "elevation": -3843.3549008081536,
-   "precipitation": 3.5815572093939667
+   "precipitation": 3.3875772570607543
   },
   {
    "face": 1,
@@ -252,7 +252,7 @@
    "v": 15,
    "isOcean": true,
    "elevation": 1260.6141088638728,
-   "precipitation": 3.415885912470404
+   "precipitation": 3.2474332062426554
   },
   {
    "face": 1,
@@ -260,7 +260,7 @@
    "v": 10,
    "isOcean": false,
    "elevation": 2042.8721115564394,
-   "precipitation": 1.7605675759076205
+   "precipitation": 1.8673049847293242
   },
   {
    "face": 1,
@@ -268,7 +268,7 @@
    "v": 5,
    "isOcean": true,
    "elevation": -3869.0939217329123,
-   "precipitation": 5.6276819075874815
+   "precipitation": 5.156619227359178
   },
   {
    "face": 1,
@@ -276,7 +276,7 @@
    "v": 0,
    "isOcean": true,
    "elevation": -3912.0986116432146,
-   "precipitation": 7.1432250131677835
+   "precipitation": 6.688266080180663
   },
   {
    "face": 1,
@@ -284,7 +284,7 @@
    "v": 11,
    "isOcean": true,
    "elevation": -1529.0274237012927,
-   "precipitation": 19.024026307896975
+   "precipitation": 18.03730883460237
   },
   {
    "face": 1,
@@ -292,7 +292,7 @@
    "v": 6,
    "isOcean": true,
    "elevation": -3833.382889426843,
-   "precipitation": 9.563902922756869
+   "precipitation": 8.480875284352901
   },
   {
    "face": 1,
@@ -300,7 +300,7 @@
    "v": 1,
    "isOcean": true,
    "elevation": 1234.6020864627974,
-   "precipitation": 8.846007764935695
+   "precipitation": 8.05601961787703
   },
   {
    "face": 1,
@@ -316,7 +316,7 @@
    "v": 7,
    "isOcean": true,
    "elevation": -3925.5062808206353,
-   "precipitation": 5.878248694982613
+   "precipitation": 5.456244910310653
   },
   {
    "face": 1,
@@ -332,7 +332,7 @@
    "v": 13,
    "isOcean": true,
    "elevation": -3793.546704674391,
-   "precipitation": 2.5939714782978416
+   "precipitation": 2.5678351425245993
   },
   {
    "face": 1,
@@ -364,7 +364,7 @@
    "v": 9,
    "isOcean": false,
    "elevation": 1936.3150338753674,
-   "precipitation": 0.1317729970181302
+   "precipitation": 0.35495575310827926
   },
   {
    "face": 1,
@@ -380,7 +380,7 @@
    "v": 15,
    "isOcean": true,
    "elevation": -3839.186809557839,
-   "precipitation": 0.8847422433809561
+   "precipitation": 0.9492596202286657
   },
   {
    "face": 1,
@@ -388,7 +388,7 @@
    "v": 10,
    "isOcean": false,
    "elevation": 2134.8760776184536,
-   "precipitation": 0.1799791205803379
+   "precipitation": 0.12610045445887808
   },
   {
    "face": 2,
@@ -396,7 +396,7 @@
    "v": 5,
    "isOcean": false,
    "elevation": 2309.34661368972,
-   "precipitation": 2.647434239929527
+   "precipitation": 2.529041344721966
   },
   {
    "face": 2,
@@ -404,7 +404,7 @@
    "v": 0,
    "isOcean": true,
    "elevation": 1379.262845767225,
-   "precipitation": 0.4728923199720788
+   "precipitation": 0.7203518672208539
   },
   {
    "face": 2,
@@ -412,7 +412,7 @@
    "v": 11,
    "isOcean": true,
    "elevation": -3800.5520801029866,
-   "precipitation": 4.359883746626823
+   "precipitation": 3.960321997589951
   },
   {
    "face": 2,
@@ -420,7 +420,7 @@
    "v": 6,
    "isOcean": false,
    "elevation": 1729.965722513443,
-   "precipitation": 0.008907820289566338
+   "precipitation": 0.004109275578217964
   },
   {
    "face": 2,
@@ -428,7 +428,7 @@
    "v": 1,
    "isOcean": false,
    "elevation": 1598.2038546000194,
-   "precipitation": 1.0004745958619228
+   "precipitation": 0.7835328032256159
   },
   {
    "face": 2,
@@ -436,7 +436,7 @@
    "v": 12,
    "isOcean": true,
    "elevation": -3784.4852337150933,
-   "precipitation": 2.775439550348415
+   "precipitation": 2.5167429321520665
   },
   {
    "face": 2,
@@ -452,7 +452,7 @@
    "v": 2,
    "isOcean": false,
    "elevation": 2143.638820299433,
-   "precipitation": 0.27587301033087336
+   "precipitation": 0.339410687120357
   },
   {
    "face": 2,
@@ -460,7 +460,7 @@
    "v": 13,
    "isOcean": true,
    "elevation": -3710.9202938955327,
-   "precipitation": 1.4916228282400121
+   "precipitation": 1.72202954391294
   },
   {
    "face": 2,
@@ -468,7 +468,7 @@
    "v": 8,
    "isOcean": true,
    "elevation": -3432.6165368042903,
-   "precipitation": 2.0923204178784487
+   "precipitation": 1.8281006982802284
   },
   {
    "face": 2,
@@ -476,7 +476,7 @@
    "v": 3,
    "isOcean": false,
    "elevation": 2396.8459227402745,
-   "precipitation": 0.7709283756234392
+   "precipitation": 0.7664892078462849
   },
   {
    "face": 2,
@@ -484,7 +484,7 @@
    "v": 14,
    "isOcean": true,
    "elevation": -3726.5928540826217,
-   "precipitation": 1.3375986137826061
+   "precipitation": 0.6759080704656406
   },
   {
    "face": 2,
@@ -492,7 +492,7 @@
    "v": 9,
    "isOcean": true,
    "elevation": -3766.024782349108,
-   "precipitation": 5.617139896801789
+   "precipitation": 5.045897211409553
   },
   {
    "face": 2,
@@ -500,7 +500,7 @@
    "v": 4,
    "isOcean": false,
    "elevation": 2075.3897921511384,
-   "precipitation": 0.7163338084040957
+   "precipitation": 0.7919080078641805
   },
   {
    "face": 2,
@@ -508,7 +508,7 @@
    "v": 15,
    "isOcean": true,
    "elevation": -3672.2583399188507,
-   "precipitation": 0.7484080576127039
+   "precipitation": 1.2833288332739357
   },
   {
    "face": 2,
@@ -516,7 +516,7 @@
    "v": 10,
    "isOcean": true,
    "elevation": -3737.0744692209787,
-   "precipitation": 5.558973419994879
+   "precipitation": 5.759137951707496
   },
   {
    "face": 2,
@@ -524,7 +524,7 @@
    "v": 5,
    "isOcean": false,
    "elevation": 2324.3946092158344,
-   "precipitation": 0.18083819578689475
+   "precipitation": 0.20364277026490904
   },
   {
    "face": 2,
@@ -532,7 +532,7 @@
    "v": 0,
    "isOcean": true,
    "elevation": 1072.3354246598124,
-   "precipitation": 1.3438994193415632
+   "precipitation": 0.9949017171171206
   },
   {
    "face": 2,
@@ -548,7 +548,7 @@
    "v": 6,
    "isOcean": false,
    "elevation": 2087.041928677379,
-   "precipitation": 2.1015446827455566
+   "precipitation": 2.1005251590790817
   },
   {
    "face": 2,
@@ -556,7 +556,7 @@
    "v": 1,
    "isOcean": true,
    "elevation": 1220.6811503649203,
-   "precipitation": 1.471013805382622
+   "precipitation": 1.3486831634321859
   },
   {
    "face": 2,
@@ -564,7 +564,7 @@
    "v": 12,
    "isOcean": true,
    "elevation": -3687.1230153238703,
-   "precipitation": 24.915106307903564
+   "precipitation": 24.08859562967166
   },
   {
    "face": 2,
@@ -572,7 +572,7 @@
    "v": 7,
    "isOcean": true,
    "elevation": 1244.4035192226243,
-   "precipitation": 16.677766423988135
+   "precipitation": 15.639888733522827
   },
   {
    "face": 3,
@@ -580,7 +580,7 @@
    "v": 2,
    "isOcean": true,
    "elevation": 1163.301129076422,
-   "precipitation": 2.5586577481768398
+   "precipitation": 2.376479778233067
   },
   {
    "face": 3,
@@ -588,7 +588,7 @@
    "v": 13,
    "isOcean": true,
    "elevation": -3981.8147581414346,
-   "precipitation": 3.523826977937244
+   "precipitation": 3.6931043187037647
   },
   {
    "face": 3,
@@ -596,7 +596,7 @@
    "v": 8,
    "isOcean": true,
    "elevation": -3857.3886667917404,
-   "precipitation": 9.650892341990058
+   "precipitation": 9.09775459305219
   },
   {
    "face": 3,
@@ -604,7 +604,7 @@
    "v": 3,
    "isOcean": true,
    "elevation": -3873.2453508705307,
-   "precipitation": 18.935753179142875
+   "precipitation": 20.695596788595047
   },
   {
    "face": 3,
@@ -612,7 +612,7 @@
    "v": 14,
    "isOcean": false,
    "elevation": 1624.256296371072,
-   "precipitation": 0.4129551371366068
+   "precipitation": 0.35514851827343313
   },
   {
    "face": 3,
@@ -620,7 +620,7 @@
    "v": 9,
    "isOcean": true,
    "elevation": -3997.6126083454674,
-   "precipitation": 5.686600638109902
+   "precipitation": 5.638732543848743
   },
   {
    "face": 3,
@@ -628,7 +628,7 @@
    "v": 4,
    "isOcean": true,
    "elevation": -3842.872725397924,
-   "precipitation": 3.538078508289829
+   "precipitation": 3.4706124676825496
   },
   {
    "face": 3,
@@ -636,7 +636,7 @@
    "v": 15,
    "isOcean": true,
    "elevation": 1575.1956814457787,
-   "precipitation": 0.12561145297052645
+   "precipitation": 0.38967981323822937
   },
   {
    "face": 3,
@@ -644,7 +644,7 @@
    "v": 10,
    "isOcean": true,
    "elevation": -3998.533525560503,
-   "precipitation": 4.641123337990441
+   "precipitation": 4.904633021609086
   },
   {
    "face": 3,
@@ -652,7 +652,7 @@
    "v": 5,
    "isOcean": true,
    "elevation": -3836.656897087409,
-   "precipitation": 4.48973475080666
+   "precipitation": 4.421302128585168
   },
   {
    "face": 3,
@@ -660,7 +660,7 @@
    "v": 0,
    "isOcean": true,
    "elevation": -3762.2015181321162,
-   "precipitation": 0.601141129792301
+   "precipitation": 1.8225837332365427
   },
   {
    "face": 3,
@@ -676,7 +676,7 @@
    "v": 6,
    "isOcean": true,
    "elevation": -3743.317408027891,
-   "precipitation": 21.22014896844957
+   "precipitation": 20.99593264998474
   },
   {
    "face": 3,
@@ -684,7 +684,7 @@
    "v": 1,
    "isOcean": true,
    "elevation": -3716.081297796279,
-   "precipitation": 0.6212046386866932
+   "precipitation": 2.762823200973489
   },
   {
    "face": 3,
@@ -700,7 +700,7 @@
    "v": 7,
    "isOcean": false,
    "elevation": 1828.626353441939,
-   "precipitation": 0.6950966879876574
+   "precipitation": 0.6543410847766693
   },
   {
    "face": 3,
@@ -708,7 +708,7 @@
    "v": 2,
    "isOcean": false,
    "elevation": 1923.443439684204,
-   "precipitation": 0.12312336722101505
+   "precipitation": 0.1729743179711451
   },
   {
    "face": 3,
@@ -716,7 +716,7 @@
    "v": 13,
    "isOcean": true,
    "elevation": -3704.5638898638535,
-   "precipitation": 7.627714603024775
+   "precipitation": 4.620100133495949
   },
   {
    "face": 3,
@@ -724,7 +724,7 @@
    "v": 8,
    "isOcean": false,
    "elevation": 1799.312548507322,
-   "precipitation": 0.5774887769960941
+   "precipitation": 0.5011650260559238
   },
   {
    "face": 3,
@@ -732,7 +732,7 @@
    "v": 3,
    "isOcean": false,
    "elevation": 2050.7987829752665,
-   "precipitation": 0.26100579977895283
+   "precipitation": 0.3940288382165508
   },
   {
    "face": 3,
@@ -740,7 +740,7 @@
    "v": 14,
    "isOcean": true,
    "elevation": -3740.5421983579286,
-   "precipitation": 1.0822378198691953
+   "precipitation": 0.694928431310665
   },
   {
    "face": 3,
@@ -748,7 +748,7 @@
    "v": 9,
    "isOcean": true,
    "elevation": -3631.202446494781,
-   "precipitation": 34.10462082498647
+   "precipitation": 30.965619528735342
   },
   {
    "face": 3,
@@ -756,7 +756,7 @@
    "v": 4,
    "isOcean": false,
    "elevation": 1691.0309101959126,
-   "precipitation": 0.21462591555473612
+   "precipitation": 0.29641684952259534
   },
   {
    "face": 3,
@@ -764,7 +764,7 @@
    "v": 15,
    "isOcean": true,
    "elevation": -3686.7482964551136,
-   "precipitation": 0.9743441658035179
+   "precipitation": 0.9544272918695693
   },
   {
    "face": 4,
@@ -772,7 +772,7 @@
    "v": 10,
    "isOcean": false,
    "elevation": 1850.776781011697,
-   "precipitation": 0.1382167542647435
+   "precipitation": 0.09403737855970029
   },
   {
    "face": 4,
@@ -780,7 +780,7 @@
    "v": 5,
    "isOcean": false,
    "elevation": 1619.875698713471,
-   "precipitation": 0.0005633160221196885
+   "precipitation": 0.14678064461080995
   },
   {
    "face": 4,
@@ -796,7 +796,7 @@
    "v": 11,
    "isOcean": true,
    "elevation": 1440.983236093625,
-   "precipitation": 0.05011700007228924
+   "precipitation": 0.09419424570525758
   },
   {
    "face": 4,
@@ -804,7 +804,7 @@
    "v": 6,
    "isOcean": false,
    "elevation": 2363.606019568349,
-   "precipitation": 0.0
+   "precipitation": 0.02734004807336697
   },
   {
    "face": 4,
@@ -812,7 +812,7 @@
    "v": 1,
    "isOcean": true,
    "elevation": -3893.566989798009,
-   "precipitation": 0.5153330693464591
+   "precipitation": 0.6380310869749978
   },
   {
    "face": 4,
@@ -828,7 +828,7 @@
    "v": 7,
    "isOcean": false,
    "elevation": 2263.5741551862643,
-   "precipitation": 0.0
+   "precipitation": 1.7520012820040302e-05
   },
   {
    "face": 4,
@@ -836,7 +836,7 @@
    "v": 2,
    "isOcean": true,
    "elevation": -3770.2652842198704,
-   "precipitation": 0.0555073494100341
+   "precipitation": 0.4261462004219605
   },
   {
    "face": 4,
@@ -844,7 +844,7 @@
    "v": 13,
    "isOcean": true,
    "elevation": -3582.4075936403215,
-   "precipitation": 0.013366388278248983
+   "precipitation": 0.21393460770181869
   },
   {
    "face": 4,
@@ -868,7 +868,7 @@
    "v": 14,
    "isOcean": true,
    "elevation": -3821.636401593118,
-   "precipitation": 0.1816006457168838
+   "precipitation": 0.5138558455681048
   },
   {
    "face": 4,
@@ -892,7 +892,7 @@
    "v": 15,
    "isOcean": true,
    "elevation": -3794.692238699616,
-   "precipitation": 0.4982031871776196
+   "precipitation": 0.5622971187525792
   },
   {
    "face": 4,
@@ -900,7 +900,7 @@
    "v": 10,
    "isOcean": true,
    "elevation": -3808.5589655569934,
-   "precipitation": 0.0
+   "precipitation": 3.3882954486085937
   },
   {
    "face": 4,
@@ -908,7 +908,7 @@
    "v": 5,
    "isOcean": true,
    "elevation": 1471.1759329960278,
-   "precipitation": 5.253685917008266e-05
+   "precipitation": 0.49360626690177983
   },
   {
    "face": 4,
@@ -916,7 +916,7 @@
    "v": 0,
    "isOcean": false,
    "elevation": 2241.520707087343,
-   "precipitation": 0.16834194990067344
+   "precipitation": 0.46125586048173756
   },
   {
    "face": 4,
@@ -924,7 +924,7 @@
    "v": 11,
    "isOcean": false,
    "elevation": 2156.595418974425,
-   "precipitation": 0.002949379494671076
+   "precipitation": 0.0
   },
   {
    "face": 4,
@@ -932,7 +932,7 @@
    "v": 6,
    "isOcean": false,
    "elevation": 2384.2620946854568,
-   "precipitation": 0.002015323567851501
+   "precipitation": 0.3914604331189995
   },
   {
    "face": 4,
@@ -940,7 +940,7 @@
    "v": 1,
    "isOcean": true,
    "elevation": 1555.809886950074,
-   "precipitation": 0.7991405745819989
+   "precipitation": 1.1012756292930423
   },
   {
    "face": 4,
@@ -956,7 +956,7 @@
    "v": 7,
    "isOcean": true,
    "elevation": -3770.5871662559243,
-   "precipitation": 0.12798585356820738
+   "precipitation": 0.18302306303674695
   },
   {
    "face": 5,
@@ -964,7 +964,7 @@
    "v": 2,
    "isOcean": true,
    "elevation": -3802.8815479885902,
-   "precipitation": 0.3570917824535106
+   "precipitation": 0.2949113457778592
   },
   {
    "face": 5,
@@ -972,7 +972,7 @@
    "v": 13,
    "isOcean": true,
    "elevation": 1447.7802896564435,
-   "precipitation": 0.521924672223414
+   "precipitation": 1.4834898866762305
   },
   {
    "face": 5,
@@ -980,7 +980,7 @@
    "v": 8,
    "isOcean": true,
    "elevation": 1512.1222609604067,
-   "precipitation": 0.04686009396810576
+   "precipitation": 0.329392067109027
   },
   {
    "face": 5,
@@ -996,7 +996,7 @@
    "v": 14,
    "isOcean": false,
    "elevation": 1747.001542789304,
-   "precipitation": 0.29840383686984767
+   "precipitation": 0.4016808492036413
   },
   {
    "face": 5,
@@ -1004,7 +1004,7 @@
    "v": 9,
    "isOcean": false,
    "elevation": 1789.900449790321,
-   "precipitation": 0.0
+   "precipitation": 0.014667237512724501
   },
   {
    "face": 5,
@@ -1012,7 +1012,7 @@
    "v": 4,
    "isOcean": true,
    "elevation": 1336.421934826832,
-   "precipitation": 0.0
+   "precipitation": 0.03800607099112604
   },
   {
    "face": 5,
@@ -1020,7 +1020,7 @@
    "v": 15,
    "isOcean": true,
    "elevation": 1349.7976312372098,
-   "precipitation": 0.2202774260882002
+   "precipitation": 0.20346621655113195
   },
   {
    "face": 5,
@@ -1028,7 +1028,7 @@
    "v": 10,
    "isOcean": true,
    "elevation": 1496.4345868297523,
-   "precipitation": 0.0
+   "precipitation": 0.00027024311988596973
   },
   {
    "face": 5,
@@ -1044,7 +1044,7 @@
    "v": 0,
    "isOcean": true,
    "elevation": 1595.742654539882,
-   "precipitation": 0.08433988075743366
+   "precipitation": 0.28470281582043117
   },
   {
    "face": 5,
@@ -1052,7 +1052,7 @@
    "v": 11,
    "isOcean": true,
    "elevation": 1401.5872019671162,
-   "precipitation": 0.0
+   "precipitation": 0.0014797733021191212
   },
   {
    "face": 5,
@@ -1068,7 +1068,7 @@
    "v": 1,
    "isOcean": false,
    "elevation": 1616.5016133041563,
-   "precipitation": 0.28654355321885905
+   "precipitation": 0.6516212671320869
   },
   {
    "face": 5,
@@ -1076,7 +1076,7 @@
    "v": 12,
    "isOcean": false,
    "elevation": 1682.6073338416563,
-   "precipitation": 0.0
+   "precipitation": 0.018327916091367098
   },
   {
    "face": 5,
@@ -1084,7 +1084,7 @@
    "v": 7,
    "isOcean": false,
    "elevation": 2082.4868269277795,
-   "precipitation": 0.0
+   "precipitation": 0.00823433058069209
   },
   {
    "face": 5,
@@ -1092,7 +1092,7 @@
    "v": 2,
    "isOcean": false,
    "elevation": 1714.1436640698062,
-   "precipitation": 0.08484395042082284
+   "precipitation": 0.16402364826611304
   },
   {
    "face": 5,
@@ -1100,7 +1100,7 @@
    "v": 13,
    "isOcean": false,
    "elevation": 1851.5655481549513,
-   "precipitation": 0.07533163964064436
+   "precipitation": 0.24617673358444975
   },
   {
    "face": 5,
@@ -1108,7 +1108,7 @@
    "v": 8,
    "isOcean": true,
    "elevation": 1086.3406689579624,
-   "precipitation": 0.07577843030971773
+   "precipitation": 0.7521975700388015
   },
   {
    "face": 5,
@@ -1116,7 +1116,7 @@
    "v": 3,
    "isOcean": true,
    "elevation": 960.132538033545,
-   "precipitation": 0.24325549777502115
+   "precipitation": 0.6561041495724345
   },
   {
    "face": 5,
@@ -1124,7 +1124,7 @@
    "v": 14,
    "isOcean": false,
    "elevation": 1779.6230736873545,
-   "precipitation": 0.010302485956551082
+   "precipitation": 0.24322145619407018
   },
   {
    "face": 5,
@@ -1132,7 +1132,7 @@
    "v": 9,
    "isOcean": true,
    "elevation": 1495.3617001838168,
-   "precipitation": 0.2170347516624941
+   "precipitation": 0.4775164711930865
   }
  ]
 }

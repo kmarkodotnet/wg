@@ -16,7 +16,7 @@ namespace WorldGen.Core.Climate
     /// </summary>
     public sealed class ThermalModelParameters
     {
-        public const int ModelVersion = 1;
+        public const int ModelVersion = 2;
 
         public static readonly ThermalModelParameters Default = new ThermalModelParameters();
 

@@ -13,10 +13,10 @@
    "riverBasinCount": 207
   },
   {
-   "name": "Rhacy Glacier",
+   "name": "Rhacy Downs",
    "areaTiles": 3452,
    "biomeCount": 7,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Grassland",
    "riverMouthCount": 20,
    "riverBasinCount": 198
   },
@@ -37,17 +37,17 @@
    "riverBasinCount": 3
   },
   {
-   "name": "Kacy Waste",
+   "name": "Kacy Sands",
    "areaTiles": 50,
-   "biomeCount": 2,
-   "dominantBiome": "Tundra",
+   "biomeCount": 4,
+   "dominantBiome": "Desert",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
    "name": "Haleast Downs",
    "areaTiles": 48,
-   "biomeCount": 5,
+   "biomeCount": 4,
    "dominantBiome": "TemperateForest",
    "riverMouthCount": 0,
    "riverBasinCount": 2
@@ -85,10 +85,10 @@
    "riverBasinCount": 1
   },
   {
-   "name": "Pyrrin Tundra",
+   "name": "Pyrrin Sands",
    "areaTiles": 27,
-   "biomeCount": 4,
-   "dominantBiome": "Tundra",
+   "biomeCount": 3,
+   "dominantBiome": "Desert",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
@@ -109,26 +109,26 @@
    "riverBasinCount": 0
   },
   {
-   "name": "Verdel Ice",
+   "name": "Verdel Dunes",
    "areaTiles": 17,
-   "biomeCount": 1,
-   "dominantBiome": "IceSheet",
+   "biomeCount": 3,
+   "dominantBiome": "Desert",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
    "name": "Mirau Desert",
    "areaTiles": 16,
-   "biomeCount": 4,
+   "biomeCount": 3,
    "dominantBiome": "Desert",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
   {
-   "name": "Tideion Ice",
+   "name": "Tideion Waste",
    "areaTiles": 14,
-   "biomeCount": 1,
-   "dominantBiome": "IceSheet",
+   "biomeCount": 3,
+   "dominantBiome": "Tundra",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
@@ -149,10 +149,10 @@
    "riverBasinCount": 0
   },
   {
-   "name": "Relrel Waste",
+   "name": "Relrel Plains",
    "areaTiles": 12,
    "biomeCount": 2,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   },
@@ -175,7 +175,7 @@
   {
    "name": "Velmar Veld",
    "areaTiles": 10,
-   "biomeCount": 4,
+   "biomeCount": 3,
    "dominantBiome": "Savanna",
    "riverMouthCount": 0,
    "riverBasinCount": 0
@@ -245,19 +245,19 @@
    "riverBasinCount": 0
   },
   {
-   "name": "Frosion Rime",
+   "name": "Frosion Tundra",
    "areaTiles": 5,
-   "biomeCount": 1,
-   "dominantBiome": "IceSheet",
+   "biomeCount": 3,
+   "dominantBiome": "Tundra",
    "riverMouthCount": 0,
    "riverBasinCount": 0
   }
  ],
  "regions": [
   {
-   "name": "Tideos Waste",
+   "name": "Tideos Forest",
    "areaTiles": 108,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     57,
@@ -266,9 +266,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Vermar Tundra",
+   "name": "Vermar Coast",
    "areaTiles": 103,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     57,
@@ -288,9 +288,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Verhal Downs",
+   "name": "Verhal Flats",
    "areaTiles": 65,
-   "dominantBiome": "Grassland",
+   "dominantBiome": "Savanna",
    "outlet": [
     3,
     52,
@@ -299,9 +299,9 @@
    "riverMouthCount": 2
   },
   {
-   "name": "Mirnor Ice",
+   "name": "Mirnor Waste",
    "areaTiles": 62,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     19,
@@ -310,9 +310,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Mirlu Waste",
+   "name": "Mirlu Verdant",
    "areaTiles": 60,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     60,
@@ -332,9 +332,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Quelau Rime",
+   "name": "Quelau Tundra",
    "areaTiles": 57,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     9,
@@ -365,9 +365,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Lightdel Woods",
+   "name": "Lightdel Verdant",
    "areaTiles": 49,
-   "dominantBiome": "TemperateForest",
+   "dominantBiome": "Rainforest",
    "outlet": [
     0,
     5,
@@ -398,9 +398,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Southsouth Woods",
+   "name": "Southsouth Veld",
    "areaTiles": 46,
-   "dominantBiome": "TemperateForest",
+   "dominantBiome": "Savanna",
    "outlet": [
     1,
     56,
@@ -420,9 +420,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Kaum Tundra",
+   "name": "Kaum Downs",
    "areaTiles": 40,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     1,
@@ -453,9 +453,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Ionsyl Rime",
+   "name": "Ionsyl Barrens",
    "areaTiles": 38,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     11,
@@ -475,9 +475,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Umcy Vale",
+   "name": "Umcy Reach",
    "areaTiles": 36,
-   "dominantBiome": "TemperateForest",
+   "dominantBiome": "Savanna",
    "outlet": [
     2,
     28,
@@ -486,9 +486,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Mirpyr Barrens",
+   "name": "Mirpyr Forest",
    "areaTiles": 35,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     5,
@@ -497,9 +497,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Delpyr Ice",
+   "name": "Delpyr Tundra",
    "areaTiles": 35,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     14,
@@ -519,9 +519,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Lightmir Frost",
+   "name": "Lightmir Tundra",
    "areaTiles": 33,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     23,
@@ -530,9 +530,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Quellight Glacier",
+   "name": "Quellight Barrens",
    "areaTiles": 33,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     18,
@@ -552,9 +552,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Lightlight Frost",
+   "name": "Lightlight Jungle",
    "areaTiles": 32,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     50,
@@ -574,9 +574,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Frosau Ice",
+   "name": "Frosau Barrens",
    "areaTiles": 32,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     42,
@@ -585,9 +585,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Sylsil Barrens",
+   "name": "Sylsil Canopy",
    "areaTiles": 31,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     4,
@@ -607,9 +607,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Frosdel Glacier",
+   "name": "Frosdel Downs",
    "areaTiles": 30,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     8,
@@ -629,9 +629,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lightnor Glacier",
+   "name": "Lightnor Waste",
    "areaTiles": 29,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     18,
@@ -684,9 +684,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Mirlight Barrens",
+   "name": "Mirlight Vale",
    "areaTiles": 28,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     4,
@@ -695,9 +695,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Watau Barrens",
+   "name": "Watau Steppe",
    "areaTiles": 28,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     43,
@@ -717,9 +717,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Ludor Barrens",
+   "name": "Ludor Steppe",
    "areaTiles": 27,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     5,
@@ -728,9 +728,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Norhal Ice",
+   "name": "Norhal Tundra",
    "areaTiles": 27,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     9,
@@ -794,9 +794,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Ionau Waste",
+   "name": "Ionau Vale",
    "areaTiles": 25,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     57,
@@ -893,9 +893,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Norrin Verdant",
+   "name": "Norrin Woods",
    "areaTiles": 23,
-   "dominantBiome": "Rainforest",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     1,
@@ -959,9 +959,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Luos Ice",
+   "name": "Luos Canopy",
    "areaTiles": 22,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     51,
@@ -1003,9 +1003,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Tidehal Ice",
+   "name": "Tidehal Waste",
    "areaTiles": 21,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     15,
@@ -1025,9 +1025,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Mardor Tundra",
+   "name": "Mardor Coast",
    "areaTiles": 21,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     56,
@@ -1036,9 +1036,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Southsouth Glacier",
+   "name": "Southsouth Downs",
    "areaTiles": 21,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     52,
@@ -1091,9 +1091,9 @@
    "riverMouthCount": 1
   },
   {
-   "name": "Oseast Rime",
+   "name": "Oseast Waste",
    "areaTiles": 19,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     12,
@@ -1146,9 +1146,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Versyl Ice",
+   "name": "Versyl Waste",
    "areaTiles": 18,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     17,
@@ -1157,9 +1157,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Silfros Tundra",
+   "name": "Silfros Vale",
    "areaTiles": 18,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     60,
@@ -1179,9 +1179,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Eastrel Ice",
+   "name": "Eastrel Canopy",
    "areaTiles": 18,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Rainforest",
    "outlet": [
     5,
     10,
@@ -1190,9 +1190,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rhalu Ice",
+   "name": "Rhalu Vale",
    "areaTiles": 18,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     13,
@@ -1245,9 +1245,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lightwat Rime",
+   "name": "Lightwat Sands",
    "areaTiles": 17,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "outlet": [
     5,
     35,
@@ -1289,9 +1289,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delsouth Barrens",
+   "name": "Delsouth Verdant",
    "areaTiles": 16,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     7,
@@ -1300,9 +1300,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lighttide Ice",
+   "name": "Lighttide Barrens",
    "areaTiles": 16,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     17,
@@ -1311,9 +1311,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Osrel Barrens",
+   "name": "Osrel Jungle",
    "areaTiles": 16,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     53,
@@ -1333,9 +1333,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Umka Rime",
+   "name": "Umka Waste",
    "areaTiles": 16,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     46,
@@ -1344,9 +1344,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Frosvel Frost",
+   "name": "Frosvel Forest",
    "areaTiles": 16,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     49,
@@ -1377,9 +1377,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Eastnor Waste",
+   "name": "Eastnor Jungle",
    "areaTiles": 15,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     0,
@@ -1465,9 +1465,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cymar Barrens",
+   "name": "Cymar Plains",
    "areaTiles": 15,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     2,
@@ -1476,9 +1476,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Dorrin Glacier",
+   "name": "Dorrin Barrens",
    "areaTiles": 15,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     44,
@@ -1520,9 +1520,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Sildel Tundra",
+   "name": "Sildel Steppe",
    "areaTiles": 14,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     3,
@@ -1531,9 +1531,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Osmar Tundra",
+   "name": "Osmar Coast",
    "areaTiles": 14,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     5,
     59,
@@ -1586,9 +1586,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Sildor Vale",
+   "name": "Sildor Canopy",
    "areaTiles": 13,
-   "dominantBiome": "TemperateForest",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     61,
@@ -1652,9 +1652,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Tidepyr Frost",
+   "name": "Tidepyr Tundra",
    "areaTiles": 13,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     45,
@@ -1663,9 +1663,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Mirver Glacier",
+   "name": "Mirver Barrens",
    "areaTiles": 13,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     36,
@@ -1685,9 +1685,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thalion Vale",
+   "name": "Thalion Reach",
    "areaTiles": 12,
-   "dominantBiome": "TemperateForest",
+   "dominantBiome": "Savanna",
    "outlet": [
     1,
     51,
@@ -1707,9 +1707,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Souththal Waste",
+   "name": "Souththal Canopy",
    "areaTiles": 12,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     51,
@@ -1718,9 +1718,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Ioneast Barrens",
+   "name": "Ioneast Sands",
    "areaTiles": 12,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     52,
@@ -1729,9 +1729,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Verver Waste",
+   "name": "Verver Woods",
    "areaTiles": 12,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     56,
@@ -1740,9 +1740,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thalmar Rime",
+   "name": "Thalmar Tundra",
    "areaTiles": 12,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     17,
@@ -1751,9 +1751,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Mirdor Barrens",
+   "name": "Mirdor Downs",
    "areaTiles": 12,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     43,
@@ -1762,9 +1762,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rinrin Tundra",
+   "name": "Rinrin Downs",
    "areaTiles": 12,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     54,
@@ -1839,9 +1839,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Luum Waste",
+   "name": "Luum Verdant",
    "areaTiles": 11,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     5,
@@ -1850,9 +1850,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Ionvel Ice",
+   "name": "Ionvel Dunes",
    "areaTiles": 11,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     8,
@@ -1861,9 +1861,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Norsouth Glacier",
+   "name": "Norsouth Waste",
    "areaTiles": 11,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     20,
@@ -1960,9 +1960,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Umtide Barrens",
+   "name": "Umtide Coast",
    "areaTiles": 10,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     61,
@@ -2037,9 +2037,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Eastmar Ice",
+   "name": "Eastmar Waste",
    "areaTiles": 10,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     20,
@@ -2059,9 +2059,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Karel Waste",
+   "name": "Karel Dunes",
    "areaTiles": 10,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "outlet": [
     5,
     37,
@@ -2235,9 +2235,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delquel Tundra",
+   "name": "Delquel Downs",
    "areaTiles": 9,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     8,
@@ -2246,9 +2246,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Wateast Ice",
+   "name": "Wateast Tundra",
    "areaTiles": 9,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     17,
@@ -2279,9 +2279,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Osvel Waste",
+   "name": "Osvel Desert",
    "areaTiles": 9,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "outlet": [
     5,
     8,
@@ -2290,9 +2290,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Sylka Rime",
+   "name": "Sylka Tundra",
    "areaTiles": 9,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     39,
@@ -2301,9 +2301,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Quelka Waste",
+   "name": "Quelka Plains",
    "areaTiles": 9,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     40,
@@ -2312,9 +2312,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cyion Frost",
+   "name": "Cyion Waste",
    "areaTiles": 9,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     44,
@@ -2323,9 +2323,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delrin Waste",
+   "name": "Delrin Vale",
    "areaTiles": 9,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     50,
@@ -2334,9 +2334,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Audel Tundra",
+   "name": "Audel Sands",
    "areaTiles": 9,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "outlet": [
     5,
     51,
@@ -2356,9 +2356,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Ionlu Tundra",
+   "name": "Ionlu Jungle",
    "areaTiles": 8,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     1,
     1,
@@ -2433,9 +2433,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Souththal Barrens",
+   "name": "Souththal Downs",
    "areaTiles": 8,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     1,
     62,
@@ -2554,9 +2554,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lightrel Vale",
+   "name": "Lightrel Reach",
    "areaTiles": 8,
-   "dominantBiome": "TemperateForest",
+   "dominantBiome": "Savanna",
    "outlet": [
     3,
     58,
@@ -2565,9 +2565,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lusil Waste",
+   "name": "Lusil Prairie",
    "areaTiles": 8,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     7,
@@ -2576,9 +2576,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Umvel Frost",
+   "name": "Umvel Steppe",
    "areaTiles": 8,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     11,
@@ -2587,9 +2587,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Ummar Ice",
+   "name": "Ummar Waste",
    "areaTiles": 8,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     12,
@@ -2598,9 +2598,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thalmar Rime",
+   "name": "Thalmar Woods",
    "areaTiles": 8,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     13,
@@ -2609,9 +2609,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thalum Waste",
+   "name": "Thalum Downs",
    "areaTiles": 8,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     45,
@@ -2620,9 +2620,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watver Waste",
+   "name": "Watver Vale",
    "areaTiles": 8,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     46,
@@ -2631,9 +2631,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Kaum Ice",
+   "name": "Kaum Canopy",
    "areaTiles": 8,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     53,
@@ -2653,9 +2653,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Autide Tundra",
+   "name": "Autide Coast",
    "areaTiles": 8,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     61,
@@ -2686,9 +2686,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Silhal Barrens",
+   "name": "Silhal Dunes",
    "areaTiles": 8,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "outlet": [
     5,
     7,
@@ -2697,9 +2697,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Verrin Ice",
+   "name": "Verrin Barrens",
    "areaTiles": 8,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     15,
@@ -2708,9 +2708,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Velrel Rime",
+   "name": "Velrel Barrens",
    "areaTiles": 8,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     35,
@@ -2719,9 +2719,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watrel Glacier",
+   "name": "Watrel Barrens",
    "areaTiles": 8,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "outlet": [
     5,
     41,
@@ -2741,9 +2741,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Halion Rime",
+   "name": "Halion Tundra",
    "areaTiles": 8,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     48,
@@ -2752,9 +2752,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Eastpyr Ice",
+   "name": "Eastpyr Vale",
    "areaTiles": 8,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     54,
@@ -2763,9 +2763,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Frossyl Tundra",
+   "name": "Frossyl Downs",
    "areaTiles": 8,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     57,
@@ -2851,9 +2851,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Velwat Jungle",
+   "name": "Velwat Savanna",
    "areaTiles": 7,
-   "dominantBiome": "Rainforest",
+   "dominantBiome": "Savanna",
    "outlet": [
     1,
     49,
@@ -3060,9 +3060,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rhamar Frost",
+   "name": "Rhamar Tundra",
    "areaTiles": 7,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     17,
@@ -3071,9 +3071,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Dorsil Glacier",
+   "name": "Dorsil Barrens",
    "areaTiles": 7,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     26,
@@ -3082,9 +3082,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Verlu Tundra",
+   "name": "Verlu Plains",
    "areaTiles": 7,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     47,
@@ -3093,9 +3093,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Relum Tundra",
+   "name": "Relum Plains",
    "areaTiles": 7,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     54,
@@ -3104,9 +3104,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Norcy Barrens",
+   "name": "Norcy Downs",
    "areaTiles": 7,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     54,
@@ -3115,9 +3115,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Veltide Tundra",
+   "name": "Veltide Downs",
    "areaTiles": 7,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     59,
@@ -3126,9 +3126,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watsouth Tundra",
+   "name": "Watsouth Jungle",
    "areaTiles": 7,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     5,
     6,
@@ -3137,9 +3137,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watlu Frost",
+   "name": "Watlu Steppe",
    "areaTiles": 7,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     10,
@@ -3148,9 +3148,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lightion Rime",
+   "name": "Lightion Tundra",
    "areaTiles": 7,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     16,
@@ -3159,9 +3159,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Kapyr Ice",
+   "name": "Kapyr Dunes",
    "areaTiles": 7,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "outlet": [
     5,
     16,
@@ -3192,9 +3192,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Delthal Frost",
+   "name": "Delthal Waste",
    "areaTiles": 7,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     25,
@@ -3214,9 +3214,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rintide Ice",
+   "name": "Rintide Dunes",
    "areaTiles": 7,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "outlet": [
     5,
     46,
@@ -3225,9 +3225,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Osthal Tundra",
+   "name": "Osthal Downs",
    "areaTiles": 7,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     48,
@@ -3236,9 +3236,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thalpyr Barrens",
+   "name": "Thalpyr Steppe",
    "areaTiles": 7,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     52,
@@ -3566,9 +3566,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Aunor Tundra",
+   "name": "Aunor Desert",
    "areaTiles": 6,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     4,
@@ -3577,9 +3577,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Silrel Waste",
+   "name": "Silrel Sands",
    "areaTiles": 6,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     5,
@@ -3588,9 +3588,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rhaum Barrens",
+   "name": "Rhaum Forest",
    "areaTiles": 6,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     5,
@@ -3599,9 +3599,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Velum Frost",
+   "name": "Velum Desert",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     17,
@@ -3621,9 +3621,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Mirmir Frost",
+   "name": "Mirmir Barrens",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     40,
@@ -3632,9 +3632,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cyka Ice",
+   "name": "Cyka Waste",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     41,
@@ -3643,9 +3643,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Relnor Waste",
+   "name": "Relnor Verdant",
    "areaTiles": 6,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "outlet": [
     4,
     54,
@@ -3654,9 +3654,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Osdor Barrens",
+   "name": "Osdor Downs",
    "areaTiles": 6,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     55,
@@ -3665,9 +3665,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Relum Waste",
+   "name": "Relum Barrens",
    "areaTiles": 6,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "outlet": [
     4,
     58,
@@ -3698,9 +3698,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Pyrrha Tundra",
+   "name": "Pyrrha Plains",
    "areaTiles": 6,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     6,
@@ -3709,9 +3709,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Aupyr Waste",
+   "name": "Aupyr Steppe",
    "areaTiles": 6,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     9,
@@ -3720,9 +3720,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Norver Barrens",
+   "name": "Norver Downs",
    "areaTiles": 6,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     10,
@@ -3731,9 +3731,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Dorsyl Glacier",
+   "name": "Dorsyl Tundra",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     11,
@@ -3742,9 +3742,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Versyl Barrens",
+   "name": "Versyl Downs",
    "areaTiles": 6,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     11,
@@ -3753,9 +3753,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Karel Glacier",
+   "name": "Karel Waste",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     12,
@@ -3764,9 +3764,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Relmar Rime",
+   "name": "Relmar Woods",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     13,
@@ -3775,9 +3775,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thalrel Glacier",
+   "name": "Thalrel Tundra",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     19,
@@ -3786,9 +3786,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Sylrin Rime",
+   "name": "Sylrin Barrens",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     22,
@@ -3819,9 +3819,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Kapyr Frost",
+   "name": "Kapyr Desert",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "outlet": [
     5,
     32,
@@ -3841,9 +3841,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lusil Glacier",
+   "name": "Lusil Waste",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     42,
@@ -3852,9 +3852,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Eastum Glacier",
+   "name": "Eastum Waste",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     43,
@@ -3863,9 +3863,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Marrin Frost",
+   "name": "Marrin Waste",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     44,
@@ -3874,9 +3874,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Dorhal Rime",
+   "name": "Dorhal Tundra",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     44,
@@ -3885,9 +3885,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cyhal Frost",
+   "name": "Cyhal Tundra",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     45,
@@ -3896,9 +3896,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Katide Ice",
+   "name": "Katide Barrens",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     47,
@@ -3907,9 +3907,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Kanor Rime",
+   "name": "Kanor Waste",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     47,
@@ -3918,9 +3918,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Mirka Ice",
+   "name": "Mirka Prairie",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     50,
@@ -3929,9 +3929,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Ioncy Frost",
+   "name": "Ioncy Tundra",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     50,
@@ -3940,9 +3940,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Tidedor Rime",
+   "name": "Tidedor Tundra",
    "areaTiles": 6,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     51,
@@ -3951,9 +3951,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Velfros Barrens",
+   "name": "Velfros Forest",
    "areaTiles": 6,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     60,
@@ -3962,9 +3962,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Normar Barrens",
+   "name": "Normar Vale",
    "areaTiles": 6,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     62,
@@ -4435,9 +4435,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Verpyr Barrens",
+   "name": "Verpyr Plains",
    "areaTiles": 5,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     2,
@@ -4457,9 +4457,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Pyrrin Tundra",
+   "name": "Pyrrin Woods",
    "areaTiles": 5,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     6,
@@ -4468,9 +4468,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Verdel Waste",
+   "name": "Verdel Downs",
    "areaTiles": 5,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     7,
@@ -4479,9 +4479,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Halquel Glacier",
+   "name": "Halquel Downs",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     11,
@@ -4490,9 +4490,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Quelfros Frost",
+   "name": "Quelfros Forest",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     11,
@@ -4523,9 +4523,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Tideeast Waste",
+   "name": "Tideeast Forest",
    "areaTiles": 5,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     4,
     41,
@@ -4534,9 +4534,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Tidepyr Rime",
+   "name": "Tidepyr Tundra",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     4,
     50,
@@ -4556,9 +4556,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Watrel Barrens",
+   "name": "Watrel Prairie",
    "areaTiles": 5,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     60,
@@ -4578,9 +4578,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cyrin Tundra",
+   "name": "Cyrin Prairie",
    "areaTiles": 5,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     4,
     61,
@@ -4600,9 +4600,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Silka Tundra",
+   "name": "Silka Downs",
    "areaTiles": 5,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     4,
@@ -4611,9 +4611,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Quelhal Barrens",
+   "name": "Quelhal Downs",
    "areaTiles": 5,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     6,
@@ -4622,9 +4622,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Thalmar Barrens",
+   "name": "Thalmar Forest",
    "areaTiles": 5,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     9,
@@ -4633,9 +4633,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Umlight Ice",
+   "name": "Umlight Tundra",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     22,
@@ -4666,9 +4666,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Cyrha Glacier",
+   "name": "Cyrha Tundra",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     30,
@@ -4677,9 +4677,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Dorfros Ice",
+   "name": "Dorfros Tundra",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     34,
@@ -4688,9 +4688,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Umeast Glacier",
+   "name": "Umeast Barrens",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     34,
@@ -4699,9 +4699,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Sylsyl Ice",
+   "name": "Sylsyl Waste",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     35,
@@ -4710,9 +4710,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Pyrwat Glacier",
+   "name": "Pyrwat Barrens",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     39,
@@ -4721,9 +4721,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Tideos Rime",
+   "name": "Tideos Waste",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     39,
@@ -4754,9 +4754,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Marfros Ice",
+   "name": "Marfros Barrens",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     45,
@@ -4765,9 +4765,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Marsyl Rime",
+   "name": "Marsyl Plains",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     45,
@@ -4776,9 +4776,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Sylvel Frost",
+   "name": "Sylvel Steppe",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     46,
@@ -4787,9 +4787,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Wattide Glacier",
+   "name": "Wattide Downs",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "TemperateForest",
    "outlet": [
     5,
     46,
@@ -4798,9 +4798,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Sylfros Barrens",
+   "name": "Sylfros Steppe",
    "areaTiles": 5,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     46,
@@ -4809,9 +4809,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Rinwat Rime",
+   "name": "Rinwat Barrens",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     49,
@@ -4820,9 +4820,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Ostide Frost",
+   "name": "Ostide Waste",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "outlet": [
     5,
     50,
@@ -4831,9 +4831,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Halver Glacier",
+   "name": "Halver Coast",
    "areaTiles": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Rainforest",
    "outlet": [
     5,
     53,
@@ -4842,9 +4842,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Nornor Waste",
+   "name": "Nornor Steppe",
    "areaTiles": 5,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     53,
@@ -4853,9 +4853,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Lightver Waste",
+   "name": "Lightver Downs",
    "areaTiles": 5,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "outlet": [
     5,
     55,
@@ -4875,9 +4875,9 @@
    "riverMouthCount": 0
   },
   {
-   "name": "Osver Plains",
+   "name": "Osver Sands",
    "areaTiles": 5,
-   "dominantBiome": "Grassland",
+   "dominantBiome": "Desert",
    "outlet": [
     5,
     62,
@@ -4899,9 +4899,9 @@
    "areaCount": 3,
    "areas": [
     {
-     "name": "Sylsouth Tundra",
+     "name": "Sylsouth Verdant",
      "tileCount": 33,
-     "dominantBiome": "Tundra",
+     "dominantBiome": "Rainforest",
      "seedTileId": 2738188573441263778,
      "memberTileIds": [
       2738188573441263778,
@@ -4940,9 +4940,9 @@
      ]
     },
     {
-     "name": "Pyrrin Glacier",
+     "name": "Pyrrin Downs",
      "tileCount": 22,
-     "dominantBiome": "IceSheet",
+     "dominantBiome": "TemperateForest",
      "seedTileId": 11961560610296040844,
      "memberTileIds": [
       11961560610296040844,
@@ -4970,9 +4970,9 @@
      ]
     },
     {
-     "name": "Watka Tundra",
+     "name": "Watka Vale",
      "tileCount": 53,
-     "dominantBiome": "Tundra",
+     "dominantBiome": "TemperateForest",
      "seedTileId": 11961560610296040887,
      "memberTileIds": [
       11961560610296040887,
@@ -5043,9 +5043,9 @@
    "areaCount": 3,
    "areas": [
     {
-     "name": "Dorthal Barrens",
+     "name": "Dorthal Canopy",
      "tileCount": 59,
-     "dominantBiome": "Tundra",
+     "dominantBiome": "Rainforest",
      "seedTileId": 432345564227568266,
      "memberTileIds": [
       432345564227568266,
@@ -5110,9 +5110,9 @@
      ]
     },
     {
-     "name": "Cyion Tundra",
+     "name": "Cyion Verdant",
      "tileCount": 16,
-     "dominantBiome": "Tundra",
+     "dominantBiome": "Rainforest",
      "seedTileId": 9655717601082345288,
      "memberTileIds": [
       9655717601082345288,
@@ -5134,9 +5134,9 @@
      ]
     },
     {
-     "name": "Dorsyl Tundra",
+     "name": "Dorsyl Verdant",
      "tileCount": 28,
-     "dominantBiome": "Tundra",
+     "dominantBiome": "Rainforest",
      "seedTileId": 9655717601082345452,
      "memberTileIds": [
       9655717601082345452,
@@ -5292,9 +5292,9 @@
    "areaCount": 2,
    "areas": [
     {
-     "name": "Pyrum Downs",
+     "name": "Pyrum Flats",
      "tileCount": 33,
-     "dominantBiome": "TemperateForest",
+     "dominantBiome": "Savanna",
      "seedTileId": 7349874591868650789,
      "memberTileIds": [
       7349874591868650789,
@@ -5442,9 +5442,9 @@
      ]
     },
     {
-     "name": "Thalsyl Rime",
+     "name": "Thalsyl Tundra",
      "tileCount": 13,
-     "dominantBiome": "IceSheet",
+     "dominantBiome": "Tundra",
      "seedTileId": 11961560610296039717,
      "memberTileIds": [
       11961560610296039717,
@@ -7462,7 +7462,7 @@
   },
   {
    "tileCount": 450,
-   "dominantBiome": "TemperateForest",
+   "dominantBiome": "Rainforest",
    "minTileId": 432345564227567850,
    "memberTileIds": [
     432345564227567850,
@@ -8367,7 +8367,7 @@
   },
   {
    "tileCount": 407,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Grassland",
    "minTileId": 5044031582654955605,
    "memberTileIds": [
     5044031582654955605,
@@ -8781,7 +8781,7 @@
   },
   {
    "tileCount": 405,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "minTileId": 2738188573441262240,
    "memberTileIds": [
     2738188573441262240,
@@ -9594,7 +9594,7 @@
   },
   {
    "tileCount": 379,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "minTileId": 432345564227571536,
    "memberTileIds": [
     432345564227571536,
@@ -9980,7 +9980,7 @@
   },
   {
    "tileCount": 375,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "minTileId": 2738188573441263752,
    "memberTileIds": [
     2738188573441263752,
@@ -10717,7 +10717,7 @@
   },
   {
    "tileCount": 347,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "minTileId": 432345564227567755,
    "memberTileIds": [
     432345564227567755,
@@ -11071,7 +11071,7 @@
   },
   {
    "tileCount": 335,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "minTileId": 11961560610296038543,
    "memberTileIds": [
     11961560610296038543,
@@ -11708,7 +11708,7 @@
   },
   {
    "tileCount": 285,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "minTileId": 11961560610296037607,
    "memberTileIds": [
     11961560610296037607,
@@ -12000,7 +12000,7 @@
   },
   {
    "tileCount": 281,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "minTileId": 2738188573441265112,
    "memberTileIds": [
     2738188573441265112,
@@ -12288,7 +12288,7 @@
   },
   {
    "tileCount": 280,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Rainforest",
    "minTileId": 432345564227567616,
    "memberTileIds": [
     432345564227567616,
@@ -12575,7 +12575,7 @@
   },
   {
    "tileCount": 280,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "minTileId": 9655717601082343997,
    "memberTileIds": [
     9655717601082343997,
@@ -13719,7 +13719,7 @@
   },
   {
    "tileCount": 50,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "minTileId": 11961560610296037503,
    "memberTileIds": [
     11961560610296037503,
@@ -13998,7 +13998,7 @@
   },
   {
    "tileCount": 27,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "minTileId": 7349874591868653291,
    "memberTileIds": [
     7349874591868653291,
@@ -14090,7 +14090,7 @@
   },
   {
    "tileCount": 17,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "minTileId": 9655717601082344591,
    "memberTileIds": [
     9655717601082344591,
@@ -14137,7 +14137,7 @@
   },
   {
    "tileCount": 14,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "minTileId": 9655717601082343871,
    "memberTileIds": [
     9655717601082343871,
@@ -14196,7 +14196,7 @@
   },
   {
    "tileCount": 12,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "minTileId": 11961560610296037743,
    "memberTileIds": [
     11961560610296037743,
@@ -14382,7 +14382,7 @@
   },
   {
    "tileCount": 5,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "minTileId": 11961560610296040268,
    "memberTileIds": [
     11961560610296040268,
@@ -14504,7 +14504,7 @@
   },
   {
    "tileCount": 4,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "minTileId": 11961560610296037872,
    "memberTileIds": [
     11961560610296037872,
@@ -14585,7 +14585,7 @@
   },
   {
    "tileCount": 3,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "minTileId": 11961560610296038489,
    "memberTileIds": [
     11961560610296038489,
@@ -14595,7 +14595,7 @@
   },
   {
    "tileCount": 3,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "minTileId": 11961560610296039479,
    "memberTileIds": [
     11961560610296039479,
@@ -14740,7 +14740,7 @@
   },
   {
    "tileCount": 2,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "minTileId": 9655717601082343912,
    "memberTileIds": [
     9655717601082343912,
@@ -14749,7 +14749,7 @@
   },
   {
    "tileCount": 2,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "minTileId": 9655717601082345255,
    "memberTileIds": [
     9655717601082345255,
@@ -14758,7 +14758,7 @@
   },
   {
    "tileCount": 2,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "minTileId": 11961560610296037663,
    "memberTileIds": [
     11961560610296037663,
@@ -14785,7 +14785,7 @@
   },
   {
    "tileCount": 2,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "minTileId": 11961560610296040404,
    "memberTileIds": [
     11961560610296040404,
@@ -15258,7 +15258,7 @@
   },
   {
    "tileCount": 1,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "TemperateForest",
    "minTileId": 9655717601082344499,
    "memberTileIds": [
     9655717601082344499
@@ -15266,7 +15266,7 @@
   },
   {
    "tileCount": 1,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "minTileId": 9655717601082344581,
    "memberTileIds": [
     9655717601082344581
@@ -15274,7 +15274,7 @@
   },
   {
    "tileCount": 1,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "minTileId": 9655717601082344975,
    "memberTileIds": [
     9655717601082344975
@@ -15282,7 +15282,7 @@
   },
   {
    "tileCount": 1,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "minTileId": 9655717601082345280,
    "memberTileIds": [
     9655717601082345280
@@ -15290,7 +15290,7 @@
   },
   {
    "tileCount": 1,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "minTileId": 9655717601082346753,
    "memberTileIds": [
     9655717601082346753
@@ -15298,7 +15298,7 @@
   },
   {
    "tileCount": 1,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "minTileId": 11961560610296037772,
    "memberTileIds": [
     11961560610296037772
@@ -15306,7 +15306,7 @@
   },
   {
    "tileCount": 1,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "minTileId": 11961560610296037809,
    "memberTileIds": [
     11961560610296037809
@@ -15314,7 +15314,7 @@
   },
   {
    "tileCount": 1,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Grassland",
    "minTileId": 11961560610296038503,
    "memberTileIds": [
     11961560610296038503
@@ -15322,7 +15322,7 @@
   },
   {
    "tileCount": 1,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Desert",
    "minTileId": 11961560610296038558,
    "memberTileIds": [
     11961560610296038558
@@ -15330,7 +15330,7 @@
   },
   {
    "tileCount": 1,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "minTileId": 11961560610296039238,
    "memberTileIds": [
     11961560610296039238
@@ -15370,7 +15370,7 @@
   },
   {
    "tileCount": 1,
-   "dominantBiome": "Tundra",
+   "dominantBiome": "Desert",
    "minTileId": 11961560610296040437,
    "memberTileIds": [
     11961560610296040437
@@ -15378,7 +15378,7 @@
   },
   {
    "tileCount": 1,
-   "dominantBiome": "IceSheet",
+   "dominantBiome": "Tundra",
    "minTileId": 11961560610296040714,
    "memberTileIds": [
     11961560610296040714

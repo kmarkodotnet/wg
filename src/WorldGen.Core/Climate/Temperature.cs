@@ -5,9 +5,11 @@ namespace WorldGen.Core.Climate
 {
     /// <summary>
     /// M5 hőmérséklet-modell (§5.1, docs/05-milestones.md): Stefan-Boltzmann
-    /// sugárzási egyensúly + üvegházhatás + lapse rate.
+    /// sugárzási egyensúly + üvegházhatás + meridionális hőszállítás-proxy
+    /// + lapse rate.
     ///
-    /// HATÓKÖR (tudatosan szűkítve): T = T_radiative + T_greenhouse - T_altitude
+    /// HATÓKÖR (tudatosan szűkítve):
+    /// T = T_radiative + T_greenhouse + T_transport - T_altitude
     /// (T_ocean/T_weather/T_cycle halasztva, ld. milestones "M5 hatókör").
     ///
     /// T_greenhouse: a spec (§10.2) csak "derived value"-ként említi
@@ -41,6 +43,18 @@ namespace WorldGen.Core.Climate
         public const double LapseRateKPerM = 0.0065;
         public const int DefaultNumDaySamples = 24;
         public const double DefaultGreenhouseK = 33.0; // Föld-szerű üvegházhatás, ld. osztály-doc
+        public const double MeridionalHeatTransportMaxK = 40.0;
+
+        /// <summary>
+        /// Az egyszerű radiatív egyensúlyból hiányzó meridionális hőszállítás
+        /// pólusokra koncentrált proxyja (ND-126b): 40 K · sin⁴(szélesség).
+        /// Az Egyenlítőn nulla, a póluson <see cref="MeridionalHeatTransportMaxK"/>.
+        /// </summary>
+        public static double MeridionalHeatTransportK(double z)
+        {
+            double z2 = z * z;
+            return MeridionalHeatTransportMaxK * z2 * z2;
+        }
 
         /// <summary>max(0,cos theta) átlaga egy teljes forgás (nap) alatt, sűrű mintavétellel.</summary>
         public static double DailyAverageInsolationFactor(
@@ -76,7 +90,7 @@ namespace WorldGen.Core.Climate
                 orbitalPhase0, rotationPhase0);
 
             return TemperatureKelvinFromAverageInsolation(
-                avgFactor, isOceanic, elevationM, seaLevelM, fPeak, greenhouseK);
+                avgFactor, z, isOceanic, elevationM, seaLevelM, fPeak, greenhouseK);
         }
 
         /// <summary>
@@ -93,11 +107,11 @@ namespace WorldGen.Core.Climate
         {
             double avgFactor = samples.AverageFactor(x, y, z);
             return TemperatureKelvinFromAverageInsolation(
-                avgFactor, isOceanic, elevationM, seaLevelM, fPeak, greenhouseK);
+                avgFactor, z, isOceanic, elevationM, seaLevelM, fPeak, greenhouseK);
         }
 
         private static double TemperatureKelvinFromAverageInsolation(
-            double avgFactor, bool isOceanic, double elevationM, double seaLevelM,
+            double avgFactor, double z, bool isOceanic, double elevationM, double seaLevelM,
             double fPeak, double greenhouseK)
         {
 
@@ -111,13 +125,14 @@ namespace WorldGen.Core.Climate
             double heightAboveSea = Math.Max(0.0, elevationM - seaLevelM);
             double tAltitude = LapseRateKPerM * heightAboveSea;
 
-            return tEq + greenhouseK - tAltitude;
+            return tEq + greenhouseK + MeridionalHeatTransportK(z) - tAltitude;
         }
 
         // ====================================================================
         // M5 "Teljes homerseklet-modell" (ND-42, spec §28.1):
-        //   T = T_radiative + T_greenhouse + T_ocean - T_altitude + T_weather + T_cycle
-        // A fenti TemperatureKelvin VALTOZATLAN (ket reteg egymas mellett). A
+        //   T = T_radiative + T_greenhouse + T_transport + T_ocean
+        //       - T_altitude + T_weather + T_cycle
+        // A fenti TemperatureKelvin egyszeru retege kulon marad. A
         // Python referencia: tools/reference/temperature_ref.py
         // (temperature_kelvin_full), tesztvektorok: temperature_full_vectors.json.
         // ====================================================================
@@ -267,7 +282,8 @@ namespace WorldGen.Core.Climate
             double tCycle = ClimateCycleTemperatureK(worldSeed, tYears,
                 cycleEccentricityAmplitudeK, cycleObliquityAmplitudeK, cyclePrecessionAmplitudeK);
 
-            return tRadiative + tGreenhouse + tOcean - tAltitude + tWeather + tCycle;
+            return tRadiative + tGreenhouse + tOcean + MeridionalHeatTransportK(z)
+                - tAltitude + tWeather + tCycle;
         }
     }
 

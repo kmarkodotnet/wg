@@ -12,8 +12,8 @@ namespace WorldGen.Core.Tests.Climate;
 /// 200 vektor. BITPONTOS egyezes vart (a greenhouse/cycle uj agak
 /// DeterministicMath.Ln/SinCos-t, a weather a mar verifikalt FractalNoise.Fbm-et
 /// hasznaljak - mindegyik a Python orakulummal azonos sajat implementacio).
-/// A regi TemperatureKelvin (temperature_vectors.json) valtozatlan - ez KULON
-/// reteg (ld. Temperature osztaly-doc).
+/// Az egyszeru TemperatureKelvin kulon retege sajat vektorfajlt hasznal;
+/// az ND-126b meridionalis hoszallitas-proxy mindket retegre ervenyes.
 /// </summary>
 public class TemperatureFullVectorFileTests
 {

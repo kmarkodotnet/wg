@@ -9,8 +9,9 @@ namespace WorldGen.Core.Tests.Climate;
 /// <summary>
 /// M5 szel/nedvesseg/csapadek/idojaras (ND-41) - a Python referencia
 /// (wind_precipitation_ref.py) 3x300 vektora. TOLERANCIA (1e-6): a modul nyers
-/// Math.Sin/Cos/Asin/Atan2/Tanh-ot hasznal (mint a Temperature-lanc), tehat
-/// ULP-szintu elteres a Python math-hoz kepest (ld. WindPrecipitation osztaly-doc).
+/// Math.Sin/Cos/Asin/Atan2-ot hasznal (mint a Temperature-lanc), tehat
+/// ULP-szintu elteres a Python math-hoz kepest. Az ND-126b termikus szelkorlat
+/// mindket oldalon a sajat determinisztikus tanh implementaciot hasznalja.
 /// </summary>
 public class WindPrecipitationVectorFileTests
 {

@@ -257,7 +257,8 @@ kimenet, render csak a Unity-lépésben).
 ### Hatókör (tudatosan szűkítve, a §28-32 teljes spec-tartalmához képest)
 
 A §28.1 teljes hőmérséklet-egyenlete (`T = T_radiative + T_greenhouse +
-T_ocean - T_altitude + T_weather + T_cycle`) hat komponensből áll. M5
+T_transport + T_ocean - T_altitude + T_weather + T_cycle`) a későbbi
+ND-126b kalibráció óta meridionális hőszállítás-proxyt is tartalmaz. M5
 első körben csak a **fizikailag legmeghatározóbb kettőt** implementálja:
 
 - **T_radiative** (§28.2): Stefan–Boltzmann sugárzási egyensúly, a már
@@ -284,12 +285,18 @@ először, nem a teljes spec-tartalmat egyszerre.
 ```
 T_eq(F, A) = C * (F * (1 - A) / (4 * sigma))^(1/4)
 T_altitude = Γ * elevation
-T = T_eq - T_altitude
+T_transport = 40 K * sin⁴(latitude)
+T = T_eq + T_greenhouse + T_transport - T_altitude
 ```
 
 `sigma` a Stefan-Boltzmann állandó, `A` egyelőre fix albedo-közelítés
 (óceán/szárazföld szerint, később a §29 teljes albedo-modell), `Γ` a
 lapse rate (~6.5 °C/km, Föld-szerű illusztrációhoz).
+
+**2026-09-22-i kalibráció (ND-126b):** a kanonikus világ hideg
+szárazföld-aránya 40,71%-ról 16,91%-ra csökkent; a termikus szélkomponens
+30 m/s-os sima `tanh`-korlátot kapott. A csapadék-percentilisek vizuális
+elfogadása ettől külön, a `todo2.md` B4 tétele.
 
 **FIGYELEM:** a negyedik gyök (`^(1/4)` = `Math.Pow(x, 0.25)`) **transzcendens
 függvény** — ND-23b/26 osztály. Ugyanazt a mintát követjük, mint ND-26-nál:

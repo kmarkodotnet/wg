@@ -122,13 +122,9 @@ public class OrdinalQuantizationIntegrationTests
         OrdinalLevel band = OrdinalQuantization.Quantize(habitability, OrdinalQuantization.HabitabilityThresholds);
 
         Assert.InRange((int)band, (int)OrdinalLevel.Low, (int)OrdinalLevel.Exceptional);
-        // Rögzített regresszió-érték - ha ez megváltozik, vagy a HabitabilityFraction
-        // képlete, vagy a kalibráció csúszott el egymáshoz képest. ND-52
-        // (2026-09-07, másodlagos zaj amplitúdó 200->900m) újra
-        // megváltoztatta a referencia-világ elevációját, ezzel a
-        // habitability-sávot is Moderate->Low-ra tolta - Python
-        // referenciával összhangban frissítve.
-        Assert.Equal(OrdinalLevel.Low, band);
+        // Rögzített regresszió-érték: ND-126b meridionális hőszállítás-proxyja
+        // a Föld-analóg világ hideg szárazföld-arányát a céltartományba hozza.
+        Assert.Equal(OrdinalLevel.Exceptional, band);
     }
 }
 

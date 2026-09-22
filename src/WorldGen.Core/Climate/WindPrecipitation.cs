@@ -1,4 +1,5 @@
 using System;
+using WorldGen.Core.Numerics;
 using WorldGen.Core.Terrain;
 
 namespace WorldGen.Core.Climate
@@ -22,6 +23,7 @@ namespace WorldGen.Core.Climate
         public const double CoriolisDeflectionDeg = 30.0;
         public const double GradientEps = 1.0e-3;
         public const double ThermalWindCoeff = 0.5;
+        public const double ThermalWindLimit = 30.0;
         public const double MountainDeflectionMax = 0.85;
         public const double MountainSlopeScale = 0.5;
 
@@ -89,6 +91,28 @@ namespace WorldGen.Core.Climate
             ru = u * c - v * s; rv = u * s + v * c;
         }
 
+        /// <summary>A termikus szélvektor sima, iránytartó sebességkorlátja (ND-126b).</summary>
+        public static void LimitThermalWind(
+            double rawEast, double rawNorth, out double limitedEast, out double limitedNorth,
+            double limit = ThermalWindLimit)
+        {
+            if (!(limit > 0.0) || double.IsInfinity(limit))
+                throw new ArgumentOutOfRangeException(nameof(limit), "Pozitív, véges korlát szükséges.");
+
+            double magnitude = Math.Sqrt(rawEast * rawEast + rawNorth * rawNorth);
+            if (magnitude < 1.0e-12)
+            {
+                limitedEast = rawEast;
+                limitedNorth = rawNorth;
+                return;
+            }
+
+            double limitedMagnitude = limit * DeterministicMath.Tanh(magnitude / limit);
+            double scale = limitedMagnitude / magnitude;
+            limitedEast = rawEast * scale;
+            limitedNorth = rawNorth * scale;
+        }
+
         /// <summary>dT/d(kelet), dT/d(eszak) - kozponti veges differencia a TemperatureKelvin-bol, K/radian.</summary>
         public static void TemperatureGradientTangent(
             double x, double y, double z, double dayT, double orbitalPeriod, double rotationPeriod, double axialTilt,
@@ -138,7 +162,7 @@ namespace WorldGen.Core.Climate
             double orbitalPhase0 = 0.0, double rotationPhase0 = 0.0,
             double baseWindSpeed = BaseWindSpeed, double coriolisDeflectionDeg = CoriolisDeflectionDeg,
             double thermalWindCoeff = ThermalWindCoeff, double mountainDeflectionMax = MountainDeflectionMax,
-            double mountainSlopeScale = MountainSlopeScale)
+            double mountainSlopeScale = MountainSlopeScale, double thermalWindLimit = ThermalWindLimit)
         {
             TemperatureGradientTangent(x, y, z, dayT, orbitalPeriod, rotationPeriod, axialTilt,
                 isOceanic, elevationM, seaLevelM, out double tempGradE, out double tempGradN,
@@ -148,7 +172,7 @@ namespace WorldGen.Core.Climate
                 x, y, z, tempGradE, tempGradN, elevationGradientEast, elevationGradientNorth,
                 out windEast, out windNorth, out wind3dX, out wind3dY, out wind3dZ,
                 baseWindSpeed, coriolisDeflectionDeg, thermalWindCoeff,
-                mountainDeflectionMax, mountainSlopeScale);
+                mountainDeflectionMax, mountainSlopeScale, thermalWindLimit);
         }
 
         /// <summary>
@@ -170,7 +194,7 @@ namespace WorldGen.Core.Climate
             out double windEast, out double windNorth, out double wind3dX, out double wind3dY, out double wind3dZ,
             double baseWindSpeed = BaseWindSpeed, double coriolisDeflectionDeg = CoriolisDeflectionDeg,
             double thermalWindCoeff = ThermalWindCoeff, double mountainDeflectionMax = MountainDeflectionMax,
-            double mountainSlopeScale = MountainSlopeScale)
+            double mountainSlopeScale = MountainSlopeScale, double thermalWindLimit = ThermalWindLimit)
         {
             double lat = Math.Asin(Math.Max(-1.0, Math.Min(1.0, z)));
 
@@ -179,6 +203,7 @@ namespace WorldGen.Core.Climate
 
             double thermalERaw = temperatureGradientEast * thermalWindCoeff;
             double thermalNRaw = temperatureGradientNorth * thermalWindCoeff;
+            LimitThermalWind(thermalERaw, thermalNRaw, out thermalERaw, out thermalNRaw, thermalWindLimit);
 
             // math.copysign(1.0, lat): lat>=+0 -> +1, lat<0 -> -1 (netstandard2.1-ben nincs Math.CopySign)
             double coriolisAngle = -(lat < 0.0 ? -1.0 : 1.0) * Radians(coriolisDeflectionDeg);

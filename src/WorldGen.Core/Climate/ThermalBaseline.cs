@@ -124,7 +124,8 @@ namespace WorldGen.Core.Climate
                 double tOcean = oceanic ? Temperature.OceanBufferingStrength * (AnnualMeanRadiativeK[c] - tRad) : 0.0;
                 double tAlt = Temperature.LapseRateKPerM * Math.Max(0.0, _elevationM[c] - _seaLevelM);
                 dailyFactor[c] = f;
-                baseK[c] = tRad + GreenhouseK + tOcean - tAlt + CycleK;
+                baseK[c] = tRad + GreenhouseK + tOcean
+                    + Temperature.MeridionalHeatTransportK(_grid.CenterZ[c]) - tAlt + CycleK;
             }
         }
 

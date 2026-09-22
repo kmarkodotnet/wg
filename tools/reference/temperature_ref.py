@@ -5,20 +5,17 @@ egyensuly + uveghazhatas + lapse rate + ocean/weather/cycle tagok (spec §28.1).
 
 HATOKOR - KET RETEG, EGYMAS MELLETT (ld. ND-42, docs/04-decisions.md):
 
-  1. `temperature_kelvin` (EREDETI, SZANDEKOSAN VALTOZATLAN fuggveny-torzs es
-     szignatura):
-         T = T_radiative + T_greenhouse - T_altitude
-     A mar generalt 150 elemu temperature_vectors.json (es a rajta mero C#
-     Temperature.cs / TemperatureTests.cs) bitre azonos marad ehhez a
-     fuggvenyhez - nem modosult egyetlen sorban sem.
+  1. `temperature_kelvin`:
+         T = T_radiative + T_greenhouse + T_transport - T_altitude
+     ND-126b ota T_transport = 40 K * sin(latitude)^4. Ez a polusokra
+     koncentralt meridionalis hoszallitas-proxy az Egyenliton nulla.
 
   2. `temperature_kelvin_full` (UJ, a spec §28.1 TELJES egyenlete):
-         T = T_radiative + T_greenhouse + T_ocean - T_altitude + T_weather + T_cycle
-     Ez az M5 "teljes homerseklet-modell" celallapota. A C# oldalra meg NINCS
-     portolva (kulon, kesobbi lepes - lasd ND-42 zaro megjegyzese). A hozza
-     tartozo tesztvektorok KULON fajlba kerulnek (temperature_full_vectors.json),
-     NEM a temperature_vectors.json-ba - igy a ket generacio nem utkozik, es a
-     meglevo C# port nem tores el hallgatolagosan.
+         T = T_radiative + T_greenhouse + T_transport + T_ocean
+             - T_altitude + T_weather + T_cycle
+     Ez az M5 "teljes homerseklet-modell" celallapota, C#-ba portolva. A hozza
+     tartozo tesztvektorok KULON fajlban vannak
+     (temperature_full_vectors.json), nem a temperature_vectors.json-ban.
 
 T_greenhouse: a spec (§10.2) csak "derived value"-kent emliti
 (greenhouseStrength), zart formula nelkul - meg nincs epitett
@@ -66,6 +63,7 @@ ALBEDO_LAND = 0.30
 LAPSE_RATE_K_PER_M = 0.0065
 NUM_DAY_SAMPLES = 24
 GREENHOUSE_K_DEFAULT = 33.0  # Fold-szeru uveghazhatas, ld. modul docstring
+MERIDIONAL_HEAT_TRANSPORT_MAX_K = 40.0  # ND-126b: polusokra koncentralt hőszallitas-proxy
 
 # --- UJ (ND-42): T_greenhouse parameterezese ---------------------------------
 EARTH_GHG_REFERENCE_PPM = 280.0  # preindusztrialis CO2-koncentracio, Fold-analog referenciapont
@@ -129,6 +127,12 @@ def radiative_equilibrium_temperature(avg_insolation_factor, albedo, f_peak=F_PE
     return absorbed / SIGMA  # ezt majd a hivo emeli negyedik gyokre - ld. lent
 
 
+def meridional_heat_transport_k(z, max_k=MERIDIONAL_HEAT_TRANSPORT_MAX_K):
+    """ND-126b: az egyszeru radiativ modellbol hianyzo hőszallitas 40 K*sin^4(latitude) proxyja."""
+    z2 = z * z
+    return max_k * z2 * z2
+
+
 def temperature_kelvin(
     tile_position, day_t, orbital_period, rotation_period, axial_tilt,
     is_oceanic, elevation_m, sea_level_m,
@@ -146,13 +150,13 @@ def temperature_kelvin(
     height_above_sea = max(0.0, elevation_m - sea_level_m)
     t_altitude = LAPSE_RATE_K_PER_M * height_above_sea
 
-    return t_eq + greenhouse_k - t_altitude
+    return t_eq + greenhouse_k + meridional_heat_transport_k(tile_position[2]) - t_altitude
 
 
 # ============================================================================
 # UJ (M5 "Teljes homerseklet-modell", ND-42): T_greenhouse/T_ocean/T_weather/
-# T_cycle + a §28.1 teljes osszegzo fuggveny. A fenti `temperature_kelvin`
-# VALTOZATLAN marad - ld. modul-doc "HATOKOR - KET RETEG".
+# T_cycle + a §28.1 teljes osszegzo fuggveny. A ket homersekletut kulon API,
+# de az ND-126b meridionalis hoszallitas-proxyjat mindketto alkalmazza.
 # ============================================================================
 
 def greenhouse_temperature(
@@ -293,7 +297,8 @@ def temperature_kelvin_full(
     cycle_precession_amplitude_k=CYCLE_PRECESSION_AMPLITUDE_K_DEFAULT,
 ):
     """Spec §28.1 TELJES egyenlete:
-        T = T_radiative + T_greenhouse + T_ocean - T_altitude + T_weather + T_cycle
+        T = T_radiative + T_greenhouse + T_transport + T_ocean
+            - T_altitude + T_weather + T_cycle
     Minden uj tag ND-42-ben dokumentalt modellezesi valasztas. Tiszta
     fuggveny (nincs mutable allapot) - ld. __main__ determinizmus-teszt."""
     avg_factor = daily_average_insolation_factor(
@@ -324,7 +329,9 @@ def temperature_kelvin_full(
         cycle_obliquity_amplitude_k, cycle_precession_amplitude_k,
     )
 
-    return t_radiative + t_greenhouse + t_ocean - t_altitude + t_weather + t_cycle
+    return (t_radiative + t_greenhouse + t_ocean
+            + meridional_heat_transport_k(tile_position[2])
+            - t_altitude + t_weather + t_cycle)
 
 
 if __name__ == "__main__":
@@ -505,8 +512,8 @@ if __name__ == "__main__":
     assert full_a == full_b, "temperature_kelvin_full nem tiszta fuggveny!"
     print(f"OK - determinisztikus, T={full_a:.2f}K\n")
 
-    print("--- Regi temperature_kelvin ERINTETLEN (150 vektor bitre azonos marad) ---")
-    print("  (a temperature_vectors.json generalasa fentebb, valtozatlan kodveal tortent)")
+    print("--- temperature_kelvin ND-126b szerint ujrakalibralva ---")
+    print("  (a temperature_vectors.json a meridionalis hoszallitas-proxyt is rogziti)")
 
     print("\n--- Tesztvektorok generalasa a teljes modellhez (C# port SZAMARA, KULON fajlba) ---")
     full_vectors = []
@@ -548,10 +555,9 @@ if __name__ == "__main__":
 
     with open("temperature_full_vectors.json", "w", newline="\n") as f:
         json.dump({
-            "note": "A spec §28.1 teljes egyenlete (temperature_kelvin_full) - "
-                     "MEG NINCS C#-portolva (ld. ND-42, docs/04-decisions.md). "
-                     "KULON fajl a regi temperature_vectors.json-tol, hogy a "
-                     "meglevo C# Temperature.cs mero-tesztjei ne torjenek el.",
+            "note": "A spec §28.1 teljes egyenlete (temperature_kelvin_full), "
+                     "C#-ba portolva. Kulon fajl az egyszeru "
+                     "temperature_vectors.json szerzodesetol.",
             "vectors": full_vectors,
         }, f, indent=1)
     print(f"{len(full_vectors)} teljes-modell homerseklet-tesztvektor generalva (temperature_full_vectors.json)")

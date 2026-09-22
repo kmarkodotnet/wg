@@ -64,7 +64,7 @@ from neighbor_ref import DIRECTIONS, neighbor
 from sphere_position_ref import position_from_face_uv, position_from_tile
 from temperature_ref import climate_cycle_temperature_k, greenhouse_temperature
 
-MODEL_VERSION = 1
+MODEL_VERSION = 2
 LEVEL = 6
 N = 1 << LEVEL
 CELL_COUNT = 6 * N * N
@@ -97,6 +97,8 @@ BASE_WIND_SPEED = 10.0
 CORIOLIS_DEFLECTION_DEG = 30.0
 GRADIENT_EPS = 1.0e-3
 THERMAL_WIND_COEFF = 0.5
+THERMAL_WIND_LIMIT = 30.0
+MERIDIONAL_HEAT_TRANSPORT_MAX_K = 40.0
 
 # Felszíntípusok (ND-103)
 LAND, OCEAN, FRESHWATER, ICE = 0, 1, 2, 3
@@ -231,6 +233,11 @@ def radiative_temperature(factor, albedo):
     return math.sqrt(math.sqrt(raw)) if raw > 0.0 else 0.0
 
 
+def meridional_heat_transport_k(z):
+    z2 = z * z
+    return MERIDIONAL_HEAT_TRANSPORT_MAX_K * z2 * z2
+
+
 # ---------------------------------------------------------------------------
 # Rács (DenseGridMetrics)
 # ---------------------------------------------------------------------------
@@ -344,7 +351,9 @@ class Baseline:
                 t_ocean = OCEAN_BUFFERING_STRENGTH * (self.annual_mean[k] - t_rad) if oceanic else 0.0
                 t_alt = LAPSE_RATE_K_PER_M * max(0.0, self.elevation[k] - self.sea_level_m)
                 factor[k] = f
-                base[k] = t_rad + self.constant + t_ocean - t_alt + self.cycle
+                base[k] = (t_rad + self.constant + t_ocean
+                           + meridional_heat_transport_k(self.grid.center[k][2])
+                           - t_alt + self.cycle)
             if len(self.hour_cache) > 4:
                 self.hour_cache.pop(next(iter(self.hour_cache)))
             self.hour_cache[h] = (factor, base)
@@ -407,7 +416,8 @@ def point_temperature(q, samples, annual, is_oceanic, elevation_m, sea_level_m):
     daily = average_factor(q, samples)
     albedo = ALBEDO_OCEAN_FULL if is_oceanic else ALBEDO_LAND_FULL
     t = radiative_temperature(effective_factor(daily, annual), albedo)
-    return t + SIMPLE_GREENHOUSE_K - LAPSE_RATE_K_PER_M * max(0.0, elevation_m - sea_level_m)
+    return (t + SIMPLE_GREENHOUSE_K + meridional_heat_transport_k(q[2])
+            - LAPSE_RATE_K_PER_M * max(0.0, elevation_m - sea_level_m))
 
 
 def wind_from_temperatures(p, east, north, temps):
@@ -417,6 +427,12 @@ def wind_from_temperatures(p, east, north, temps):
     grad_n = (temps[2] - temps[3]) / (2.0 * e)
     raw_e = grad_e * THERMAL_WIND_COEFF
     raw_n = grad_n * THERMAL_WIND_COEFF
+    magnitude = math.sqrt(raw_e * raw_e + raw_n * raw_n)
+    if magnitude >= 1.0e-12:
+        limited = THERMAL_WIND_LIMIT * dm.tanh(magnitude / THERMAL_WIND_LIMIT)
+        scale = limited / magnitude
+        raw_e *= scale
+        raw_n *= scale
     s = -_CORIOLIS_SIN if p[2] >= 0.0 else _CORIOLIS_SIN
     thermal_e = raw_e * _CORIOLIS_COS - raw_n * s
     thermal_n = raw_e * s + raw_n * _CORIOLIS_COS
