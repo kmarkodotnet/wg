@@ -669,8 +669,10 @@ namespace WorldGen.Core.Hydrology
             double escapeCellMeters = DefaultContinuousEscapeCellMeters,
             int escapeNodeBudget = DefaultContinuousEscapeNodeBudget,
             long maxSteps = DefaultContinuousMaxSteps,
-            int visitedGridLevel = DefaultVisitedGridLevel)
+            int visitedGridLevel = DefaultVisitedGridLevel,
+            System.Threading.CancellationToken cancellation = default)
         {
+            cancellation.ThrowIfCancellationRequested();
             int fineLevel = source.Level + fineDepth;
             source.GetUV(out uint su, out uint sv);
             TileId fineSource = TileId.FromFaceLevelUV(source.Face, fineLevel, su << fineDepth, sv << fineDepth);
@@ -710,6 +712,7 @@ namespace WorldGen.Core.Hydrology
 
             for (long step = 0; step < maxSteps; step++)
             {
+                cancellation.ThrowIfCancellationRequested();
                 // A ciklus teteje: EZ az a pozicio, amit a `claimed`
                 // ellenorzes lat (ld. ClaimCheckIndices doksija). A
                 // rogzites a tengerszint-ellenorzes ELOTT tortenik, hogy az
@@ -772,7 +775,9 @@ namespace WorldGen.Core.Hydrology
                     continue;
                 }
 
-                var escape = FindContinuousLocalSpillway(worldSeed, seeds, current, elev, escapeCellMeters, escapeNodeBudget, pathVisited, visitedGridLevel);
+                var escape = FindContinuousLocalSpillway(
+                    worldSeed, seeds, current, elev, escapeCellMeters,
+                    escapeNodeBudget, pathVisited, visitedGridLevel, cancellation);
                 if (escape == null)
                 {
                     result.Termination = TerminationReason.Pit;
@@ -821,8 +826,10 @@ namespace WorldGen.Core.Hydrology
             ulong worldSeed, (double X, double Y, double Z)[] seeds,
             (double X, double Y, double Z) pit, double pitElevation,
             double cellMeters, int nodeBudget,
-            HashSet<TileId> pathVisited, int visitedGridLevel)
+            HashSet<TileId> pathVisited, int visitedGridLevel,
+            System.Threading.CancellationToken cancellation)
         {
+            cancellation.ThrowIfCancellationRequested();
             GetTangentBasis(pit, out (double X, double Y, double Z) t1, out (double X, double Y, double Z) t2);
             double cellAngular = cellMeters / PlanetConstants.RadiusMeters;
 
@@ -855,6 +862,7 @@ namespace WorldGen.Core.Hydrology
             int expanded = 0;
             while (queue.Count > 0 && expanded < nodeBudget)
             {
+                cancellation.ThrowIfCancellationRequested();
                 var top = queue.Min;
                 queue.Remove(top);
                 expanded++;
@@ -907,15 +915,19 @@ namespace WorldGen.Core.Hydrology
             int ringDirections = DefaultContinuousRingDirections,
             double escapeCellMeters = DefaultContinuousEscapeCellMeters,
             int escapeNodeBudget = DefaultContinuousEscapeNodeBudget,
-            long maxSteps = DefaultContinuousMaxSteps)
+            long maxSteps = DefaultContinuousMaxSteps,
+            System.Threading.CancellationToken cancellation = default)
         {
+            if (sources == null) throw new ArgumentNullException(nameof(sources));
+            cancellation.ThrowIfCancellationRequested();
             var claimed = new Dictionary<TileId, ClaimedTileInfo>();
             var rivers = new List<ContinuousRiverPath>(sources.Count);
             for (int i = 0; i < sources.Count; i++)
             {
                 ContinuousRiverPath river = TraceRiverPathContinuous(
                     worldSeed, seeds, seaLevel, sources[i], i, fineDepth, claimed,
-                    stepMeters, sensingRadiusMeters, ringDirections, escapeCellMeters, escapeNodeBudget, maxSteps);
+                    stepMeters, sensingRadiusMeters, ringDirections, escapeCellMeters, escapeNodeBudget, maxSteps,
+                    cancellation: cancellation);
 
                 int fineLevel = sources[i].Level + fineDepth;
                 foreach ((double X, double Y, double Z) p in river.Points)
@@ -969,13 +981,17 @@ namespace WorldGen.Core.Hydrology
             System.Threading.CancellationToken cancellation = default)
         {
             if (sources == null) throw new ArgumentNullException(nameof(sources));
+            cancellation.ThrowIfCancellationRequested();
 
             // 1. FÁZIS: minden folyó ÖNÁLLÓAN, `claimed` nélkül. Tiszta
             // függvények, megosztott állapot nélkül - a sorrend nem számít.
             var traced = new ContinuousRiverPath[sources.Count];
-            System.Threading.Tasks.Parallel.For(0, sources.Count, i =>
+            var parallelOptions = new System.Threading.Tasks.ParallelOptions
             {
-                cancellation.ThrowIfCancellationRequested();
+                CancellationToken = cancellation,
+            };
+            System.Threading.Tasks.Parallel.For(0, sources.Count, parallelOptions, i =>
+            {
                 // URES `claimed`: a kovetes ilyenkor sosem all meg
                 // "Merged"-kent, tehat a teljes nyomvonalat megkapjuk. (A
                 // parameter nem nullable, es a nyomvonal-koveto CSAK OLVASSA
@@ -984,7 +1000,8 @@ namespace WorldGen.Core.Hydrology
                     worldSeed, seeds, seaLevel, sources[i], i, fineDepth,
                     new Dictionary<TileId, ClaimedTileInfo>(),
                     stepMeters, sensingRadiusMeters, ringDirections,
-                    escapeCellMeters, escapeNodeBudget, maxSteps);
+                    escapeCellMeters, escapeNodeBudget, maxSteps,
+                    DefaultVisitedGridLevel, cancellation);
             });
 
             // 2. FÁZIS: csonkolás FORRÁS-SORRENDBEN - ez reprodukálja a

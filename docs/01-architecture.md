@@ -228,6 +228,14 @@ Az idő-scrub a szűk keresztmetszet, nem a render. A megoldás a v0.1-ben leír
 
 ### 3.6 Sűrű teljes-rács gyorsutak
 
+**A5 diagnosztika (2026-09-22, ND-133):** a viewer opcionális statikus
+Build-profilja fázisonként főszálú managed allokációt, folyamatszintű
+GC-számlálót és managed heap-változást rögzít, Unity Profiler-mintákkal.
+A heap-különbség nem allokált bájt, a GC-számláló nem szünetidő, a főszál
+allokációja nem tartalmazza a workereket vagy a natív/GPU memóriát.
+A mérés nem kényszerít GC-t, és nem módosítja a Core számítását.
+A profil alapból kikapcsolt; kontrollmérés szükséges nélküle is.
+
 A teljes, fix levelű cubed-sphere mezők nem ritka adatszerkezetek. A
 teljesítménykritikus deep-time út ezért használhat `face/u/v` szerint
 közvetlenül indexelt tömböket és világfüggetlen, újrahasznált

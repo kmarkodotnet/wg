@@ -259,9 +259,16 @@ namespace WorldGen.Viewer
             _spareAuxiliaryMeshes.Clear();
         }
 
-        private void OnDisable() => CancelStagedTerrainUpload();
+        private void OnDisable()
+        {
+            CancelStagedTerrainUpload();
+            if (_riverRefinementTask != null)
+                _fullBuildRequestedAfterCut = true;
+            CancelRiverRefinement();
+        }
         private void OnDestroy()
         {
+            CancelRiverRefinement();
             // A szülő megszűnése már törli a gyerekeket; csak saját mesh-einket takarítjuk.
             ClearAllDynamicChunkResources(destroyTargets: false);
             if (_uploadBorderMaterial != null) SafeDestroy(_uploadBorderMaterial);

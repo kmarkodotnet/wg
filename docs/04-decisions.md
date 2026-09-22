@@ -6205,6 +6205,110 @@ az elavult formátumú nevek felismerése, és a méret-terv mindkét alakra.
 nem függ tőle. A formátum-váltás ára egyetlen lassabb hideg Build világonként
 (a régi fájl nem használható), utána a takarítás visszaadja a helyet.
 
+### ND-132 — Deep-time újraépítés: megszakítható, elkülönített folyómunka (A4 LEZÁRVA)
+
+**Döntés (2026-09-22):** a deep-time `Build()` nem futtat szinkron folyó-
+nyomkövetést. A t=0 csapadék-/óceánmezőből származó, vízgyűjtőnkénti
+forráslista gyorsítótárazható a csapadékmező példányához kötve. A meglévő
+csapadék-cache teljes kulcsa a seed, lemezszám, szint, vízarány, referencia-
+nap, keringési és forgási periódus, valamint tengelyferdeség. A deep-time-függő,
+elmozdult lemez-seedeket
+használó folytonos nyomkövetés háttérfeladatban fut. Új világépítés az előző
+feladatot `CancellationTokenSource`-szal megszakítja; a token a párhuzamos
+folyóhálózatból egészen az egyes nyomvonalak és a lokális spillway-keresés
+belső ciklusáig eljut.
+
+**Feltárt problémák.** Az ND-124 óta minden `Build()` előbb szinkron felépítette a 96
+forrás durva hálózatát (mérve kb. 1,6 s), majd elindított egy új, CPU-igényes
+96-folyós finomítást. A generációszámláló csak az elavult eredmény
+alkalmazását tiltotta meg: magát a régi munkát nem állította le. Ez lehetővé
+tette az egymásra halmozódást, de ennek kijavítása NEM oldotta meg a mért
+lassulást. Az első változat után a `PerfLog_20260922_160327.txt` hidegen
+24 932,7 ms, melegen 27 001,6 ms teljes Buildet mutat; a meleg
+klasszifikáció önmagában 20 896,3 ms. A korábbi gyökérok-állítás túl erős volt.
+
+**Második változat: ütemezés.** Az első javítás közvetlenül a statikus terep
+előtt új, korlátlan `Parallel.For` folyómunkát indított a közös ThreadPoolban.
+Ez továbbra is versenyez a terep párhuzamos meneteivel; az egymást követő
+menetek nagy szórása összhangban van a szálkészlet kiéheztetésével, de a
+PerfLog önmagában nem bizonyítja annak kizárólagosságát. Most a megszakítás
+a Build belépésére kerül, az új munka csak a teljes szinkron Build után
+indul. A viewer a szekvenciális, azonos forrássorrendű nyomkövetőt külön
+`LongRunning` feladatban futtatja, így nem foglalja el a terep ThreadPoolját.
+A Core párhuzamos API-ja továbbra is elérhető offline számításra. A token
+a szekvenciális útból is végigjut a nyomkövetőig. A folyók elkészülési
+idejét külön kell mérni: a rövidebb Build nem jelenti a teljes folyóhálózat
+elkészülését. Az <1 s cél továbbra is nyitott.
+
+**Offline reprodukció Unity Mono alatt (2026-09-22).** A valódi Core-kóddal,
+96 folyóforrással és 393 216 cache-elt terrain-bázis kiértékelésével,
+hőmérséklet- és zajszámítással végzett próba eredménye: folyók nélkül három
+előtérmenet 1555,4 / 1540,8 / 1572,4 ms; saját szálon futó szekvenciális
+folyómunka mellett 1615,1 / 1653,9 / 1666,9 ms, bitazonos ellenőrzőösszeggel.
+A régi `Task.Run` + korlátlan `Parallel.For` változatban az első menet még
+1844,8 ms, a második viszont több mint 60 s alatt sem fejeződött be;
+a próbát megszakítottuk. Egy ismétlésben a ThreadPool-alapú 30 s-os
+`CancelAfter` időzítő sem szabadította fel az előtérmenetet 60 s-on belül.
+Ez reprodukálja a közös szálkészlet telítődését. Nem teljes Unity Build-,
+mesh-, GPU- vagy vizuális mérés, ezért ebből <1 s teljes idő nem állítható.
+
+A külön szálas, 30 s-os watchdoggal ismételt régi ütemezés számai:
+2136,1 / **28 345,3** / 1511,9 ms. A második menetet a folyófeladat
+megszakítása szabadította fel, majd a harmadik visszaállt a kontroll
+idejére. Mindhárom ellenőrzőösszeg azonos. A reprodukció a
+`tools/diagnostics/probe-river-scheduling.ps1` paranccsal, `baseline`,
+`old` és `dedicated` módban megismételhető; nem változtatja az Editor állapotát.
+
+**Miért nem cache-eljük a teljes folyóhálózatot deep-time között?** A
+forráslista valóban t=0 adatból jön, de a nyomvonal-követő a megjelenített
+deep-time állapot `PlateMotion.MovedSeeds(...)` eredményét kapja. A teljes
+útvonal újrahasználata ezért vizuálisan és modell-szinten hibás lenne. Csak a
+forráslista stabil; a nyomvonalat újra kell számolni, de nem a fő szálon.
+
+**Átmeneti megjelenítés.** Amíg az új nyomvonal készül, az új világállapothoz
+nem rajzolunk régi, térben már érvénytelen folyóvonalat. Elkészüléskor a
+finomított hálózat és a vízhozam-súlyok együtt, fő szálon kerülnek átadásra.
+Ez tudatos csere: a számítás idejére nincs folyóvonal, és nincs régi/új
+állapot keverése. A vezérlés tényleges gyorsulását új élő mérésnek kell
+igazolnia; a szekvenciális háttérmunka teljes futásideje még nincs megmérve.
+
+**Verziózás:** nem seed-törő. A Core numerikus eredménye változatlan; csak a
+munka ütemezése, megszakíthatósága és a viewer átadási ideje változik.
+
+**Utólagos állapot (2026-09-22):** a `PerfLog_20260922_163455.txt` egy hideg
+3256,5 ms-os és 12 meleg, 2250,6–2634,6 ms-os Buildet tartalmaz. A meleg
+átlag 2479,4 ms, a klasszifikáció 460,2–556,3 ms; a 27 s-os regresszió nem
+ismétlődött. A4 a felhasználó kérésére lezárva, az elért eredmény elfogadva;
+a <1 s numerikus küszöb ettől még nem igazolt. A további profilozás A5/ND-133.
+
+### ND-133 — Deep-time variancia és allokációprofil (FOLYAMATBAN)
+
+**Döntés (2026-09-22, implementáció előtt):** az A5 első lépése a jelenlegi
+PerfLog megismételhető elemzése és opcionális, fázisonkénti viewer-mérés.
+A `profileDeepTimeAllocations` alapból hamis. A statikus alapréteg minden
+fázisa kap Unity Profiler-mintát; a terrain mesh összeállítása, feltöltése
+és indexmaszkja külön mérhető. A naplózás a mért szakaszok után történik.
+
+Mennyiségek: főszálon `GC.GetAllocatedBytesForCurrentThread()` különbsége;
+folyamatszinten `GC.CollectionCount(0/1/2)` különbsége és
+`GC.GetTotalMemory(false)` előtte/utána. A heap nettó változását tilos
+allokációként értelmezni. A worker-allokáció, a natív/GPU memória és a GC
+szünetideje külön Unity Profiler-vizsgálatot igényel. A számlálók egymással
+korreláló megfigyelések, önmagukban nem bizonyítanak GC-okozatot.
+Nincs kényszerített GC vagy új szimulációs algoritmus/verzióváltás.
+
+A logelemző külön kezeli a hideg/meleg cache-állapotot, és kizárja az
+önálló overlay-futtatásokat és a befejezetlen Buildet a teljes Build
+statisztikájából. Különböző világidők szórása nem tiszta futásidejű zaj:
+az érdemi munka is változik. A lezáráshoz rögzített konfigurációjú,
+ismételt, profilozás nélküli kontroll és Profiler-menet szükséges.
+
+**Élő számlálóellenőrzés:** ezen a Unity Mono futtatón a
+`GC.GetAllocatedBytesForCurrentThread()` az ismert allokációnál sem lép.
+A műszerezés ezt a fázisok előtt ellenőrzi; nem támogatott számlálónál
+`allocationCounterSupported=False`, bájtérték `-1`, a JSON-ban `null`.
+Ez nem allokációmentesség. Részletes mérés: `history/2026-09-22-deep-time-allocation-profile.md`.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

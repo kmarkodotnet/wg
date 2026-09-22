@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 using WorldGen.Core.Climate;
 using WorldGen.Core.Grid;
 using WorldGen.Core.Hydrology;
@@ -75,6 +76,95 @@ public class ParallelRiverNetworkTests
                 Assert.Equal(e.Points[k].Z, a.Points[k].Z);
             }
         }
+    }
+
+    [Fact]
+    public void AlreadyCancelledParallelBuildStopsBeforeTracing()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        Assert.ThrowsAny<OperationCanceledException>(() =>
+            RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
+                1UL, Array.Empty<(double X, double Y, double Z)>(), 0.0,
+                Array.Empty<TileId>(), fineDepth: 2,
+                cancellation: cancellation.Token));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CancellationAfterSourceSelectionReachesTheTracer(bool parallel)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var sources = new CancellingSources(cancellation);
+
+        OperationCanceledException exception = Assert.ThrowsAny<OperationCanceledException>(() =>
+        {
+            if (parallel)
+                RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
+                    1UL, Array.Empty<(double X, double Y, double Z)>(), 0.0,
+                    sources, fineDepth: 2, cancellation: cancellation.Token);
+            else
+                RiverPathTracing.BuildContinuousRiverNetworkFromSources(
+                    1UL, Array.Empty<(double X, double Y, double Z)>(), 0.0,
+                    sources, fineDepth: 2, cancellation: cancellation.Token);
+        });
+
+        Assert.Equal(cancellation.Token, exception.CancellationToken);
+    }
+
+    [Fact]
+    public void BoundedSequentialAndParallelNetworksMatchWithCancellationEnabled()
+    {
+        const ulong seed = 0xA7C944210000UL;
+        var seeds = PlateGeneration.GenerateSeeds(seed, 20);
+        var sources = new[]
+        {
+            TileId.FromFaceLevelUV(0, 5, 10, 10),
+            TileId.FromFaceLevelUV(0, 5, 10, 10),
+            TileId.FromFaceLevelUV(2, 5, 16, 18),
+        };
+        using var cancellation = new CancellationTokenSource();
+        var sequential = RiverPathTracing.BuildContinuousRiverNetworkFromSources(
+            seed, seeds, -100000.0, sources, fineDepth: 2,
+            escapeNodeBudget: 32, maxSteps: 16, cancellation: cancellation.Token);
+        var parallel = RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
+            seed, seeds, -100000.0, sources, fineDepth: 2,
+            escapeNodeBudget: 32, maxSteps: 16, cancellation: cancellation.Token);
+
+        Assert.Contains(sequential, river => river.Points.Count > 1);
+        AssertSameNetwork(sequential, parallel);
+        Assert.Equal(RiverPathTracing.ComputeDischargeWeights(sequential),
+            RiverPathTracing.ComputeDischargeWeights(parallel));
+    }
+
+    private sealed class CancellingSources : IReadOnlyList<TileId>
+    {
+        private readonly CancellationTokenSource _cancellation;
+
+        public CancellingSources(CancellationTokenSource cancellation)
+        {
+            _cancellation = cancellation;
+        }
+
+        public int Count => 1;
+
+        public TileId this[int index]
+        {
+            get
+            {
+                _cancellation.Cancel();
+                return TileId.FromFaceLevelUV(0, 5, 10, 10);
+            }
+        }
+
+        public IEnumerator<TileId> GetEnumerator()
+        {
+            yield return this[0];
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     /// <remarks>

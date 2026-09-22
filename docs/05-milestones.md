@@ -1,5 +1,12 @@
 # Milestone-terv
 
+**2026-09-22, aktuális M9/M10-részfeladat:** a `todo2.md` A4 deep-time
+újraépítési tétele felhasználói kérésre lezárva (12 meleg Build átlaga
+2,479 s; az eredeti <1 s küszöb nem igazolt). A5 variancia-/allokációprofil
+folyamatban: ND-133, kapcsolható fázismérés és első élő GC-megfigyelés.
+[Mérési napló és fennmaradó kapuk](../history/2026-09-22-deep-time-allocation-profile.md).
+A lentebbi történeti milestone-sorok nem friss teljesprojektes auditok.
+
 A render **nem a végén van**. M2-től minden fázisnak van vizuális kimenete, mert
 enélkül nem derül ki időben, ha valami rossz irányba megy.
 

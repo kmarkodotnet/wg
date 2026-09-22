@@ -913,12 +913,6 @@ namespace WorldGen.Viewer
             _adaptivePrecipCorners = corners;
             _adaptivePrecipCornerLevel = level;
         }
-        // Dendritikus, csapadek-forrasu, finom-szintu folyo-nyomvonalak (ND-49,
-        // RiverPathTracing) - ld. BuildRiverNetwork (viewer). Ez VALTJA FEL a
-        // regi, referencia-szintu _adaptiveRiverTiles/_adaptiveRiverParent-bol
-        // rajzolt vonalakat (azok tovabbra is elnek, az M8 panel-metrikakhoz
-        // - RiverMouthCount stb. - kellenek, csak a VONAL-RAJZOLASHOZ mar nem).
-        private List<RiverPathTracing.RiverPath> _adaptiveDendriticRivers;
         // ND-49 (2026-09-06, HARMADSZOR ujragondolva felhasznaloi
         // visszajelzesek utan - ld. RiverPathTracing.TraceRiverPathContinuous
         // osztaly-doksi es docs/04-decisions.md ND-49 3. kiegeszites): a
@@ -927,11 +921,11 @@ namespace WorldGen.Viewer
         // MESTERSEGES lepesszam-vagas NELKUL. EZ DRAGA (merve: 12 referencia-
         // folyora osszesen kb. 6-10s SZEKVENCIALISAN, mert a megosztott
         // `claimed` terkep miatt NEM parhuzamosithato folyononkent) - ezert
-        // HATTER-SZALON (Task.Run) fut, NEM blokkolva a Build()-et/a fo
-        // szalat; amig nincs kesz, a regi (durva, Catmull-Rom-simitott) vonal
-        // latszik, es amint a task vegez, a folyo-mesh ujraepul a finomitott
-        // utvonallal.
+        // HATTER-SZALON (LongRunning) fut, NEM blokkolva a Build()-et/a fo
+        // szalat; amig nincs kesz, nincs folyo-mesh, es amint a task vegez,
+        // a folyo-mesh felepul a finomitott utvonallal.
         private System.Threading.Tasks.Task<List<RiverPathTracing.ContinuousRiverPath>> _riverRefinementTask;
+        private System.Threading.CancellationTokenSource _riverRefinementCancellation;
         private List<RiverPathTracing.ContinuousRiverPath> _adaptiveRefinedRiverPaths;
         // M9/M7 "vonal-szélesség nem korrelál a vízhozammal" (backlog,
         // 2026-09-06) - a RiverPathTracing.ComputeDischargeWeights kimenete,
@@ -947,6 +941,62 @@ namespace WorldGen.Viewer
         // hasonlitjuk a (kesobb mar tovabbnott) _riverRefinementGeneration-hoz
         // a task befejezesekor, hogy elavult eredmenyt sose alkalmazzunk.
         private int _pendingRiverRefinementGeneration;
+        private MoisturePrecipitation.PrecipitationField _riverSourcePrecipField;
+        private List<TileId> _riverSourceCache;
+        private Stopwatch _riverRefinementStopwatch;
+
+        private void CancelRiverRefinement()
+        {
+            System.Threading.CancellationTokenSource cancellation = _riverRefinementCancellation;
+            System.Threading.Tasks.Task<List<RiverPathTracing.ContinuousRiverPath>> task = _riverRefinementTask;
+            if (cancellation != null)
+            {
+                PerfLog($"[ND-132 river cancel] generation={_pendingRiverRefinementGeneration} completed={task?.IsCompleted} elapsedMs={_riverRefinementStopwatch?.Elapsed.TotalMilliseconds:F1}");
+                cancellation.Cancel();
+                if (task == null || task.IsCompleted)
+                {
+                    _ = task?.Exception;
+                    cancellation.Dispose();
+                }
+                else
+                {
+                    task.ContinueWith(
+                        completedTask =>
+                        {
+                            _ = completedTask.Exception;
+                            cancellation.Dispose();
+                        },
+                        System.Threading.CancellationToken.None,
+                        System.Threading.Tasks.TaskContinuationOptions.ExecuteSynchronously,
+                        System.Threading.Tasks.TaskScheduler.Default);
+                }
+                _riverRefinementCancellation = null;
+            }
+            _riverRefinementTask = null;
+        }
+
+        private void StartRiverRefinement(
+            ulong seed, (double X, double Y, double Z)[] seeds,
+            double seaLevel, IReadOnlyList<TileId> sources)
+        {
+            if (!showRivers || sources == null || sources.Count == 0)
+                return;
+
+            var sourceSnapshot = new List<TileId>(sources);
+            double stepMeters = riverRefinementStepMeters;
+            _riverRefinementCancellation = new System.Threading.CancellationTokenSource();
+            System.Threading.CancellationToken cancellation = _riverRefinementCancellation.Token;
+            _pendingRiverRefinementGeneration = _riverRefinementGeneration;
+            _riverRefinementStopwatch = Stopwatch.StartNew();
+            _riverRefinementTask = System.Threading.Tasks.Task.Factory.StartNew(
+                () => RiverPathTracing.BuildContinuousRiverNetworkFromSources(
+                    seed, seeds, seaLevel, sourceSnapshot,
+                    RiverPathTracing.DefaultFineDepth, stepMeters,
+                    cancellation: cancellation),
+                cancellation, System.Threading.Tasks.TaskCreationOptions.LongRunning,
+                System.Threading.Tasks.TaskScheduler.Default);
+            PerfLog($"[ND-132 river start] generation={_pendingRiverRefinementGeneration} sources={sourceSnapshot.Count} scheduler=dedicated-sequential afterBuild=True");
+        }
         private double _adaptiveAxialTiltRad;
         private double _adaptiveErosionTimeMyr;
         private DailyInsolationSampleDirections _adaptiveDailyInsolationSamples;
@@ -1180,7 +1230,7 @@ namespace WorldGen.Viewer
 
             // Csak a folyo-vonal SUGAR-IRANYU eltolasa valtozott - a
             // BuildRiverNetwork a MAR meglevo, cache-elt adatokbol
-            // (_adaptiveDendriticRivers/_adaptiveRefinedRiverPaths) rajzol
+            // (_adaptiveRefinedRiverPaths) rajzol
             // ujra, nem indit uj szimulaciot/finomitast, tehat ez sem
             // erinti a hatterszalon futo folyo-finomitas generaciojat.
             if (RiverLineConfigChangedSinceBuild())
@@ -2350,6 +2400,7 @@ namespace WorldGen.Viewer
         [ContextMenu("Rebuild")]
         public void Build()
         {
+            CancelRiverRefinement();
             SynchronizePhysicalReliefScale();
             CancelStagedTerrainUpload();
             // A nyilvános Build-gomb se üríthesse a worker által használt
@@ -2972,13 +3023,11 @@ namespace WorldGen.Viewer
             PerfLog($"Build() clouds(enabled={showClouds})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
             buildPhaseStopwatch.Restart();
 
-            // M9/M7 (ND-49) dendritikus, csapadek-forrasu, finom-szintu
-            // folyo-nyomvonalak - ld. RiverPathTracing osztaly-doksi. A
-            // forras-kivalasztas a MoisturePrecipitation SAJAT (t=0)
-            // elevacio-/ocean-/tengerszint-mezojet hasznalja (parban a
-            // csapadekkal); a TENYLEGES nyomvonal-kovetes viszont a
-            // JELENLEGI (deep-time-mozgatott) _adaptiveSeeds-t kapja, hogy a
-            // MEGJELENITETT domborzattal konzisztens legyen.
+            // ND-132: csak a forraslista deep-time-fuggetlen. A TENYLEGES
+            // nyomvonal a JELENLEGI (deep-time-mozgatott) seedeket kapja,
+            // ezert azt minden vilagallapothoz ujra kell szamolni - de nem a
+            // fo szalon. A t=0 csapadek-/oceanmezobol szarmazo forraslistat
+            // viszont valtozatlan kulccsal ujrahasznaljuk.
             //
             // ND-124 (A), 2026-09-21: a forrasokat VIZGYUJTONKENTI kvotaval
             // valasztjuk (BuildRiverNetworkPerBasin), nem globalis top-K-val.
@@ -2988,51 +3037,34 @@ namespace WorldGen.Viewer
             // osszefolyas es EGYETLEN 3-as vagy nagyobb vizhozam-sulyu folyo
             // sem. Vizgyujtonkenti kvotaval (16x6) 40 osszefolyas es 13 ilyen
             // folyo. Ez a "nincs tree alakzat" visszajelzes javitasa.
-            _adaptiveDendriticRivers = showRivers
-                ? RiverPathTracing.BuildRiverNetworkPerBasin(
-                    seed, seeds, precipField.Elevation, precipField.Precipitation, precipField.IsOcean, precipField.SeaLevel)
-                : null;
-            PerfLog($"Build() dendriticRivers(enabled={showRivers}, count={_adaptiveDendriticRivers?.Count ?? 0})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
+            List<TileId> riverSources = null;
+            bool riverSourceCacheHit = false;
+            if (showRivers)
+            {
+                riverSourceCacheHit = ReferenceEquals(_riverSourcePrecipField, precipField)
+                    && _riverSourceCache != null;
+                if (riverSourceCacheHit)
+                {
+                    riverSources = _riverSourceCache;
+                }
+                else
+                {
+                    FlowNetwork.FloodResult riverSourceFlood = FlowNetwork.PriorityFlood(
+                        precipField.Elevation, precipField.IsOcean);
+                    riverSources = RiverPathTracing.SelectRiverSourcesPerBasin(
+                        precipField.Elevation, precipField.Precipitation,
+                        precipField.IsOcean, riverSourceFlood.Parent, precipField.SeaLevel);
+                    _riverSourceCache = riverSources;
+                    _riverSourcePrecipField = precipField;
+                }
+            }
+
+            PerfLog($"Build() riverSources(enabled={showRivers}, cacheHit={riverSourceCacheHit}, count={riverSources?.Count ?? 0})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
             buildPhaseStopwatch.Restart();
 
-            // ND-49 3. kiegeszites: a folytonos nyomvonal-koveto DRAGA (merve:
-            // 12 referencia-folyora osszesen ~6-10s, szekvencialisan a
-            // megosztott `claimed` terkep miatt), ezert HATTER-SZALON
-            // inditjuk - nem blokkolja a Build() tobbi reszet/a fo szalat. A
-            // generacio-szamot MOST noveljuk, hogy egy korabban meg futo
-            // (elozo Build()-bol szarmazo) task eredmenye a LateUpdate()-ben
-            // felismerhetoen ELAVULT legyen. A forras-listat a MAR
-            // kiszamitott durva halozatbol (`river.Source`) vesszuk, hogy ne
-            // fusson le ketszer a csapadek-alapu SelectRiverSources.
             _adaptiveRefinedRiverPaths = null;
             _adaptiveRiverDischargeWeights = null;
             _riverRefinementGeneration++;
-            if (showRivers && _adaptiveDendriticRivers != null && _adaptiveDendriticRivers.Count > 0)
-            {
-                int myGeneration = _riverRefinementGeneration;
-                var sourcesForRefinement = new List<TileId>(_adaptiveDendriticRivers.Count);
-                foreach (RiverPathTracing.RiverPath r in _adaptiveDendriticRivers)
-                    sourcesForRefinement.Add(r.Source);
-                double stepMeters = riverRefinementStepMeters;
-                double seaLevelForRefinement = precipField.SeaLevel;
-                // #5 (2026-09-21): a PARHUZAMOS valtozat - BITRE azonos
-                // kimenet, merve 3,7-5,2x gyorsabb (ParallelRiverNetworkTests).
-                // EZ oldotta fel a forrasszam-korlatot: a szekvencialis ut
-                // ~0,8 s/folyo volt, amiert a DefaultSourceTopK 12-n allt, es
-                // ebbol kovetkezett a "ritkak a folyok" visszajelzes.
-                _riverRefinementTask = System.Threading.Tasks.Task.Run(() =>
-                    RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
-                        seed, seeds, seaLevelForRefinement, sourcesForRefinement,
-                        RiverPathTracing.DefaultFineDepth, stepMeters));
-                // A hivo (LateUpdate -> TryApplyCompletedRiverRefinement) a
-                // myGeneration ertekhez tartozo eredmenyt csak akkor
-                // alkalmazza, ha az MEG mindig az AKTUALIS generacio.
-                _pendingRiverRefinementGeneration = myGeneration;
-            }
-            else
-            {
-                _riverRefinementTask = null;
-            }
 
             // Uj referencia-allapot -> a per-tile cache-ek (sarok +
             // klasszifikacio) ervenytelenek, mert regi vilagallapotra
@@ -3079,6 +3111,97 @@ namespace WorldGen.Viewer
             Built.Invoke();
             buildTotalStopwatch.Stop();
             PerfLog($"Build() TELJES = {buildTotalStopwatch.Elapsed.TotalMilliseconds:F1}ms");
+            if (isActiveAndEnabled)
+                StartRiverRefinement(seed, seeds, precipField?.SeaLevel ?? seaLevel, riverSources);
+        }
+
+        [Tooltip("A5: statikus Build fázisidő, főszálú managed allokáció és GC-számlálók. A worker/native memória külön Profiler-mérést igényel.")]
+        public bool profileDeepTimeAllocations = false;
+
+        // Csak diagnosztika: a számlálók nem befolyásolják a világmodell eredményét.
+        // A rögzítés előre foglalt tömbbe ír, a szöveg/I/O a mérés UTÁN készül.
+        private sealed class StaticBuildAllocationProfile : IDisposable
+        {
+            private struct Sample
+            {
+                public string Name;
+                public double Milliseconds;
+                public long MainThreadBytes, HeapDeltaBytes;
+                public int Gen0, Gen1, Gen2;
+            }
+
+            private readonly PlanetGridMesh _owner;
+            private readonly Sample[] _samples = new Sample[20];
+            private readonly bool _allocationCounterSupported;
+            private int _count;
+            private string _name;
+            private long _startTicks, _startBytes, _startHeap;
+            private int _gen0, _gen1, _gen2;
+            private bool _complete;
+
+            public StaticBuildAllocationProfile(PlanetGridMesh owner)
+            {
+                _owner = owner;
+                // Unity Mono alatt az API létezhet úgy is, hogy mindig nullát ad.
+                // Ismert allokációval ellenőrizzük, a mért szakaszokon KÍVÜL.
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                var probe = new byte[1024];
+                _allocationCounterSupported = GC.GetAllocatedBytesForCurrentThread() - before >= probe.Length;
+                GC.KeepAlive(probe);
+                Next("WorldGen.StaticBase.enumerate");
+            }
+
+            public void Next(string name)
+            {
+                EndSample();
+                _name = name;
+                UnityEngine.Profiling.Profiler.BeginSample(name);
+                _startHeap = GC.GetTotalMemory(false);
+                _gen0 = GC.CollectionCount(0);
+                _gen1 = GC.CollectionCount(1);
+                _gen2 = GC.CollectionCount(2);
+                _startBytes = GC.GetAllocatedBytesForCurrentThread();
+                _startTicks = Stopwatch.GetTimestamp();
+            }
+
+            private void EndSample()
+            {
+                if (_name == null) return;
+                long endTicks = Stopwatch.GetTimestamp();
+                long endBytes = GC.GetAllocatedBytesForCurrentThread();
+                var sample = new Sample
+                {
+                    Name = _name,
+                    Milliseconds = (endTicks - _startTicks) * 1000.0 / Stopwatch.Frequency,
+                    MainThreadBytes = _allocationCounterSupported ? endBytes - _startBytes : -1,
+                    Gen0 = GC.CollectionCount(0) - _gen0,
+                    Gen1 = GC.CollectionCount(1) - _gen1,
+                    Gen2 = GC.CollectionCount(2) - _gen2,
+                    HeapDeltaBytes = GC.GetTotalMemory(false) - _startHeap
+                };
+                UnityEngine.Profiling.Profiler.EndSample();
+                _name = null;
+                _samples[_count++] = sample;
+            }
+
+            public void Complete()
+            {
+                EndSample();
+                _complete = true;
+            }
+
+            public void Dispose()
+            {
+                EndSample();
+                _owner.PerfLog(FormattableString.Invariant(
+                    $"[A5 static profile] seed={_owner.worldSeed} timeMyr={_owner.deepTimeMyr:R} baseLevel={_owner.adaptiveBaseLevel} borders={_owner.showBorders} complete={_complete} samples={_count} allocationCounterSupported={_allocationCounterSupported} unavailableBytes=-1 allocationScope=main-thread gcScope=process heapScope=process-net allocationExcludesWorkersAndNative=True"));
+                for (int i = 0; i < _count; i++)
+                {
+                    Sample s = _samples[i];
+                    _owner.PerfLog(FormattableString.Invariant(
+                        $"[A5 static phase] name={s.Name} ms={s.Milliseconds:F3} mainThreadBytes={s.MainThreadBytes} gc0={s.Gen0} gc1={s.Gen1} gc2={s.Gen2} heapDeltaBytes={s.HeapDeltaBytes}"));
+                }
+            }
         }
 
         /// <summary>
@@ -3105,6 +3228,7 @@ namespace WorldGen.Viewer
         /// </param>
         private void BuildStaticBaseLayer(bool reuseClassifications = false)
         {
+            using var allocationProfile = profileDeepTimeAllocations ? new StaticBuildAllocationProfile(this) : null;
             var totalStopwatch = Stopwatch.StartNew();
             var phaseStopwatch = Stopwatch.StartNew();
             int n = 1 << adaptiveBaseLevel;
@@ -3117,14 +3241,17 @@ namespace WorldGen.Viewer
             TileId[] leaves = baseTiles.ToArray();
             double enumerateMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            allocationProfile?.Next("WorldGen.StaticBase.terrainBasis");
             phaseStopwatch.Restart();
             bool terrainBasisReused = EnsureStaticTerrainBasisCache();
             double terrainBasisMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            allocationProfile?.Next("WorldGen.StaticBase.tileCenterBasis");
             phaseStopwatch.Restart();
             bool tileCenterBasisReused = EnsureTileCenterTerrainBasisCache(_adaptiveSeed, adaptiveBaseLevel);
             double tileCenterBasisMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            allocationProfile?.Next("WorldGen.StaticBase.classification");
             phaseStopwatch.Restart();
             bool useDenseStaticData = adaptiveBaseLevel <= 8;
             bool classificationsReused = reuseClassifications && useDenseStaticData
@@ -3137,12 +3264,14 @@ namespace WorldGen.Viewer
                     : PrecomputeClassificationsInParallel(leaves, forceCpu: true);
             double classificationMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            allocationProfile?.Next("WorldGen.StaticBase.corners");
             phaseStopwatch.Restart();
             (int NeededCount, int MissingCount) cornerDiag = useDenseStaticData
                 ? PrecomputeStaticCornersInParallel()
                 : PrecomputeCornersInParallel(leaves);
             double cornersMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            allocationProfile?.Next("WorldGen.StaticBase.terrainProxy");
             phaseStopwatch.Restart();
             // A pozíciók már tartalmazzák a tengerszintet, reliefet és az
             // aktuális világot. Semmilyen új Core-mintát nem kérünk itt.
@@ -3160,6 +3289,7 @@ namespace WorldGen.Viewer
             }
             double terrainProxyMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            allocationProfile?.Next("WorldGen.StaticBase.bucketPrepare");
             var verticesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
             var normalsByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
             var trianglesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<int>>();
@@ -3181,6 +3311,7 @@ namespace WorldGen.Viewer
                 : null;
             double bucketPrepareMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            allocationProfile?.Next("WorldGen.StaticBase.emit");
             phaseStopwatch.Restart();
             // ND-123: ha van suru statikus adat ES nincs hatarvonal-reteg, a
             // 393 216 tile emitje PARHUZAMOSAN fut (ld.
@@ -3208,27 +3339,34 @@ namespace WorldGen.Viewer
             }
             double emitMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            allocationProfile?.Next("WorldGen.StaticBase.meshAssemble");
             phaseStopwatch.Restart();
             ConcatenatedMesh staticMesh = ConcatenateMultiMaterialBuckets(verticesByKey, normalsByKey, trianglesByKey, colorsByKey);
             AttachTerrainTileIds(staticMesh, leaves);
+            allocationProfile?.Next("WorldGen.StaticBase.meshUpload");
             UploadConcatenatedMultiMaterialMesh(gameObject, staticMesh);
+            allocationProfile?.Next("WorldGen.StaticBase.meshMask");
             InitializeTerrainIndexMask(staticMesh, leaves);
             double meshMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            allocationProfile?.Next("WorldGen.StaticBase.borders");
             phaseStopwatch.Restart();
             BuildBorders(borderVerts, borderIndices, "Borders");
             double bordersMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            allocationProfile?.Next("WorldGen.StaticBase.water");
             phaseStopwatch.Restart();
             BuildWaterSurface(waterVerticesByBucket, waterNormalsByBucket, waterTrianglesByBucket, waterColorsByBucket, "WaterSurface");
             InitializeIndependentWater(staticBuckets, waterSurfaceRadius);
             double waterMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            allocationProfile?.Next("WorldGen.StaticBase.eviction");
             phaseStopwatch.Restart();
             EvictCornerCacheIfNeeded();
             EvictTileClassificationCacheIfNeeded();
             double evictionMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            allocationProfile?.Complete();
             totalStopwatch.Stop();
             PerfLog(
                 $"  BuildStaticBaseLayer reszletek: total={totalStopwatch.Elapsed.TotalMilliseconds:F1}ms " +
@@ -6894,26 +7032,21 @@ namespace WorldGen.Viewer
         /// M9/M7 (ND-49) dendritikus folyó-hálózat mesh-SZALAGKÉNT (nem
         /// vékony vonalként - ld. `riverBaseHalfWidth` doksi, felhasználói
         /// visszajelzés 2026-09-06: "a szélessége nem korrelál azzal,
-        /// mennyi vizet szállít"). KÉT FORRÁSBÓL rajzolhat, folyónként:
-        /// 1. Ha a háttér-szálon futó FOLYTONOS nyomvonal-követés (<see
-        ///    cref="RiverPathTracing.BuildContinuousRiverNetworkFromSources"/>,
-        ///    ld. Build()) már elkészült ahhoz a folyóhoz (`_adaptiveRefinedRiverPaths`),
-        ///    azt használjuk: a felszín érintő-síkjában futó, kb.
-        ///    riverRefinementStepMeters felbontású, lejtő-követő pontsorozatot,
-        ///    a hozzá tartozó `_adaptiveRiverDischargeWeights`-ből levezetett
-        ///    szélességgel.
-        /// 2. Amíg a finomítás nincs kész (vagy `showRivers` most kapcsolt
-        ///    be), a régi, DURVA (tile-középpontokat Catmull-Rommal simító)
-        ///    vonalat rajzoljuk átmenetileg, EGYSÉGES (súly=1) szélességgel
-        ///    (a durva réteg nem ismeri az összefolyás-fát) - hogy legyen
-        ///    valami látható, amíg a háttér-számítás fut.
+        /// mennyi vizet szállít").
+        /// A háttér-szálon futó FOLYTONOS nyomvonal-követés (<see
+        /// cref="RiverPathTracing.BuildContinuousRiverNetworkFromSources"/>,
+        /// ld. Build()) eredményét használja: a felszín érintő-síkjában futó,
+        /// kb. riverRefinementStepMeters felbontású pontsorozatot, a hozzá
+        /// tartozó `_adaptiveRiverDischargeWeights`-ből levezetett
+        /// szélességgel. Amíg az aktuális deep-time állapot finomítása nincs
+        /// kész, a korábbi állapot érvénytelen vonala helyett nincs folyó-mesh.
         /// EGYSZER épül fel (Build() vagy a finomítás elkészültekor), a
         /// kamera-mozgás nem érinti.
         /// </summary>
         private void BuildRiverNetwork()
         {
             Transform child = transform.Find("Rivers");
-            if (!showRivers || _adaptiveDendriticRivers == null || _adaptiveDendriticRivers.Count == 0)
+            if (!showRivers || _adaptiveRefinedRiverPaths == null || _adaptiveRefinedRiverPaths.Count == 0)
             {
                 if (child != null) child.gameObject.SetActive(false);
                 return;
@@ -6923,13 +7056,9 @@ namespace WorldGen.Viewer
             var normals = new List<Vector3>();
             var triangles = new List<int>();
             var ribbonPoints = new List<Vector3>();
-            const int subdivisions = 4; // Catmull-Rom felbontas szakaszonkent (csak a durva fallback-nel)
-            for (int riverIdx = 0; riverIdx < _adaptiveDendriticRivers.Count; riverIdx++)
+            for (int riverIdx = 0; riverIdx < _adaptiveRefinedRiverPaths.Count; riverIdx++)
             {
-                List<(double X, double Y, double Z)> refinedPath = _adaptiveRefinedRiverPaths != null
-                    && riverIdx < _adaptiveRefinedRiverPaths.Count
-                    ? _adaptiveRefinedRiverPaths[riverIdx].Points
-                    : null;
+                List<(double X, double Y, double Z)> refinedPath = _adaptiveRefinedRiverPaths[riverIdx].Points;
 
                 if (refinedPath != null && refinedPath.Count >= 2)
                 {
@@ -6945,40 +7074,7 @@ namespace WorldGen.Viewer
                         ? _adaptiveRiverDischargeWeights[riverIdx] : 1;
                     float halfWidth = riverBaseHalfWidth * Mathf.Sqrt(weight);
                     AddRiverRibbon(verts, normals, triangles, ribbonPoints, halfWidth);
-                    continue;
                 }
-
-                // Fallback: durva tile-kozeppontok Catmull-Rom-mal simitva -
-                // amig a hatterszalu finomitas meg nem keszult el erre a folyora.
-                // Nincs meg osszefolyas-fa-adat ezen a reszletessegen, ezert
-                // egysegesen a legkisebb (suly=1) szelesseget hasznaljuk.
-                List<TileId> path = _adaptiveDendriticRivers[riverIdx].Path;
-                if (path.Count < 2)
-                    continue; // 1 elemu ut (pl. azonnal ocean/pit) - nincs mit rajzolni
-
-                var centers = new Vector3[path.Count];
-                for (int i = 0; i < path.Count; i++)
-                    centers[i] = RiverTileCenterOnSurface(path[i]);
-
-                ribbonPoints.Clear();
-                ribbonPoints.Add(centers[0]);
-                for (int seg = 0; seg < path.Count - 1; seg++)
-                {
-                    // A Catmull-Rom iranyitotangensei a SZOMSZEDOS szakaszok
-                    // vegpontjai - az ut elejen/vegen (nincs elozo/kovetkezo
-                    // csomopont) extrapolalunk, mint a regi kodban.
-                    Vector3 p1 = centers[seg];
-                    Vector3 p2 = centers[seg + 1];
-                    Vector3 p0 = seg > 0 ? centers[seg - 1] : p1 + (p1 - p2);
-                    Vector3 p3 = seg + 2 < path.Count ? centers[seg + 2] : p2 + (p2 - p1);
-
-                    for (int i = 1; i <= subdivisions; i++)
-                    {
-                        float tt = i / (float)subdivisions;
-                        ribbonPoints.Add(CatmullRom(p0, p1, p2, p3, tt));
-                    }
-                }
-                AddRiverRibbon(verts, normals, triangles, ribbonPoints, riverBaseHalfWidth);
             }
 
             BuildRivers(verts, normals, triangles);
@@ -9059,12 +9155,20 @@ namespace WorldGen.Viewer
 
             System.Threading.Tasks.Task<List<RiverPathTracing.ContinuousRiverPath>> task = _riverRefinementTask;
             _riverRefinementTask = null;
+            if (_riverRefinementCancellation != null)
+            {
+                _riverRefinementCancellation.Dispose();
+                _riverRefinementCancellation = null;
+            }
 
-            if (task.IsFaulted || task.IsCanceled)
+            if (task.IsCanceled)
+                return;
+
+            if (task.IsFaulted)
             {
                 Debug.LogWarning(
                     "PlanetGridMesh: a háttér-szálon futó folyó-finomítás hibával zárult - " +
-                    $"a durva (tile-középpontos) vonal marad látható. Hiba: {task.Exception?.GetBaseException()}");
+                    $"a folyóvonalak nem jelennek meg. Hiba: {task.Exception?.GetBaseException()}");
                 return;
             }
 
@@ -9073,8 +9177,11 @@ namespace WorldGen.Viewer
 
             _adaptiveRefinedRiverPaths = task.Result;
             _adaptiveRiverDischargeWeights = RiverPathTracing.ComputeDischargeWeights(_adaptiveRefinedRiverPaths);
+            PerfLog($"[ND-132 river ready] generation={_pendingRiverRefinementGeneration} elapsedMs={_riverRefinementStopwatch?.Elapsed.TotalMilliseconds:F1} rivers={_adaptiveRefinedRiverPaths.Count}");
             WarnIfAnyRiverHitMaxSteps(_adaptiveRefinedRiverPaths);
+            var riverMeshStopwatch = Stopwatch.StartNew();
             BuildRiverNetwork();
+            PerfLog($"[ND-132 river mesh] elapsedMs={riverMeshStopwatch.Elapsed.TotalMilliseconds:F1}");
         }
 
         /// <summary>
