@@ -2,7 +2,8 @@
   "name": "WorldGen.App.UnityBinding",
   "rootNamespace": "WorldGen.App.UnityBinding",
   "references": [
-    "WorldGen.App.Foundation"
+    "WorldGen.App.Foundation",
+    "WorldGen.Core"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

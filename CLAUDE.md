@@ -139,6 +139,10 @@ hibát igényelnek:
 - Bármely szimulációs algoritmus numerikus viselkedésének módosítása
 
 Ha ilyet csinálsz, emeld a megfelelő verziószámot és írd le a döntésekben.
+ND-108 óta a közös numerikus kompatibilitási azonosító a
+`src/WorldGen.Core/Persistence/WorldGeneratorVersion.cs` `Current` konstansa.
+Seed-/világadat-töréskor ezt emeld; az app- és fájlformátum-verzió ettől
+független. Bitazonos optimalizálás nem igényel generátorverzió-emelést.
 
 ## Állapot
 

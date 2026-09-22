@@ -5,7 +5,8 @@ Kézi ellenőrzés, a felhasználó végzi. Minden kiadásjelöltnél **tiszta W
 portable ZIP-ből ÉS a telepítőből is. Ahol valami nem stimmel, a `Logs` mappa legfrissebb
 `worldgen-*.log` fájlját és az esetleges `error-*.txt`-t mellékeld.
 
-Előfeltétel: a menü-, settings- és mentésnézetek (ND-110) és a Core-kötés (ND-108) elkészültek.
+Előfeltétel: a menü-, settings- és mentésnézetek (ND-110), valamint a teljes Core/session-mentéskötés elkészültek.
+Az ND-108 generátorverzió-kapu 2026-09-22-én elkészült; önmagában nem állapotszerializáló vagy Save/Load UI.
 Amíg nincsenek kész, csak az A, B és F szakasz futtatható.
 
 ## A. Csomag és telepítés

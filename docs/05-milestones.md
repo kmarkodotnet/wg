@@ -1,5 +1,14 @@
 # Milestone-terv
 
+**2026-09-22, M12 / A6 verziókapu: lezárva (100% ebben a részfeladatban).**
+ND-108: közös Core-generátorazonosító, `.worldpkg` v3, app `CoreSavePolicy`,
+közvetlen betöltéskori ellenőrzés. Hiányzó/eltérő azonosítóval az állapot
+nem tölthető; konfiguráció az app fejlécéből külön olvasható. **1531/1531**
+Debug-teszt; app 451/451 és CLI 23/23 Release-ben is. Élő Unity-fordítás
+és adapterpróba kész. A teljes app-állapotmentés/session-host/UI továbbra
+is C3/D4, nem A6. Durva ráfordítás **0,5–1 munkaóra**, hátralévő **0 óra**.
+[A6 napló](../history/2026-09-22-a6-generator-version.md).
+
 **2026-09-22, aktuális M9/M10-részfeladat:** a `todo2.md` A4 deep-time
 újraépítési tétele felhasználói kérésre lezárva (12 meleg Build átlaga
 2,479 s; az eredeti <1 s küszöb nem igazolt). A5 variancia-/allokációprofil
@@ -38,7 +47,7 @@ enélkül nem derül ki időben, ha valami rossz irányba megy.
 | M9 | Continent + Region nézet | Magas LOD, displacement, kamera-átmenetek | Referenciakép 1, 3, 4 szintje | Adaptív terep/víz-LOD, chunk-csomagolás, több frame-es upload, nézetszint/FlyTo és pontmintás kamerakorlát implementált. A korai élesség és sima zoom nem elfogadott. [Újraértékelt, súlyozott állapot: kb. 61%](reviews/m9-progress-audit-2026-09-12.md), nem az előző becsléssel összevethető mérés. |
 | **M10** | **Deep time** | Lemezmozgás, erózió, eljegesedés, tengerszint | Az időcsúszka él | Lemezmozgás ✅ **vizuálisan megerősítve** (163/163 teszt, TimestepInvariance egzakt; `deepTimeMyr` Unity idő-csúszka - domborzat ÉS biome egyaránt elmozdul, felhasználó által tesztelve). Dinamikus (térfogat-megmaradás alapú) tengerszint ✅ **numerikusan kész** (ND-38). Az ND-90 a deep-time elevációs útba is bekötötte a folytonos vegyes kéregátmenetet és az 1000 m uplift-plafont; a teljes Python/KAT-lánc és 384/384 Core-teszt zöld, élő peremellenőrzés hátra. Az erózió/eljegesedés teljes spec-lefedettsége továbbra is halasztott. |
 | **M11** | **Események** | Becsapódás, vulkán, rift, split/merge | Kráterek, kitörések láthatók | Becsapódás ✅ **vizuálisan megerősítve**; szuper-vulkán (VEI8) ✅ **numerikusan kész** (220/220 teszt, ND-29); rift/split-merge halasztva — strukturálisan más (folytonos, nem diszkrét esemény-alapú) modellt igényelnek, önálló tervezést érdemelnek |
-| **M12** | **Perzisztencia + CLI** | Checkpoint, .worldpkg, state hash | — | State hash (`WorldStateHash`) ✅ **numerikusan kész** (227/227 teszt, ND-30); checkpoint/.worldpkg/CLI halasztva |
+| **M12** | **Perzisztencia + CLI** | Checkpoint, .worldpkg, state hash | — | `WorldStateHash`, definíció-checkpoint és CLI verify implementált. ND-108 / A6: közös generátorverzió, `.worldpkg` v3 és app-kompatibilitási kapu ✅ **kész**. A teljes app-állapotszerializáló és session/UI-bekötés továbbra is C3/D4; az A6 lezárása nem teljes M12-átvétel. |
 | M13 | Polish | Volumetrikus felhő, AO, víz-shader, színkalibráció | Végleges látvány | Vizuális acceptance (spec §73). Víz-shader: a `PlanetGridMesh` mostantól a tile-rács `field`/`isOceanField`/`seaLevel` adatából épít egy külön vízfelszín-réteget (a kalibrált tengerszint sugaránál, mélységfüggő, telítődő szín-görbével) a korábbi, tile-rácstól független flat kék primitív gömb helyett; a tengerfenék is finom fényesség-variációt kapott a meglévő fraktál-zajból. Fresnel/csillanás, felhő, AO, végleges színkalibráció továbbra is halasztva — vizuális ellenőrzés Unityben hátra. |
 
 ---

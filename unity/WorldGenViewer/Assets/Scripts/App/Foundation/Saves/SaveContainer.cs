@@ -67,7 +67,7 @@ namespace WorldGen.App.Saves
     /// "WGSV" | u16 konténerverzió | u16 fenntartott | u32 fejléchossz | fejléc (UTF-8 JSON) |
     /// u32 fejléc-CRC32 | u32 szekciószám | szekciótábla { u16 névhossz, név, u64 hossz, u32 CRC32 } | adatok.
     /// Minden olvasási hiba <see cref="SaveCorruptedException"/>, soha nem más kivétel
-    /// (kivéve a stream saját I/O-hibáit).
+    /// (kivéve a stream saját I/O-hibáit és az opcionális fejlécellenőrző hibáját).
     /// </summary>
     public static class SaveContainer
     {
@@ -141,10 +141,12 @@ namespace WorldGen.App.Saves
             return ReadHeaderCore(stream);
         }
 
-        public static SaveFile Read(Stream stream)
+        /// <summary>A fejlécellenőrző a CRC után, minden szekcióolvasás előtt fut.</summary>
+        public static SaveFile Read(Stream stream, Action<SaveHeader>? validateHeader = null)
         {
             if (stream == null) throw new ArgumentNullException(nameof(stream));
             var header = ReadHeaderCore(stream);
+            validateHeader?.Invoke(header);
 
             uint count = ReadUInt32(stream);
             if (count > MaxSections) throw Corrupt(SaveCorruptionReason.SectionTableInvalid, "Túl sok szekció: " + count);

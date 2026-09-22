@@ -67,7 +67,7 @@ namespace WorldGen.App.Saves
         {
             if (header == null) throw new ArgumentNullException(nameof(header));
             if (currentFormatVersion < 1) throw new ArgumentOutOfRangeException(nameof(currentFormatVersion));
-            if (string.IsNullOrEmpty(currentGeneratorVersion))
+            if (string.IsNullOrWhiteSpace(currentGeneratorVersion))
                 throw new ArgumentException("Az aktuális generátorverzió nem lehet üres (ld. ND-108).", nameof(currentGeneratorVersion));
 
             if (header.SaveFormatVersion > currentFormatVersion)
@@ -84,6 +84,18 @@ namespace WorldGen.App.Saves
         public static SaveCompatibilityResult Corrupted() => new SaveCompatibilityResult(SaveCompatibilityLevel.Incompatible, IncompatibilityReason.Corrupted);
 
         public static SaveCompatibilityResult Unreadable() => new SaveCompatibilityResult(SaveCompatibilityLevel.Incompatible, IncompatibilityReason.Unreadable);
+    }
+
+    /// <summary>Olvasható fejléc, de a mentett állapot nem kompatibilis (ND-108).</summary>
+    public sealed class SaveIncompatibleException : Exception
+    {
+        public SaveCompatibilityResult Compatibility { get; }
+
+        public SaveIncompatibleException(SaveCompatibilityResult compatibility)
+            : base("A mentett állapot nem tölthető be: " + compatibility.Reason + " (" + compatibility.MessageKey + ").")
+        {
+            Compatibility = compatibility;
+        }
     }
 
     public sealed class SaveSlotInfo
@@ -220,12 +232,28 @@ namespace WorldGen.App.Saves
             _writer.Write(filePath, stream => SaveContainer.Write(stream, header, sections));
         }
 
-        /// <summary>Teljes betöltés CRC-ellenőrzéssel; sérülésnél <see cref="SaveCorruptedException"/>.</summary>
+        /// <summary>Konfiguráció/seed kiolvasása állapotbetöltés nélkül, fejléc-CRC ellenőrzéssel.</summary>
+        public SaveHeader LoadHeader(string filePath)
+        {
+            EnsureInside(filePath);
+            using var stream = _fileSystem.OpenRead(filePath);
+            return SaveContainer.ReadHeader(stream);
+        }
+
+        /// <summary>
+        /// Teljes betöltés CRC- és friss kompatibilitási ellenőrzéssel.
+        /// Eltérésnél <see cref="SaveIncompatibleException"/>, sérülésnél
+        /// <see cref="SaveCorruptedException"/>; inkompatibilis szekciókat nem olvas.
+        /// </summary>
         public SaveFile Load(string filePath)
         {
             EnsureInside(filePath);
             using var stream = _fileSystem.OpenRead(filePath);
-            return SaveContainer.Read(stream);
+            return SaveContainer.Read(stream, header =>
+            {
+                SaveCompatibilityResult result = _compatibility(header);
+                if (!result.CanLoadState) throw new SaveIncompatibleException(result);
+            });
         }
 
         public void Delete(string filePath)

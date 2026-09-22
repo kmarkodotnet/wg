@@ -42,9 +42,6 @@ namespace WorldGen.App.UnityBinding
 
         [SerializeField] private AudioMixer? audioMixer = null;
 
-        [Tooltip("ND-108: amíg a Core-nak nincs generátorverziója, ez a helyőrző kerül a mentésekbe.")]
-        [SerializeField] private string worldGeneratorVersion = "unversioned-dev";
-
         [Tooltip("Csak ha a MainMenu nézet és scene már létezik.")]
         [SerializeField] private bool enterMainMenuOnStart = false;
 
@@ -144,9 +141,7 @@ namespace WorldGen.App.UnityBinding
             _navigation = new BackNavigationRouter();
             _navigation.PushHandler(_dialogs);
             _autosave = new AutosaveScheduler(_current.Simulation.AutosaveIntervalMinutes);
-            string generatorVersion = string.IsNullOrWhiteSpace(worldGeneratorVersion) ? "unversioned-dev" : worldGeneratorVersion;
-            _saves = new SaveRepository(fs, UserData.Saves,
-                header => SaveCompatibility.Evaluate(header, SaveHeaderCodec.CurrentFormatVersion, generatorVersion));
+            _saves = new SaveRepository(fs, UserData.Saves, CoreSavePolicy.Evaluate);
             _flow = new AppFlowController(_states, _sessions, _dialogs, _toasts, _navigation, _text, _autosave, () => _current, SessionHost);
             _flow.QuitRequested += QuitApplication;
 

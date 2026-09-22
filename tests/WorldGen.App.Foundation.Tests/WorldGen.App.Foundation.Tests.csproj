@@ -19,6 +19,9 @@
 
   <ItemGroup>
     <ProjectReference Include="../WorldGen.App.Foundation.Compile/WorldGen.App.Foundation.csproj" />
+    <ProjectReference Include="../../src/WorldGen.Core/WorldGen.Core.csproj" />
+    <!-- Csak a tiszta adapter teszteléséhez; a Foundation továbbra is Core-független. -->
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/App/UnityBinding/CoreSavePolicy.cs" Link="Binding/CoreSavePolicy.cs" />
   </ItemGroup>
 
 </Project>

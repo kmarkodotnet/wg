@@ -14,7 +14,7 @@ köréjük épül, és három rétegre bomlik:
 | Réteg | Hely | Hivatkozhat | Tesztelés |
 |---|---|---|---|
 | **F — Foundation** | `unity/WorldGenViewer/Assets/Scripts/App/Foundation/` | csak BCL (netstandard2.1) | `tests/WorldGen.App.Foundation.Tests` (dotnet, Unity nélkül) |
-| **U — Unity-kötés** | `unity/WorldGenViewer/Assets/Scripts/App/Unity/` (később) | Foundation + UnityEngine | Unity EditMode/PlayMode + kézi |
+| **U — Unity-kötés** | `unity/WorldGenViewer/Assets/Scripts/App/UnityBinding/` | Foundation + UnityEngine; ND-108 óta a vékony `CoreSavePolicy` a Core verzióját is hivatkozza | Unity EditMode/PlayMode + kézi; a tiszta verzióadapter linkelt .NET-tesztben is |
 | **C — Core-kötés** | `unity/WorldGenViewer/Assets/Scripts/App/WorldBinding/` (később) | Foundation + WorldGen.Core + Viewer | Unity + kézi |
 
 A Foundation **nem hivatkozza a `WorldGen.Core`-t** (ND-105). Így a Core
@@ -237,6 +237,18 @@ data[]            a szekciók nyers bájtjai, a táblázat sorrendjében
 | ConfigurationOnly | a generátorverzió eltér | „Új világ ezekkel a paraméterekkel” (a seed + paraméterek megmaradnak, az állapot nem) |
 | Incompatible | újabb formátum / nincs migráció / sérült | letiltva, ok kiírva |
 
+**ND-108 / A6 (2026-09-22):** a generátorazonosító forrása a Core
+`WorldGeneratorVersion.Current`, első alapvonala `"1"`. A Foundation
+továbbra sem hivatkozik Core-ra; a UnityBinding `CoreSavePolicy` adaptere
+hozza létre a verziózott új fejlécet és adja az `AppBootstrap` repository
+kompatibilitási szabályát. A repository `Load` a CRC-ellenőrzött fejlécen,
+a szekcióadatok olvasása előtt újra lefuttatja a szabályt, és típusos
+`SaveIncompatibleException` hibát ad. A `LoadHeader` a konfiguráció külön
+kiolvasására szolgál, nem állapotbetöltés. A fejléc codec-je a hiányzó
+generátorazonosítót üresen hagyja, nem bélyegzi át a régi mentést.
+A teljes állapotszerializáló/session-host és a Save/Load UI továbbra is
+külön feladat; ez a kapu ezek biztonságos bekötésének egyik előfeltétele.
+
 - `AutosaveScheduler`: 0 / 5 / 10 / 20 perc, csak `Simulation` állapotban
   számol, rotáció világonként legfeljebb N autosave.
 - `SaveErrorClassifier`: kivétel → felhasználóbarát kategória (lemez megtelt,
@@ -283,7 +295,7 @@ data[]            a szekciók nyers bájtjai, a táblázat sorrendjében
 | 1 | Hol éljen a Foundation (ND-105) | **A:** Unity Assets alatt, `noEngineReferences` asmdef, linkelt tesztprojekt (a Lod-minta). **B:** `src/WorldGen.App` külön package. Javaslat és megvalósítás: A | nem |
 | 2 | JSON-könyvtár (ND-106) | **A:** saját minimál JSON. **B:** `com.unity.nuget.newtonsoft-json`. Javaslat és megvalósítás: A | nem |
 | 3 | Mentési konténer (ND-107) | bináris konténer JSON-fejléccel és CRC32-szekciókkal; alternatíva ZIP. Javaslat: saját konténer | nem |
-| 4 | Generátorverzió a Core-ban (ND-108) | a Core-nak kell egy `WorldGeneratorVersion` (vagy generator/simulation/schema hármas, ld. spec). Amíg nincs, a mentés `ConfigurationOnly`-nál szigorúbb nem lehet | **igen, a Save C réteghez** |
+| 4 | Generátorverzió a Core-ban (ND-108) | **Megvalósítva (2026-09-22):** `WorldGeneratorVersion.Current`, CLI v3, `CoreSavePolicy` és repository-betöltési kapu. Eltérés/hiány → `ConfigurationOnly`, állapotbetöltés tiltva. | nem; az állapotszerializáló továbbra is az 5. sor |
 | 5 | Szimulációs állapot szerializálása | Core checkpoint API (ND-101 említi) vagy „seed + paraméter + idő újraszámolás”. Javaslat: először az utóbbi (olcsó, a determinizmus miatt helyes), checkpoint később gyorsításnak | **igen, a Save C réteghez** |
 | 6 | Simulation Quality jelentése | Core-döntés, seed-törő lehet; a mentés tárolja | nem (Foundation kész) |
 | 7 | Deep Time és a Loading állapot | teljes rebuild → Loading állapot vagy háttérfolyamat a Simulationben toasttal. Javaslat: 2,8 s-os rebuildnél Simulationben marad, progress-sávval | nem |

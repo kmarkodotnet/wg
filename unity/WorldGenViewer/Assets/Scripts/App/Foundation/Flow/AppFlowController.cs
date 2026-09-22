@@ -29,7 +29,7 @@ namespace WorldGen.App.Flow
 
     /// <summary>
     /// Az aktuális világ állapota a flow számára. A Core-kötés valósítja meg;
-    /// amíg a szimulációs állapot nem menthető (ND-108), a <see cref="CanSave"/> hamis.
+    /// amíg a szimulációs állapot szerializálója nincs bekötve, a <see cref="CanSave"/> hamis.
     /// </summary>
     public interface IWorldSessionHost
     {

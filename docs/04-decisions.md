@@ -4586,9 +4586,9 @@ tesztelhető.
   nélkül. Ez stabil szerződés (megosztott szöveges seedek); módosítása
   verzióemelés. A decimális és a `0x` hex seed változatlanul az `ulong` érték.
 
-### ND-108 — Generátorverzió a mentés kompatibilitásához (NYITOTT)
+### ND-108 — Generátorverzió a mentés kompatibilitásához (LEZÁRVA)
 
-**2026-09-13, nyitott, a Save Core-kötését blokkolja.**
+**Előzmény (2026-09-13): nyitott, a Save Core-kötését blokkolja.**
 
 A mentés fejlécébe `worldGeneratorVersion` kerül. A Core-ban ma nincs ilyen
 azonosító (a `VERSION` fájl emberi checkpoint; a spec
@@ -4600,8 +4600,46 @@ generator/simulation/schema verziói nem implementáltak).
 | B | A spec hármasa (generator / simulation / schema) külön mezőként |
 | C | `WorldStateHash` egy kanonikus seedre, mint ujjlenyomat (automatikus, de drága és nem mond migrálhatóságot) |
 
-Amíg nincs döntés: generátor-eltérés → `ConfigurationOnly` (a seed és a
-paraméterek újra felhasználhatók, az állapot nem töltődik).
+**Döntés (2026-09-22, A6, implementáció előtt): A.** A Core
+`Persistence.WorldGeneratorVersion.Current` konstansa kezdetben `"1"`.
+Ez a jelenlegi, ND-126b/130 utáni numerikus világmodell első explicit
+kompatibilitási alapvonala; nem a régi `.worldpkg` v1 azonosítója. Minden
+seed-/világadat-törő algoritmus-, paraméteralapérték-, random- vagy
+azonosítóváltozáskor monoton növelendő, az érintett ND-ben indokolva.
+Pusztán reprezentációs vagy bitazonos teljesítményjavítás nem emeli.
+Az alkalmazásverzió, a konténer/formátum és a generátor külön fogalom;
+nincs automatikus hash-/Git-/dátumalapú verzió és nincs több verzió futtatása.
+
+- CLI: a `.worldpkg` formátum **2 → 3**, új `WorldGeneratorVersion` mező.
+  Az új formátumszám azért kell, hogy a régi olvasó se fogadjon el olyan
+  új csomagot, amelynek generátorverzióját nem ellenőrzi. A v1/v2 csomag
+  explicit elutasított; a hiányzó verzió nem kaphat automatikusan aktuális
+  alapértéket. A `Create` bélyegez, a `Load`, `Save` és újraszámolás is
+  ellenőrzi a formátumot és a pontos generátoregyezést, számítás/írás előtt.
+- Alkalmazás: a Foundation Core-független marad. A `CoreSavePolicy`
+  vékony UnityBinding-adapter ad új, verziózott fejlécet és ellenőrzési
+  szabályt a Core-konstansból; az `AppBootstrap` Inspector-helyőrzője megszűnik.
+  A `.wgsave` fejléc már tartalmazza a mezőt, formátumemelés nem szükséges.
+  Hiányzó/eltérő verzió → `ConfigurationOnly`: állapot nem tölthető,
+  a fejlécből seed/paraméter továbbra is kiolvasható. A repository a
+  tényleges betöltéskor, a szekcióadatok előtt ismét ellenőriz; nem elég
+  a listanézet korábbi döntése. Nincs csendes átverziózás vagy migráció.
+- A6 határa a közös verzió és a mentési kompatibilitási kapu. A teljes
+  szimulációs állapot szerializálása, session-host és menübekötés külön
+  alkalmazásfeladat marad; ennek elkészültét A6 nem állítja.
+
+Zárókapu: aktuális mentés round-trip; régi/hiányzó/eltérő/jövőbeli
+verzió elutasítása; formátum/generátor/app-verzió függetlensége; közvetlen
+betöltés és megváltozott fájl ellenőrzése; solution-/érintett tesztek,
+élő Unity-fordítás. A numerikus világadatok változatlanok.
+
+**Lezárás (2026-09-22):** implementálva, minden fenti kapu teljesült.
+Teljes Debug solution: **1531/1531** (Core 567, LOD 490, app 451, CLI 23);
+az app és CLI Release-ben is 451/451 és 23/23. Debug/Release build és
+offline UnityBinding-kapu 0 hiba. Élő Unity-fordítás sikeres, Console 0
+hiba; valódi Editor-adapterpróba és fájlos CLI round-trip/elutasítás kész.
+KAT 9/9; újragenerált referenciavektorok byte-azonosak. A részletes
+bizonyíték és hatókör: `history/2026-09-22-a6-generator-version.md`.
 
 ### ND-109 — Nem determinisztikus API-k az alkalmazásrétegben
 
@@ -5676,7 +5714,8 @@ azok vizuális elfogadása továbbra is B4.
 Az egyszerű és a teljes hőmérsékletút, valamint a diagnosztikai hőmező azonos
 korrekciót kapott; a szélkorlát a régi és az ND-102 hőszélúton is azonos.
 A `ThermalModelParameters.ModelVersion` **1 → 2**. A teljes világmentés
-generátorverzió-kapuja továbbra is az ND-108/A6 nyitott feladata; a jelenlegi
+generátorverzió-kapuja ekkor még az ND-108/A6 nyitott feladata volt (azóta
+2026-09-22-én elkészült); az itt hivatkozott
 `.worldpkg` csak definíciót és eleváció-hash-t tárol, klímaállapotot nem.
 
 ### ND-127 — A régiók nem „tartoznak össze": a vízgyűjtő-szegmentálás a torkolat óceán-tile-ja szerint kulcsol (LEZÁRVA: (A))

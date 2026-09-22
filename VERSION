@@ -6,7 +6,10 @@ Checkpoint: 2026-09-05. A determinisztikus mag (M0-M11 nagy része) tartalmilag
 kész, teljes vektor-verifikációval; a Unity-viewer (M9 adaptív LOD + M13 Fázis 1
 folytonos árnyalás + M5/M7/M10 réteg-bekötések) folyamatban.
 
-Ez a fájl EMBERI checkpoint-jelölő, NEM a spec szerinti seed-kompatibilitási
-verzió (generatorVersion/simulationVersion/schemaVersion — ld.
-docs/00-spec-v1.0.md §, még nem implementált külön mezőkként). A seed-törő
-változásokat továbbra is a docs/04-decisions.md ND-számok követik.
+Ez a fájl EMBERI checkpoint-jelölő, NEM seed-kompatibilitási verzió.
+2026-09-22 óta az ND-108 szerinti közös generátorazonosító forrása:
+src/WorldGen.Core/Persistence/WorldGeneratorVersion.cs (Current).
+Minden seed-/világadat-törő változáskor az emelendő; az indoklást továbbra
+is a docs/04-decisions.md érintett ND-je rögzíti. A spec külön
+generator/simulation/schema hármasa helyett az ND-108 egy közös
+numerikus kompatibilitási verziót választott; a fájlformátum külön verzió.

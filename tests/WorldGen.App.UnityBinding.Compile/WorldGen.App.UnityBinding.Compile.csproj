@@ -33,6 +33,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../WorldGen.App.Foundation.Compile/WorldGen.App.Foundation.csproj" />
+    <ProjectReference Include="../../src/WorldGen.Core/WorldGen.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

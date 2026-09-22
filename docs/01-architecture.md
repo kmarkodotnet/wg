@@ -902,6 +902,17 @@ A kulcsváltozás: **a render nem a végén van**. Az M2-től kezdve minden fáz
 
 ---
 
+### Mentési generátorazonosító — ND-108
+
+A Core `Persistence.WorldGeneratorVersion.Current` a numerikus
+világkompatibilitás közös, kézzel emelt azonosítója (első értéke `"1"`).
+Nem módosít seedet vagy számítási eredményt. A CLI `.worldpkg` v3 mentés
+külön tárolja és ellenőrzi; a v1/v2 mentésnek nincs hiteles ilyen azonosítója,
+ezért nem tölthető vissza csendben. Az app `.wgsave` meglévő fejlécmezőjét
+a UnityBinding adapter köti ugyanide; a Foundation Core-független marad.
+Eltérés esetén állapotbetöltés nincs, a konfiguráció külön újrafelhasználható.
+Minden jövőbeli seed-törő ND-nek a verzióemelést is rögzítenie kell.
+
 ## 8. Nyitott döntések
 
 | ID | Kérdés | Javaslatom | Mikor |

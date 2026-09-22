@@ -8,14 +8,14 @@ Dátum: 2026-09-13.
 
 1. **Minden feladat három részre bomlik**, mert a Core-t közben tovább fejleszted:
    - **F** — Foundation: motor- és Core-független C#, dotnet-tel tesztelhető. *Most elkészíthető.*
-   - **U** — Unity-kötés: scene, prefab, UI-nézet, AudioMixer, Screen API. Csak a Foundationt és Unityt hivatkozza.
+   - **U** — Unity-kötés: scene, prefab, UI-nézet, AudioMixer, Screen API. Foundation + Unity; ND-108 óta a vékony `CoreSavePolicy` a Core generátorazonosítóját is ide köti.
    - **C** — Core-kötés: valódi paraméterséma, generálás, szimulációs állapot, bolygóprofil-értékek. *A Core-API stabilizálódására vár.*
 2. **Naplózás és verziózás előrekerült a Phase 1-be** (eredetileg Phase 12/13). Az állapotváltások hibáit már az elejétől naplózni kell, a mentés verziózása pedig a `SemanticVersion`-re épül.
 3. **Új alapfeladatok a Phase 1-ben:** user-data tárolás (`UserDataLayout`, atomi írás) és JSON-szerializálás. Unity alatt nincs `System.Text.Json`, a `JsonUtility` pedig motorfüggő; mindkettő előfeltétele a Settingsnek és a Save-nek.
 4. **A Settings-architektúra a Main Menu elé került.** A menü a Continue-hoz mentést, a UI-hoz beállítást olvas (tooltip-késleltetés, megerősítések).
 5. **A közös UI-keretrendszer (dialog, toast, tooltip, menümodell, lokalizációs tábla, vissza-navigáció) a menük elé került.** Így a menük nem építenek saját, egyedi logikát.
 6. **A Loading a New World és a Pause közé került**, mert a New World → Start rögtön ezt használja.
-7. **A Save/Load F része előrehozható**, a C része blokkolt (ND-108 generátorverzió, szimulációs állapot szerializálása).
+7. **A Save/Load F része előrehozható.** Az ND-108 generátorverzió-kapu 2026-09-22-én elkészült; a C-oldali szimulációs állapot szerializálója és session-host bekötése továbbra is hátravan.
 8. **Új, a base features listából átvett tételek:** lokalizációs tábla, fókuszvesztés és háttér-FPS, felbontáslista-kezelés, sérült mentés felismerése, mentésrotáció.
 
 Jelölés: ✅ kész (F) · ⏳ következő · 🔒 Core-függő, blokkolt · ○ később.
@@ -90,7 +90,7 @@ Jelölés: ✅ kész (F) · ⏳ következő · 🔒 Core-függő, blokkolt · �
 | WF-SAVE-002 | Save / Save As, atomi csere, naplózott és felhasználóbarát hiba | ✅ `SaveRepository`, `SaveErrorClassifier` | ⏳ | 🔒 |
 | WF-SAVE-003 | Load lista (név, kor, létrehozva, utoljára, seed), törlés, sérült mentés jelölése | ✅ fejléc-only listázás | ⏳ | — |
 | WF-SAVE-004 | Autosave (0 / 5 / 10 / 20 perc, Deep Time előtt), rotáció | ✅ `AutosaveScheduler` | ⏳ | 🔒 Deep Time esemény |
-| WF-SAVE-005 | Verziózás: formátum / app / generátor → Compatible / Migratable / ConfigurationOnly / Incompatible | ✅ `SaveCompatibility` | — | 🔒 **ND-108: a Core generátorverziója** |
+| WF-SAVE-005 | Verziózás: formátum / app / generátor → Compatible / Migratable / ConfigurationOnly / Incompatible | ✅ `SaveCompatibility`, friss ellenőrzés közvetlen betöltéskor is | — | ✅ **ND-108:** `WorldGeneratorVersion.Current` + `CoreSavePolicy`, helyőrző nélkül; a teljes állapotmentés külön WF-SAVE-001/002 feladat |
 | WF-SAVE-006 *(új)* | Thumbnail | ✅ szekció + metaadat | ⏳ RenderTexture → PNG | — |
 
 ## Phase 9 — Audio System *(korábban Phase 6)*
