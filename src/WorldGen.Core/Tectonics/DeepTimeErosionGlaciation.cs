@@ -9,11 +9,17 @@ namespace WorldGen.Core.Tectonics
     /// ND-137 / A20 (relief-erozio). Python referencia:
     /// tools/reference/erosion_glaciation_deep_time_ref.py.
     ///
-    /// HAROM IDOFUGGO HATAS, mind ZART ALAKU:
+    /// OT IDOFUGGO HATAS, mind ZART ALAKU:
     ///   1. a lemezhatar uplift-BONUSZ exponencialis relaxacioja (ND-44);
     ///   2. ND-137: a ket relief-zajtag AMPLITUDOJANAK hullamhossz-szelektiv,
-    ///      hidrologia-vezerelt csillapitasa - ez a tulajdonkeppeni EROZIO;
-    ///   3. a periodikus eljegesedesi forcing (jegvonal + glacialis erozio).
+    ///      hidrologia-vezerelt CSILLAPITASA (lejto-diffuzio: csucs le, medence
+    ///      fel) - a simito fele az eroziónak;
+    ///   3. ND-137 2. kor: FOLYOVIZI BEVAGODAS - a volgy melyebbre vagodik, a
+    ///      gerinc marad, tehat a relief NO. A ketto egyutt "relief-emelkedes,
+    ///      majd -hanyatlas" gorbet ad (csucs kb. 1,24x a t = 40 Myr korul);
+    ///   4. ND-137 2. kor: PARTI ABRAZIO - a tengerszint koruli savban a
+    ///      felszin a tengerszint fele planalodik (szirt vissza, self fel);
+    ///   5. a periodikus eljegesedesi forcing (jegvonal + glacialis erozio).
     ///
     /// TIMESTEP-INVARIANCIA (ND-04): minden tag ZART ALAKU (exp), NEM iterativ
     /// integrator - tetszoleges idofelbontasban lancolva ugyanazt adja (a
@@ -102,6 +108,73 @@ namespace WorldGen.Core.Tectonics
         /// <summary>A megmarado relief hanyada telitesben (masodlagos tag).</summary>
         public const double SecondaryReliefEqFraction = 0.60;
 
+        // 4. ND-137 2. kor: FOLYOVIZI BEVAGODAS (dissection)
+        //
+        // MIERT KELL. A 3. szakasz modellje tisztan SIMIT (lejto-diffuzio): a
+        // csucs le, a medence fel. Ez az erozio FELE. A masik fele a folyovizi
+        // BEVAGODAS, ami ELLENKEZO elojelu: a volgy melyebbre vagodik, a gerinc
+        // a helyen marad, tehat a relief NO. Enelkul a deep-time csuszka soha
+        // nem tud mast, mint lapitani - egy 500 Myr-os vilag csak fakobb
+        // valtozata a 0 Myr-osnak, holott a valodi ciklusban a fiatal orogen
+        // ELOSZOR felszabdalodik (a relief NO), es csak utana kopik le.
+        //
+        // HOL VAN A VIZ - es miert NEM kell hozza a vizgyujto-terulet-mezo. A
+        // stream-power vizhozam-tagja (A^m) globalis, racs-alapu mennyiseg
+        // (ND-124 FlowAccumulation) - pontonkenti zart alakban nem all elo, es
+        // a pipeline-ban korkoros lenne (a folyohalozat a tengerszint utan
+        // szamolodik). DE: egy PROCEDURALIS vilagban a lefolyas-halozatot maga
+        // a zaj HATAROZZA MEG - a viz a topografiai melyedesekbe fut, azok
+        // pedig pontosan a ridged multifractal alacsony erteku helyei. A
+        // `primary` zajertek tehat nem PROXYja a vizgyujtonek, hanem az OKA.
+        //
+        // A FORMA. A bevagodas ugyanazt a terbeli mintat erositi, amit a
+        // diffuzio csillapit (a primary relief-deviaciot), csak ELLENKEZO
+        // elojellel es sajat, rovidebb idoallandoval - ezert MULTIPLIKATIV
+        // tenyezo a D_primary-n. A ketto egyutt "relief-emelkedes, majd
+        // -hanyatlas" gorbet ad: a csucs kb. 1,24 a t = 40 Myr korul, a
+        // telitesi ertek 0,48 (= eq * (1 + gain)).
+        //
+        // ND-04: mindket tenyezo ONALLOAN felcsoport (exponencialis), a
+        // szorzatuk tiszta fuggvenye t-nek. A "lepesenkent szimulalva"
+        // ertelmezes KET allapotvaltozot tart - ugyanugy, ahogy az elsodleges
+        // es a masodlagos relief-tag is kulon lancolodik
+        // (<see cref="ChainFluvialDissection"/> ezt meri).
+        //
+        // CSAK az ELSODLEGES tagra: a bevagodas rovid hullamhosszu folyamat
+        // (volgyek), a regionalis hullamzast nem szabdalja fel.
+
+        /// <summary>Telitesi relief-felerositas tisztan folyovizi ovben. ILLUSZTRATIV - ND-137.</summary>
+        public const double FluvialDissectionGain = 0.6;
+
+        /// <summary>A bevagodas idoallandoja - a fiatal orogen gyorsan felszabdalodik. ILLUSZTRATIV.</summary>
+        public const double FluvialDissectionTauMyr = 40.0;
+
+        // 5. ND-137 2. kor: PARTI ABRAZIO
+        //
+        // A hullamzas a tengerszint koruli SAVBAN planalja a felszint: a szirt
+        // visszavagodik, a zatony/self feltoltodik. Mindket irany a
+        // TENGERSZINT fele mozgat - ugyanaz a "relaxacio egy celszint fele"
+        // minta, mint a relief-tagoknal, csak a cel nem a zaj-atlag, hanem a
+        // tengerszint.
+        //
+        // A STATIKUS (t = 0) tengerszintet hasznalja, nem a pillanatnyit:
+        // (a) igy tiszta fuggveny marad (pozicio, t)-bol, (b) kulonben
+        // korkoros lenne (a tengerszint az elevaciobol szamolodik). A ket
+        // szint kozti kulonbseg deep-time-ban nehany szaz meter, a sav
+        // szelessegen beluli hiba.
+        //
+        // Jegtakaro alatt KIKAPCSOL: egy jegpajzs ala szorult part nem
+        // abradalodik (nincs nyilt vizi hullamzas) - ezert az (1 - f_ice).
+
+        /// <summary>Az abrazios sav fel-szelessege meterben (Gauss-szigma). ILLUSZTRATIV.</summary>
+        public const double CoastalBandMeters = 250.0;
+
+        /// <summary>Telitesben ennyire planalodik a sav KOZEPE a tengerszint fele. ILLUSZTRATIV.</summary>
+        public const double CoastalPlaningFraction = 0.55;
+
+        /// <summary>Az abrazio idoallandoja. ILLUSZTRATIV - ND-137.</summary>
+        public const double CoastalAbrasionTauMyr = 120.0;
+
         /// <summary>H(t) = H_eq + (H0 - H_eq) * exp(-t/tau) - a dH/dt=(1/tau)(H_eq-H) ODE zart megoldasa (FIX H_eq).</summary>
         public static double RelaxTowards(double h0, double hEq, double timeMyr, double tau)
             => hEq + (h0 - hEq) * DeterministicMath.Exp(-timeMyr / tau);
@@ -185,7 +258,7 @@ namespace WorldGen.Core.Tectonics
         /// ezert marad sertetlen a csillapitas felcsoport-tulajdonsaga (ND-04).
         /// </summary>
         public static double EffectiveErosionTimeMyr(double z, double erosionTimeMyr)
-            => erosionTimeMyr == 0.0 ? 0.0 : ErosionEfficiency(AbsLatitudeRad(z)) * erosionTimeMyr;
+            => erosionTimeMyr <= 0.0 ? 0.0 : ErosionEfficiency(AbsLatitudeRad(z)) * erosionTimeMyr;
 
         /// <summary>
         /// Az a kitevo-hatar, ahol az exp mar ugyis 1e-304 alatti, tehat a
@@ -208,7 +281,12 @@ namespace WorldGen.Core.Tectonics
         /// </summary>
         public static double ReliefDecay(double effectiveTimeMyr, double tau, double eqFraction)
         {
-            if (effectiveTimeMyr == 0.0)
+            // A NEGATIV ido nincs a modellben (a deep-time csuszka 0-tol indul),
+            // es matematikailag FELEROSITENE a reliefet - a ket felerosito tenyezo
+            // szorzata pedig tulcsordulhatna vegtelenbe, ami csendben megmergezne
+            // az egesz elevacio-mezot. Ezert a "nulla elott nincs erozio"
+            // ertelmezes: t <= 0 -> identitas.
+            if (effectiveTimeMyr <= 0.0)
                 return 1.0;
             double exponent = -effectiveTimeMyr / tau;
             if (exponent < -MaxDecayExponent)
@@ -219,16 +297,98 @@ namespace WorldGen.Core.Tectonics
         }
 
         /// <summary>
+        /// Az erozio FOLYOVIZI hanyada a jegaramlasival szemben. SZARMAZTATOTT -
+        /// nincs sajat konstansa, a mar meglevo W es f_ice hanyadosa.
+        ///
+        /// Indok: a gleccser nem felszabdalja, hanem LEPLANALJA a felszint
+        /// (U-alaku trog, lenyesett pajzs), tehat ahol a jeg dominal, ott a
+        /// folyovizi bevagodas elnyomodik. W &gt;= ErosionWaterFloor &gt; 0, tehat
+        /// nincs nullosztas.
+        /// </summary>
+        public static double FluvialFraction(double absLatitudeRad)
+        {
+            double w = ZonalWaterFactor(absLatitudeRad);
+            double g = GlacialErosivity * GlaciatedFraction(absLatitudeRad);
+            return w / (w + g);
+        }
+
+        /// <summary>
+        /// A folyovizi bevagodas relief-FELEROSITO tenyezoje:
+        /// <c>1 + gain * fluvialFraction * (1 - exp(-t_f / tau_f))</c>, ahol a
+        /// <c>t_f = W(lat) * t</c> CSAK a folyovizi hatekonysaggal skalaz (a
+        /// jegtakaro hozzajarulasa a <see cref="FluvialFraction"/>-ben van, nem
+        /// itt - igy nincs duplaszamolas).
+        ///
+        /// <paramref name="erosionTimeMyr"/> = 0-nal EGZAKT 1,0 (rovidzar).
+        /// </summary>
+        public static double FluvialDissectionFactor(double absLatitudeRad, double erosionTimeMyr)
+        {
+            if (erosionTimeMyr <= 0.0)
+                return 1.0;
+            double tFluvial = ZonalWaterFactor(absLatitudeRad) * erosionTimeMyr;
+            double exponent = -tFluvial / FluvialDissectionTauMyr;
+            double growth;
+            if (exponent < -MaxDecayExponent)
+                growth = 1.0;
+            else if (exponent > MaxDecayExponent)
+                growth = 1.0 - DeterministicMath.Exp(MaxDecayExponent);
+            else
+                growth = 1.0 - DeterministicMath.Exp(exponent);
+            return 1.0 + FluvialDissectionGain * FluvialFraction(absLatitudeRad) * growth;
+        }
+
+        /// <summary>
         /// A ket relief-tag csillapito tenyezoje az adott pontban (a `z`
         /// koordinatabol szamolt szelesseg alapjan), adott eroziós idonel.
+        ///
+        /// ND-137 2. kor: a <paramref name="primaryDecay"/> MAGABAN FOGLALJA a
+        /// folyovizi bevagodas felerosito tenyezojet is, ezert 1,0 FOLE is
+        /// mehet - ez szandekos: a bevagodas NOVELI a reliefet. A
+        /// <paramref name="secondaryDecay"/> tisztan csillapito.
         /// </summary>
         public static void ReliefDecayFactors(
             double z, double erosionTimeMyr,
             out double primaryDecay, out double secondaryDecay)
         {
+            double absLat = AbsLatitudeRad(z);
             double tEff = EffectiveErosionTimeMyr(z, erosionTimeMyr);
-            primaryDecay = ReliefDecay(tEff, PrimaryReliefTauMyr, PrimaryReliefEqFraction);
+            primaryDecay = ReliefDecay(tEff, PrimaryReliefTauMyr, PrimaryReliefEqFraction)
+                * FluvialDissectionFactor(absLat, erosionTimeMyr);
             secondaryDecay = ReliefDecay(tEff, SecondaryReliefTauMyr, SecondaryReliefEqFraction);
+        }
+
+        /// <summary>
+        /// A parti abrazio elevacio-korrekcioja (meter). 0,0, ha nincs eroziós
+        /// ido, vagy ha a statikus tengerszint nem ismert
+        /// (<paramref name="staticSeaLevelMeters"/> = NaN — ez a "kikapcsolva"
+        /// jelzes, mert a 0,0 m legitim tengerszint-ertek).
+        /// </summary>
+        public static double CoastalAbrasionDelta(
+            double elevationMeters, double staticSeaLevelMeters,
+            double absLatitudeRad, double erosionTimeMyr)
+        {
+            if (erosionTimeMyr <= 0.0 || double.IsNaN(staticSeaLevelMeters))
+                return 0.0;
+            double d = elevationMeters - staticSeaLevelMeters;
+            double u = d / CoastalBandMeters;
+            double bandExponent = -0.5 * u * u;
+            if (bandExponent < -MaxDecayExponent)
+                return 0.0;
+            double band = DeterministicMath.Exp(bandExponent);
+            double strength = CoastalPlaningFraction * band * (1.0 - GlaciatedFraction(absLatitudeRad));
+            if (strength == 0.0)
+                return 0.0;
+            // A kitevo-korlat ITT IS kell (ld. MaxDecayExponent): nagy eroziós
+            // idonel a -t/tau kitevo -710 ala megy, es az Exp szemetet adna.
+            double progressExponent = -erosionTimeMyr / CoastalAbrasionTauMyr;
+            double progress;
+            if (progressExponent < -MaxDecayExponent)
+                progress = 1.0;
+            else if (progressExponent > MaxDecayExponent)
+                progress = 1.0 - DeterministicMath.Exp(MaxDecayExponent);
+            else
+                progress = 1.0 - DeterministicMath.Exp(progressExponent);
+            return -d * strength * progress;
         }
 
         /// <summary>
@@ -261,7 +421,8 @@ namespace WorldGen.Core.Tectonics
         public static double ElevationAtTime(
             ulong worldSeed, int plateId, double x, double y, double z, (double X, double Y, double Z)[] seeds,
             double plateTimeMyr, double erosionTimeMyr, out bool isOceanic,
-            double tau = OrogenicRelaxationTauMyr, double eqFraction = EquilibriumFraction)
+            double tau = OrogenicRelaxationTauMyr, double eqFraction = EquilibriumFraction,
+            double staticSeaLevelMeters = double.NaN)
         {
             DomainWarp.WarpPosition(worldSeed, x, y, z, out double wx, out double wy, out double wz);
             PlateBoundaryEffect.BaseAndUpliftFromWarpedAtTime(
@@ -270,7 +431,10 @@ namespace WorldGen.Core.Tectonics
                 PlateBoundaryEffect.DefaultGapScale, PlateBoundaryEffect.DefaultUpliftMaxMeters,
                 CrustElevation.DefaultBoundaryBlendGap, erosionTimeMyr);
             double upliftT = UpliftRelaxationElevation(upliftStatic, erosionTimeMyr, tau, eqFraction);
-            return baseElev + upliftT;
+            double elevation = baseElev + upliftT;
+            // ND-137 2. kor: parti abrazio (NaN tengerszint -> kikapcsolva).
+            return elevation + CoastalAbrasionDelta(
+                elevation, staticSeaLevelMeters, AbsLatitudeRad(z), erosionTimeMyr);
         }
 
         /// <summary>Ugyanaz a zart formula n_steps darab reszidokozre lancolva (a H_eq FIX, az EREDETI h0-bol) - timestep-invariancia bizonyitas.</summary>
@@ -298,6 +462,26 @@ namespace WorldGen.Core.Tectonics
             for (int i = 0; i < nSteps; i++)
                 a = eqFraction + (a - eqFraction) * DeterministicMath.Exp(-dtEff / tau);
             return a;
+        }
+
+        /// <summary>
+        /// A bevagodas-tenyezo nSteps resz-idokozre LANCOLVA - a
+        /// timestep-invariancia (ND-04) bizonyitasa a bevagodasra is.
+        ///
+        /// A tenyezo alakja <c>1 + G*(1 - exp(-t/tau))</c>, tehat a "hatralevo
+        /// resz" csokken exponencialisan - ezt lancoljuk, ugyanaz a minta, mint
+        /// a <see cref="ChainRelaxation"/>-nel.
+        /// </summary>
+        public static double ChainFluvialDissection(
+            double absLatitudeRad, double totalTimeMyr, int nSteps)
+        {
+            double gMax = FluvialDissectionGain * FluvialFraction(absLatitudeRad);
+            double tFluvial = ZonalWaterFactor(absLatitudeRad) * totalTimeMyr;
+            double dt = tFluvial / nSteps;
+            double remaining = gMax;
+            for (int i = 0; i < nSteps; i++)
+                remaining = remaining * DeterministicMath.Exp(-dt / FluvialDissectionTauMyr);
+            return 1.0 + (gMax - remaining);
         }
 
         /// <summary>Periodikus globalis homerseklet-forcing (szinuszos, zart t-ben). t=0 (phase0=0) -&gt; 0.</summary>

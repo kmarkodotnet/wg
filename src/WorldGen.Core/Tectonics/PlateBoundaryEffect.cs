@@ -243,7 +243,7 @@ namespace WorldGen.Core.Tectonics
             double timeMyr,
             out bool isOceanic,
             double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters,
-            double erosionTimeMyr = 0.0)
+            double erosionTimeMyr = 0.0, double staticSeaLevelMeters = double.NaN)
         {
             BaseAndUpliftFromWarpedAtTime(
                 worldSeed, x, y, z, wx, wy, wz, seeds, timeMyr,
@@ -258,8 +258,13 @@ namespace WorldGen.Core.Tectonics
             // `worldgen hash` UGYANAZT a deep-time domborzatot látja.
             // A szétbontott alakot (nyers uplifttel) a
             // <see cref="BaseAndUpliftFromWarpedAtTime"/> adja.
-            return baseElevation
+            double elevation = baseElevation
                 + DeepTimeErosionGlaciation.UpliftRelaxationElevation(uplift, erosionTimeMyr);
+            // ND-137 2. kör: a parti abrázió a MÁR kész (relief + uplift)
+            // felszínre hat. staticSeaLevelMeters = NaN -> kikapcsolva.
+            return elevation + DeepTimeErosionGlaciation.CoastalAbrasionDelta(
+                elevation, staticSeaLevelMeters,
+                DeepTimeErosionGlaciation.AbsLatitudeRad(z), erosionTimeMyr);
         }
 
         /// <summary>

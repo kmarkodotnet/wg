@@ -63,7 +63,7 @@ namespace WorldGen.Viewer
             System.Threading.Interlocked.Increment(ref _scaleSurfaceEvaluationCount);
             double elevation = ComputeElevationAtPoint(
                 x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
-                _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr);
+                _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr, _adaptiveStaticSeaLevel);
             if (double.IsNaN(elevation) || double.IsInfinity(elevation))
                 return false;
 

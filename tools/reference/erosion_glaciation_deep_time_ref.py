@@ -116,7 +116,7 @@ def uplift_relaxation_elevation(uplift_bonus_static, time_myr,
 def elevation_at_time(world_seed, plate_id, position, seeds, time_myr,
                        tau=OROGENIC_RELAXATION_TAU_MYR,
                        eq_fraction=EQUILIBRIUM_FRACTION,
-                       erosion_time_myr=None):
+                       erosion_time_myr=None, static_sea_level=None):
     """A tile elevacioja time_myr idopontban.
 
     Harom idofuggo hatas, mindharom ZART alakban (ND-04):
@@ -143,7 +143,12 @@ def elevation_at_time(world_seed, plate_id, position, seeds, time_myr,
         world_seed, position, seeds, time_myr,
         primary_decay=primary_decay, secondary_decay=secondary_decay)
     uplift_t = uplift_relaxation_elevation(uplift_static, erosion_time_myr, tau, eq_fraction)
-    return base + uplift_t, oceanic
+    elevation = base + uplift_t
+    # ND-137 2. kor: a parti abrazio a MAR kesz (relief + uplift) felszinre hat,
+    # a statikus tengerszint koruli savban. static_sea_level=None -> kikapcsolva.
+    elevation += coastal_abrasion_delta(
+        elevation, static_sea_level, abs_latitude_rad(position), erosion_time_myr)
+    return elevation, oceanic
 
 
 def chain_relaxation(h0, total_time_myr, n_steps,
@@ -377,7 +382,7 @@ def effective_erosion_time_myr(position, erosion_time_myr):
     """A pontban ERVENYES eroziós ido: a valos ido a helyi hatekonysaggal
     skalazva. Tiszta fuggvenye a (pozicio, t) parnak, es LINEARIS t-ben -
     ezert marad sertetlen a csillapitas felcsoport-tulajdonsaga (ND-04)."""
-    if erosion_time_myr == 0.0:
+    if erosion_time_myr <= 0.0:
         return 0.0
     return erosion_efficiency(abs_latitude_rad(position)) * erosion_time_myr
 
@@ -400,7 +405,11 @@ def relief_decay(effective_time_myr, tau, eq_fraction):
 
     t_eff = 0-nal EGZAKT 1.0 (rovidzar) - igy a hivo oldalan az
     `amplitude * 1.0` szorzas bitre valtozatlan marad."""
-    if effective_time_myr == 0.0:
+    # A NEGATIV ido nincs a modellben (a deep-time csuszka 0-tol indul), es
+    # matematikailag FELEROSITENE a reliefet - a ket felerosito tenyezo szorzata
+    # pedig tulcsordulhatna vegtelenbe, ami csendben megmergezne az egesz
+    # elevacio-mezot. Ezert a "nulla elott nincs erozio" ertelmezes.
+    if effective_time_myr <= 0.0:
         return 1.0
     exponent = -effective_time_myr / tau
     if exponent < -MAX_DECAY_EXPONENT:
@@ -410,11 +419,167 @@ def relief_decay(effective_time_myr, tau, eq_fraction):
     return eq_fraction + (1.0 - eq_fraction) * dmath.exp(exponent)
 
 
+# --- 3b. ND-137 2. kor: FOLYOVIZI BEVAGODAS (dissection) ---
+#
+# MIERT KELL. A 3. szakasz modellje tisztan SIMIT (lejto-diffuzio): a csucs le,
+# a medence fel. Ez az erozio FELE. A masik fele a folyovizi BEVAGODAS, ami
+# ELLENKEZO elojelu: a volgy MELYEBBRE vagodik, a gerinc a helyen marad, tehat a
+# relief NO. Enelkul a deep-time csuszka soha nem tud mast, mint lapitani - egy
+# 500 Myr-os vilag csak egy fakobb valtozata a 0 Myr-osnak, holott a valodi
+# tektonikai/eroziós ciklusban a fiatal orogen ELOSZOR felszabdalodik (a relief
+# NO), es csak utana kopik le.
+#
+# HOL VAN A VIZ - es miert NEM kell hozza a vizgyujto-terulet-mezo. A
+# stream-power (dh/dt = -K*A^m*S^n) vizhozam-tagja globalis, racs-alapu
+# mennyiseg (ND-124 FlowAccumulation) - pontonkenti zart alakban nem all elo, es
+# a pipeline-ban korkoros lenne (a folyohalozat a tengerszint utan szamolodik).
+# DE: egy PROCEDURALIS vilagban a lefolyas-halozatot maga a zaj HATAROZZA MEG.
+# A viz a topografiai melyedesekbe fut, azok pedig pontosan a ridged
+# multifractal ALACSONY erteku helyei. A `primary` zajertek tehat nem PROXYja a
+# vizgyujtonek, hanem az OKA - kozvetlenul hasznalhato, nem kozelites.
+#
+# A FORMA. A bevagodas ugyanazt a terbeli mintat erositi, amit a diffuzio
+# csillapit (a primary relief-deviaciot), csak ELLENKEZO elojellel es SAJAT,
+# rovidebb idoallandoval. Ezert egy MULTIPLIKATIV tenyezo a D_primary-n:
+#
+#     D_primary_total(t) = D_p(t) * (1 + GAIN * fluvial_fraction * (1 - exp(-t_f/tau_f)))
+#
+# t=0-nal mindket tenyezo egzaktul 1.0. A ketto egyutt "relief-emelkedes, majd
+# -hanyatlas" gorbet ad: a tau_f (40 Myr) gyorsabb, mint a tau_p (250 Myr),
+# ezert a relief eloszor ~1.24-szeresere no (kb. 40-60 Myr korul), majd
+# lecsokken a 0.30*(1+GAIN) egyensulyi hanyadra.
+#
+# MIERT MARAD SERTETLEN az ND-04. Mindket tenyezo ONALLOAN felcsoport
+# (exponencialis), es a szorzatuk tiszta fuggvenye t-nek. A "lepesenkent
+# szimulalva" ertelmezes ket allapotvaltozot tart (a diffuziot es a bevagodast)
+# - pontosan ugy, ahogy az elsodleges es masodlagos relief-tag is KULON
+# lancolodik. A chain_fluvial_dissection ezt meri.
+#
+# CSAK az ELSODLEGES tagra. A bevagodas rovid hullamhosszu folyamat (volgyek);
+# a regionalis (masodlagos) hullamzast nem szabdalja fel. Fizikai indok, nem
+# onkenyes valasztas.
+
+# Telitesi relief-felerositas tisztan folyovizi ovben. ILLUSZTRATIV - ND-137.
+FLUVIAL_DISSECTION_GAIN = 0.6
+
+# A bevagodas idoallandoja: a fiatal orogen gyorsan felszabdalodik.
+# ILLUSZTRATIV - ND-137.
+FLUVIAL_DISSECTION_TAU_MYR = 40.0
+
+
+def fluvial_fraction(abs_lat):
+    """Az erozio FOLYOVIZI hanyada a jegaramlasival szemben. SZARMAZTATOTT -
+    nincs sajat konstansa, a mar meglevo W es f_ice hanyadosa.
+
+    Indok: a gleccser NEM felszabdalja, hanem LEPLANALJA a felszint (U-alaku
+    trog, lenyesett pajzs), tehat ahol a jeg dominal, ott a folyovizi
+    dissection elnyomodik. W >= EROSION_WATER_FLOOR > 0, tehat nincs
+    nullosztas."""
+    w = zonal_water_factor(abs_lat)
+    g = GLACIAL_EROSIVITY * glaciated_fraction(abs_lat)
+    return w / (w + g)
+
+
+def fluvial_dissection_factor(abs_lat, erosion_time_myr):
+    """1 + GAIN * fluvial_fraction * (1 - exp(-t_f / tau_f)), ahol a
+    t_f = W(lat) * t CSAK a folyovizi hatekonysaggal skalaz (a jegtakaro
+    hozzajarulasa a `fluvial_fraction`-ben van, nem itt - igy nincs
+    duplaszamolas).
+
+    erosion_time_myr = 0 -> EGZAKT 1.0 (rovidzar)."""
+    if erosion_time_myr <= 0.0:
+        return 1.0
+    t_fluvial = zonal_water_factor(abs_lat) * erosion_time_myr
+    exponent = -t_fluvial / FLUVIAL_DISSECTION_TAU_MYR
+    if exponent < -MAX_DECAY_EXPONENT:
+        growth = 1.0
+    elif exponent > MAX_DECAY_EXPONENT:
+        growth = 1.0 - dmath.exp(MAX_DECAY_EXPONENT)
+    else:
+        growth = 1.0 - dmath.exp(exponent)
+    return 1.0 + FLUVIAL_DISSECTION_GAIN * fluvial_fraction(abs_lat) * growth
+
+
 def relief_decay_factors(position, erosion_time_myr):
-    """(D_primary, D_secondary) az adott pontban, adott eroziós idonel."""
+    """(D_primary, D_secondary) az adott pontban, adott eroziós idonel.
+
+    A D_primary tartalmazza a folyovizi bevagodas felerosito tenyezojet is
+    (ND-137 2. kor), ezert 1.0 FOLE is mehet - ez szandekos: a bevagodas
+    NOVELI a reliefet. A D_secondary tisztan csillapito."""
+    lat = abs_latitude_rad(position)
     t_eff = effective_erosion_time_myr(position, erosion_time_myr)
-    return (relief_decay(t_eff, PRIMARY_RELIEF_TAU_MYR, PRIMARY_RELIEF_EQ_FRACTION),
-            relief_decay(t_eff, SECONDARY_RELIEF_TAU_MYR, SECONDARY_RELIEF_EQ_FRACTION))
+    primary = (relief_decay(t_eff, PRIMARY_RELIEF_TAU_MYR, PRIMARY_RELIEF_EQ_FRACTION)
+               * fluvial_dissection_factor(lat, erosion_time_myr))
+    secondary = relief_decay(t_eff, SECONDARY_RELIEF_TAU_MYR, SECONDARY_RELIEF_EQ_FRACTION)
+    return primary, secondary
+
+
+def chain_fluvial_dissection(abs_lat, total_time_myr, n_steps):
+    """A bevagodas-tenyezo n_steps resz-idokozre LANCOLVA - a
+    timestep-invariancia (ND-04) bizonyitasa a bevagodasra is.
+
+    A tenyezo alakja 1 + G*(1 - exp(-t/tau)), tehat a "hatralevo resz"
+    (G - befejezett) csokken exponencialisan - ezt lancoljuk, ugyanaz a minta,
+    mint a chain_relaxation-nel."""
+    g_max = FLUVIAL_DISSECTION_GAIN * fluvial_fraction(abs_lat)
+    t_fluvial = zonal_water_factor(abs_lat) * total_time_myr
+    dt = t_fluvial / n_steps
+    remaining = g_max  # a meg hatralevo bevagodas
+    for _ in range(n_steps):
+        remaining = remaining * dmath.exp(-dt / FLUVIAL_DISSECTION_TAU_MYR)
+    return 1.0 + (g_max - remaining)
+
+
+# --- 3c. ND-137 2. kor: PARTI ABRAZIO ---
+#
+# A hullamzas a tengerszint koruli SAVBAN planalja a felszint: a szirt
+# visszavagodik, a zatony/self feltoltodik. Mindket irany a TENGERSZINT fele
+# mozgat, tehat a sav kozepe felett lehuz, alatta felemel - ugyanaz a
+# "relaxacio egy celszint fele" minta, mint a relief-tagoknal, csak a cel nem
+# a zaj-atlag, hanem a tengerszint.
+#
+# A STATIKUS (t=0) tengerszintet hasznalja, NEM a pillanatnyit: (a) igy tiszta
+# fuggveny marad (pozicio, t)-bol, (b) kulonben korkoros lenne (a tengerszint
+# az elevaciobol szamolodik). A ket szint kozti kulonbseg a deep-time-ban
+# nehany szaz meter, a sav szelessegen beluli hiba.
+#
+# NEM alkalmazzuk jegtakaro alatt: egy jegpajzs ala szorult part nem abradalodik
+# (nincs nyilt vizi hullamzas) - ezert a (1 - f_ice) tenyezo.
+
+# Az abrazios sav fel-szelessege meterben (a Gauss szigma). ILLUSZTRATIV.
+COASTAL_BAND_METERS = 250.0
+
+# Telitesben ennyire planalodik a sav KOZEPE a tengerszint fele. ILLUSZTRATIV.
+COASTAL_PLANING_FRACTION = 0.55
+
+# Az abrazio idoallandoja. ILLUSZTRATIV - ND-137.
+COASTAL_ABRASION_TAU_MYR = 120.0
+
+
+def coastal_abrasion_delta(elevation, static_sea_level, abs_lat, erosion_time_myr):
+    """A parti abrazio elevacio-korrekcioja (meter). 0.0, ha nincs eroziós ido,
+    vagy ha a statikus tengerszint nem ismert (None)."""
+    if erosion_time_myr <= 0.0 or static_sea_level is None:
+        return 0.0
+    d = elevation - static_sea_level
+    u = d / COASTAL_BAND_METERS
+    band_exponent = -0.5 * u * u
+    if band_exponent < -MAX_DECAY_EXPONENT:
+        return 0.0
+    band = dmath.exp(band_exponent)
+    strength = COASTAL_PLANING_FRACTION * band * (1.0 - glaciated_fraction(abs_lat))
+    if strength == 0.0:
+        return 0.0
+    # A kitevo-korlat ITT IS kell (ld. MAX_DECAY_EXPONENT): nagy eroziós idonel
+    # a -t/tau kitevo -710 ala megy, es a dmath.exp szemetet adna.
+    progress_exponent = -erosion_time_myr / COASTAL_ABRASION_TAU_MYR
+    if progress_exponent < -MAX_DECAY_EXPONENT:
+        progress = 1.0
+    elif progress_exponent > MAX_DECAY_EXPONENT:
+        progress = 1.0 - dmath.exp(MAX_DECAY_EXPONENT)
+    else:
+        progress = 1.0 - dmath.exp(progress_exponent)
+    return -d * strength * progress
 
 
 def chain_relief_decay(total_time_myr, n_steps, position, tau, eq_fraction):
@@ -607,10 +772,18 @@ if __name__ == "__main__":
     t_total = 640.0
     direct_p, direct_s = relief_decay_factors(chain_pos, t_total)
     print(f"  direkt: D_primary = {direct_p:.12f}, D_secondary = {direct_s:.12f}")
+    # FONTOS (ND-137 2. kor): a D_primary MOST KET onallo, exponencialis
+    # tenyezo SZORZATA (diffuzios csillapitas x folyovizi bevagodas). A
+    # "lepesenkent szimulalva" ertelmezes ezert KET allapotvaltozot tart -
+    # ugyanugy, ahogy az elsodleges es masodlagos relief-tag is kulon
+    # lancolodik. Mindket tenyezo ONALLOAN felcsoport, tehat a szorzat
+    # lancolasa is egzakt.
+    chain_lat = abs_latitude_rad(chain_pos)
     max_decay_chain_diff = 0.0
     for n_steps in (1, 2, 3, 7, 29, 113, 1000):
-        cp = chain_relief_decay(t_total, n_steps, chain_pos,
-                                PRIMARY_RELIEF_TAU_MYR, PRIMARY_RELIEF_EQ_FRACTION)
+        cp = (chain_relief_decay(t_total, n_steps, chain_pos,
+                                 PRIMARY_RELIEF_TAU_MYR, PRIMARY_RELIEF_EQ_FRACTION)
+              * chain_fluvial_dissection(chain_lat, t_total, n_steps))
         cs = chain_relief_decay(t_total, n_steps, chain_pos,
                                 SECONDARY_RELIEF_TAU_MYR, SECONDARY_RELIEF_EQ_FRACTION)
         d = max(abs(cp - direct_p), abs(cs - direct_s))
@@ -717,7 +890,11 @@ if __name__ == "__main__":
               f"oceani atlag {sum(sea) / len(sea):5.1f} m")
     assert all(b > a for a, b in zip(growth, growth[1:])), (
         "A hatasnak monoton nonie kell az idovel")
-    assert growth[-1] > 200.0, (
+    # A 2. kor (folyovizi bevagodas) SZANDEKOSAN visszavesz a telitesi
+    # elmozdulasbol: a bevagodas megorzi a relief egy reszet (az egyensulyi
+    # D_primary 0.30 helyett 0.30*(1+GAIN)), tehat a "mennyire mas" metrika
+    # kisebb, mint az 1. korben - kozben a domborzat VALTOZATOSABB lett.
+    assert growth[-1] > 150.0, (
         "A deep-time eroziónak ERDEMBEN meg kell valtoztatnia a domborzatot (todo2 A20 elvarasa), "
         f"kontinentalis atlag={growth[-1]}")
     # A szelesseg tenylegesen szamit (nem uniform kopas):
@@ -739,6 +916,102 @@ if __name__ == "__main__":
     assert wet[1] > wet[0], "A regionalis (hosszu hullamhosszu) reliefnek LASSABBAN kell kopnia"
     print("OK - differencialt erozio: nedves ov es jegtakaro kop, a sivatag orzi a reliefet;\n"
           "     a regionalis hullamhossz tullep a rovid hullamhosszun\n")
+
+    # ==================================================================
+    # 4. ND-137 2. kor - folyovizi bevagodas + parti abrazio
+    # ==================================================================
+    print("--- 4a. BEVAGODAS: a relief eloszor NO, azutan kopik le ---")
+    eq_lat = 0.0
+    curve = []
+    for t in (0.0, 10.0, 25.0, 40.0, 60.0, 100.0, 200.0, 500.0, 1000.0, 3000.0):
+        d_p = (relief_decay(effective_erosion_time_myr(_pos_at_lat(0.0), t),
+                            PRIMARY_RELIEF_TAU_MYR, PRIMARY_RELIEF_EQ_FRACTION)
+               * fluvial_dissection_factor(eq_lat, t))
+        curve.append((t, d_p))
+        print(f"  t = {t:7.1f} Myr: D_primary = {d_p:.4f}")
+    assert curve[0][1] == 1.0, "t=0-nal EGZAKT 1.0 kell (bit-kompatibilitas)"
+    peak_t, peak_v = max(curve, key=lambda kv: kv[1])
+    assert peak_v > 1.10, f"a reliefnek erdemben NOVEKEDNIE kell a bevagodas fazisban, max={peak_v}"
+    assert 0.0 < peak_t <= 100.0, f"a csucsnak a fiatal fazisban kell lennie, t={peak_t}"
+    assert curve[-1][1] < 0.60, f"telitesben mar le kell kopnia, D={curve[-1][1]}"
+    print(f"OK - relief-emelkedes majd -hanyatlas: csucs {peak_v:.4f} a t={peak_t} Myr korul, "
+          f"telitesben {curve[-1][1]:.4f}\n")
+
+    print("--- 4b. A bevagodast a JEG elnyomja (gleccser planal, nem szabdal) ---")
+    for deg in (0.0, 28.0, 45.0, 60.0, 80.0):
+        lat = math.radians(deg)
+        print(f"  |lat| = {deg:4.1f} fok: folyovizi hanyad = {fluvial_fraction(lat):.4f}, "
+              f"A_f(60 Myr) = {fluvial_dissection_factor(lat, 60.0):.4f}")
+    assert fluvial_fraction(0.0) > fluvial_fraction(math.radians(80.0)), \
+        "a polusnal a jeg dominal, tehat a folyovizi hanyad kisebb"
+    assert fluvial_dissection_factor(math.radians(80.0), 60.0) < 1.10, \
+        "jegtakaro alatt nincs erdemi folyovizi felszabdalas"
+    print("OK - a jegtakaro alatt a bevagodas gyakorlatilag eltunik\n")
+
+    print("--- 4c. TIMESTEP-INVARIANCIA (ND-04) a bevagodasra ---")
+    max_fluv_chain_diff = 0.0
+    for deg in (0.0, 35.0, 60.0):
+        lat = math.radians(deg)
+        direct = fluvial_dissection_factor(lat, 320.0)
+        for n_steps in (1, 2, 5, 31, 200, 2000):
+            chained = chain_fluvial_dissection(lat, 320.0, n_steps)
+            d = abs(chained - direct)
+            max_fluv_chain_diff = max(max_fluv_chain_diff, d)
+        print(f"  |lat| = {deg:4.1f} fok: direkt = {direct:.12f}, max lancolasi elteres = {max_fluv_chain_diff:.3e}")
+    assert max_fluv_chain_diff < 1e-12, \
+        f"a bevagodasnak lepeskoztol fuggetlennek kell lennie, max diff={max_fluv_chain_diff}"
+    print(f"OK - a bevagodas BARMELY felbontasban lancolva ugyanazt adja "
+          f"(max elteres: {max_fluv_chain_diff:.2e})\n")
+
+    print("--- 4d. PARTI ABRAZIO: a sav a TENGERSZINT fele planal, mindket iranybol ---")
+    sea0 = -150.0
+    cliff = coastal_abrasion_delta(sea0 + 300.0, sea0, 0.0, 400.0)
+    shoal = coastal_abrasion_delta(sea0 - 300.0, sea0, 0.0, 400.0)
+    far_up = coastal_abrasion_delta(sea0 + 4000.0, sea0, 0.0, 400.0)
+    far_down = coastal_abrasion_delta(sea0 - 4000.0, sea0, 0.0, 400.0)
+    at_level = coastal_abrasion_delta(sea0, sea0, 0.0, 400.0)
+    print(f"  +300 m a tengerszint felett: {cliff:+.2f} m (szirt visszavagodik)")
+    print(f"  -300 m a tengerszint alatt : {shoal:+.2f} m (zatony feltoltodik)")
+    print(f"  +4000 m (belfold)          : {far_up:+.2f} m")
+    print(f"  -4000 m (melytenger)       : {far_down:+.2f} m")
+    print(f"  pontosan a tengerszinten   : {at_level:+.2f} m")
+    assert cliff < 0.0, "a tengerszint FELETTI partnak le kell kopnia"
+    assert shoal > 0.0, "a tengerszint ALATTI selfnek fel kell toltodnie"
+    assert abs(far_up) < 1e-6 and abs(far_down) < 1e-6, "a savon kivul nincs hatas"
+    assert at_level == 0.0, "pontosan a tengerszinten nincs mit planalni"
+    assert coastal_abrasion_delta(sea0 + 300.0, sea0, 0.0, 0.0) == 0.0, "t=0 -> nincs abrazio"
+    assert coastal_abrasion_delta(sea0 + 300.0, None, 0.0, 400.0) == 0.0, \
+        "ismeretlen statikus tengerszint -> kikapcsolva"
+    # A sav soha nem lohet TUL a tengerszinten (nem fordithatja meg a part/tenger relaciot).
+    for d in [x * 25.0 for x in range(-60, 61)]:
+        delta = coastal_abrasion_delta(sea0 + d, sea0, 0.0, 100000.0)
+        assert abs(delta) <= abs(d) + 1e-9, f"tullovés a tengerszinten: d={d}, delta={delta}"
+        assert d * (d + delta) >= -1e-9, f"elojelvaltas a tengerszinthez kepest: d={d}, delta={delta}"
+    print("OK - a sav a tengerszint fele planal, tullovés nelkul; a jegtakaro alatt kikapcsol "
+          f"(f_ice=1 -> {coastal_abrasion_delta(sea0 + 300.0, sea0, math.radians(80.0), 400.0):+.3f} m)\n")
+
+    print("--- 4e. A ket uj tag EGYUTT, a teljes elevacion ---")
+    t_full = 300.0
+    seeds_full = moved_seeds(world_seed, seeds, t_full)
+    static_sea = -150.0
+    with_new, without_new = [], []
+    for pos in sample_positions:
+        pid = assign_plate(pos, seeds_full)
+        a, _ = elevation_at_time(world_seed, pid, pos, seeds_full, t_full,
+                                 static_sea_level=static_sea)
+        b, _ = elevation_at_time(world_seed, pid, pos, seeds_full, t_full,
+                                 erosion_time_myr=0.0)
+        with_new.append(a)
+        without_new.append(b)
+    diffs = [abs(a - b) for a, b in zip(with_new, without_new)]
+    print(f"  t = {t_full} Myr, atlagos |elteres| az erozio nelkuli allapottol: "
+          f"{sum(diffs) / len(diffs):.1f} m, max {max(diffs):.1f} m")
+    a0, _ = elevation_at_time(world_seed, assign_plate(sample_positions[3], seeds),
+                              sample_positions[3], seeds, 0.0, static_sea_level=static_sea)
+    b0, _ = elevation_at_time(world_seed, assign_plate(sample_positions[3], seeds),
+                              sample_positions[3], seeds, 0.0, erosion_time_myr=0.0)
+    assert a0 == b0, "t=0-nal a ket uj tag EGYIKE sem szabad hogy barmit valtoztasson"
+    print("OK - t=0-nal bitre azonos, t>0-nal erdemi hatas\n")
 
     # ------------------------------------------------------------------
     # Tesztvektorok a C# porthoz
@@ -802,15 +1075,52 @@ if __name__ == "__main__":
         v = p[2] % n
         plate_t = (p[3] % 2_000_000) / 1000.0
         erosion_t = (p[2] % 2_000_000) / 1000.0
+        # ND-137 2. kor: minden masodik vektor a parti abraziot IS bekapcsolja
+        # (statikus tengerszint), hogy a KAT mindket agat merje.
+        static_sea = None if (i % 2 == 0) else -150.0 + (p[0] % 400)
         pos = position_from_tile(face, level, u, v)
         seeds_at_t = moved_seeds(world_seed, seeds, plate_t)
         pid = assign_plate(pos, seeds_at_t)
         elev, oceanic = elevation_at_time(
-            world_seed, pid, pos, seeds_at_t, plate_t, erosion_time_myr=erosion_t)
+            world_seed, pid, pos, seeds_at_t, plate_t, erosion_time_myr=erosion_t,
+            static_sea_level=static_sea)
         split_time_vectors.append({
             "face": face, "level": level, "u": u, "v": v,
             "plateId": pid, "plateTimeMyr": plate_t, "erosionTimeMyr": erosion_t,
+            "hasStaticSeaLevel": static_sea is not None,
+            "staticSeaLevelMeters": 0.0 if static_sea is None else static_sea,
             "elevation": elev, "isOceanic": oceanic,
+        })
+
+    # ND-137 2. kor: a folyovizi bevagodas es a parti abrazio KULON merve -
+    # igy egy C#-elteres forrasa azonnal beazonosithato.
+    fluvial_vectors = []
+    gen_seed_fluvial = 0xF10E1A10000A2001
+    for i in range(300):
+        p = threefry4x64([i, 0, 0, 0], [gen_seed_fluvial, 0, 137, 2], 20)
+        lat = (p[0] % 1_000_000) / 1_000_000.0 * (math.pi / 2.0)
+        erosion_t = (p[1] % 3_000_000) / 1000.0
+        fluvial_vectors.append({
+            "absLatitudeRad": lat,
+            "erosionTimeMyr": erosion_t,
+            "fluvialFraction": fluvial_fraction(lat),
+            "dissectionFactor": fluvial_dissection_factor(lat, erosion_t),
+        })
+
+    coastal_vectors = []
+    gen_seed_coastal = 0xC0A57A10000A2001
+    for i in range(300):
+        p = threefry4x64([i, 0, 0, 0], [gen_seed_coastal, 0, 137, 3], 20)
+        lat = (p[0] % 1_000_000) / 1_000_000.0 * (math.pi / 2.0)
+        erosion_t = (p[1] % 3_000_000) / 1000.0
+        sea = -400.0 + (p[2] % 800_000) / 1000.0        # -400 .. +400 m
+        elev = -6000.0 + (p[3] % 12_000_000) / 1000.0   # -6000 .. +6000 m
+        coastal_vectors.append({
+            "elevationMeters": elev,
+            "staticSeaLevelMeters": sea,
+            "absLatitudeRad": lat,
+            "erosionTimeMyr": erosion_t,
+            "deltaMeters": coastal_abrasion_delta(elev, sea, lat, erosion_t),
         })
 
     glaciation_vectors = []
@@ -847,11 +1157,19 @@ if __name__ == "__main__":
             "primaryReliefEqFraction": PRIMARY_RELIEF_EQ_FRACTION,
             "secondaryReliefTauMyr": SECONDARY_RELIEF_TAU_MYR,
             "secondaryReliefEqFraction": SECONDARY_RELIEF_EQ_FRACTION,
+            "fluvialDissectionGain": FLUVIAL_DISSECTION_GAIN,
+            "fluvialDissectionTauMyr": FLUVIAL_DISSECTION_TAU_MYR,
+            "coastalBandMeters": COASTAL_BAND_METERS,
+            "coastalPlaningFraction": COASTAL_PLANING_FRACTION,
+            "coastalAbrasionTauMyr": COASTAL_ABRASION_TAU_MYR,
             "erosionVectors": erosion_vectors,
             "reliefErosionVectors": relief_erosion_vectors,
             "splitTimeVectors": split_time_vectors,
+            "fluvialDissectionVectors": fluvial_vectors,
+            "coastalAbrasionVectors": coastal_vectors,
             "glaciationVectors": glaciation_vectors,
         }, f, indent=1)
     print(f"{len(erosion_vectors)} erozios + {len(relief_erosion_vectors)} relief-erozios + "
-          f"{len(split_time_vectors)} szetvalasztott-ido + {len(glaciation_vectors)} "
+          f"{len(split_time_vectors)} szetvalasztott-ido + {len(fluvial_vectors)} bevagodasi + "
+          f"{len(coastal_vectors)} parti abrazios + {len(glaciation_vectors)} "
           "eljegesedesi tesztvektor generalva")

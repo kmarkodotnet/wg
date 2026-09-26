@@ -167,7 +167,22 @@ namespace WorldGen.Cli
             // ND-137 (A20): a `--time t` a vilagot t-nel jelenti, tehat az
             // erozio IS hozzatartozik - kulonben a `worldgen hash` mas
             // vilagot hashelne, mint amit a viewer megjelenit.
-            var field = SeaLevelCalibration.ComputeElevationFieldAtTime(seed, plates, level, time, time);
+            //
+            // ND-137 2. kor: a parti abrazio a STATIKUS (t=0) tengerszintre hat,
+            // ezert t>0-nal eloszor a t=0 mezot kell kalibralni. t=0-nal nincs
+            // abrazio, tehat ott ez a korlepes kimarad (es a hash bitre a regi).
+            double staticSeaLevel = double.NaN;
+            if (time != 0.0)
+            {
+                var field0 = SeaLevelCalibration.ComputeElevationField(seed, plates, level);
+                // Ugyanaz a cel-vizarany, mint a viewer `targetWaterFraction`
+                // alapertelmezese es a `calibrate-ordinals --water` defaultja.
+                const double defaultTargetWaterFraction = 0.65;
+                staticSeaLevel = SeaLevelCalibration.CalibrateSeaLevel(
+                    field0.Values, defaultTargetWaterFraction);
+            }
+            var field = SeaLevelCalibration.ComputeElevationFieldAtTime(
+                seed, plates, level, time, time, staticSeaLevel);
             byte[] hash = WorldStateHash.ComputeFieldHash(field);
             return WorldStateHash.ToHexString(hash);
         }

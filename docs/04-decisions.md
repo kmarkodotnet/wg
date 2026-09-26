@@ -6598,7 +6598,7 @@ el, melyik határ transzform.
 ténylegesen elmozdított magokkal mérnek, nem a `t = 0` magokkal vett hibriddel).
 
 
-### ND-137 — Deep-time erózió: hullámhossz-szelektív, zárt alakú relief-kopás (A20, LEZÁRVA — (B))
+### ND-137 — Deep-time erózió: hullámhossz-szelektív, zárt alakú relief-kopás + bevágódás + parti abrázió (A20, LEZÁRVA — (B), 2 körben)
 
 **2026-09-22.** Felhasználói észrevétel: „az erózió egy olyan dolog, amit
 deep time-ban hiányolok." **Implementálva 2026-09-26, a (B) opció szerint.**
@@ -6729,17 +6729,20 @@ A kontinentális tile-ok átlagos elmozdulása az erózió nélküli állapothoz
   külön döntéssel.
 - **(D) Akkumulált állapotú, iteratív erózió** — elvetve (sérti az ND-04-et).
 
-#### Ami NEM készült el — nyitva marad
+#### Ami az 1. kör után nyitva maradt
 
 - **Vízgyűjtő-terület-súlyozott bevágódás.** A valódi stream-power a
   vízhozammal (`A^m`) skálázódik, az pedig **globális, rács-alapú** mennyiség
   (ND-124 `FlowAccumulation`). Pontonkénti, zárt alakú függvényként nem
   előállítható, és a pipeline-ban körkörös lenne (a folyóhálózat a tengerszint
   után számolódik, a tengerszint pedig az elevációból). Ez az eredeti (C) opció.
+  → a 2. körben MÁS ÚTON megoldva: a lefolyás-hálózatot a procedurális világban
+  maga a zaj határozza meg, tehát a `primary` zajérték nem proxyja, hanem OKA a
+  vízgyűjtőnek (lásd lentebb).
 - **Hálózat menti hordalékszállítás, delta-építés, medencék közti tömegátvitel.**
   A mostani modell a relief-mezőn **belül** rendez át tömeget (csúcs le, medence
   fel), de nem mozgat anyagot lefelé a folyóhálózaton.
-- **Parti abrázió.**
+- **Parti abrázió.** → a 2. körben ELKÉSZÜLT (lásd lentebb).
 - **A lemez vándorlási történetének integrálása.** Az eróziós hatékonyság a pont
   MAI szélességéből jön; egy pólustól az egyenlítőig vándorolt kéreg valójában
   vegyes klímatörténetet élt át. Zárt alakban ez az Euler-pólus körüli pálya
@@ -6753,6 +6756,157 @@ A kontinentális tile-ok átlagos elmozdulása az erózió nélküli állapothoz
   az ND-04 láncolhatóság egzaktul teljesül, és az erózió monoton nő (nem
   „visszakopik" egy interglaciálisban). Numerikus időintegrállal ellenőrizve:
   max eltérés 1,7e-5, a mintavételezés felbontásán.
+
+#### 2. KÖR (2026-09-26, „fejezd be ND-137-t") — folyóvízi bevágódás + parti abrázió
+
+Az 1. kör a nyitott tételek közül a hidrológia-vezérelt **csillapítást** hozta
+meg. A 2. kör kettőt lezár közülük, egyet pedig más úton, de érdemben: a
+**vízhajtotta bevágódást**. Ami továbbra is nyitva marad, az lentebb, saját
+indoklással.
+
+**A hiányzó fél. Az 1. kör modellje tisztán SIMÍT** (lejtő-diffúzió: csúcs le,
+medence fel). Ez az erózió fele. A másik fele a folyóvízi **bevágódás**, ami
+ellenkező előjelű: a völgy mélyebbre vágódik, a gerinc a helyén marad, tehát a
+relief **NŐ**. Enélkül a deep-time csúszka soha nem tud mást, mint lapítani —
+egy 500 Myr-os világ csak fakóbb változata a 0 Myr-osnak, holott a valódi
+ciklusban a fiatal orogén **először felszabdalódik**, és csak azután kopik le.
+
+##### Hol van a víz — és miért NEM kell hozzá a vízgyűjtő-mező
+
+A stream-power vízhozam-tagja (`A^m`) globális, rács-alapú mennyiség
+(ND-124 `FlowAccumulation`) — pontonkénti zárt alakban nem áll elő, és a
+pipeline-ban körkörös lenne. **De egy procedurális világban a lefolyás-hálózatot
+maga a zaj határozza meg**: a víz a topográfiai mélyedésekbe fut, azok pedig
+pontosan a ridged multifractal alacsony értékű helyei. A `primary` zajérték tehát
+**nem proxyja a vízgyűjtőnek, hanem az oka** — közvetlenül használható, nem
+közelítés. Ez az a pont, ahol a 2. kör érdemben teljesíti az eredeti (C) opció
+célját anélkül, hogy a globális mezőt be kellene húzni a pontonkénti függvénybe.
+
+##### A forma
+
+A bevágódás ugyanazt a térbeli mintát erősíti, amit a diffúzió csillapít (a
+primary relief-deviációt), csak ellenkező előjellel és saját, rövidebb
+időállandóval — ezért **multiplikatív tényező** a `D_primary`-n:
+
+```
+D_primary(t) = D_p(t) * A_f(t)
+A_f(t)       = 1 + gain * fluvialFraction(|lat|) * (1 - exp(-t_f / tau_f))
+t_f          = W(|lat|) * t          (CSAK a folyóvízi hatékonyság)
+```
+
+A `fluvialFraction = W / (W + G·f_ice)` az erózió folyóvízi hányada — **származtatott,
+nincs saját konstansa**. Indok: a gleccser nem felszabdalja, hanem leplanálja a
+felszínt (U-alakú trog, lenyesett pajzs), tehát ahol a jég dominál, ott a
+bevágódás elnyomódik. Mérve: egyenlítő 1,0000 → 45° 0,2611 → 80° 0,0549.
+
+A két tényező együtt **relief-emelkedés, majd -hanyatlás** görbét ad:
+
+| t (Myr) | 0 | 10 | 25 | **40** | 60 | 100 | 200 | 500 | 1000 | 3000 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `D_primary` | 1,0000 | 1,1137 | 1,2082 | **1,2441** | 1,2410 | 1,1619 | 0,9252 | 0,5923 | 0,4913 | 0,4800 |
+
+Csak az **elsődleges** tagra: a bevágódás rövid hullámhosszú folyamat (völgyek),
+a regionális hullámzást nem szabdalja fel. Fizikai indok, nem önkényes választás.
+
+**ND-04.** Mindkét tényező **önállóan** félcsoport (exponenciális), a szorzatuk
+tiszta függvénye `t`-nek. A „lépésenként szimulálva" értelmezés **két
+állapotváltozót** tart — ugyanúgy, ahogy az elsődleges és a másodlagos
+relief-tag is külön láncolódik. Mérve: a bevágódás láncolási eltérése
+8,9e-16, a teljes `D_primary`-é 1,5e-14.
+
+##### Parti abrázió
+
+A hullámzás a tengerszint körüli **sávban** planálja a felszínt: a szirt
+visszavágódik, a self feltöltődik. Mindkét irány a tengerszint felé mozgat —
+ugyanaz a „relaxáció egy célszint felé" minta, mint a relief-tagoknál, csak a
+cél nem a zaj-átlag, hanem a tengerszint.
+
+```
+delta = -(h - seaLevel_0) * planingFraction * exp(-0.5*((h-seaLevel_0)/band)^2)
+        * (1 - f_ice) * (1 - exp(-t / tau_c))
+```
+
+A **statikus (t = 0) tengerszintet** használja, nem a pillanatnyit: (a) így tiszta
+függvény marad `(pozíció, t)`-ből, (b) különben körkörös lenne (a tengerszint az
+elevációból számolódik). A két szint közti különbség deep-time-ban néhány száz
+méter, a sáv szélességén belüli hiba. A viewer és a CLI a `t = 0` mező
+kalibrációjából kapja (a viewerben ez már eleve megvolt az ND-38
+térfogat-cache-hez).
+
+**Jégtakaró alatt kikapcsol** (`1 - f_ice`): egy jégpajzs alá szorult part nem
+abradálódik. Mért értékek 400 Myr-nél, a tengerszint −150 m-nél: +300 m-en
+−77,45 m (szirt vissza), −300 m-en +77,45 m (self fel), ±4000 m-en 0,00 m.
+**Soha nem lő túl** a tengerszinten (`planingFraction ≤ 0,55`), tehát a
+part/tenger reláció nem fordulhat meg — ez külön teszt, mert egy villogó
+partvonal a legszembetűnőbb hibaosztály lenne.
+
+##### A 2. kör mért hatása
+
+| | 1. kör | 2. kör |
+|---|---|---|
+| kontinentális átlagos elmozdulás 2 Gyr-nél | 222 m | 195 m |
+| relief szórásának csökkenése 500 Myr-nél | −16,5% | −13,0% |
+| `D_primary` maximuma | 1,0 (`t = 0`) | **1,2441** (`t ≈ 40 Myr`) |
+| globális átlag eltolódása 3 Gyr-nél | −13,8 m | −9,8 m |
+
+A telítési „mennyire más" metrika **szándékosan kisebb** lett: a bevágódás
+megőrzi a relief egy részét (az egyensúlyi `D_primary` 0,30 helyett
+0,30·(1+gain) = 0,48). Közben a domborzat **változatosabb** — a köztes időkben
+felszabdalt felföldek jelennek meg, nem csak fakóbb csúcsok.
+
+##### Új konstansok (ILLUSZTRATÍV, vizuális megerősítést igényelnek)
+
+| Konstans | Érték |
+|---|---|
+| `FluvialDissectionGain` | 0,6 |
+| `FluvialDissectionTauMyr` | 40 Myr |
+| `CoastalBandMeters` | 250 m (Gauss-szigma) |
+| `CoastalPlaningFraction` | 0,55 |
+| `CoastalAbrasionTauMyr` | 120 Myr |
+
+##### Még egy éleset, amit a teszt fogott meg: a negatív idő
+
+Az 1. körben a negatív erózió-idő matematikailag **felerősített**; a 2. körben a
+két felerősítő tényező szorzata **±végtelenbe csordult** (`t = -1e9`), ami
+csendben megmérgezte volna az egész elevációmezőt. Ezért mostantól minden tag
+„nulla előtt nincs erózió"-ként értelmezi a negatív időt (identitás). A deep-time
+csúszka 0-tól indul, tehát ez a modellen nem változtat — csak egy garbage
+tartományt szüntet meg.
+
+##### Mi marad nyitva a 2. kör UTÁN
+
+- **Hálózat menti hordalékszállítás, delta-építés, medencék közti tömegátvitel.**
+  Ez az, amit sem az 1., sem a 2. kör nem tud: a modell a relief-mezőn **belül**
+  rendez át tömeget (csúcs le, medence fel, part a tengerszint felé), de nem
+  mozgat anyagot **lefelé a folyóhálózaton**. Ehhez a hálózat mentén akkumuláló
+  számítás kell — ez az eredeti **(C) opció**, és **felhasználói döntést igényel**,
+  mert: (1) `O(N × tile)` minden időlekérdezésnél, a mai ~2,5 s-os deep-time
+  Build tetejére; (2) **megtöri a láncolhatóságot** — a csúszkával 0 → 100 → 200
+  Myr más világot adna, mint a közvetlen 200 Myr, tehát az ND-04 értelmezését
+  módosítja („fix `N`-nel `t`-ből tiszta függvény", nem „láncolható").
+- **A lemez vándorlási történetének integrálása.** Az eróziós hatékonyság a pont
+  MAI szélességéből jön; egy pólustól az egyenlítőig vándorolt kéreg vegyes
+  klímatörténetet élt át. Zárt alakban ez az Euler-pólus körüli pálya menti
+  integrál lenne — de a `W` (cos^8 + Gauss) **nem integrálható analitikusan**,
+  tehát fix-`N` kvadratúra kellene, ami ugyanazt az ND-04 kérdést nyitja meg,
+  mint a (C) opció. Ezért ez is **döntés-köteles**, nem elvégezhető munka.
+- **A `GlaciationPeriodMyr = 150` és `AmplitudeK = 6`** továbbra is illusztratív
+  (ND-44 nyitott pontja, todo2 B14). A 2. kör óta **három** tag épül rájuk
+  (jégvonal, glaciális erózió, a bevágódás jég-elnyomása), tehát megerősítésük
+  még fontosabb lett.
+- **A `glaciated_fraction` részperiódus-közelítése** (lásd lentebb, változatlan).
+- **Technikai adósság:** a deep-time paraméterlista kinőtte magát
+  (`ElevationWithBoundaryFromWarpedAtTime` 16 paraméter). A `(plateTime,
+  erosionTime, staticSeaLevel)` hármast egy `readonly struct` kontextusba kell
+  fogni — tisztán kozmetikai, seed-semleges átalakítás, felvéve a todo2-be.
+
+##### Verziózás (2. kör)
+
+`WorldGeneratorVersion.Current` **4 → 5**. `t = 0` **bitre változatlan**, világ-hash
+szinten is igazolva: `worldgen hash --time 0` az 1. kör előtt, az 1. kör után és
+a 2. kör után egyaránt `2b98af9a…6213738b`. A `--time 400` hash az 1. körben
+`590ec46e…957e441f`, a 2. körben `14dc8ad2…59a7ea07`. A
+`thermal_checkpoint_ref.py` generátorverzióját is emelni kellett (4 → 5).
 
 #### Mellékesen kiderült: a `DeterministicMath.Exp` alulcsordulás-hibája
 

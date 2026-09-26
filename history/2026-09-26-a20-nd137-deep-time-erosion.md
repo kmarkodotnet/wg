@@ -176,3 +176,145 @@ mostantól ugyanabban a műveleti sorrendben dolgozik — korábban a tile-köz�
 mutatják, hogy a hatás mérhetően jelen van, de hogy *jól néz-e ki* a
 csúszkát húzva, az felhasználói ítélet. Ez a todo2 **B12** sorába tartozik
 (tavak, jég, erózió + dinamikus tengerszint élőben).
+
+---
+
+# 2. kör — „fejezd be ND-137-t"
+
+**Kérés:** „fejezd be ND-137-t" (a nyitott tételek: vízgyűjtő-súlyozott
+bevágódás, hordalékszállítás, parti abrázió, lemez-klímatörténet).
+
+## Mi készült el
+
+### 1. Folyóvízi bevágódás (dissection) — a hiányzó FÉL
+
+Az 1. kör modellje tisztán **simít** (lejtő-diffúzió: csúcs le, medence fel).
+Ez az erózió fele. A másik fele a **bevágódás**: a völgy mélyebbre vágódik, a
+gerinc marad, tehát a relief **NŐ**. Enélkül a csúszka soha nem tud mást, mint
+lapítani — 500 Myr csak fakóbb változata 0 Myr-nak, holott a valódi ciklusban a
+fiatal orogén **először felszabdalódik**.
+
+```
+D_primary(t) = D_p(t) * A_f(t)
+A_f(t) = 1 + 0.6 * fluvialFraction(|lat|) * (1 - exp(-W(|lat|)*t / 40 Myr))
+fluvialFraction = W / (W + 3*f_ice)     -- SZÁRMAZTATOTT, nincs saját konstansa
+```
+
+Mért görbe (egyenlítő): 1,0000 (t=0) → **1,2441 (t≈40 Myr, csúcs)** → 0,9252
+(200) → 0,5923 (500) → 0,4800 (3000). **Relief-emelkedés, majd -hanyatlás.**
+
+A jég elnyomja (gleccser planál, nem szabdal): folyóvízi hányad egyenlítő
+1,0000 → 45° 0,2611 → 80° 0,0549.
+
+### 2. Parti abrázió
+
+A tengerszint körüli Gauss-sávban a felszín a **statikus (t=0) tengerszint**
+felé planálódik: szirt vissza, self fel. 400 Myr-nél, sea = −150 m: +300 m-en
+−77,45 m, −300 m-en +77,45 m, ±4000 m-en 0,00 m. Jégtakaró alatt kikapcsol
+(`1 − f_ice`). **Soha nem lő túl** a tengerszinten — külön teszt, mert egy
+villogó partvonal lenne a legszembetűnőbb hibaosztály.
+
+## A kulcs-belátás: miért NEM kell a vízgyűjtő-mező
+
+Az ND-137 (C) opciója a rács-alapú `FlowAccumulation`-t akarta behúzni a
+pontonkénti elevációfüggvénybe. Ez körkörös és architekturálisan rossz. **De egy
+procedurális világban a lefolyás-hálózatot maga a zaj határozza meg**: a víz a
+topográfiai mélyedésekbe fut, azok pedig pontosan a ridged multifractal alacsony
+értékű helyei. A `primary` zajérték tehát **nem proxyja a vízgyűjtőnek, hanem az
+oka** — közvetlenül használható, nem közelítés. Ezért teljesíti a 2. kör a (C)
+célját anélkül, hogy a globális mezőt be kellene húzni.
+
+## Mérhető változás az 1. körhöz képest
+
+| | 1. kör | 2. kör |
+|---|---|---|
+| kontinentális átlagos elmozdulás 2 Gyr-nél | 222 m | 195 m |
+| relief szórásának csökkenése 500 Myr-nél | −16,5% | −13,0% |
+| `D_primary` maximuma | 1,0 (`t = 0`) | **1,2441** (`t ≈ 40 Myr`) |
+| globális átlag eltolódása 3 Gyr-nél | −13,8 m | −9,8 m |
+
+A telítési „mennyire más" metrika **szándékosan** kisebb: a bevágódás megőrzi a
+relief egy részét (egyensúlyi `D_primary` 0,30 helyett 0,48). Közben a domborzat
+**változatosabb** — a köztes időkben felszabdalt felföldek jelennek meg.
+
+## Két éleset, amit a tesztek fogtak meg
+
+1. **Negatív idő → ±végtelen.** Az 1. körben a negatív erózió-idő matematikailag
+   felerősített; a 2. körben a két felerősítő tényező szorzata `t = -1e9`-nél
+   ±végtelenbe csordult, ami csendben megmérgezte volna az egész elevációmezőt.
+   Mostantól minden tag „nulla előtt nincs erózió"-ként értelmezi a negatív időt.
+2. **A `progress` kitevő is alulcsordul.** A parti abráziónál a `1 - exp(-t/tau)`
+   tagot is korlátozni kellett — ugyanaz a `DeterministicMath.Exp` hiba (todo2
+   A21), csak másik helyen. Ez megerősíti, hogy a lokális védekezés
+   modulonként megismétlendő, tehát a korlátnak a `DeterministicMath`-ba kell
+   kerülnie.
+
+## Ami NYITVA MARAD — és miért döntés-köteles
+
+- **Hálózat menti hordalékszállítás, delta-építés, medencék közti tömegátvitel.**
+  A modell a relief-mezőn **belül** rendez át tömeget, de nem mozgat anyagot
+  **lefelé a folyóhálózaton**. Ehhez a hálózat mentén akkumuláló számítás kell
+  (az eredeti (C) opció), ami (1) `O(N × tile)` minden időlekérdezésnél a mai
+  ~2,5 s-os Build tetejére, és (2) **megtöri a láncolhatóságot**: a csúszkával
+  0 → 100 → 200 Myr más világot adna, mint a közvetlen 200 Myr. Ez az ND-04
+  **értelmezését módosítja**, tehát felhasználói döntés, nem elvégezhető munka.
+- **A lemez vándorlási klímatörténete.** A `W` (cos^8 + Gauss) nem integrálható
+  analitikusan a pálya mentén, tehát fix-`N` kvadratúra kellene — ugyanaz az
+  ND-04 kérdés.
+- **`GlaciationPeriodMyr` / `AmplitudeK` megerősítése** (B14): a 2. kör óta
+  **három** tag épül rájuk (jégvonal, glaciális erózió, a bevágódás
+  jég-elnyomása).
+- **Technikai adósság:** az `ElevationWithBoundaryFromWarpedAtTime` 16
+  paraméteres. A `(plateTime, erosionTime, staticSeaLevel)` hármas egy
+  `readonly struct` kontextusba fogandó — seed-semleges, felvéve todo2 A22.
+
+## Bizonyíték
+
+```
+Python orakulum (uj szakaszok):
+4a. bevagodas: relief-emelkedes majd -hanyatlas, csucs 1.2441 a t=40 Myr korul
+4b. a jeg elnyomja: folyovizi hanyad 1.0000 (0 fok) -> 0.0549 (80 fok)
+4c. TIMESTEP-INVARIANCIA a bevagodasra: max lancolasi elteres 8.88e-16
+4d. parti abrazio: +300 m -> -77.45 m, -300 m -> +77.45 m, savon kivul 0.00 m,
+    tullovés nelkul (121 minta -1500..+1500 m, 5 idopontban)
+4e. a ket tag egyutt: t=300 Myr, atlagos |elteres| 70.7 m, max 457.2 m;
+    t=0-nal BITRE azonos
+3c. a teljes D_primary (2 tenyezo szorzata) lancolasa: max elteres 1.53e-14
+300 bevagodasi + 300 parti abrazios uj tesztvektor
+
+C# tesztek: tests/.../DeepTimeFluvialCoastalTests.cs (17 uj teszt)
+  KAT a ket uj vektorhalmazra 1e-12 turessel, relief-emelkedes-majd-hanyatlas,
+  jeg-elnyomas, timestep-invariancia (kulon a bevagodasra ES a szorzatra),
+  tisztasag, elesetek, a sav ket iranyu planalasa, "soha nem lo tul",
+  jegtakaro alatt kikapcsol, parhuzamos = szekvencialis, t=0 bit-regresszio,
+  a mezore gyakorolt tenyleges hatas.
+
+dotnet test WorldGen.sln
+  WorldGen.Core.Tests            641 zold   (624 -> 641)
+  WorldGen.Viewer.LodChunking    526 zold
+  WorldGen.App.Foundation        452 zold
+  WorldGen.Cli                    24 zold
+  --------------------------------------
+  osszesen                      1643 zold
+
+dotnet build tests/WorldGen.Viewer.Compile           0 error
+dotnet build tests/WorldGen.App.UnityBinding.Compile 0 error
+```
+
+**Világ-hash — a `t = 0` bit-azonosság MINDKÉT kör után:**
+
+| `--time` | változás előtt | 1. kör után | 2. kör után |
+|---|---|---|---|
+| 0 | `2b98af9a…6213738b` | `2b98af9a…6213738b` | `2b98af9a…6213738b` |
+| 400 | `6c7a8d2f…c4003956` | `590ec46e…957e441f` | `14dc8ad2…59a7ea07` |
+
+`WorldGeneratorVersion` 4 → 5; `thermal_checkpoint_ref.py` generátorverzió 4 → 5.
+
+## Ami MÉG NEM történt meg (változatlanul)
+
+**Élő Unity vizuális megerősítés.** Az öt új konstans
+(`FluvialDissectionGain/TauMyr`, `CoastalBandMeters/PlaningFraction/AbrasionTauMyr`)
+illusztratív. A számok mutatják, hogy a hatás jelen van és a görbe alakja
+helyes, de hogy *jól néz-e ki* a csúszkát húzva — és különösen, hogy a
+`t ≈ 40 Myr` körüli relief-csúcs nem túl erős-e — az felhasználói ítélet
+(todo2 **B12**).

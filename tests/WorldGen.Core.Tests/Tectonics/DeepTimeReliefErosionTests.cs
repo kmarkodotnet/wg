@@ -56,6 +56,11 @@ public class DeepTimeReliefErosionVectorFileTests
         SameConstant("primaryReliefEqFraction", DeepTimeErosionGlaciation.PrimaryReliefEqFraction);
         SameConstant("secondaryReliefTauMyr", DeepTimeErosionGlaciation.SecondaryReliefTauMyr, 1e-9);
         SameConstant("secondaryReliefEqFraction", DeepTimeErosionGlaciation.SecondaryReliefEqFraction);
+        SameConstant("fluvialDissectionGain", DeepTimeErosionGlaciation.FluvialDissectionGain);
+        SameConstant("fluvialDissectionTauMyr", DeepTimeErosionGlaciation.FluvialDissectionTauMyr);
+        SameConstant("coastalBandMeters", DeepTimeErosionGlaciation.CoastalBandMeters);
+        SameConstant("coastalPlaningFraction", DeepTimeErosionGlaciation.CoastalPlaningFraction);
+        SameConstant("coastalAbrasionTauMyr", DeepTimeErosionGlaciation.CoastalAbrasionTauMyr);
 
         int n = 0;
         foreach (JsonElement v in root.GetProperty("reliefErosionVectors").EnumerateArray())
@@ -105,8 +110,13 @@ public class DeepTimeReliefErosionVectorFileTests
             int plateId = PlateGeneration.AssignPlate(x, y, z, seeds);
             Assert.Equal(v.GetProperty("plateId").GetInt32(), plateId);
 
+            double staticSea = v.GetProperty("hasStaticSeaLevel").GetBoolean()
+                ? v.GetProperty("staticSeaLevelMeters").GetDouble()
+                : double.NaN;
             double elev = DeepTimeErosionGlaciation.ElevationAtTime(
-                worldSeed, plateId, x, y, z, seeds, plateT, erosionT, out bool oceanic);
+                worldSeed, plateId, x, y, z, seeds, plateT, erosionT, out bool oceanic,
+                DeepTimeErosionGlaciation.OrogenicRelaxationTauMyr,
+                DeepTimeErosionGlaciation.EquilibriumFraction, staticSea);
             Assert.True(Math.Abs(elev - v.GetProperty("elevation").GetDouble()) < 1e-9, $"elev: {elev}");
             Assert.Equal(v.GetProperty("isOceanic").GetBoolean(), oceanic);
             n++;
@@ -221,11 +231,18 @@ public class DeepTimeReliefErosionPropertyTests
         TileGeometry.ToPosition(TileId.FromFaceLevelUV(2, Level, 17, 41), out _, out _, out double z);
         const double total = 640.0;
         DeepTimeErosionGlaciation.ReliefDecayFactors(z, total, out double dp, out double ds);
+        // ND-137 2. kör: a D_primary MOST két önálló exponenciális tényező
+        // SZORZATA (diffúziós csillapítás × folyóvízi bevágódás), ezért a
+        // láncolás KÉT állapotváltozót tart — ugyanúgy, ahogy az elsődleges és
+        // a másodlagos relief-tag is külön láncolódik. Mindkettő önállóan
+        // félcsoport, tehát a szorzat láncolása is egzakt.
+        double chainLat = DeepTimeErosionGlaciation.AbsLatitudeRad(z);
         foreach (int steps in new[] { 1, 2, 3, 7, 29, 113, 1000 })
         {
             double chainedP = DeepTimeErosionGlaciation.ChainReliefDecay(
-                z, total, steps, DeepTimeErosionGlaciation.PrimaryReliefTauMyr,
-                DeepTimeErosionGlaciation.PrimaryReliefEqFraction);
+                                  z, total, steps, DeepTimeErosionGlaciation.PrimaryReliefTauMyr,
+                                  DeepTimeErosionGlaciation.PrimaryReliefEqFraction)
+                              * DeepTimeErosionGlaciation.ChainFluvialDissection(chainLat, total, steps);
             double chainedS = DeepTimeErosionGlaciation.ChainReliefDecay(
                 z, total, steps, DeepTimeErosionGlaciation.SecondaryReliefTauMyr,
                 DeepTimeErosionGlaciation.SecondaryReliefEqFraction);
@@ -345,7 +362,11 @@ public class DeepTimeReliefErosionPropertyTests
 
         for (int i = 1; i < means.Count; i++)
             Assert.True(means[i] > means[i - 1], $"a hatásnak monoton nőnie kell: {means[i - 1]} -> {means[i]}");
-        Assert.True(means[^1] > 200.0, $"a kontinentális átlagos elmozdulás túl kicsi: {means[^1]} m");
+        // A 2. kör (folyóvízi bevágódás) SZÁNDÉKOSAN visszavesz a telítési
+        // elmozdulásból: a bevágódás megőrzi a relief egy részét (az egyensúlyi
+        // D_primary 0,30 helyett 0,30·(1+gain)), tehát a „mennyire más" metrika
+        // kisebb, mint az 1. körben — közben a domborzat VÁLTOZATOSABB lett.
+        Assert.True(means[^1] > 150.0, $"a kontinentális átlagos elmozdulás túl kicsi: {means[^1]} m");
     }
 
     /// <summary>
@@ -361,18 +382,25 @@ public class DeepTimeReliefErosionPropertyTests
             {
                 DeepTimeErosionGlaciation.ReliefDecayFactors(z, t, out double dp, out double ds);
                 Assert.False(double.IsNaN(dp) || double.IsNaN(ds));
-                Assert.InRange(dp, DeepTimeErosionGlaciation.PrimaryReliefEqFraction, 1.0);
+                // ND-137 2. kör: a D_primary a bevágódás miatt 1,0 FÖLÉ is mehet,
+                // legfeljebb (1 + gain)-szeresére; alulról az egyensúlyi hányad köti.
+                Assert.InRange(dp, DeepTimeErosionGlaciation.PrimaryReliefEqFraction,
+                    1.0 + DeepTimeErosionGlaciation.FluvialDissectionGain);
                 Assert.InRange(ds, DeepTimeErosionGlaciation.SecondaryReliefEqFraction, 1.0);
             }
         }
         // Negatív erózió-idő nincs a modellben (a csúszka 0-tól indul); ha
         // mégis érkezne, a formula matematikailag felerősít — de véges,
         // nem NaN/végtelen értéket kell adnia (a kitevő-korlát miatt).
-        foreach (double t in new[] { -1.0, -100.0, -1e9 })
+        // ND-137 2. kör: a negatív idő „nulla előtt nincs erózió"-ként
+        // értelmeződik (identitás). Korábban matematikailag FELERŐSÍTETT, és a
+        // két felerősítő tényező szorzata ±végtelenbe csordult — ami csendben
+        // megmérgezte volna az egész elevációmezőt.
+        foreach (double t in new[] { -1e-9, -1.0, -100.0, -1e9 })
         {
             DeepTimeErosionGlaciation.ReliefDecayFactors(0.0, t, out double negP, out double negS);
-            Assert.True(double.IsFinite(negP) && double.IsFinite(negS), $"t={t}");
-            Assert.True(negP > 1.0);
+            Assert.Equal(1.0, negP);
+            Assert.Equal(1.0, negS);
         }
     }
 

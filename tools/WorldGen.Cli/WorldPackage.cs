@@ -42,9 +42,28 @@ namespace WorldGen.Cli
         [JsonIgnore]
         public ulong WorldSeed => Convert.ToUInt64(WorldSeedHex, 16);
 
+
+        /// <summary>
+        /// ND-137 2. kor: a parti abrazio referencia-szintje - a STATIKUS (t=0)
+        /// tengerszint. t=0-nal NaN (nincs abrazio, es igy a t=0 hash bitre a
+        /// regi marad).
+        /// </summary>
+        private static double StaticSeaLevelFor(ulong worldSeed, int plateCount, int level, double deepTimeMyr)
+        {
+            if (deepTimeMyr == 0.0)
+                return double.NaN;
+            var field0 = SeaLevelCalibration.ComputeElevationField(worldSeed, plateCount, level);
+            // Ugyanaz a cel-vizarany, mint a viewer `targetWaterFraction`
+            // alapertelmezese (ld. Program.cs).
+            const double defaultTargetWaterFraction = 0.65;
+            return SeaLevelCalibration.CalibrateSeaLevel(field0.Values, defaultTargetWaterFraction);
+        }
+
         public static WorldPackage Create(ulong worldSeed, int plateCount, int level, double deepTimeMyr)
         {
-            var field = SeaLevelCalibration.ComputeElevationFieldAtTime(worldSeed, plateCount, level, deepTimeMyr, deepTimeMyr);
+            var field = SeaLevelCalibration.ComputeElevationFieldAtTime(
+                worldSeed, plateCount, level, deepTimeMyr, deepTimeMyr,
+                StaticSeaLevelFor(worldSeed, plateCount, level, deepTimeMyr));
             byte[] hash = WorldStateHash.ComputeFieldHash(field);
             return new WorldPackage
             {
@@ -100,7 +119,9 @@ namespace WorldGen.Cli
         public bool VerifyByRecomputation(out string recomputedHashHex)
         {
             EnsureCompatible();
-            var field = SeaLevelCalibration.ComputeElevationFieldAtTime(WorldSeed, PlateCount, Level, DeepTimeMyr, DeepTimeMyr);
+            var field = SeaLevelCalibration.ComputeElevationFieldAtTime(
+                WorldSeed, PlateCount, Level, DeepTimeMyr, DeepTimeMyr,
+                StaticSeaLevelFor(WorldSeed, PlateCount, Level, DeepTimeMyr));
             byte[] hash = WorldStateHash.ComputeFieldHash(field);
             recomputedHashHex = WorldStateHash.ToHexString(hash);
             return string.Equals(recomputedHashHex, StateHashHex, StringComparison.OrdinalIgnoreCase);
