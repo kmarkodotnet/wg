@@ -224,3 +224,221 @@ public class DeterministicMathStructuralTests
         Assert.Throws<ArgumentOutOfRangeException>(() => DeterministicMath.Ln(-1.0));
     }
 }
+
+/// <summary>
+/// ND-150 (A21): a DeterministicMath Exp/Ln/Pow ÉLESETEI.
+///
+/// A HIBA, amit ezek fognak meg: az <see cref="DeterministicMath.Exp"/> a
+/// végeredményt bit-manipulációval skálázta, és NEM kezelte az exponens
+/// tartományon kívülre csúszását. Kb. -710 alatt a levont exponens
+/// átcsordult az ELŐJELBITBE, és az eredmény nem 0-hoz tartott, hanem
+/// determinisztikus SZEMÉT lett (mérve az ND-150 előtt: exp(-710) =
+/// -1,4466e+308, exp(-750) = -6,1457e+290, exp(-4e6) = +4,4595e+145,
+/// exp(710) = NaN, exp(1e6) = 6,9566e+271, pow(10, 400) = -3,0943e-217).
+/// Ugyanez a Ln-nél: ln(+végtelen) = 709,78, ln(NaN) = 710,19,
+/// ln(subnormális) 35 nagyságrendet tévedett.
+///
+/// Miért KOMOLY: egy csendes, determinisztikus szemét rosszabb, mint egy
+/// robbanás — az I1 (determinizmus) nem sérül, de az I3/I4 igen, és a hibát
+/// semmi nem jelzi. A korlát ezért a DeterministicMath-ba került, nem
+/// modulonként megismételve.
+/// </summary>
+public class DeterministicMathEdgeCaseTests
+{
+    // ---------------- Exp: alulcsordulás ----------------
+
+    [Theory]
+    [InlineData(-709.0)]
+    [InlineData(-710.0)]
+    [InlineData(-745.0)]
+    [InlineData(-750.0)]
+    [InlineData(-1000.0)]
+    [InlineData(-1e6)]
+    [InlineData(-4e6)]
+    [InlineData(-1e300)]
+    [InlineData(double.NegativeInfinity)]
+    public void ExpUnderflowsToExactZeroNeverToGarbage(double x)
+    {
+        double got = DeterministicMath.Exp(x);
+        Assert.Equal(0.0, got);
+        Assert.False(double.IsNaN(got));
+    }
+
+    /// <summary>
+    /// A LÉNYEG: a régi hiba NEGATÍV (ill. felfelé ugró) értéket adott. Az
+    /// exp SOHA nem lehet negatív, és monoton csökkenőnek kell lennie a
+    /// teljes alulcsordulási átmeneten át.
+    /// </summary>
+    [Fact]
+    public void ExpIsNonNegativeAndMonotonicAcrossTheUnderflowBoundary()
+    {
+        double previous = double.MaxValue;
+        int samples = 0;
+        for (double x = -700.0; x > -760.0; x -= 0.25)
+        {
+            double got = DeterministicMath.Exp(x);
+            Assert.False(double.IsNaN(got));
+            Assert.True(got >= 0.0, "exp(" + x + ") = " + got + " negatív");
+            Assert.True(got <= previous, "exp(" + x + ") = " + got + " nagyobb az előzőnél");
+            previous = got;
+            samples++;
+        }
+        Assert.Equal(240, samples);
+    }
+
+    // ---------------- Exp: túlcsordulás ----------------
+
+    [Theory]
+    [InlineData(710.0)]
+    [InlineData(711.0)]
+    [InlineData(1000.0)]
+    [InlineData(1e6)]
+    [InlineData(1e300)]
+    [InlineData(double.PositiveInfinity)]
+    public void ExpOverflowsToPositiveInfinityNeverToGarbage(double x)
+    {
+        double got = DeterministicMath.Exp(x);
+        Assert.True(double.IsPositiveInfinity(got), "exp(" + x + ") = " + got);
+    }
+
+    [Fact]
+    public void ExpIsNonDecreasingAcrossTheOverflowBoundary()
+    {
+        double previous = 0.0;
+        for (double x = 700.0; x < 760.0; x += 0.25)
+        {
+            double got = DeterministicMath.Exp(x);
+            Assert.False(double.IsNaN(got));
+            Assert.True(got >= previous, "exp(" + x + ") = " + got + " kisebb az előzőnél");
+            previous = got;
+        }
+        Assert.True(double.IsPositiveInfinity(previous));
+    }
+
+    [Fact]
+    public void ExpPropagatesNaN()
+    {
+        Assert.True(double.IsNaN(DeterministicMath.Exp(double.NaN)));
+    }
+
+    /// <summary>
+    /// A VÉDETT tartomány BITRE VÁLTOZATLAN: a javítás csak azt érinti, ami
+    /// eddig szemét volt. A felső határ az utolsó véges érték (~709,78), az
+    /// alsó az, ahol a bit-eltolás még normál double-t ad (~-708,396).
+    /// </summary>
+    [Fact]
+    public void ExpStaysFiniteAndPositiveInsideTheValidRange()
+    {
+        foreach (double x in new[] { -708.0, -700.0, -100.0, -1.0, 0.0, 1.0, 100.0, 700.0, 709.0 })
+        {
+            double got = DeterministicMath.Exp(x);
+            Assert.True(got > 0.0 && !double.IsInfinity(got), "exp(" + x + ") = " + got);
+        }
+        Assert.Equal(1.0, DeterministicMath.Exp(0.0));
+    }
+
+    // ---------------- Ln ----------------
+
+    [Fact]
+    public void LnPropagatesNaNInsteadOfReturningGarbage()
+    {
+        // ND-150 előtt: 710,188178001492 — a NaN <= 0 összehasonlítás hamis,
+        // így a bitbontás simán lefutott a NaN bitminta exponensén.
+        Assert.True(double.IsNaN(DeterministicMath.Ln(double.NaN)));
+    }
+
+    [Fact]
+    public void LnOfPositiveInfinityIsPositiveInfinity()
+    {
+        // ND-150 előtt: 709,782712893384 (a 0x7FF nyers exponensből).
+        Assert.True(double.IsPositiveInfinity(DeterministicMath.Ln(double.PositiveInfinity)));
+    }
+
+    /// <summary>
+    /// Subnormális bemenet: a FrexpBits bitbontása itt hamis mantisszát ad.
+    /// ND-150 előtt ln(5e-324) = -709,09 volt a helyes -744,44 helyett.
+    /// </summary>
+    [Theory]
+    [InlineData(double.Epsilon)]      // 2^-1074, a legkisebb subnormális
+    [InlineData(1e-320)]
+    [InlineData(1e-310)]
+    [InlineData(2.0e-308)]
+    public void LnHandlesSubnormalInput(double x)
+    {
+        double got = DeterministicMath.Ln(x);
+        // Plauzibilitás a System.Math ellen (nem bitpontos elvárás — az Ln
+        // polinomja 1e-8 abszolút hibára van méretezve, ld. ND-27).
+        Assert.True(Math.Abs(got - Math.Log(x)) < 1e-8, "ln(" + x + ") = " + got + ", Math.Log = " + Math.Log(x));
+    }
+
+    [Fact]
+    public void LnIsMonotonicAcrossTheSubnormalBoundary()
+    {
+        double minNormal = 2.2250738585072014E-308; // 2^-1022
+        double previous = DeterministicMath.Ln(minNormal * 4.0);
+        foreach (double x in new[] { minNormal * 2.0, minNormal, minNormal / 2.0, minNormal / 4.0, 1e-320, double.Epsilon })
+        {
+            double got = DeterministicMath.Ln(x);
+            Assert.True(got < previous, "ln(" + x + ") = " + got + " nem kisebb az előzőnél");
+            previous = got;
+        }
+    }
+
+    /// <summary>A normál ág BITRE VÁLTOZATLAN: exp(ln(x)) visszaadja x-et.</summary>
+    [Fact]
+    public void LnRoundTripsThroughExpInsideTheNormalRange()
+    {
+        foreach (double x in new[] { 1e-300, 1e-100, 1e-3, 1.0, 2.0, 1e3, 1e100, 1e300 })
+        {
+            double back = DeterministicMath.Exp(DeterministicMath.Ln(x));
+            Assert.True(Math.Abs(back - x) <= 1e-9 * Math.Abs(x), "exp(ln(" + x + ")) = " + back);
+        }
+    }
+
+    // ---------------- Pow ----------------
+
+    [Fact]
+    public void PowOverflowsToInfinityAndUnderflowsToZero()
+    {
+        // ND-150 előtt: -3,0943e-217 illetve -3,2317e+216 — mindkettő szemét,
+        // és az ELŐJEL is rossz volt.
+        Assert.True(double.IsPositiveInfinity(DeterministicMath.Pow(10.0, 400.0)));
+        Assert.Equal(0.0, DeterministicMath.Pow(10.0, -400.0));
+    }
+
+    [Fact]
+    public void PowKeepsTheDocumentedZeroBaseConvention()
+    {
+        // A x == 0 vizsgálat SZÁNDÉKOSAN az y == 0 előtt van: a 0^0 = 0,0
+        // konvenció az ND-27 óta él, és nem változtatható csendben.
+        Assert.Equal(0.0, DeterministicMath.Pow(0.0, 0.0));
+        Assert.Equal(0.0, DeterministicMath.Pow(0.0, 2.0));
+    }
+
+    [Fact]
+    public void PowWithZeroExponentIsExactlyOneEvenForInfiniteBase()
+    {
+        Assert.Equal(1.0, DeterministicMath.Pow(42.0, 0.0));
+        Assert.Equal(1.0, DeterministicMath.Pow(double.PositiveInfinity, 0.0));
+    }
+
+    [Fact]
+    public void PowPropagatesNaN()
+    {
+        Assert.True(double.IsNaN(DeterministicMath.Pow(double.NaN, 2.0)));
+        Assert.True(double.IsNaN(DeterministicMath.Pow(2.0, double.NaN)));
+    }
+
+    // ---------------- Tisztaság (I2) ----------------
+
+    [Fact]
+    public void EdgeCaseResultsAreRepeatable()
+    {
+        foreach (double x in new[] { -750.0, -710.0, 710.0, 1e6, double.NaN })
+        {
+            double a = DeterministicMath.Exp(x);
+            double b = DeterministicMath.Exp(x);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(a), BitConverter.DoubleToInt64Bits(b));
+        }
+    }
+}

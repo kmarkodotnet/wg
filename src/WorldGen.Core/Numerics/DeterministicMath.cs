@@ -114,7 +114,15 @@ namespace WorldGen.Core.Numerics
             m = BitConverter.Int64BitsToDouble(mantissaBits);
         }
 
-        /// <summary>x * 2^k, EXAKT bit-manipulációval (nincs kerekítés, ha nem túlcsordul).</summary>
+        /// <summary>
+        /// x * 2^k, EXAKT bit-manipulációval (nincs kerekítés).
+        ///
+        /// ND-150: CSAK akkor helyes, ha a megnövelt exponens a NORMÁL double
+        /// tartományban marad ([1, 2046]). A tartományon kívüli esetet a
+        /// <see cref="ScaleByPowerOfTwoChecked"/> fogja meg — ide szándékosan
+        /// nem kerül ellenőrzés, hogy az "exakt bit-eltolás" jelentés
+        /// egyértelmű maradjon.
+        /// </summary>
         private static double ScaleByPowerOfTwo(double x, int k)
         {
             long bits = BitConverter.DoubleToInt64Bits(x);
@@ -124,11 +132,62 @@ namespace WorldGen.Core.Numerics
             return BitConverter.Int64BitsToDouble(newBits);
         }
 
-        /// <summary>x &gt; 0. m in [1,2) -&gt; y=(m-1)/(m+1) in [0,1/3), ln(m)=2*atanh(y)-sor.</summary>
+        /// <summary>
+        /// x * 2^k a NORMÁL tartomány ellenőrzésével. x &gt; 0, véges, normál.
+        ///
+        /// ND-150 (A21): alul 0,0, felül <see cref="double.PositiveInfinity"/>.
+        /// NEM fokozatos alulcsordulás (subnormális eredmény) — azt a
+        /// bit-eltolás nem tudja előállítani. A 0,0-ra vágás DOKUMENTÁLT
+        /// KONVENCIÓ, nem a <see cref="Math.Exp"/> másolata.
+        /// </summary>
+        private static double ScaleByPowerOfTwoChecked(double x, long k)
+        {
+            long bits = BitConverter.DoubleToInt64Bits(x);
+            long rawExponent = (bits >> 52) & 0x7FF;
+            long newExponent = rawExponent + k;
+            if (newExponent <= 0) return 0.0;
+            if (newExponent >= 0x7FF) return double.PositiveInfinity;
+            return ScaleByPowerOfTwo(x, (int)k);
+        }
+
+        /// <summary>
+        /// ND-150: a legkisebb NORMÁL double. Ez alatt a <see cref="FrexpBits"/>
+        /// bitbontása HAMIS értéket ad (a nyers exponens 0, és nincs implicit
+        /// vezető 1-es bit), ezért a subnormális bemenetet fel kell skálázni.
+        /// </summary>
+        private const double MinNormalDouble = 2.2250738585072014E-308; // 2^-1022
+
+        /// <summary>
+        /// 2^-1074 * 2^54 = 2^-1020 &gt; 2^-1022: 54 eltolás MINDEN subnormálisra
+        /// elég, és a 2 hatványával való szorzás EXAKT (nincs kerekítési hiba).
+        /// </summary>
+        private const int LnSubnormalShift = 54;
+        private const double LnSubnormalScale = 18014398509481984.0; // 2^54
+
+        /// <summary>
+        /// x &gt; 0. m in [1,2) -&gt; y=(m-1)/(m+1) in [0,1/3), ln(m)=2*atanh(y)-sor.
+        ///
+        /// ND-150 (A21): NaN -&gt; NaN, +végtelen -&gt; +végtelen, subnormális x -&gt;
+        /// EXAKT felskálázás. Az x &lt;= 0 továbbra is KIVÉTELT dob (nem NaN) —
+        /// ez a modul meglévő szerződése.
+        /// </summary>
         public static double Ln(double x)
         {
+            if (double.IsNaN(x))
+                return x;
             if (x <= 0.0)
                 throw new ArgumentOutOfRangeException(nameof(x), "Ln csak pozitív x-re értelmezett ebben a modulban.");
+            if (double.IsPositiveInfinity(x))
+                return x;
+
+            // A subnormális bemenetet a normál tartományba toljuk, és a kitevőt
+            // a végén vonjuk le — így a NORMÁL ág számítása BITRE VÁLTOZATLAN.
+            int extraExponent = 0;
+            if (x < MinNormalDouble)
+            {
+                x = x * LnSubnormalScale;
+                extraExponent = -LnSubnormalShift;
+            }
 
             FrexpBits(x, out double m, out int e);
             double y = (m - 1.0) / (m + 1.0);
@@ -142,11 +201,32 @@ namespace WorldGen.Core.Numerics
             poly = 1.0 / 3.0 + y2 * poly;
             poly = 1.0 + y2 * poly;
             double lnM = 2.0 * y * poly;
-            return e * Ln2 + lnM;
+            return (e + extraExponent) * Ln2 + lnM;
         }
 
+        /// <summary>
+        /// ND-150: durva argumentum-kapu. A VALÓDI határok szűkebbek
+        /// (túlcsordulás ~709,783, a bit-eltolás alulcsordulása ~-708,396) —
+        /// azokat a <see cref="ScaleByPowerOfTwoChecked"/> kezeli EXAKTAN. Ez
+        /// a kapu csak azért kell, hogy a double -&gt; long konverzió biztonságos
+        /// legyen: a NaN és a nagyon nagy érték konverziója definiálatlan.
+        /// </summary>
+        private const double ExpArgumentGate = 800.0;
+
+        /// <summary>
+        /// e^x. ND-150 (A21): NaN -&gt; NaN, túlcsordulás -&gt; +végtelen,
+        /// alulcsordulás -&gt; 0,0 (nincs fokozatos alulcsordulás, ld.
+        /// <see cref="ScaleByPowerOfTwoChecked"/>).
+        /// </summary>
         public static double Exp(double x)
         {
+            if (double.IsNaN(x))
+                return x;
+            if (x > ExpArgumentGate)
+                return double.PositiveInfinity;
+            if (x < -ExpArgumentGate)
+                return 0.0;
+
             long k = (long)Math.Round(x / Ln2, MidpointRounding.ToEven);
             double r = x - k * Ln2; // [-ln2/2, ln2/2]
 
@@ -162,14 +242,23 @@ namespace WorldGen.Core.Numerics
             poly = 1.0 + r * poly;
             double expR = 1.0 + r * poly;
 
-            return ScaleByPowerOfTwo(expR, (int)k);
+            return ScaleByPowerOfTwoChecked(expR, k);
         }
 
-        /// <summary>x^y, x &gt;= 0. x=0, y&gt;0 esetén 0 (dokumentált konvenció, nem NaN).</summary>
+        /// <summary>
+        /// x^y, x &gt;= 0. x=0 esetén 0 (dokumentált konvenció, nem NaN) — ez a
+        /// vizsgálat SZÁNDÉKOSAN első, így a Pow(0, 0) értéke változatlanul 0,0.
+        ///
+        /// ND-150 (A21): y == 0 rövidzár. Véges x-re numerikusan VÁLTOZATLAN
+        /// (Exp(0 * Ln(x)) = Exp(0) = 1,0), de x = +végtelen mellett feloldja a
+        /// 0 * végtelen = NaN csapdát. A NaN bemenet magától terjed.
+        /// </summary>
         public static double Pow(double x, double y)
         {
             if (x == 0.0)
                 return 0.0;
+            if (y == 0.0)
+                return 1.0;
             return Exp(y * Ln(x));
         }
 

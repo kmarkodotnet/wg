@@ -45,7 +45,7 @@ modul vagy döntés hiányzik) · 👁 élő Unity Play kell hozzá.
 | A15 🟡 | **M13 Fázis 2–4** | Nincs elkezdve: GPU-vezérelt geometria, procedurális mikro-részlet textúra. Az 1. fázis (folytonos árnyalás) kész és megerősített. | backlog M13 |
 | A16 🟡 | **M13 — volumetrikus felhő + AO, színkalibráció** | Nincs elkezdve. A színkalibráció (spec §73) csak a többi látvány-tétel után értelmes. | backlog M13 |
 | A22 🟡 | **Deep-time paraméterlista: kontextus-struct kellene (kódolvasás, 2026-09-26)** | Az ND-137 két köre után az `ElevationWithBoundaryFromWarpedAtTime` **16 paraméteres** (`worldSeed, plateId, tileIdValue, x, y, z, wx, wy, wz, seeds, timeMyr, out isOceanic, gapScale, upliftMax, erosionTimeMyr, staticSeaLevelMeters`), és ugyanez a hármas — `(plateTimeMyr, erosionTimeMyr, staticSeaLevelMeters)` — végigvonul a `BaseAndUpliftFromWarpedAtTime`, a `TerrainPointBasis.EvaluateAtTime`, a `SeaLevelCalibration` és a `RiverPathTracing` teljes láncán, plusz a viewer négy statikus segédfüggvényén. Egy `readonly struct DeepTimeContext { PlateTimeMyr, ErosionTimeMyr, StaticSeaLevelMeters }` ezt egy paraméterre húzza össze, és a következő tag hozzáadását nem újabb ~25 call-site-nyi átvezetéssé teszi. **Tisztán kozmetikai, BIT-SEMLEGES** (nincs numerikus változás, nincs verzióemelés), viszont ~25 hívási hely + tesztek. Azért nem a 2. körben készült el: egy ilyen szélességű refaktor elrejtette volna a valódi funkcionális diffet. | ND-137, C# 9 / netstandard2.1 |
-| A21 🟠 | **`DeterministicMath.Exp` alulcsordulása: szemét 0 helyett (kódolvasás + éleset-teszt, 2026-09-26)** | Az ND-137 éleset-tesztje fogta meg. A `DeterministicMath.Exp` a végeredményt `ScaleByPowerOfTwo` bit-manipulációval skálázza (`rawExponent + k` az exponens-mezőbe), és **nem kezeli az exponens-alulcsordulást**: kb. `-710` alatti argumentumra a levont exponens átcsordul az előjelbitbe, és az eredmény nem 0-hoz tart, hanem determinisztikus SZEMÉT (mérve: `exp(-710)` = `-1,45e+308`, `exp(-750)` = `-6,1e+290`, `exp(-4e6)` = `+4,46e+145`). Ugyanez a túlcsordulási oldalon is fennáll. Ma egyetlen modul sem hajtja ilyen tartományba, és az ND-137 lokális kitevő-korláttal (`MaxDecayExponent = 700`) védekezik — de ez a védelem **modulonként megismétlendő**, ami előbb-utóbb ki fog maradni valahol. **Javaslat:** a korlát a `DeterministicMath.Exp`-be kerüljön (alul 0,0, felül `double.PositiveInfinity`), és a `Ln`/`Pow` is kapjon áttekintést ugyanerre. **Figyelem:** ez minden `Exp`-használót érint, tehát végig kell nézni, hogy egyetlen meglévő KAT-vektor sem esik-e a mai (szemetes) tartományba — ha nem, a változás bitre semleges és NEM seed-törő. | ND-27, ND-118, ND-137, CLAUDE.md |
+| A21 ✅ | **~~`DeterministicMath.Exp` alulcsordulása: szemét 0 helyett~~** | **KÉSZ (2026-09-26, ND-150).** Az ND-137 éleset-tesztje fogta meg; a vizsgálat SZÉLESEBB hibát talált, mint a felvételkor gondoltuk. MÉRT gyökérok: a `ScaleByPowerOfTwo` a `rawExponent + k` összeget közvetlenül az IEEE-754 exponens-mezőbe írja, és nem ellenőrizte, hogy bent marad-e a normál tartományban (`[1, 2046]`) — kicsúszáskor a bitek átfolynak lefelé az **előjelbitbe**, felfelé a NaN-mintákba. Mérve előtte: `exp(-710)` = `-1,4466e+308`, `exp(-750)` = `-6,1457e+290`, `exp(-4e6)` = `+4,4595e+145`, **`exp(710)` = `NaN`**, `exp(711)` = `-1,5331e-308`, `exp(1e6)` = `6,9566e+271`, `exp(NaN)` = **kivétel**; `pow(10, 400)` = `-3,0943e-217` (rossz ELŐJEL!), `pow(10, -400)` = `-3,2317e+216`; és a `Ln` is: `ln(+∞)` = `709,78`, `ln(NaN)` = `710,19`, `ln(5e-324)` = `-709,09` a helyes `-744,44` helyett (35 nagyságrend). Javítás a `DeterministicMath`-ban, NEM modulonként: új `ScaleByPowerOfTwoChecked` (alul `0,0`, felül `+∞`), `Exp` NaN-kapu + durva `±800` argumentum-kapu (a `double → long` konverzió biztonságához — a valódi határt a pontos exponens-ellenőrzés adja), `Ln` NaN/`+∞`/**subnormális** kezelés (exakt `× 2^54` felskálázás), `Pow` `y == 0 → 1,0` rövidzár (feloldja a `0 · ∞ = NaN` csapdát). Elvetve a **fokozatos alulcsordulás** (subnormális eredmény): a bit-eltolás nem tudja előállítani, a `0,0`-ra vágás dokumentált konvenció. Az ND-137 helyi `MaxDecayExponent`-je szándékosan MARAD (eltávolítása bit-változás lenne a `(-708,396; -700)` sávban). **NEM SEED-TÖRŐ, bizonyítva:** 3000 KAT-vektor újraszámolva 0 eltéréssel, a `deterministic_math_vectors.json` újragenerálva bitre azonos (`git diff` üres), és a világ-hash `git stash`-szel mérve **mind a három időpontban változatlan** (`t=0` `2b98af9a…6213738b`, `t=400` `14dc8ad2…59a7ea07`, `t=3000` `823e8ba0…cdcfe7ab`). `WorldGeneratorVersion` marad `"5"`. Tesztek: új `DeterministicMathEdgeCaseTests` (240 mintás monotonitás- és nemnegativitás-kapu az alulcsordulási átmeneten — ez fogja meg az előjelváltást); Release-ben **1675/1675** zöld (Core 673, Viewer 526, App 452, CLI 24), Unity `compilationFailed: false`, 0 konzol-hiba. | **ND-150** (lezárva), ND-27, ND-118, ND-137; [napló](history/2026-09-26-a21-nd150-deterministic-math-edge-cases.md) |
 | A19 ✅ | **A domborzati zaj nem mozog a lemezzel (felhasználói elvárás, 2026-09-22)** | **KÉSZ (2026-09-26, ND-136 (C) opció).** A zaj a lemez saját vonatkoztatási rendszerében értékelődik ki: `PlateMotion.ToPlateFrame` a pontot `R(−ωt)`-vel visszaforgatja, `CrustElevation.ComputeNoiseBasisInPlateFrame` ott mintavételez. A határon a keverés kiterjed **minden** lemezpárra (`BlendedBaseElevationFromPlateFrameBases`) — a régi „csak eltérő kéregtípusnál” kikötés kikerült, különben az azonos típusú határ is varratos lenne. Az ND-35 uplift-maszk szintén a nyertes lemez keretéből jön. **A két előzetes aggály nem igazolódott:** (a) a második zaj-bázis CSAK a keverosávon belül (`gap < 0.005`) számolódik, tehát a költség ~1× + egy keskeny sávnyi extra, nem 2×; (b) a `TerrainPointBasis` WARP-része pozíció-függő maradt, tehát az ND-122/131 lemez-cache `t > 0`-nál is érvényes — csak a három zajtag számolódik újra (`EvaluateAtTime`). Ráadásul a `RiverPathTracing` folytonos nyomvonalkövetése is megkapta a `timeMyr`-t, különben a folyó más terepen futna, mint amit a felhasználó lát. `t = 0` bitre változatlan (külön regressziós teszt); `WorldGeneratorVersion` 2 → 3. | **ND-136** (lezárva), ND-63, ND-122/131, ND-108; ld. A20, C7 |
 | A20 ✅ | **Deep-time erózió: ma csak uplift-relaxáció, nem erózió (felhasználói észrevétel, 2026-09-22)** | **KÉSZ (2026-09-26, ND-137 (B) opció).** A két domborzati relief-zajtag amplitúdója mostantól **külön időállandóval** kopik: `h(t) = base_c + T_p(t)·A_p + T_s(t)·A_s`, ahol `T_i` a tag saját gömbfelszíni átlaga felé relaxál. A hullámhossz-szelektivitás a lényeg — `tau_secondary/tau_primary = f_primary/f_secondary = 5π` a **meglévő zaj-frekvenciákból származtatva**, nem új szabad paraméter —, ettől néz ki egy öreg pajzs simának, de nem laposnak. Vezérlő: `t_eff = (W(|lat|) + 3·f_ice(|lat|))·t`, ahol `W` három-cellás, pontonként kiértékelhető, bit-egzakt csapadék-proxy, `f_ice` pedig a jeges időhányad **zárt alakja** (`0,5 + asin(u)/π`) — így a `GlaciationPeriodMyr`/`AmplitudeK` ciklus végre koptat is, nem csak a jégvonalat mozgatja. **Lerakódás van benne:** ahol a tag az átlaga alatt van (medence, völgytalp), a csillapítás FELEMELI — 500 Myr-nél 161 minta emelkedett, 127 süllyedt, a relief szórása −16,5%. **Átlagtartó** (implicit izosztázia): nullához relaxálva a kontinensek ~490 m-t süllyednének és az ND-38 elárasztaná a világot; mérve a globális eltolódás 3000 Myr-nél −13,8 m. Mérhetően érezhető: kontinentális átlagos elmozdulás 117 m (100 Myr) → 222 m (2 Gyr), max ~950 m. **Menet közben javítva egy pre-existing hiba:** az uplift-relaxációt eddig CSAK a viewer adta hozzá (külön mezőpassz), a `SeaLevelCalibration`, a `RiverPathTracing` és a `worldgen hash` CLI kihagyta — `t > 0`-nál a folyó relaxáció nélküli hegyeken keresett lejtőt, a determinizmus-eszköz meg olyan világot hashelt, amit a viewer nem is jelenít meg. A kopás mostantól TELJES EGÉSZÉBEN a Core-ban van (`ElevationWithBoundaryFromWarpedAtTime`), a viewer külön passza törölve, és a három elevációs út ugyanabban a műveleti sorrendben dolgozik. Az ND-04 sértetlen: zárt alakú, a láncolás max eltérése 1,5e-14. A modul átállt a `DeterministicMath` Exp/Sin/Cos/Asin-jára, tehát **most már bit-determinisztikus**. `t = 0` bitre változatlan — a teljes világ szintjén is igazolva: `worldgen hash --time 0` a változás előtt és után egyaránt `2b98af9a…6213738b` (`--time 400` változik, ahogy kell). `WorldGeneratorVersion` 3 → 4. **2. kör (2026-09-26, „fejezd be ND-137-t"):** megjött az erózió hiányzó FELE, a **folyóvízi bevágódás** — a völgy mélyebbre vágódik, a gerinc marad, tehát a relief NŐ: `D_primary = D_p(t) · (1 + 0,6·fluvialFraction·(1 − exp(−W·t/40 Myr)))`. Mért görbe az egyenlítőn: 1,0000 → **1,2441 (t ≈ 40 Myr, csúcs)** → 0,9252 (200) → 0,4800 (3000), azaz **relief-emelkedés, majd -hanyatlás** — eddig a csúszka csak lapítani tudott. A `fluvialFraction = W/(W+3·f_ice)` **származtatott** (nincs saját konstansa): a gleccser planál, nem szabdal, tehát a jég elnyomja a bevágódást (folyóvízi hányad 1,0000 → 0,0549 a 80. foknál). **Kulcs-belátás:** a (C) opció rács-alapú `FlowAccumulation`-je nem kell — egy procedurális világban a lefolyás-hálózatot maga a zaj HATÁROZZA MEG, tehát a `primary` zajérték nem proxyja, hanem OKA a vízgyűjtőnek. Plusz **parti abrázió**: a tengerszint körüli Gauss-sávban a felszín a STATIKUS (t=0) tengerszint felé planálódik (szirt vissza, self fel), jégtakaró alatt kikapcsol, és **soha nem lő túl** a tengerszinten (külön teszt — egy villogó partvonal lenne a legszembetűnőbb hibaosztály). Két éleset a tesztekből: a negatív idő ±végtelenbe csordult (mostantól „nulla előtt nincs erózió"), és a parti abrázió `progress` kitevője is alulcsordult (ugyanaz az A21). `WorldGeneratorVersion` 4 → 5; `t = 0` bitre változatlan MINDKÉT kör után (`worldgen hash --time 0` = `2b98af9a…6213738b` végig). **Nyitva marad — döntés-köteles:** hálózat menti hordalékszállítás / delta-építés (az ND-137 (C) opciója: `O(N × tile)` minden időlekérdezésnél, és MEGTÖRI a láncolhatóságot, tehát az ND-04 értelmezését módosítja), valamint a lemez vándorlási klímatörténetének integrálása (a `W` nem integrálható analitikusan → fix-`N` kvadratúra, ugyanaz az ND-04 kérdés). | **ND-137** (lezárva, 2 körben), ND-44, ND-04, ND-108, ND-124; ld. B14, A21, A22 |
 
@@ -215,3 +215,76 @@ kódja · M1–M5, M7, M10 alap, M8 numerikus rész.
   **ND-136** (A19), **ND-137** (A20), **ND-138** (C7), **ND-139** (C8),
   **ND-140** (C9) — `docs/04-decisions.md`. A felmérés naplója:
   [tektonikai hiányosságok](history/2026-09-22-tectonics-gap-nd136-140.md).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+----------------------------
+
+
+
+
+
+
+-
+
+Félbehagyott munka (ezek a legfontosabbak)
+
+A7 🟡 — Hőmodell 6–7. fázis
+A hőmodell visszacsatolása (levegő-anomália → szél → hőszállítás) már megvan, sőt kalibrálva is van (0,173 K előfutási eltérés). Elkészült két új adatút is: egy világazonosított, hash-ellenőrzött Core-checkpoint (ND-143) és egy 96 tickes napi Ts/Ta átlag/min/max kimenet (ND-144). Csak épp egyik fogyasztó sem használja őket — a biome-osztályozás, a jégmaszk és a párolgás továbbra is a régi, egyszerűbb hőmérsékletet olvassa. A feladat tehát nem új algoritmus, hanem átkötés + validáció: átállítani a három fogyasztót a napi statisztikára, feloldani a jégmaszk körfüggését (jelenleg körkörös a hivatkozás), és megmérni, mennyibe kerül mindez. A doksiban korábban szereplő „62%" nem mért szám volt.
+
+A8 🟡 — Folyóhálózat gyorsítása
+A Core oldali 4-workeres út bitazonos és offline 2,0–2,2× gyorsabb, a viewerben az előnézet is látszik, és a főszálú mesh-akadást (3,2 / 18,5 s!) az ND-147 képkockákra bontott építése megoldotta (7,8 ms a legnagyobb szelet). Ami hátra van: szünet nélküli, tiszta mérés (az eddigi menetekben Play Pause volt, így a teljes folyóidő nem összevethető), deep-time viselkedés, memóriaprofil, és a B3 látványítélet — ez utóbbi hozzád tartozik.
+
+---
+
+Helyességi tétel — ez a legalattomosabb
+
+A21 🟠 — DeterministicMath.Exp alul-/túlcsordulása
+A függvény bit-manipulációval skálázza a végeredményt (ScaleByPowerOfTwo), és nem figyeli, ha az exponens kifut a double tartományából. Kb. -710 alatt az exponens átcsordul az előjelbitbe, és az eredmény nem 0-hoz tart, hanem determinisztikus szemét: exp(-710) = -1,45e+308, exp(-4e6) = +4,46e+145. A túlcsordulási oldalon ugyanez.
+
+Ma ez senkit nem ér el élesben, mert az ND-137 helyben védekezik (MaxDecayExponent = 700) — de ez a védelem modulonként megismétlendő, és pont ez az a fajta dolog, ami egyszer ki fog maradni. A javítás helye a DeterministicMath.Exp maga (alul 0.0, felül PositiveInfinity), és a Ln/Pow is átnézendő. Előtte végig kell ellenőrizni, hogy egyetlen meglévő KAT-vektor sem esik a ma szemetes tartományba — ha nem, a változás bitre semleges, és nem seed-törő.
+
+---
+
+Kozmetika, de gyűlik a kamat
+
+A22 🟡 — Deep-time kontextus-struct
+Az ElevationWithBoundaryFromWarpedAtTime mostanra 16 paraméteres, és ugyanaz a hármas — (plateTimeMyr, erosionTimeMyr, staticSeaLevelMeters) — végigvonul öt Core-osztályon és négy viewer-segédfüggvényen. Egy readonly struct DeepTimeContext ezt egy paraméterre húzná össze. Bit-semleges, nincs verzióemelés, viszont ~25 hívási hely + tesztek. Azért nem készült el az ND-137 második körében, mert elrejtette volna a valódi funkcionális diffet — de a következő deep-time tag hozzáadása előtt érdemes megcsinálni.
+
+---
+
+Infrastruktúra / döntéshez kötött
+
+A13 🟡 — ND-20, Burst FloatMode.Strict CI-kapu
+Ellenőrizve: a repóban egyetlen [BurstCompile] sincs, tehát ma tárgytalan. De nyitva kell maradnia, mert a Burst alapból FloatMode.Default-tal fordít (átrendezheti a lebegőpontos műveleteket) → az első Burst-használat pillanatában csendben sérül az I1. Javaslat: a CI-kapu előre megírni, üres halmazon is fusson.
+
+A12 🟡 — ND-19, floating origin
+Nem létezik implementáció, M9-re halasztva. Közeli zoomnál és valós léptékű koordinátáknál kezd számítani.
+
+A11 🟡 — Pálya menti (éves) kameramód
+A CameraViewMode.OrbitalFollow létezik az enumban, de nincs implementálva — a tooltip maga bevallja, hogy „egyelőre Szabad kameraként viselkedik". A tengelyforgásos mód kész. Nyitott tervezési kérdések: befagyasztjuk-e a kameracélpontot, fusson-e közben a napi ciklus, és a nem valós lépték miatti kalibráció → ez az A12-be fut bele.
+
+---
+
+Látvány (a hátsó sor)
+
+A15 🟡 — M13 Fázis 2–4: GPU-vezérelt geometria, procedurális mikro-részlet textúra. Nincs elkezdve (az 1. fázis, a folytonos árnyalás, kész).
+
+A16 🟡 — M13 volumetrikus felhő + AO, színkalibráció: nincs elkezdve; a színkalibráció csak a többi látvány-tétel után értelmes.
+
+A14 🟡 — ND-21, HDRP volumetrikus felhő űrből: mindhárom HDRP-asset supportVolumetricClouds: 0, a jelenlegi felhő a saját mesh-alapú MVP. A prototípus-ellenőrzés (működik-e bolygó-léptékben, űrből) nem történt meg — ez egy nyitott döntés bemenete, nem kész feladat.
+
+A10 🟡 — ND-05 hibrid régió-szegmentálás maradék két tagja: az ND-127 a vízgyűjtő-tagot rendbe tette (100% lefedettség), de a biome-klaszter és a domborzati törés hiányzik — ugyanazon a cella-gráfon más összevonási költségfüggvényként jönne be. Csak a B5 vizuális ítélet után érdemes.

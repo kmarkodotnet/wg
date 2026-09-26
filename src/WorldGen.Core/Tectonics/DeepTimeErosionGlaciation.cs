@@ -264,14 +264,18 @@ namespace WorldGen.Core.Tectonics
         /// Az a kitevo-hatar, ahol az exp mar ugyis 1e-304 alatti, tehat a
         /// csillapito bitre az egyensulyi hanyad.
         ///
-        /// MIERT KELL EXPLICIT KORLAT: a <see cref="DeterministicMath.Exp"/>
-        /// a vegeredmenyt bit-manipulacioval skalazza (ScaleByPowerOfTwo), es
-        /// NEM kezeli az exponens-alulcsordulast - kb. -710 alatt nem 0-hoz
-        /// tart, hanem SZEMETET ad (a levont exponens atcsordul az
-        /// elojelbitbe). A modellben ez sosem fordulna elo (a deep-time
-        /// csuszka Gyr-lepteku, a kitevo igy ~80 alatt marad), de egy csendes,
-        /// determinisztikus szemet rosszabb, mint egy explicit hatar.
-        /// Kulon feljegyezve - ez a DeterministicMath sajat hianyossaga.
+        /// MIERT VOLT SZUKSEG EXPLICIT KORLATRA: a
+        /// <see cref="DeterministicMath.Exp"/> a vegeredmenyt
+        /// bit-manipulacioval skalazza (ScaleByPowerOfTwo), es NEM kezelte az
+        /// exponens-alulcsordulast - kb. -710 alatt nem 0-hoz tartott, hanem
+        /// SZEMETET adott (a levont exponens atcsordult az elojelbitbe).
+        ///
+        /// ND-150 (A21) EZT LEZARTA: a korlat mostantol magaban az Exp-ben van
+        /// (alul 0,0, felul +vegtelen), tehat ez a helyi hatar MAR NEM az
+        /// egyetlen vedelem. Szandekosan BENNMARAD megis: eltavolitasa
+        /// bit-valtozas lenne a (-708,396; -700) savban (ott az Exp valos,
+        /// apro erteket ad, a rovidzar viszont az egyensulyi hanyadot). A
+        /// modellben ez a sav nem elerheto, de a valtoztatasnak nincs haszna.
         /// </summary>
         private const double MaxDecayExponent = 700.0;
 
@@ -378,8 +382,9 @@ namespace WorldGen.Core.Tectonics
             double strength = CoastalPlaningFraction * band * (1.0 - GlaciatedFraction(absLatitudeRad));
             if (strength == 0.0)
                 return 0.0;
-            // A kitevo-korlat ITT IS kell (ld. MaxDecayExponent): nagy eroziós
-            // idonel a -t/tau kitevo -710 ala megy, es az Exp szemetet adna.
+            // A kitevo-korlat ITT IS ervenyes (ld. MaxDecayExponent): nagy
+            // eroziós idonel a -t/tau kitevo -710 ala megy. ND-150 ota az Exp
+            // maga is 0,0-t ad ott, de a rovidzar a pontos 1,0-t garantalja.
             double progressExponent = -erosionTimeMyr / CoastalAbrasionTauMyr;
             double progress;
             if (progressExponent < -MaxDecayExponent)

@@ -7612,6 +7612,113 @@ A/B bármikor megismételhető.
 kimaradtak — a maszk maga viszont a `TileNeighbors.Neighbor` vetítéses útján
 a varratokat is kezeli.
 
+### ND-150 — `DeterministicMath` Exp/Ln/Pow tartomány-élesetek (A21, ELFOGADVA, implementálva)
+
+**Honnan jött:** az ND-137 (A20) éleset-tesztje fogta meg. Ott a javítás
+*helyi* volt (`DeepTimeErosionGlaciation.MaxDecayExponent = 700`), és a
+kódkomment maga jegyezte fel, hogy ez „a `DeterministicMath` saját
+hiányossága". Ez az ND a hiányosságot magát zárja le.
+
+**MÉRT gyökérok.** Az `Exp` a Taylor-sor eredményét `ScaleByPowerOfTwo`
+bit-manipulációval skálázza: a `rawExponent + k` összeg közvetlenül az
+IEEE-754 exponens-mezőbe íródik. A művelet **nem ellenőrizte**, hogy az
+összeg bent marad-e a normál double tartományban (`[1, 2046]`). Ha kicsúszik,
+a bitek átfolynak a szomszédos mezőkbe — lefelé az **előjelbitbe**, felfelé a
+NaN/végtelen mintákba. Az eredmény nem `0`-hoz vagy `+∞`-hez tart, hanem
+determinisztikus **szemét**. A `Ln` ugyanígy: a `FrexpBits` bitbontása normál
+double-t vár, és a NaN nem esik bele a `x <= 0` kapuba.
+
+Mérve a javítás előtt (Python-orákulum, ugyanaz az algoritmus mint a C#):
+
+| bemenet | ND-150 előtt | helyes | ND-150 után |
+|---|---|---|---|
+| `exp(-710)` | `-1,4466e+308` | `4,476e-309` | `0,0` |
+| `exp(-750)` | `-6,1457e+290` | alulcsordulás | `0,0` |
+| `exp(-4e6)` | `+4,4595e+145` | alulcsordulás | `0,0` |
+| `exp(710)` | `NaN` | túlcsordulás | `+∞` |
+| `exp(711)` | `-1,5331e-308` | túlcsordulás | `+∞` |
+| `exp(1e6)` | `6,9566e+271` | túlcsordulás | `+∞` |
+| `exp(NaN)` | kivétel (`float NaN to integer`) | `NaN` | `NaN` |
+| `ln(5e-324)` | `-709,09` | `-744,44` | `-744,44` |
+| `ln(1e-310)` | `-709,085` | `-713,801` | `-713,801` |
+| `ln(+∞)` | `709,7827` | `+∞` | `+∞` |
+| `ln(NaN)` | `710,1882` | `NaN` | `NaN` |
+| `pow(10, 400)` | `-3,0943e-217` | túlcsordulás | `+∞` |
+| `pow(10, -400)` | `-3,2317e+216` | alulcsordulás | `0,0` |
+| `pow(+∞, 0)` | `1,0` | `1,0` | `1,0` |
+| `pow(+∞, 2)` | `-1,0` | `+∞` | `+∞` |
+
+**Miért komoly, ha ma egy modul sem hajt ilyen tartományba.** Az I1
+(determinizmus) **nem** sérül — a szemét minden platformon ugyanaz a szemét.
+Az I3/I4 viszont sérül, és **semmi nem jelzi**: nincs NaN, nincs kivétel,
+nincs vizuális robbanás, csak egy hibás szám a láncban. A `pow(10, 400)`
+előjelváltása pontosan az a hibaosztály, ami hónapokig elbújik.
+
+**A DÖNTÉS: a korlát a `DeterministicMath`-ba kerül, nem modulonként.** Az
+ND-137 helyi `MaxDecayExponent`-je működött, de minden új `Exp`-használónak
+meg kellett volna ismételnie — ez előbb-utóbb kimarad valahol. A helyes hely
+a függvény maga.
+
+**Megoldás.**
+
+1. **`ScaleByPowerOfTwoChecked`** — új, ellenőrző változat: a megnövelt
+   exponens `<= 0` → `0,0`, `>= 0x7FF` → `+∞`. A nyers `ScaleByPowerOfTwo`
+   szándékosan ELLENŐRZÉS NÉLKÜL marad, hogy az „exakt bit-eltolás" jelentés
+   egyértelmű legyen.
+2. **`Exp` durva argumentum-kapu** (`ExpArgumentGate = 800,0`) — NEM a valódi
+   határ (az `709,783` / `-708,396`, azt a pont 1. kezeli exaktan), hanem
+   azért kell, hogy a `double → long` konverzió biztonságos legyen: a NaN
+   konverziója kivételt dob, a nagyon nagy érték eredménye definiálatlan.
+   Plusz explicit `NaN → NaN`.
+3. **`Ln`** — `NaN → NaN`, `+∞ → +∞`, és a **subnormális** bemenet exakt
+   felskálázása (`× 2^54`, majd `-54` a kitevőből). A `2` hatványával való
+   szorzás kerekítésmentes, és 54 eltolás minden subnormálisra elég
+   (`2^-1074 · 2^54 = 2^-1020 > 2^-1022`). Az `x <= 0` **továbbra is
+   kivételt dob** — ez a modul meglévő szerződése, nem változtattuk.
+4. **`Pow`** — `y == 0 → 1,0` rövidzár. Véges `x`-re numerikusan változatlan
+   (`Exp(0 · Ln(x)) = Exp(0) = 1,0`), de `x = +∞` mellett feloldja a
+   `0 · ∞ = NaN` csapdát. A `x == 0` vizsgálat **szándékosan előbb** van, így
+   a `pow(0, 0) = 0,0` ND-27-es konvenció bitre változatlan.
+
+**Alternatíva, amit ELVETETTÜNK: fokozatos alulcsordulás** (subnormális
+eredmény a `[-745, -708,4]` sávban, ahogy a `Math.Exp` teszi). A bit-eltolás
+ezt nem tudja előállítani — külön, mantissza-eltolós utat igényelne, aminek a
+kerekítése platformfüggetlen bizonyítást kérne. A `0,0`-ra vágás
+**dokumentált konvenció**; a fizikai modellekben egy `1e-309`-es és egy `0`-s
+csillapító között nincs érdemi különbség.
+
+**Az ND-137 helyi korlátja MARAD.** Redundáns, de eltávolítása bit-változás
+lenne a `(-708,396, -700)` sávban (ott az `Exp` valós, apró értéket ad, a
+helyi rövidzár viszont az egyensúlyi hányadot). Nem elérhető a modellben, de
+nem is szükséges hozzányúlni.
+
+**NEM SEED-TÖRŐ — bizonyítva.** Minden megváltozott érték a korábban szemetes
+tartományban van; a védett sáv bitre változatlan.
+
+- **3000 KAT-vektor** (`sinCos`, `pow`, `atan`, `asin`/`acos`, `atan2`,
+  `tanh`) újraszámolva a javított orákulummal: **0 eltérés**. A
+  `deterministic_math_vectors.json` újragenerálva **bitre azonos**
+  (`git diff` üres).
+- A `pow`-vektorok belső `Exp`-argumentuma `[-34,14; 33,15]`, a `tanh`-é
+  `>= -40` — messze a biztonságos `[-708,396; 709,783]` sávon belül.
+- **Világ-hash** (`worldgen hash --seed A7C944210000 --plates 20 --level 6`),
+  `git stash`-szel a változás előtti kód ellen mérve:
+
+  | `--time` | előtte | utána |
+  |---|---|---|
+  | 0 | `2b98af9a…6213738b` | `2b98af9a…6213738b` — azonos |
+  | 400 | `14dc8ad2…59a7ea07` | `14dc8ad2…59a7ea07` — azonos |
+  | 3000 | `823e8ba0…cdcfe7ab` | `823e8ba0…cdcfe7ab` — azonos |
+
+  A `WorldGeneratorVersion` **marad `"5"`**.
+
+**Tesztek.** Új `DeterministicMathEdgeCaseTests` osztály: alul-/túlcsordulás
+`Theory`-kkal, **monotonitás és nemnegativitás a teljes alulcsordulási
+átmeneten** (240 minta — ez fogja meg a régi hiba előjelváltását), NaN-
+terjedés, subnormális `Ln` plauzibilitás a `Math.Log` ellen, `Exp(Ln(x))`
+körbejárás, `Pow`-élesetek, és ismételhetőség (I2).
+
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

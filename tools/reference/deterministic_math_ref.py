@@ -128,7 +128,15 @@ def _frexp_bits(x):
 
 
 def _scale_by_power_of_two(x, k):
-    """x * 2^k, EXAKT bit-manipulacioval (nincs kerekites, ha nem tulcsordul)."""
+    """
+    x * 2^k, EXAKT bit-manipulacioval (nincs kerekites, ha nem tul-/alulcsordul).
+
+    ND-150: a nyers valtozat CSAK akkor helyes, ha a megnovelt exponens bent
+    marad a NORMAL double tartomanyban ([1, 2046]). A kivul eso eset kezelese
+    a _scale_by_power_of_two_checked dolga - ide szandekosan nem kerul
+    ellenorzes, hogy a fuggveny "exakt bit-eltolas" jelentese egyertelmu
+    maradjon.
+    """
     bits = struct.unpack('>Q', struct.pack('>d', x))[0]
     raw_exponent = (bits >> 52) & 0x7FF
     new_exponent = raw_exponent + k
@@ -136,10 +144,53 @@ def _scale_by_power_of_two(x, k):
     return struct.unpack('>d', struct.pack('>Q', new_bits & 0xFFFFFFFFFFFFFFFF))[0]
 
 
+def _scale_by_power_of_two_checked(x, k):
+    """
+    x * 2^k a NORMAL tartomany ellenorzesevel. x > 0, veges, normal.
+
+    ND-150: alul 0.0, felul +inf - nem "fokozatos alulcsordulas"
+    (subnormalis eredmeny), mert azt a bit-eltolas nem tudja eloallitani.
+    A 0.0-ra vagas DOKUMENTALT KONVENCIO, nem a math.exp masolata.
+    """
+    bits = struct.unpack('>Q', struct.pack('>d', x))[0]
+    raw_exponent = (bits >> 52) & 0x7FF
+    new_exponent = raw_exponent + k
+    if new_exponent <= 0:
+        return 0.0
+    if new_exponent >= 0x7FF:
+        return math.inf
+    return _scale_by_power_of_two(x, k)
+
+
+# ND-150: a legkisebb NORMAL double. Ez alatt a _frexp_bits bitbontasa
+# HAMIS erteket ad (a raw_exponent 0, es az implicit vezeto 1-es bit nem
+# letezik), ezert a subnormalis bemenetet elobb fel kell skalazni.
+_MIN_NORMAL = 2.0 ** -1022
+# 2^-1074 * 2^54 = 2^-1020 > 2^-1022: 54 eltolas MINDEN subnormalisra eleg,
+# es a 2 hatvanyaval valo szorzas EXAKT (nincs kerekitesi hiba).
+_LN_SUBNORMAL_SHIFT = 54
+_LN_SUBNORMAL_SCALE = 2.0 ** _LN_SUBNORMAL_SHIFT
+
+
 def ln(x):
-    """x > 0. m in [1,2) -> y=(m-1)/(m+1) in [0, 1/3), ln(m)=2*atanh(y)-sor."""
+    """
+    x > 0. m in [1,2) -> y=(m-1)/(m+1) in [0, 1/3), ln(m)=2*atanh(y)-sor.
+
+    ND-150: NaN -> NaN, +inf -> +inf, subnormalis x -> exakt felskalazas.
+    A x <= 0 tovabbra is KIVETEL (nem NaN) - ez a modul meglevo szerzodese.
+    """
+    if x != x:            # NaN
+        return x
     if x <= 0.0:
         raise ValueError("ln csak pozitiv x-re ertelmezett ebben a modulban")
+    if x == math.inf:
+        return x
+    # A subnormalis bemenetet a normal tartomanyba toljuk, es a kitevot a
+    # vegen vonjuk le - igy a NORMAL ag szamitasa BITRE VALTOZATLAN marad.
+    extra_exponent = 0
+    if x < _MIN_NORMAL:
+        x = x * _LN_SUBNORMAL_SCALE
+        extra_exponent = -_LN_SUBNORMAL_SHIFT
     m, e = _frexp_bits(x)
     y = (m - 1.0) / (m + 1.0)
     y2 = y * y
@@ -156,10 +207,28 @@ def ln(x):
     poly = c3 + y2 * poly
     poly = c1 + y2 * poly
     ln_m = 2.0 * y * poly
-    return e * LN2 + ln_m
+    return (e + extra_exponent) * LN2 + ln_m
+
+
+# ND-150: a durva argumentum-kapu. A VALODI hatarok szukebbek
+# (tulcsordulas ~709.783, a bit-eltolas alulcsordulasa ~-708.396) - azokat
+# a _scale_by_power_of_two_checked kezeli EXAKTAN. Ez a kapu csak azert
+# kell, hogy a double -> int kerekites/konverzio biztonsagos legyen: a NaN
+# konverzioja kivetelt dob, a nagyon nagy erteke pedig definialatlan.
+_EXP_ARG_GATE = 800.0
 
 
 def exp(x):
+    """
+    e^x. ND-150: NaN -> NaN, tulcsordulas -> +inf, alulcsordulas -> 0.0
+    (nincs fokozatos alulcsordulas, ld. _scale_by_power_of_two_checked).
+    """
+    if x != x:            # NaN
+        return x
+    if x > _EXP_ARG_GATE:
+        return math.inf
+    if x < -_EXP_ARG_GATE:
+        return 0.0
     k = _round_half_even(x / LN2)
     r = x - k * LN2  # [-ln2/2, ln2/2]
     c10, c9, c8, c7, c6, c5, c4, c3, c2 = (
@@ -177,13 +246,22 @@ def exp(x):
     poly = c2 + r * poly
     poly = 1.0 + r * poly
     exp_r = 1.0 + r * poly
-    return _scale_by_power_of_two(exp_r, int(k))
+    return _scale_by_power_of_two_checked(exp_r, int(k))
 
 
 def pow_(x, y):
-    """x^y, x >= 0. x=0, y>0 -> 0 (dokumentalt konvencio, nem NaN)."""
+    """
+    x^y, x >= 0. x=0 -> 0 (dokumentalt konvencio, nem NaN) - ez a vizsgalat
+    SZANDEKOSAN elso, igy a pow(0, 0) erteke valtozatlanul 0.0 marad.
+
+    ND-150: y == 0 -> 1.0 rovidzar. Veges x-re ez numerikusan valtozatlan
+    (exp(0 * ln(x)) = exp(0) = 1.0), de a x = +inf eseten megoldja a 0 * inf
+    = NaN csapdat. A NaN bemenet magatol terjed (ln/exp atengedi).
+    """
     if x == 0.0:
         return 0.0
+    if y == 0.0:
+        return 1.0
     return exp(y * ln(x))
 
 
