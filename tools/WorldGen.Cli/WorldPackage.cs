@@ -44,7 +44,7 @@ namespace WorldGen.Cli
 
         public static WorldPackage Create(ulong worldSeed, int plateCount, int level, double deepTimeMyr)
         {
-            var field = SeaLevelCalibration.ComputeElevationFieldAtTime(worldSeed, plateCount, level, deepTimeMyr);
+            var field = SeaLevelCalibration.ComputeElevationFieldAtTime(worldSeed, plateCount, level, deepTimeMyr, deepTimeMyr);
             byte[] hash = WorldStateHash.ComputeFieldHash(field);
             return new WorldPackage
             {
@@ -100,7 +100,7 @@ namespace WorldGen.Cli
         public bool VerifyByRecomputation(out string recomputedHashHex)
         {
             EnsureCompatible();
-            var field = SeaLevelCalibration.ComputeElevationFieldAtTime(WorldSeed, PlateCount, Level, DeepTimeMyr);
+            var field = SeaLevelCalibration.ComputeElevationFieldAtTime(WorldSeed, PlateCount, Level, DeepTimeMyr, DeepTimeMyr);
             byte[] hash = WorldStateHash.ComputeFieldHash(field);
             recomputedHashHex = WorldStateHash.ToHexString(hash);
             return string.Equals(recomputedHashHex, StateHashHex, StringComparison.OrdinalIgnoreCase);

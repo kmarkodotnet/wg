@@ -113,22 +113,61 @@ def plate_frame_noise_basis(world_seed, plate_id, position, time_myr):
     return primary, mask, secondary
 
 
-def base_elevation_from_basis(world_seed, plate_id, primary, mask, secondary):
+def base_elevation_from_basis(world_seed, plate_id, primary, mask, secondary,
+                              primary_decay=1.0, secondary_decay=1.0):
     """A kereg-tipus bazis + a mar kiszamolt zaj-tagok osszeallitasa -
-    ugyanaz a muveleti sorrend, mint crust_elevation_ref.base_elevation-ben."""
+    ugyanaz a muveleti sorrend, mint crust_elevation_ref.base_elevation-ben.
+
+    ND-137 (A20): a ket zajtag KULON csillapitohatot kap (primary_decay /
+    secondary_decay) - ez a deep-time relief-erozio "hullamhossz-szelektiv"
+    tagja (a rovid hullamhosszu elsodleges relief gyorsabban kopik, mint a
+    regionalis masodlagos hullamzas). A tenyezoket a HIVO szamolja ki
+    (erosion_glaciation_deep_time_ref.relief_decay_factors), hogy ez a modul
+    ne fuggjon az eroziostol - nincs korkoros import.
+
+    A csillapitas a relief-TAG GOMBFELSZINI ATLAGA fele tart, nem nulla fele
+    (*_RELIEF_SPHERICAL_MEAN, ld. crust_elevation_ref): igy a relief SIMUL
+    (csucs le, medence fel, telitesben peneplan), de a kontinensek
+    atlagmagassaga megmarad - implicit izosztatikus kompenzacio. Nulla fele
+    relaxalva a kontinensek ~490 m-t sullyednenek, ami fiktiv
+    tomegveszteseg lenne (nincs izosztazia-modellunk, ami visszaemelne).
+
+    FONTOS: az elsodleges tagnal a MASZKKAL MAR OSSZESZOROZVA relaxalunk
+    (`primary * mask`), nem a nyers zajertekre. Kulonben az `atlag * mask *
+    amplitudo` resz csillapitatlan maradna, es a hegysegov a vegtelensegig
+    orizne egy 1300 m-es, mask-alaku reliefet.
+
+    decay = 1.0-nal ROVIDZAR az EREDETI kifejezesre, tehat BITRE valtozatlan
+    (az `m + (x - m) * 1.0` alak nem adna vissza egzaktul x-et)."""
     from crust_elevation_ref import (
         OCEANIC_BASE_M, CONTINENTAL_BASE_M, NOISE_AMPLITUDE_M,
         OCEANIC_NOISE_FACTOR, SECONDARY_NOISE_AMPLITUDE_M,
+        PRIMARY_RELIEF_SPHERICAL_MEAN, SECONDARY_RELIEF_SPHERICAL_MEAN,
     )
     oceanic = is_oceanic(world_seed, plate_id)
     base = OCEANIC_BASE_M if oceanic else CONTINENTAL_BASE_M
     amplitude = NOISE_AMPLITUDE_M * (OCEANIC_NOISE_FACTOR if oceanic else 1.0)
     secondary_amplitude = SECONDARY_NOISE_AMPLITUDE_M * (OCEANIC_NOISE_FACTOR if oceanic else 1.0)
-    return base + primary * mask * amplitude + secondary * secondary_amplitude, oceanic
+    if primary_decay == 1.0 and secondary_decay == 1.0:
+        return base + primary * mask * amplitude + secondary * secondary_amplitude, oceanic
+    primary_term = eroded_relief_term(
+        primary * mask, PRIMARY_RELIEF_SPHERICAL_MEAN, primary_decay)
+    secondary_term = eroded_relief_term(
+        secondary, SECONDARY_RELIEF_SPHERICAL_MEAN, secondary_decay)
+    return base + primary_term * amplitude + secondary_term * secondary_amplitude, oceanic
+
+
+def eroded_relief_term(term, spherical_mean, decay):
+    """Egy dimenziotlan relief-tag csillapitott erteke: a gombfelszini
+    atlaga fele relaxal. decay = 1.0 -> valtozatlan (egzakt rovidzar)."""
+    if decay == 1.0:
+        return term
+    return spherical_mean + (term - spherical_mean) * decay
 
 
 def blended_base_elevation_plate_frame(world_seed, best, second, best_index, second_index,
-                                        position, time_myr, blend_gap=BOUNDARY_BLEND_GAP):
+                                        position, time_myr, blend_gap=BOUNDARY_BLEND_GAP,
+                                        primary_decay=1.0, secondary_decay=1.0):
     """ND-90 keveres, MINDEN hataron (nem csak kereg-tipus-valtonal), a ket
     lemez SAJAT kereteben mintavetelezett zajjal. Visszaadja a nyertes
     lemez kereteben szamolt mountain_mask-ot is, mert az uplift ugyanazt
@@ -138,7 +177,8 @@ def blended_base_elevation_plate_frame(world_seed, best, second, best_index, sec
     b_primary, b_mask, b_secondary = plate_frame_noise_basis(
         world_seed, best_index, position, time_myr)
     best_elevation, best_oceanic = base_elevation_from_basis(
-        world_seed, best_index, b_primary, b_mask, b_secondary)
+        world_seed, best_index, b_primary, b_mask, b_secondary,
+        primary_decay, secondary_decay)
 
     gap = best - second
     if second_index < 0 or gap >= blend_gap or not blend_gap > 0.0:
@@ -147,7 +187,8 @@ def blended_base_elevation_plate_frame(world_seed, best, second, best_index, sec
     s_primary, s_mask, s_secondary = plate_frame_noise_basis(
         world_seed, second_index, position, time_myr)
     second_elevation, _ = base_elevation_from_basis(
-        world_seed, second_index, s_primary, s_mask, s_secondary)
+        world_seed, second_index, s_primary, s_mask, s_secondary,
+        primary_decay, secondary_decay)
 
     normalized_gap = gap / blend_gap
     smooth_gap = normalized_gap * normalized_gap * (3.0 - 2.0 * normalized_gap)
@@ -173,7 +214,8 @@ def boundary_uplift_from_nearest(world_seed, best, second, best_index, second_in
 
 
 def elevation_with_boundary_plate_frame(world_seed, position, seeds, time_myr,
-                                         gap_scale=GAP_SCALE, uplift_max=UPLIFT_MAX_M):
+                                         gap_scale=GAP_SCALE, uplift_max=UPLIFT_MAX_M,
+                                         primary_decay=1.0, secondary_decay=1.0):
     """Az alap-elevacio ES a (relaxalatlan) hatar-uplift KULON, lemez-keretes
     zajjal. A ket tagot a hivo adja ossze - a deep-time ut CSAK az upliftre
     alkalmaz relaxaciot, ezert nincs ertelme eloszor osszeadni, majd
@@ -187,7 +229,8 @@ def elevation_with_boundary_plate_frame(world_seed, position, seeds, time_myr,
     warped = warp_position(world_seed, position)
     best, second, best_idx, second_idx = two_best_dots_with_indices(warped, seeds)
     base, oceanic, mask = blended_base_elevation_plate_frame(
-        world_seed, best, second, best_idx, second_idx, position, time_myr)
+        world_seed, best, second, best_idx, second_idx, position, time_myr,
+        BOUNDARY_BLEND_GAP, primary_decay, secondary_decay)
     uplift = boundary_uplift_from_nearest(
         world_seed, best, second, best_idx, second_idx, mask, gap_scale, uplift_max)
     return base, uplift, oceanic

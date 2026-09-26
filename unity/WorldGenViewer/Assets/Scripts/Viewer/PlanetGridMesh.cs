@@ -1020,6 +1020,10 @@ namespace WorldGen.Viewer
             // domborzatot lassa, mint a megjelenitett mezo. Pillanatkep, mert
             // ez hatterszalon fut - a mezo kozben valtozhat.
             double riverPlateTimeMyr = deepTimeMyr;
+            // ND-137 (A20): a folyo a MAR erodalt terepen fusson - kulonben a
+            // nyomvonal egy masik domborzaton keresne a lejtot, mint amit a
+            // felhasznalo lat. Ugyanaz a kapcsolo vezerli, mint a mezot.
+            double riverErosionTimeMyr = showDeepTimeErosion ? deepTimeMyr : 0.0;
             _riverRefinementCancellation = new System.Threading.CancellationTokenSource();
             System.Threading.CancellationToken cancellation = _riverRefinementCancellation.Token;
             _pendingRiverRefinementGeneration = _riverRefinementGeneration;
@@ -1034,7 +1038,7 @@ namespace WorldGen.Viewer
                             RiverPathTracing.BuildRiverNetworkFromSources(
                                 seed, seeds, seaLevel, sourceSnapshot,
                                 RiverPathTracing.DefaultFineDepth,
-                                timeMyr: riverPlateTimeMyr);
+                                timeMyr: riverPlateTimeMyr, erosionTimeMyr: riverErosionTimeMyr);
                         cancellation.ThrowIfCancellationRequested();
                         var preview = new PendingCoarseRiverNetwork
                         {
@@ -1058,7 +1062,7 @@ namespace WorldGen.Viewer
                         RiverPathTracing.DefaultFineDepth, stepMeters,
                         cancellation: cancellation,
                         maxDegreeOfParallelism: RiverRefinementWorkerCount,
-                        timeMyr: riverPlateTimeMyr);
+                        timeMyr: riverPlateTimeMyr, erosionTimeMyr: riverErosionTimeMyr);
                 },
                 cancellation, System.Threading.Tasks.TaskCreationOptions.LongRunning,
                 System.Threading.Tasks.TaskScheduler.Default);
@@ -2550,7 +2554,13 @@ namespace WorldGen.Viewer
 
             // A MAR verifikalt M4/M7/M11 Core-modulokat hivjuk kozvetlenul -
             // nincs duplikalt elevation-/folyoszamitas.
-            Dictionary<TileId, double> field = SeaLevelCalibration.ComputeElevationFieldAtTime(seed, plateCount, level, deepTimeMyr);
+            // ND-137 (A20): az erozios idot MAR ITT be kell allitani - a
+            // relief-kopas a Core mezoszamitas RESZE lett (nem utolagos
+            // korrekcio, mint az uplift-relaxacio).
+            _adaptiveErosionTimeMyr = showDeepTimeErosion ? deepTimeMyr : 0.0;
+            _adaptivePlateTimeMyr = deepTimeMyr;
+            Dictionary<TileId, double> field = SeaLevelCalibration.ComputeElevationFieldAtTime(
+                seed, plateCount, level, deepTimeMyr, _adaptiveErosionTimeMyr);
             // A becsapodas mezo-hatasa a MAR kiszamolt krater-listaval, a Core
             // ImpactCratering.ApplyToField-jen keresztul - igy a mezo-hatas
             // BITRE ugyanaz a fuggveny (ElevationDelta), mint a sarok/tile-kozep
@@ -2558,17 +2568,14 @@ namespace WorldGen.Viewer
             // szimulacios matekot (korabban ez a ciklus inline volt).
             field = ImpactCratering.ApplyToField(field, craters);
 
-            // M10 deep-time erozio a tile-KOZEPU mezore is (nem csak a
-            // renderelt geometriara): igy a tengerszint-kalibracio ES az ocean/
-            // folyo/to/jeg besorolas UGYANAZT az erodalt domborzatot latja, mint
-            // a ComputeElevationAtPoint-bol szarmazo sarok-geometria. A
-            // field[tile] = baseElev(+jitter) + uplift (+crater); CSAK az uplift-
-            // reszt relaxaljuk (+= relaxedUplift - uplift), a base/jitter/crater
-            // valtozatlan. Ugyanaz a Core-keplet, mint ComputeElevationAtPoint-ban.
-            _adaptiveErosionTimeMyr = showDeepTimeErosion ? deepTimeMyr : 0.0;
-            _adaptivePlateTimeMyr = deepTimeMyr;
-            field = ApplyDeepTimeErosionToField(
-                field, seed, seeds, _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr);
+            // ND-137 (A20): a deep-time kopas TELJES EGESZEBEN a Core-ban
+            // tortenik (SeaLevelCalibration -> ElevationWithBoundaryFromWarpedAtTime):
+            // a relief-zajtagok csillapitasa ES a lemezhatar-uplift relaxacioja
+            // is. Korabban az uplift-relaxaciot itt, egy kulon passzban adtuk
+            // hozza (ApplyDeepTimeErosionToField) - amibol az kovetkezett, hogy
+            // a Core-t hivo TOBBI fogyaszto (folyo-nyomvonal, `worldgen hash`)
+            // egyszeruen kihagyta. A kraterek UTANA jonnek, ugyanabban a
+            // sorrendben, mint a pontszeru ComputeElevationAtPointFromBasis-ban.
             PerfLog($"Build() elevation+crater+erosion(level={level}, tiles={field.Count})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
             buildPhaseStopwatch.Restart();
 
@@ -5766,17 +5773,21 @@ namespace WorldGen.Viewer
                 // fuggo), a ZAJ viszont t>0-nal a lemez kereteben szamolodik ujra.
                 _tileCenterTerrainBasis[i].EvaluateAtTime(
                     seed, seeds, x, y, z, plateTimeMyr,
-                    out double baseElevation, out double uplift, out _);
+                    out double baseElevation, out double uplift, out _,
+                    erosionTimeMyr);
 
-                double elevation = baseElevation + uplift;
+                // ND-137 (A20): ugyanaz a muveleti sorrend, mint a Core
+                // mezoutjan es a pontszeru ComputeElevationAtPointFromBasis-ban:
+                // eloszor (base + relaxalt uplift), UTANA a krater. Korabban
+                // itt a krater kozbeekelodott, es a relaxacio kulonbsegkent
+                // (+= relaxed - uplift) jott - ami az utolso biteken eltert a
+                // masik ket uttol.
+                double relaxedUplift = erosionTimeMyr == 0.0
+                    ? uplift
+                    : DeepTimeErosionGlaciation.UpliftRelaxationElevation(uplift, erosionTimeMyr);
+                double elevation = baseElevation + relaxedUplift;
                 if (craters.Count > 0)
                     elevation += ImpactCratering.ElevationDelta(x, y, z, craters);
-                if (erosionTimeMyr != 0.0)
-                {
-                    double relaxedUplift = DeepTimeErosionGlaciation.UpliftRelaxationElevation(
-                        uplift, erosionTimeMyr);
-                    elevation += relaxedUplift - uplift;
-                }
                 values[i] = elevation;
             });
 
@@ -7387,56 +7398,6 @@ namespace WorldGen.Viewer
             borderMeshFilter.sharedMesh = borderMesh;
         }
 
-        /// <summary>
-        /// M10 deep-time erozio egy tile-KOZEPU mezore: CSAK az uplift-reszt
-        /// relaxaljuk (+= relaxedUplift - uplift), a base/jitter/crater valtozatlan.
-        /// Ugyanaz a Core-keplet, mint ComputeElevationAtPoint-ban. erosionTimeMyr=0
-        /// -> identitas (a mezot valtozatlanul adja vissza). Kozos a megjelenitesi
-        /// es a (finomabb) hidrologia-mezohoz.
-        /// </summary>
-        private static Dictionary<TileId, double> ApplyDeepTimeErosionToField(
-            Dictionary<TileId, double> field, ulong seed, (double X, double Y, double Z)[] seeds,
-            double erosionTimeMyr, double plateTimeMyr)
-        {
-            if (erosionTimeMyr == 0.0)
-                return field;
-
-            // TELJESITMENY: ugyanaz a minta, mint a Core SeaLevelCalibration.
-            // ComputeElevationFieldWithSeeds-nel - tile-onkent FUGGETLEN, tiszta
-            // szamitas (nincs tile-ok kozotti megosztott allapot), ezert
-            // Parallel.For-ral kulon tombokbe irva, majd egyszalu Dictionary-
-            // epitessel bitre valtozatlan eredmenyt ad, csak nem szekvencialisan.
-            // `hydrologyLevel`=8-nal (393k tile) ez korabban tobb masodperces,
-            // EGYSZALU passz volt minden deepTimeMyr-valtaskor.
-            var keys = new TileId[field.Count];
-            var baseValues = new double[field.Count];
-            int idx = 0;
-            foreach (KeyValuePair<TileId, double> kv in field)
-            {
-                keys[idx] = kv.Key;
-                baseValues[idx] = kv.Value;
-                idx++;
-            }
-
-            var erodedValues = new double[field.Count];
-            System.Threading.Tasks.Parallel.For(0, keys.Length, i =>
-            {
-                TileGeometry.ToPosition(keys[i], out double ex, out double ey, out double ez);
-                DomainWarp.WarpPosition(seed, ex, ey, ez, out double ewx, out double ewy, out double ewz);
-                // ND-136 (A19): UGYANAZT az upliftet kell kivonni, amit a
-                // mezo mar tartalmaz - az pedig a lemez-keretes maszkkal
-                // szamolodott (SeaLevelCalibration.ComputeElevationFieldAtTime).
-                double uplift = PlateBoundaryEffect.BoundaryUpliftFromWarpedAtTime(
-                    seed, ex, ey, ez, ewx, ewy, ewz, seeds, plateTimeMyr);
-                double relaxedUplift = DeepTimeErosionGlaciation.UpliftRelaxationElevation(uplift, erosionTimeMyr);
-                erodedValues[i] = baseValues[i] + (relaxedUplift - uplift);
-            });
-
-            var eroded = new Dictionary<TileId, double>(field.Count);
-            for (int i = 0; i < keys.Length; i++)
-                eroded[keys[i]] = erodedValues[i];
-            return eroded;
-        }
 
         private Material _riverLineMaterial;
         private const double RiverMeshSliceBudgetMs = 4.0;
@@ -8819,7 +8780,8 @@ namespace WorldGen.Viewer
             // cache-elt warp tovabbra is hasznalodik, csak a zaj szamolodik ujra.
             basis.EvaluateAtTime(
                 seed, seeds, x, y, z, plateTimeMyr,
-                out double baseElevation, out double uplift, out _);
+                out double baseElevation, out double uplift, out _,
+                erosionTimeMyr);
 
             // M10 deep-time erozio (DeepTimeErosionGlaciation): a lemezhatar-
             // uplift-BONUSZ idovel relaxal a MEGLEVO ertekenek eqFraction-jara

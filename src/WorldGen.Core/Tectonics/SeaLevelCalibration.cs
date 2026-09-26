@@ -22,7 +22,7 @@ namespace WorldGen.Core.Tectonics
         public static Dictionary<TileId, double> ComputeElevationField(ulong worldSeed, int plateCount, int level)
         {
             var seeds = PlateGeneration.GenerateSeeds(worldSeed, plateCount);
-            return ComputeElevationFieldWithSeeds(worldSeed, seeds, level, 0.0);
+            return ComputeElevationFieldWithSeeds(worldSeed, seeds, level, 0.0, 0.0);
         }
 
         /// <summary>
@@ -33,15 +33,17 @@ namespace WorldGen.Core.Tectonics
         /// angle=0-nál egzaktul identitás: cos(0)=1, sin(0)=0 IEEE-754 pontosan).
         /// </summary>
         public static Dictionary<TileId, double> ComputeElevationFieldAtTime(
-            ulong worldSeed, int plateCount, int level, double timeMyr)
+            ulong worldSeed, int plateCount, int level, double timeMyr,
+            double erosionTimeMyr = 0.0)
         {
             var seeds0 = PlateGeneration.GenerateSeeds(worldSeed, plateCount);
             var movedSeeds = PlateMotion.MovedSeeds(worldSeed, seeds0, timeMyr);
-            return ComputeElevationFieldWithSeeds(worldSeed, movedSeeds, level, timeMyr);
+            return ComputeElevationFieldWithSeeds(worldSeed, movedSeeds, level, timeMyr, erosionTimeMyr);
         }
 
         private static Dictionary<TileId, double> ComputeElevationFieldWithSeeds(
-            ulong worldSeed, (double X, double Y, double Z)[] seeds, int level, double timeMyr)
+            ulong worldSeed, (double X, double Y, double Z)[] seeds, int level, double timeMyr,
+            double erosionTimeMyr)
         {
             uint n = level == 0 ? 1u : (1u << level);
             int tileCount = checked((int)(6L * n * n));
@@ -87,8 +89,14 @@ namespace WorldGen.Core.Tectonics
                 int plateId = PlateGeneration.AssignPlate(wx, wy, wz, seeds);
                 // ND-136 (A19): a domborzati zaj a lemez SAJAT kereteben
                 // ertekelodik ki - timeMyr=0-nal bitre a regi eredmeny.
+                // ND-137 (A20): a relief-tagok kopasa is itt ervenyesul. A
+                // lemezhatar-uplift relaxacioja NEM itt tortenik - azt a hivo
+                // adja hozza kulon (viewer: ApplyDeepTimeErosionToField), hogy
+                // ne kelljen eloszor osszeadni, majd kivonni.
                 double elevation = PlateBoundaryEffect.ElevationWithBoundaryFromWarpedAtTime(
-                    worldSeed, plateId, id.Value, x, y, z, wx, wy, wz, seeds, timeMyr, out _);
+                    worldSeed, plateId, id.Value, x, y, z, wx, wy, wz, seeds, timeMyr, out _,
+                    PlateBoundaryEffect.DefaultGapScale, PlateBoundaryEffect.DefaultUpliftMaxMeters,
+                    erosionTimeMyr);
                 elevations[i] = elevation;
             });
 

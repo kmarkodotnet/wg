@@ -6598,92 +6598,230 @@ el, melyik határ transzform.
 ténylegesen elmozdított magokkal mérnek, nem a `t = 0` magokkal vett hibriddel).
 
 
-### ND-137 — „Deep time-ban hiányzik az erózió": ma csak uplift-relaxáció van (A20, NYITOTT)
+### ND-137 — Deep-time erózió: hullámhossz-szelektív, zárt alakú relief-kopás (A20, LEZÁRVA — (B))
 
 **2026-09-22.** Felhasználói észrevétel: „az erózió egy olyan dolog, amit
-deep time-ban hiányolok."
+deep time-ban hiányolok." **Implementálva 2026-09-26, a (B) opció szerint.**
 
-#### A tényállás — kódból ellenőrizve
+#### A tényállás — kódból ellenőrizve (a döntés előtt)
 
-A `DeepTimeErosionGlaciation` neve többet ígér, mint amit tesz. A teljes
-„erózió" egyetlen zárt alakú exponenciális relaxáció:
+A `DeepTimeErosionGlaciation` neve többet ígért, mint amit tett. A teljes
+„erózió" egyetlen zárt alakú exponenciális relaxáció volt:
 
 ```
 UpliftRelaxationElevation(upliftStatic, t) = H_eq + (H0 - H_eq) * exp(-t/tau)
 H0 = upliftStatic,  H_eq = 0.35 * upliftStatic,  tau = 50 Myr
 ```
 
-Ez **kizárólag a lemezhatár-uplift bónuszra** hat (`ElevationAtTime`:
+Ez **kizárólag a lemezhatár-uplift bónuszra** hatott (`ElevationAtTime`:
 `baseElev + upliftT`). Az alap-eleváció — a kéreg-bázis plusz az elsődleges és
-másodlagos zaj — **időben teljesen változatlan**. Vagyis a deep-time csúszka a
-hegycsúcsokat lelapítja 35%-ra, és a domborzattal ezen kívül semmit nem csinál.
+másodlagos zaj — **időben teljesen változatlan** volt. Vagyis a deep-time
+csúszka a hegycsúcsokat lelapította 35%-ra, és a domborzattal ezen kívül semmit
+nem csinált.
 
-Ami nincs:
+#### Két korlát, ami a megoldást alakította
 
-- **vízhajtotta bevágódás** — pedig a folyóhálózat, a vízgyűjtők és a
-  vízhozam-súlyok **már megvannak** (ND-124, ND-127), és ma csak rajzoláshoz
-  használjuk, a domborzatra nem hatnak vissza;
-- **hordalékszállítás és lerakódás** — nincs tömegmegmaradás, a lekopott
-  anyag eltűnik ahelyett, hogy medencét töltene fel vagy deltát építene;
-- **parti abrázió**;
-- **jégtakaró-erózió** — a `GlaciationPeriodMyr` / `AmplitudeK` ciklus ma
-  csak a jégvonalat mozgatja (`IceLineAbsLatitude`), a felszínt nem koptatja.
-
-#### Két korlát, ami a megoldást alakítja
-
-**(1) ND-04, timestep-invariancia.** A mai relaxáció azért zárt alakú, hogy a
+**(1) ND-04, timestep-invariancia.** A relaxáció azért zárt alakú, hogy a
 „`t` közvetlen lekérdezése" és a „lépésenként szimulálva" **definíció szerint
-ugyanaz** legyen — ezt a `ChainRelaxation` teszt bizonyítja. Egy klasszikus,
-állapotot akkumuláló eróziós integrátor ezt **megtörné**: a csúszkával
-0 → 100 → 200 Myr más világot adna, mint a közvetlen 200 Myr, és a felhasználó
-pont ezt a két utat használja felváltva.
+ugyanaz** legyen. Egy klasszikus, állapotot akkumuláló eróziós integrátor ezt
+megtörné: a csúszkával 0 → 100 → 200 Myr más világot adna, mint a közvetlen
+200 Myr, és a felhasználó pont ezt a két utat használja felváltva.
 
-**(2) A modul ma sem bit-determinisztikus.** A `DeepTimeErosionGlaciation`
-nyers `Math.Exp`-et és `Math.Sin`-t használ (a saját doksija ki is mondja),
-tehát a CLAUDE.md táblázata szerint platformok között **nem garantált**. Mivel
-az eróziós munka úgyis újragenerálja a vektorokat, a `DeterministicMath.Exp` /
-`SinCos`-ra váltást **ugyanebben a körben** kell elvégezni — különben kétszer
-törünk vektorfájlt.
+**(2) A modul nem volt bit-determinisztikus.** Nyers `Math.Exp`/`Math.Sin` —
+a CLAUDE.md táblázata szerint platformok között nem garantált.
 
-#### Opciók
+#### A megvalósított modell
 
-- **(A) Maradjon.** A felhasználó explicit hiányolja; elvetve.
-- **(B) Zárt alakú, hidrológia-vezérelt bevágódás.** A meglévő
-  vízhozam-súly-mező (ND-124) mint `t`-független eróziós hatékonyság; a
-  pontonkénti eleváció egy lokális bázisszint felé relaxál, a `tau` pedig a
-  vízhozamtól függ (stream-power-szerű, de **pontonként zárt alakban**, nem
-  integrátorral). Az ND-04 sértetlen marad, mert minden pont továbbra is
-  tiszta függvény `(seed, pozíció, t)`-ből. **Korlát:** bevágni tud,
-  **lerakni nem** — a lokális, zárt alakú forma nem mozgat tömeget lefelé a
-  hálózaton.
-- **(C) Rögzített lépésszámú, `t`-arányos integrátor.** `N` FIX részlépés,
-  `dt = t/N`, bármelyik `t`-re. Ez formálisan tiszta függvény `t`-ből, tehát
-  reprodukálható — de **nem láncolható**: a 0 → 100 → 200 út más eredményt ad,
-  mint a közvetlen 200. Cserébe valódi hordalékszállítást és feltöltést tud.
-  Ára: `O(N × tile)` minden időlekérdezésnél, a mai ~2,5 s-os deep-time Build
-  tetejére (ND-132/ND-133).
-- **(D) Akkumulált állapotú, iteratív erózió.** A szakmailag szokásos út, de
-  **közvetlenül sérti az ND-04-et** és az I1-et. Elvetve.
+Az alap-eleváció három tagból áll (`CrustElevation`):
 
-**Javaslat: (B) először.** Olcsó, az ND-04-et nem bántja, és a meglévő,
-már validált hidrológiát végre visszacsatolja a domborzatra — a látvány
-szempontjából a völgybevágódás a legnagyobb egyedi nyereség. Ha a (B) után is
-lapos marad az eredmény, akkor (C), de **csak explicit döntéssel**, mert az
-ND-04 értelmezését módosítja: a „timestep-invariancia" onnantól azt jelenti,
-hogy „fix `N`-nel `t`-ből tiszta függvény", nem azt, hogy „láncolható".
+```
+h = base_c  +  primary * mask * A_p  +  secondary * A_s
+```
 
-**Nyitott konstansok, amiket ez nem old meg:** a `GlaciationPeriodMyr = 150`
-és az `AmplitudeK = 6` továbbra is illusztratív érték (ND-44 nyitott pontja,
-todo2 B14) — a jégeróziós tag ezekre épülne, tehát előbb meg kell erősíteni
-őket.
+`base_c` a **kéreg-típus bázisszintje** (a lemez vastagságából/úszásából adódó
+szint, nem felszíni relief — ezért nem is erodálódik); a másik két tag a valódi
+felszíni relief. Az erózió ezek amplitúdóját csillapítja, **külön**
+időállandóval:
 
-**Verziózás:** seed-törő minden `t > 0`-ra → `WorldGeneratorVersion.Current`
-emelése (ND-108), az ND-136-tal egy körben. `t = 0`-nál a relaxáció ma is
-identitás (`exp(0) = 1`), és ezt meg kell őrizni.
+```
+h(t) = base_c + T_p(t) * A_p + T_s(t) * A_s
+T_i(t) = m_i + (term_i - m_i) * D_i(t)
+D_i(t) = eq_i + (1 - eq_i) * exp(-t_eff / tau_i)
+t_eff  = (W(|lat|) + G * f_ice(|lat|)) * t
+```
 
-**Munkarend:** Python orákulum
-(`tools/reference/erosion_glaciation_deep_time_ref.py` bővítése) → vektorok →
-C#, a `DeterministicMath`-váltással együtt.
+**A hullámhossz-szelektivitás a modell lényege.** A rövid hullámhosszú relief
+(éles gerincek, völgyek) több nagyságrenddel gyorsabban kopik, mint a
+regionális léptékű domborzati hullámzás — ezért néz ki egy 1 milliárd éves
+pajzs simának, de nem teljesen laposnak. A lineáris lejtő-diffúzió
+(`dh/dt = kappa * lap(h)`) egy `k` hullámszámú komponensre pontosan
+`exp(-kappa*k^2*t)`-t ad; a lineáris stream-power (`n=1`) `~exp(-t/tau)`-t,
+`tau ~ L`-lel. A két határ között választottunk: **tau arányos a
+hullámhosszal**, tehát
+
+```
+tau_secondary / tau_primary = f_primary / f_secondary = 8.0 / 0.50929... = 5*pi
+```
+
+ami a **már meglévő zaj-frekvenciákból származtatott** szám, nem egy újabb
+szabadon választott konstans.
+
+**Az átlag felé relaxálunk, nem nulla felé.** Egy fontos, mérésen alapuló
+korrekció a döntés eredeti tervezetéhez képest: a két relief-tag **nem
+nulla-átlagú** (`primary*mask` ≈ 0,165, `secondary` ≈ 0,42 — hat seeden mérve,
+`CrustElevation.PrimaryReliefSphericalMean` / `SecondaryReliefSphericalMean`).
+Nullához relaxálva a kontinensek átlagosan **~490 m-t süllyednének**, ami
+fiktív tömegveszteség: nincs izosztatikus kiegyenlítési modellünk, ami ezt (a
+valóságban ~80%-ban) visszaemelné — az ND-38 térfogat-megmaradó tengerszint
+pedig ezt a világ elárasztásaként fordítaná le. Az **átlaghoz** relaxálás ezt a
+kompenzációt építi be: a relief simul (peneplanáció), a kéreg átlagos magassága
+megmarad. Mérve: 3000 Myr-nél a globális átlag eltolódása −13,8 m (a maradék a
+zaj-átlag seed-függő szórása, nem rendszeres lehúzás).
+
+**Ez adja a lerakódást is.** A csillapítás nem „lehúzás": ahol a relief-tag az
+átlaga **alatt** van (medence, völgytalp, intramontán árok), ott a csillapítás
+**felemeli** a felszínt — a medence feltöltődik, miközben a csúcs lekopik.
+Mérve 500 Myr-nél: 161 minta emelkedett (max +321 m), 127 süllyedt
+(max −874 m), a relief szórása 449 → 375 m (−16,5%).
+
+**A víz és a jég vezérli, zonálisan.** A `W(|lat|)` egy három-cellás csapadék-
+proxy (nedves ITCZ `cos^8` alakban, szubtrópusi sivatagöv, mérsékelt övi
+viharpálya-Gauss, száraz pólus; 0,15..1,15). Ugyanaz a modellezési szint, mint
+az `IceLineAbsLatitude` idealizált, szélesség-alapú hőmérséklet-profilja —
+**szándékosan nem** a rács-alapú `MoisturePrecipitation`, mert az iteratív,
+rácsra kötött és nem bit-egzakt, tehát pontonként (mesh-sarkonként) nem
+kiértékelhető. A `f_ice(|lat|)` a **jeges időhányad zárt alakja**: a
+`sin(theta) <= u` feltétel időaránya egy teljes perióduson `0,5 + asin(u)/pi`;
+ezzel a `GlaciationPeriodMyr`/`AmplitudeK` ciklus **végre koptatja is** a
+felszínt, nem csak a jégvonalat mozgatja.
+
+#### Kalibrált konstansok (ILLUSZTRATÍV, vizuális megerősítést igényelnek)
+
+| Konstans | Érték | Megjegyzés |
+|---|---|---|
+| `PrimaryReliefTauMyr` | 250 Myr | rövid hullámhosszú relief |
+| `PrimaryReliefEqFraction` | 0,30 | telítésben megmaradó hányad |
+| `SecondaryReliefTauMyr` | 250 · 5π ≈ 3927 Myr | **származtatott**, nem szabad |
+| `SecondaryReliefEqFraction` | 0,60 | |
+| `GlacialErosivity` | 3,0 | a jég hatékonyabb eroder |
+| `ErosionWaterFloor` / `EquatorWeight` / `MidLatWeight` | 0,15 / 1,0 / 0,55 | zonális profil |
+| `ErosionMidLatCenterRad` / `WidthRad` | 50° / 12° | viharpálya |
+
+#### Mennyire „érezhető" (a todo2 A20 tényleges elvárása)
+
+A kontinentális tile-ok átlagos elmozdulása az erózió nélküli állapothoz képest
+(lemez-idő fixen 0, hogy tisztán az erózió látszódjon; max zárójelben):
+
+| t (Myr) | 100 | 250 | 500 | 1000 | 2000 |
+|---|---|---|---|---|---|
+| kontinentális átlag | 117 m | 172 m | 200 m | 215 m | 222 m |
+| max | 676 m | 888 m | 926 m | 938 m | 949 m |
+| óceáni átlag | 32 m | 45 m | 52 m | 55 m | 57 m |
+
+#### Amit a döntés MEGTART az eredeti opciólistából
+
+- **(A) Maradjon** — elvetve, a felhasználó explicit hiányolta.
+- **(B) Zárt alakú, hidrológia-vezérelt kopás** — **EZ VALÓSULT MEG**, azzal a
+  pontosítással, hogy a „hidrológia" itt pontonként kiértékelhető zonális
+  csapadék- és jég-proxy, nem a rács-alapú vízhozam-mező (ld. lent, mi maradt
+  nyitva).
+- **(C) Rögzített lépésszámú, `t`-arányos integrátor** — NYITVA MARAD,
+  külön döntéssel.
+- **(D) Akkumulált állapotú, iteratív erózió** — elvetve (sérti az ND-04-et).
+
+#### Ami NEM készült el — nyitva marad
+
+- **Vízgyűjtő-terület-súlyozott bevágódás.** A valódi stream-power a
+  vízhozammal (`A^m`) skálázódik, az pedig **globális, rács-alapú** mennyiség
+  (ND-124 `FlowAccumulation`). Pontonkénti, zárt alakú függvényként nem
+  előállítható, és a pipeline-ban körkörös lenne (a folyóhálózat a tengerszint
+  után számolódik, a tengerszint pedig az elevációból). Ez az eredeti (C) opció.
+- **Hálózat menti hordalékszállítás, delta-építés, medencék közti tömegátvitel.**
+  A mostani modell a relief-mezőn **belül** rendez át tömeget (csúcs le, medence
+  fel), de nem mozgat anyagot lefelé a folyóhálózaton.
+- **Parti abrázió.**
+- **A lemez vándorlási történetének integrálása.** Az eróziós hatékonyság a pont
+  MAI szélességéből jön; egy pólustól az egyenlítőig vándorolt kéreg valójában
+  vegyes klímatörténetet élt át. Zárt alakban ez az Euler-pólus körüli pálya
+  menti integrál lenne — megoldható, de külön munka.
+- **A `GlaciationPeriodMyr = 150` és `AmplitudeK = 6`** továbbra is illusztratív
+  (ND-44 nyitott pontja, todo2 B14). A glaciális eróziós tag most már ezekre
+  épül, tehát megerősítésük **fontosabb lett**.
+- **A `glaciated_fraction` részperiódus-közelítése.** A zárt alak a
+  **szekuláris** (egy teljes ciklusra átlagolt) jeges időhányad; egész sok
+  periódusra egzakt, részperiódusra közelítés. Cserébe lineáris `t`-ben, tehát
+  az ND-04 láncolhatóság egzaktul teljesül, és az erózió monoton nő (nem
+  „visszakopik" egy interglaciálisban). Numerikus időintegrállal ellenőrizve:
+  max eltérés 1,7e-5, a mintavételezés felbontásán.
+
+#### Mellékesen kiderült: a `DeterministicMath.Exp` alulcsordulás-hibája
+
+Az éleset-teszt megfogta, hogy a `DeterministicMath.Exp` kb. −710 alatti
+argumentumra **nem 0-hoz tart, hanem szemetet ad** (mérve: `exp(-710)` =
+`-1,45e+308`, `exp(-750)` = `-6,1e+290`, `exp(-4e6)` = `+4,46e+145`): a `ScaleByPowerOfTwo`
+bit-manipulációval vonja le az exponenst, és nem kezeli az alulcsordulást (az
+exponens átcsordul az előjelbitbe). A modellben ez sosem fordulna elő (a
+kitevő Gyr-léptéknél is ~80 alatt marad), ezért itt **lokális kitevő-korlát**
+(`MaxDecayExponent = 700`) került be, nem a `DeterministicMath` módosítása —
+az minden Exp-használót érintő, külön mérlegelendő változás lenne.
+**Felvéve a todo2-be (A21).**
+
+#### Mellékesen javított, pre-existing inkonzisztencia: a deep-time kopás szétesett a fogyasztók között
+
+A munka közben kiderült, hogy az uplift-relaxációt **csak a viewer** adta hozzá
+(`ApplyDeepTimeErosionToField`, egy külön mezőpassz). A Core
+`ElevationWithBoundaryFromWarpedAtTime`-ot hívó többi fogyasztó — a
+`SeaLevelCalibration` mezője, a `RiverPathTracing` folytonos nyomvonalkövetése
+és a `worldgen hash` / `checkpoint` CLI — **egyszerűen kihagyta**: `t > 0`-nál
+a folyó relaxáció nélküli hegyeken keresett lejtőt, a determinizmus-eszköz
+pedig egy olyan világot hashelt, amit a viewer nem is jelenít meg.
+
+Ezért a deep-time kopás **teljes egészében a Core-ba került**: az
+`ElevationWithBoundaryFromWarpedAtTime` mostantól a relief-csillapítást ÉS az
+uplift-relaxációt is elvégzi (ez a függvény a TELJES elevációt adja vissza; a
+szétbontott alakot továbbra is a `BaseAndUpliftFromWarpedAtTime` adja nyers
+uplifttel). A viewer külön eróziós passza **törölve**, a CLI pedig átadja a
+`--time`-ot eróziós időként is. Mellékhatás: a három elevációs út (Core mező,
+cache-elt tile-közép, pontszerű sarok) mostantól **ugyanabban a műveleti
+sorrendben** dolgozik — `(base + relaxált uplift)`, utána kráter —, korábban a
+tile-közép útján a kráter közbeékelődött, és az utolsó biteken eltért.
+
+#### Világ-hash bizonyíték (`worldgen hash`, seed A7C944210000, 20 lemez, level 6)
+
+| `--time` | változás előtt | változás után |
+|---|---|---|
+| 0 | `2b98af9a…6213738b` | `2b98af9a…6213738b` — **bitre azonos** |
+| 400 | `6c7a8d2f…c4003956` | `590ec46e…957e441f` — változik (erózió + relaxáció bekerült) |
+
+#### Verziózás
+
+`WorldGeneratorVersion.Current` **3 → 4** (ND-108). Seed-törő minden `t > 0`-ra;
+`t = 0`-nál a kimenet **bitre változatlan**, és ezt explicit rövidzár
+garantálja: `t_eff = 0` → a csillapító egzaktul `1,0`, az pedig rövidzár az
+eredeti kifejezésre (az `m + (x - m) * 1.0` alak nem adná vissza bitre `x`-et).
+A `thermal_checkpoint_ref.py` generátorverzióját is emelni kellett (a
+checkpoint-identitás hasheli).
+
+#### Bizonyíték
+
+**Python orákulum** — `tools/reference/erosion_glaciation_deep_time_ref.py`
+(bővítve), `plate_frame_noise_ref.py` (csillapítás-átvezetés, bitre semleges),
+`crust_elevation_ref.py` (a két gömbfelszíni átlag). Szakaszok: 3a zonális
+profil alakja, 3b **ismert-válasz** (a jeges időhányad zárt alakja vs. numerikus
+időintegrál 40 perióduson), 3c timestep-invariancia (max eltérés 1,5e-14),
+3d lerakódás, 3e átlagtartás, 3f láthatóság és differenciált kopás.
+Új vektorok: 400 relief-eróziós + 120 szétválasztott-idő.
+
+**C# tesztek** — `tests/WorldGen.Core.Tests/Tectonics/DeepTimeReliefErosionTests.cs`
+(27 teszt): KAT a két új vektorhalmazra **1e-12 tűréssel** (mindkét oldal
+ugyanazt a `DeterministicMath`-ot implementálja, tehát nem kell a régi, laza
+1e-6), a modell-konstansok egyezése, `t = 0` bit-regresszió, tisztaság,
+párhuzamos = szekvenciális, timestep-invariancia, zonális alak, a jeges
+időhányad numerikus ellenőrzése, differenciált kopás, kétirányú mozgás
+(lerakódás), láthatóság + monotonitás, élesetek, simulás + átlagtartás.
+
+Teljes futás: **1626 teszt zöld** (Core 624, Viewer.LodChunking 526,
+App.Foundation 452, Cli 24).
 
 ### ND-138 — Sebesség-alapú határ-interakció: konvergens / divergens / transzform (C7, NYITOTT)
 

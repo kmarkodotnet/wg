@@ -284,13 +284,16 @@ namespace WorldGen.Core.Hydrology
             private readonly ulong _worldSeed;
             private readonly (double X, double Y, double Z)[] _seeds;
             private readonly double _timeMyr;
+            private readonly double _erosionTimeMyr;
             private readonly Dictionary<TileId, double> _cache = new Dictionary<TileId, double>();
 
-            public ElevationCache(ulong worldSeed, (double X, double Y, double Z)[] seeds, double timeMyr)
+            public ElevationCache(ulong worldSeed, (double X, double Y, double Z)[] seeds, double timeMyr,
+                double erosionTimeMyr = 0.0)
             {
                 _worldSeed = worldSeed;
                 _seeds = seeds;
                 _timeMyr = timeMyr;
+                _erosionTimeMyr = erosionTimeMyr;
             }
 
             public double Get(TileId id)
@@ -298,7 +301,7 @@ namespace WorldGen.Core.Hydrology
                 if (_cache.TryGetValue(id, out double cached))
                     return cached;
                 TileGeometry.ToPosition(id, out double x, out double y, out double z);
-                double elev = ElevationAtPosition(_worldSeed, x, y, z, _seeds, _timeMyr);
+                double elev = ElevationAtPosition(_worldSeed, x, y, z, _seeds, _timeMyr, _erosionTimeMyr);
                 _cache[id] = elev;
                 return elev;
             }
@@ -318,7 +321,7 @@ namespace WorldGen.Core.Hydrology
         /// </summary>
         private static double ElevationAtPosition(
             ulong worldSeed, double x, double y, double z, (double X, double Y, double Z)[] seeds,
-            double timeMyr)
+            double timeMyr, double erosionTimeMyr = 0.0)
         {
             DomainWarp.WarpPosition(worldSeed, x, y, z, out double wx, out double wy, out double wz);
             int plateId = PlateGeneration.AssignPlate(wx, wy, wz, seeds);
@@ -326,8 +329,13 @@ namespace WorldGen.Core.Hydrology
             // domborzatot lassa, mint a tile-kozepu mezo - kulonben t>0-nal a
             // folyo egy masik (vilag-keretes) terepen futna, mint amit a
             // felhasznalo lat.
+            // ND-137 (A20): ugyanez all az EROZIORA is - a folyo a MAR
+            // lekopott/feltoltodott terepen fut, kulonben a nyomvonal egy
+            // masik domborzaton keresne a lejtot, mint amit a felhasznalo lat.
             return PlateBoundaryEffect.ElevationWithBoundaryFromWarpedAtTime(
-                worldSeed, plateId, 0UL, x, y, z, wx, wy, wz, seeds, timeMyr, out _);
+                worldSeed, plateId, 0UL, x, y, z, wx, wy, wz, seeds, timeMyr, out _,
+                PlateBoundaryEffect.DefaultGapScale, PlateBoundaryEffect.DefaultUpliftMaxMeters,
+                erosionTimeMyr);
         }
 
         private static TileId Neighbor(TileId id, TileDirection direction) => TileNeighbors.Neighbor(id, direction);
@@ -416,9 +424,10 @@ namespace WorldGen.Core.Hydrology
             ulong worldSeed, (double X, double Y, double Z)[] seeds, double seaLevel,
             TileId source, int sourceIndex, int fineDepth,
             Dictionary<TileId, int> claimed, int maxSteps, int escapeNodeBudget,
-            double timeMyr = 0.0)
+            double timeMyr = 0.0,
+            double erosionTimeMyr = 0.0)
         {
-            var elevCache = new ElevationCache(worldSeed, seeds, timeMyr);
+            var elevCache = new ElevationCache(worldSeed, seeds, timeMyr, erosionTimeMyr);
             return TraceRiverPath(worldSeed, seeds, seaLevel, source, sourceIndex, fineDepth, claimed, maxSteps, escapeNodeBudget, elevCache);
         }
 
@@ -680,7 +689,8 @@ namespace WorldGen.Core.Hydrology
             int visitedGridLevel = DefaultVisitedGridLevel,
             System.Threading.CancellationToken cancellation = default,
             Action? onPitEscape = null,
-            double timeMyr = 0.0)
+            double timeMyr = 0.0,
+            double erosionTimeMyr = 0.0)
         {
             cancellation.ThrowIfCancellationRequested();
             int fineLevel = source.Level + fineDepth;
@@ -718,7 +728,7 @@ namespace WorldGen.Core.Hydrology
             // felhasznaloi ertek (pl. 1000m) `DefaultContinuousSensingRadiusMeters`
             // (500m) fole vihetne a lepeskozt e nelkul a Math.Max nelkul.
             double sensingAngular = Math.Max(stepAngular, sensingRadiusMeters / PlanetConstants.RadiusMeters);
-            double elev = ElevationAtPosition(worldSeed, current.X, current.Y, current.Z, seeds, timeMyr);
+            double elev = ElevationAtPosition(worldSeed, current.X, current.Y, current.Z, seeds, timeMyr, erosionTimeMyr);
 
             for (long step = 0; step < maxSteps; step++)
             {
@@ -766,7 +776,7 @@ namespace WorldGen.Core.Hydrology
                     double angle = 2.0 * Math.PI * k / ringDirections;
                     double dx = Math.Cos(angle), dy = Math.Sin(angle);
                     (double X, double Y, double Z) sensed = StepInTangentDirection(current, t1, t2, dx, dy, sensingAngular);
-                    double sensedElev = ElevationAtPosition(worldSeed, sensed.X, sensed.Y, sensed.Z, seeds, timeMyr);
+                    double sensedElev = ElevationAtPosition(worldSeed, sensed.X, sensed.Y, sensed.Z, seeds, timeMyr, erosionTimeMyr);
                     if (sensedElev < bestElev)
                     {
                         bestElev = sensedElev;
@@ -779,7 +789,7 @@ namespace WorldGen.Core.Hydrology
                 if (found)
                 {
                     current = StepInTangentDirection(current, t1, t2, bestDx, bestDy, stepAngular);
-                    elev = ElevationAtPosition(worldSeed, current.X, current.Y, current.Z, seeds, timeMyr);
+                    elev = ElevationAtPosition(worldSeed, current.X, current.Y, current.Z, seeds, timeMyr, erosionTimeMyr);
                     result.Points.Add(current);
                     pathVisited.Add(TileGeometry.FromPosition(current.X, current.Y, current.Z, visitedGridLevel));
                     continue;
@@ -789,7 +799,7 @@ namespace WorldGen.Core.Hydrology
                 onPitEscape?.Invoke();
                 var escape = FindContinuousLocalSpillway(
                     worldSeed, seeds, current, elev, escapeCellMeters,
-                    escapeNodeBudget, pathVisited, visitedGridLevel, cancellation, timeMyr);
+                    escapeNodeBudget, pathVisited, visitedGridLevel, cancellation, timeMyr, erosionTimeMyr);
                 if (escape == null)
                 {
                     result.Termination = TerminationReason.Pit;
@@ -839,7 +849,7 @@ namespace WorldGen.Core.Hydrology
             (double X, double Y, double Z) pit, double pitElevation,
             double cellMeters, int nodeBudget,
             HashSet<TileId> pathVisited, int visitedGridLevel,
-            System.Threading.CancellationToken cancellation, double timeMyr)
+            System.Threading.CancellationToken cancellation, double timeMyr, double erosionTimeMyr = 0.0)
         {
             cancellation.ThrowIfCancellationRequested();
             GetTangentBasis(pit, out (double X, double Y, double Z) t1, out (double X, double Y, double Z) t2);
@@ -849,7 +859,7 @@ namespace WorldGen.Core.Hydrology
             double CellElev(int i, int j)
             {
                 (double X, double Y, double Z) p = CellPos(i, j);
-                return ElevationAtPosition(worldSeed, p.X, p.Y, p.Z, seeds, timeMyr);
+                return ElevationAtPosition(worldSeed, p.X, p.Y, p.Z, seeds, timeMyr, erosionTimeMyr);
             }
             bool IsPathVisited(int i, int j)
             {
@@ -929,7 +939,8 @@ namespace WorldGen.Core.Hydrology
             int escapeNodeBudget = DefaultContinuousEscapeNodeBudget,
             long maxSteps = DefaultContinuousMaxSteps,
             System.Threading.CancellationToken cancellation = default,
-            double timeMyr = 0.0)
+            double timeMyr = 0.0,
+            double erosionTimeMyr = 0.0)
         {
             if (sources == null) throw new ArgumentNullException(nameof(sources));
             cancellation.ThrowIfCancellationRequested();
@@ -940,7 +951,7 @@ namespace WorldGen.Core.Hydrology
                 ContinuousRiverPath river = TraceRiverPathContinuous(
                     worldSeed, seeds, seaLevel, sources[i], i, fineDepth, claimed,
                     stepMeters, sensingRadiusMeters, ringDirections, escapeCellMeters, escapeNodeBudget, maxSteps,
-                    cancellation: cancellation, timeMyr: timeMyr);
+                    cancellation: cancellation, timeMyr: timeMyr, erosionTimeMyr: erosionTimeMyr);
 
                 int fineLevel = sources[i].Level + fineDepth;
                 foreach ((double X, double Y, double Z) p in river.Points)
@@ -993,7 +1004,8 @@ namespace WorldGen.Core.Hydrology
             long maxSteps = DefaultContinuousMaxSteps,
             System.Threading.CancellationToken cancellation = default,
             int maxDegreeOfParallelism = -1,
-            double timeMyr = 0.0)
+            double timeMyr = 0.0,
+            double erosionTimeMyr = 0.0)
         {
             if (sources == null) throw new ArgumentNullException(nameof(sources));
             if (maxDegreeOfParallelism == 0 || maxDegreeOfParallelism < -1)
@@ -1019,7 +1031,7 @@ namespace WorldGen.Core.Hydrology
                     new Dictionary<TileId, ClaimedTileInfo>(),
                     stepMeters, sensingRadiusMeters, ringDirections,
                     escapeCellMeters, escapeNodeBudget, maxSteps,
-                    DefaultVisitedGridLevel, cancellation, timeMyr: timeMyr);
+                    DefaultVisitedGridLevel, cancellation, timeMyr: timeMyr, erosionTimeMyr: erosionTimeMyr);
             });
 
             // 2. FÁZIS: csonkolás FORRÁS-SORRENDBEN - ez reprodukálja a
@@ -1166,11 +1178,12 @@ namespace WorldGen.Core.Hydrology
             double minElevAboveSeaM = DefaultMinElevAboveSeaM,
             double precipPercentile = DefaultPrecipPercentile,
             int maxSteps = DefaultMaxSteps, int escapeNodeBudget = DefaultEscapeNodeBudget,
-            double timeMyr = 0.0)
+            double timeMyr = 0.0,
+            double erosionTimeMyr = 0.0)
         {
             List<TileId> sources = SelectRiverSources(
                 elevField, precipField, isOcean, seaLevel, topK, minElevAboveSeaM, precipPercentile);
-            return BuildRiverNetworkFromSources(worldSeed, seeds, seaLevel, sources, fineDepth, maxSteps, escapeNodeBudget, timeMyr);
+            return BuildRiverNetworkFromSources(worldSeed, seeds, seaLevel, sources, fineDepth, maxSteps, escapeNodeBudget, timeMyr, erosionTimeMyr);
         }
 
         /// <summary>
@@ -1206,13 +1219,14 @@ namespace WorldGen.Core.Hydrology
             double minElevAboveSeaM = DefaultMinElevAboveSeaM,
             double minSeparationMeters = DefaultSourceSeparationMeters,
             int maxSteps = DefaultMaxSteps, int escapeNodeBudget = DefaultEscapeNodeBudget,
-            double timeMyr = 0.0)
+            double timeMyr = 0.0,
+            double erosionTimeMyr = 0.0)
         {
             FlowNetwork.FloodResult flood = FlowNetwork.PriorityFlood(elevField, isOcean);
             List<TileId> sources = SelectRiverSourcesPerBasin(
                 elevField, precipField, isOcean, flood.Parent, seaLevel,
                 basinCount, sourcesPerBasin, minElevAboveSeaM, minSeparationMeters);
-            return BuildRiverNetworkFromSources(worldSeed, seeds, seaLevel, sources, fineDepth, maxSteps, escapeNodeBudget, timeMyr);
+            return BuildRiverNetworkFromSources(worldSeed, seeds, seaLevel, sources, fineDepth, maxSteps, escapeNodeBudget, timeMyr, erosionTimeMyr);
         }
 
         /// <summary>
@@ -1229,9 +1243,10 @@ namespace WorldGen.Core.Hydrology
             IReadOnlyList<TileId> sources,
             int fineDepth = DefaultFineDepth,
             int maxSteps = DefaultMaxSteps, int escapeNodeBudget = DefaultEscapeNodeBudget,
-            double timeMyr = 0.0)
+            double timeMyr = 0.0,
+            double erosionTimeMyr = 0.0)
         {
-            var elevCache = new ElevationCache(worldSeed, seeds, timeMyr);
+            var elevCache = new ElevationCache(worldSeed, seeds, timeMyr, erosionTimeMyr);
             var claimed = new Dictionary<TileId, int>();
             var rivers = new List<RiverPath>(sources.Count);
             for (int i = 0; i < sources.Count; i++)

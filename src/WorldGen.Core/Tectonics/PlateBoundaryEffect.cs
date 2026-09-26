@@ -242,13 +242,24 @@ namespace WorldGen.Core.Tectonics
             double wx, double wy, double wz, (double X, double Y, double Z)[] seeds,
             double timeMyr,
             out bool isOceanic,
-            double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters)
+            double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters,
+            double erosionTimeMyr = 0.0)
         {
             BaseAndUpliftFromWarpedAtTime(
                 worldSeed, x, y, z, wx, wy, wz, seeds, timeMyr,
                 out double baseElevation, out double uplift, out isOceanic,
-                gapScale, upliftMax);
-            return baseElevation + uplift;
+                gapScale, upliftMax, CrustElevation.DefaultBoundaryBlendGap, erosionTimeMyr);
+            if (erosionTimeMyr == 0.0)
+                return baseElevation + uplift;
+            // ND-137 (A20): ez a TELJES elevációt adja vissza, tehát az
+            // uplift-relaxáció (ND-44) is ide tartozik — korábban minden hívó
+            // maga adta hozzá, és a `SeaLevelCalibration` / `RiverPathTracing`
+            // / a CLI egyszerűen kihagyta. Így a mező, a folyó-nyomvonal és a
+            // `worldgen hash` UGYANAZT a deep-time domborzatot látja.
+            // A szétbontott alakot (nyers uplifttel) a
+            // <see cref="BaseAndUpliftFromWarpedAtTime"/> adja.
+            return baseElevation
+                + DeepTimeErosionGlaciation.UpliftRelaxationElevation(uplift, erosionTimeMyr);
         }
 
         /// <summary>
@@ -270,8 +281,18 @@ namespace WorldGen.Core.Tectonics
             double timeMyr,
             out double baseElevation, out double uplift, out bool isOceanic,
             double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters,
-            double blendGap = CrustElevation.DefaultBoundaryBlendGap)
+            double blendGap = CrustElevation.DefaultBoundaryBlendGap,
+            double erosionTimeMyr = 0.0)
         {
+            // ND-137 (A20): a relief-tagok csillapito tenyezoi TISZTAN a
+            // pozicio (szelesseg) es az eroziós ido fuggvenyei - ezert
+            // szamolhatok itt, egyszer, mindket lemezre kozosen. Az eroziós
+            // ido SZANDEKOSAN kulon parameter a lemez-idotol (a viewer
+            // "Erozio (kopas)" kapcsoloja). erosionTimeMyr = 0 -> a tenyezok
+            // egzakt 1,0, es a kifejezes bitre a regi.
+            DeepTimeErosionGlaciation.ReliefDecayFactors(
+                z, erosionTimeMyr, out double primaryDecay, out double secondaryDecay);
+
             TwoBestDots(
                 wx, wy, wz, seeds,
                 out double best, out double second, out int bestIndex, out int secondIndex);
@@ -291,7 +312,7 @@ namespace WorldGen.Core.Tectonics
                 worldSeed, best, second, bestIndex, secondIndex,
                 bestPrimary, bestMask, bestSecondary,
                 secondPrimary, secondMask, secondSecondary,
-                out isOceanic, blendGap);
+                out isOceanic, blendGap, primaryDecay, secondaryDecay);
             uplift = BoundaryUpliftFromNearestPlates(
                 worldSeed, best, second, bestIndex, secondIndex, bestMask,
                 gapScale, upliftMax);

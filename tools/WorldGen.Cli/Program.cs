@@ -164,7 +164,10 @@ namespace WorldGen.Cli
 
         private static string ComputeHashHex(ulong seed, int plates, int level, double time)
         {
-            var field = SeaLevelCalibration.ComputeElevationFieldAtTime(seed, plates, level, time);
+            // ND-137 (A20): a `--time t` a vilagot t-nel jelenti, tehat az
+            // erozio IS hozzatartozik - kulonben a `worldgen hash` mas
+            // vilagot hashelne, mint amit a viewer megjelenit.
+            var field = SeaLevelCalibration.ComputeElevationFieldAtTime(seed, plates, level, time, time);
             byte[] hash = WorldStateHash.ComputeFieldHash(field);
             return WorldStateHash.ToHexString(hash);
         }

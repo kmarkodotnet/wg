@@ -109,6 +109,36 @@ namespace WorldGen.Core.Tectonics
         public const double SecondaryNoiseAmplitudeMeters = 900.0;
         public const int SecondaryNoiseOctaves = 3;
 
+        /// <summary>
+        /// A két relief-TAG (már összeszorozva, de még amplitúdó nélkül)
+        /// gömbfelszíni átlaga. Egyik sem nulla-átlagú: a ridged multifractal
+        /// felfelé torzított, a másodlagos fBm szintén. Mérés (Python
+        /// orákulum, 1014 minta level 6-on, hat különböző world seeden):
+        /// <c>primary * mask</c> 0,1609..0,1727 → 0,165; <c>secondary</c>
+        /// 0,3351..0,4882 → 0,42.
+        ///
+        /// HOL KELL (ND-137 / A20): a deep-time erózió EZEKHEZ az átlagokhoz
+        /// relaxálja a relief-tagokat, nem nullához. Nullához relaxálva a
+        /// kontinensek átlagosan ~490 m-t süllyednének — fiktív
+        /// tömegveszteség, mert nincs izosztatikus kiegyenlítési modellünk,
+        /// ami ezt (a valóságban ~80%-ban) visszaemelné. Az átlaghoz
+        /// relaxálás ezt a kompenzációt építi be: a relief SIMUL
+        /// (peneplanáció), de a kéreg átlagos magassága megmarad.
+        /// </summary>
+        public const double PrimaryReliefSphericalMean = 0.165;
+
+        /// <summary>Ld. <see cref="PrimaryReliefSphericalMean"/>.</summary>
+        public const double SecondaryReliefSphericalMean = 0.42;
+
+        /// <summary>
+        /// ND-137 (A20): egy dimenziótlan relief-tag csillapított értéke — a
+        /// gömbfelszíni átlaga felé relaxál. <paramref name="decay"/> = 1,0
+        /// esetén EGZAKT rövidzár (az <c>m + (x - m) * 1.0</c> alak nem adná
+        /// vissza bitre x-et).
+        /// </summary>
+        public static double ErodedReliefTerm(double term, double sphericalMean, double decay)
+            => decay == 1.0 ? term : sphericalMean + (term - sphericalMean) * decay;
+
         // Fix, a primer zaj racspontjaitol "elegge tavoli" koordinata-
         // eltolas (ld. DomainWarp.cs azonos mintaja), hogy a masodlagos
         // zaj NE korrelaljon az elsodlegessel (kulonben csak
@@ -241,13 +271,30 @@ namespace WorldGen.Core.Tectonics
             ulong worldSeed, int plateId,
             double primaryNoise, double mountainMask, double secondaryNoise,
             out bool isOceanic,
-            double oceanicProbability = DefaultOceanicProbability)
+            double oceanicProbability = DefaultOceanicProbability,
+            double primaryDecay = 1.0, double secondaryDecay = 1.0)
         {
             isOceanic = IsOceanic(worldSeed, plateId, oceanicProbability);
             double baseValue = isOceanic ? OceanicBaseMeters : ContinentalBaseMeters;
             double amplitude = NoiseAmplitudeMeters * (isOceanic ? OceanicNoiseFactor : 1.0);
             double secondaryAmplitude = SecondaryNoiseAmplitudeMeters * (isOceanic ? OceanicNoiseFactor : 1.0);
-            return baseValue + primaryNoise * mountainMask * amplitude + secondaryNoise * secondaryAmplitude;
+            // ND-137 (A20): a deep-time erózió a két relief-tag amplitúdóját
+            // KÜLÖN csillapítja (hullámhossz-szelektív kopás). Az 1,0/1,0
+            // rövidzár garantálja, hogy az erózió NÉLKÜLI út (és így a t = 0
+            // világ) bitre változatlan maradjon.
+            if (primaryDecay == 1.0 && secondaryDecay == 1.0)
+                return baseValue + primaryNoise * mountainMask * amplitude + secondaryNoise * secondaryAmplitude;
+
+            // FONTOS: az elsődleges tagnál a MASZKKAL MÁR ÖSSZESZOROZVA
+            // relaxálunk, nem a nyers zajértékre — különben az
+            // `átlag * mask * amplitúdó` rész csillapítatlan maradna, és a
+            // hegységöv a végtelenségig őrizne egy ~1300 m-es, mask-alakú
+            // reliefet.
+            double primaryTerm = ErodedReliefTerm(
+                primaryNoise * mountainMask, PrimaryReliefSphericalMean, primaryDecay);
+            double secondaryTerm = ErodedReliefTerm(
+                secondaryNoise, SecondaryReliefSphericalMean, secondaryDecay);
+            return baseValue + primaryTerm * amplitude + secondaryTerm * secondaryAmplitude;
         }
 
         /// <summary>
@@ -300,11 +347,15 @@ namespace WorldGen.Core.Tectonics
             double bestPrimaryNoise, double bestMountainMask, double bestSecondaryNoise,
             double secondPrimaryNoise, double secondMountainMask, double secondSecondaryNoise,
             out bool isOceanic,
-            double blendGap = DefaultBoundaryBlendGap)
+            double blendGap = DefaultBoundaryBlendGap,
+            double primaryDecay = 1.0, double secondaryDecay = 1.0)
         {
+            // ND-137 (A20): UGYANAZ a két csillapító tényező mindkét lemezre —
+            // az erózió a FELSZÍNEN hat, nem lemezenként (a tényezők tisztán
+            // pozíció- és időfüggők, ld. DeepTimeErosionGlaciation).
             double bestElevation = BaseElevationFromNoiseBasis(
                 worldSeed, bestIndex, bestPrimaryNoise, bestMountainMask, bestSecondaryNoise,
-                out isOceanic);
+                out isOceanic, DefaultOceanicProbability, primaryDecay, secondaryDecay);
 
             double gap = best - second;
             if (secondIndex < 0 || gap >= blendGap || !(blendGap > 0.0))
@@ -312,7 +363,7 @@ namespace WorldGen.Core.Tectonics
 
             double secondElevation = BaseElevationFromNoiseBasis(
                 worldSeed, secondIndex, secondPrimaryNoise, secondMountainMask, secondSecondaryNoise,
-                out _);
+                out _, DefaultOceanicProbability, primaryDecay, secondaryDecay);
 
             double normalizedGap = gap / blendGap;
             double smoothGap = normalizedGap * normalizedGap * (3.0 - 2.0 * normalizedGap);
@@ -416,13 +467,22 @@ namespace WorldGen.Core.Tectonics
         public void EvaluateAtTime(
             ulong worldSeed, (double X, double Y, double Z)[] seeds,
             double x, double y, double z, double timeMyr,
-            out double baseElevation, out double uplift, out bool isOceanic)
+            out double baseElevation, out double uplift, out bool isOceanic,
+            double erosionTimeMyr = 0.0)
         {
-            if (timeMyr == 0.0)
+            if (timeMyr == 0.0 && erosionTimeMyr == 0.0)
             {
                 Evaluate(worldSeed, seeds, out baseElevation, out uplift, out isOceanic);
                 return;
             }
+
+            // ND-137 (A20): a relief-csillapitas tisztan pozicio- es
+            // ido-fuggo, tehat a cache-elt (t=0) zajtagokra is alkalmazhato -
+            // ezert `timeMyr == 0 && erosionTimeMyr > 0` eseten is helyes
+            // eredmenyt ad az alabbi (ujraszamolo) ag: a ToPlateFrame t=0-ra
+            // egzakt azonossag.
+            DeepTimeErosionGlaciation.ReliefDecayFactors(
+                z, erosionTimeMyr, out double primaryDecay, out double secondaryDecay);
 
             PlateBoundaryEffect.TwoBestDots(
                 WarpedX, WarpedY, WarpedZ, seeds,
@@ -443,7 +503,8 @@ namespace WorldGen.Core.Tectonics
                 worldSeed, best, second, bestIndex, secondIndex,
                 bestPrimary, bestMask, bestSecondary,
                 secondPrimary, secondMask, secondSecondary,
-                out isOceanic);
+                out isOceanic, CrustElevation.DefaultBoundaryBlendGap,
+                primaryDecay, secondaryDecay);
             uplift = PlateBoundaryEffect.BoundaryUpliftFromNearestPlates(
                 worldSeed, best, second, bestIndex, secondIndex, bestMask);
         }

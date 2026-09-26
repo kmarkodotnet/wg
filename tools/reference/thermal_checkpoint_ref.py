@@ -25,8 +25,8 @@ def main():
     # FIGYELEM: ennek egyeznie kell a C# `WorldGeneratorVersion.Current`-tel
     # (ND-108). Verzioemeleskor ITT is emelni kell ES ujra kell generalni a
     # vektorokat - kulonben a checkpoint-KAT elbukik (ez tortent az
-    # ND-136 / A19 emelesnel, 2 -> 3).
-    generator = "3"
+    # ND-136 / A19 emelesnel, 2 -> 3, es az ND-137 / A20-nal, 3 -> 4).
+    generator = "4"
     inputs = string("WorldGen.Thermal.Inputs.1") + string(generator) + u64(ref.MODEL_VERSION)
     inputs += u64(ref.LEVEL) + f64(ref.RADIUS_M) + u64(1) + f64(0.0) + f64(0.0)
     inputs += f64(ref.ORBITAL_PERIOD_DAYS) + f64(ref.ROTATION_PERIOD_DAYS) + f64(ref.AXIAL_TILT_RAD)

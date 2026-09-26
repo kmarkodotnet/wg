@@ -79,6 +79,24 @@ SECONDARY_NOISE_REFERENCE_LEVEL = 5
 SECONDARY_NOISE_PERIOD_TILES = 40
 SECONDARY_NOISE_AMPLITUDE_M = 900.0
 SECONDARY_NOISE_OCTAVES = 3
+
+# A ket relief-TAG (mar osszeszorozva, de meg amplitudo nelkul) GOMBFELSZINI
+# ATLAGA. Egyik sem nulla-atlagu: a ridged multifractal felfele torzitott, a
+# masodlagos fBm szinten. Meres: 6*13*13 = 1014 minta level 6-on, hat
+# kulonbozo world seeden:
+#   primary * mask : 0.1609 .. 0.1727  -> 0.165
+#   secondary      : 0.3351 .. 0.4882  -> 0.42
+# (a masodlagos szorasa nagyobb, mert a periodusa miatt csak ~3 hullamhossz
+# fer el egy nagykoron, tehat keves fuggetlen mintat ad.)
+#
+# HOL KELL (ND-137 / A20): a deep-time erozio EZEKHEZ az atlagokhoz relaxalja
+# a relief-tagokat, NEM nullahoz. Nullahoz relaxalva a kontinensek atlagosan
+# ~490 m-t sullyednenek, ami FIKTIV tomegveszteseg lenne - nincs izosztatikus
+# kiegyenlitesi modellunk, ami ezt (a valosagban ~80%-ban) visszaemelne. Az
+# atlaghoz relaxalas ezt a kompenzaciot epiti be implicit modon: a relief
+# SIMUL (peneplanacio), de a kereg atlagos magassaga megmarad.
+PRIMARY_RELIEF_SPHERICAL_MEAN = 0.165
+SECONDARY_RELIEF_SPHERICAL_MEAN = 0.42
 SECONDARY_NOISE_OFFSET = (41.19, 17.83, 29.61)
 SECONDARY_NOISE_REFERENCE_TILE_RADIANS = (math.pi / 2.0) / (1 << SECONDARY_NOISE_REFERENCE_LEVEL)
 SECONDARY_NOISE_FREQUENCY = 1.0 / (SECONDARY_NOISE_PERIOD_TILES * SECONDARY_NOISE_REFERENCE_TILE_RADIANS)
