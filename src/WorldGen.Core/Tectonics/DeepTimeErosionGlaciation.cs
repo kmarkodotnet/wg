@@ -417,29 +417,30 @@ namespace WorldGen.Core.Tectonics
             ulong worldSeed, int plateId, double x, double y, double z, (double X, double Y, double Z)[] seeds,
             double timeMyr, out bool isOceanic,
             double tau = OrogenicRelaxationTauMyr, double eqFraction = EquilibriumFraction)
-            => ElevationAtTime(worldSeed, plateId, x, y, z, seeds, timeMyr, timeMyr, out isOceanic, tau, eqFraction);
+            => ElevationAtTime(
+                worldSeed, plateId, x, y, z, seeds, DeepTimeContext.Uniform(timeMyr),
+                out isOceanic, tau, eqFraction);
 
         /// <summary>
-        /// Ld. a fenti tulterhelest; itt a lemez-ido es az eroziós ido KULON
-        /// adhato meg.
+        /// Ld. a fenti tulterhelest; itt a lemez-ido, az eroziós ido es a
+        /// statikus tengerszint KULON adhato meg — A22 ota egyetlen
+        /// <see cref="DeepTimeContext"/>-ben.
         /// </summary>
         public static double ElevationAtTime(
             ulong worldSeed, int plateId, double x, double y, double z, (double X, double Y, double Z)[] seeds,
-            double plateTimeMyr, double erosionTimeMyr, out bool isOceanic,
-            double tau = OrogenicRelaxationTauMyr, double eqFraction = EquilibriumFraction,
-            double staticSeaLevelMeters = double.NaN)
+            in DeepTimeContext context, out bool isOceanic,
+            double tau = OrogenicRelaxationTauMyr, double eqFraction = EquilibriumFraction)
         {
+            double erosionTimeMyr = context.ErosionTimeMyr;
             DomainWarp.WarpPosition(worldSeed, x, y, z, out double wx, out double wy, out double wz);
             PlateBoundaryEffect.BaseAndUpliftFromWarpedAtTime(
-                worldSeed, x, y, z, wx, wy, wz, seeds, plateTimeMyr,
-                out double baseElev, out double upliftStatic, out isOceanic,
-                PlateBoundaryEffect.DefaultGapScale, PlateBoundaryEffect.DefaultUpliftMaxMeters,
-                CrustElevation.DefaultBoundaryBlendGap, erosionTimeMyr);
+                worldSeed, x, y, z, wx, wy, wz, seeds, context,
+                out double baseElev, out double upliftStatic, out isOceanic);
             double upliftT = UpliftRelaxationElevation(upliftStatic, erosionTimeMyr, tau, eqFraction);
             double elevation = baseElev + upliftT;
             // ND-137 2. kor: parti abrazio (NaN tengerszint -> kikapcsolva).
             return elevation + CoastalAbrasionDelta(
-                elevation, staticSeaLevelMeters, AbsLatitudeRad(z), erosionTimeMyr);
+                elevation, context.StaticSeaLevelMeters, AbsLatitudeRad(z), erosionTimeMyr);
         }
 
         /// <summary>Ugyanaz a zart formula n_steps darab reszidokozre lancolva (a H_eq FIX, az EREDETI h0-bol) - timestep-invariancia bizonyitas.</summary>

@@ -453,28 +453,31 @@ namespace WorldGen.Core.Tectonics
 
         /// <summary>
         /// ND-136 (A19): ugyanaz, de a zaj a lemez saját keretében
-        /// értékelődik ki <paramref name="timeMyr"/>-nél.
+        /// értékelődik ki a <paramref name="context"/> lemez-idejénél
+        /// (A22: a deep-time hármas egy paraméterben, ld.
+        /// <see cref="DeepTimeContext"/>).
         ///
         /// A cache-elt WARP (a drága, három fBm-es domain warp) itt is
         /// hasznosul — csak a zajtagokat kell újraszámolni. A nyers
         /// <paramref name="x"/>/<paramref name="y"/>/<paramref name="z"/>
         /// ezért kell: a cache a warpot tárolja, a nyers pozíciót nem.
         ///
-        /// <paramref name="timeMyr"/> = 0-nál bitre azonos az
+        /// <see cref="DeepTimeContext.Static"/> esetén bitre azonos az
         /// <see cref="Evaluate"/> eredményével, és el is kerüli a
         /// zaj-újraszámolást (a cache-elt tagokat használja).
         /// </summary>
         public void EvaluateAtTime(
             ulong worldSeed, (double X, double Y, double Z)[] seeds,
-            double x, double y, double z, double timeMyr,
-            out double baseElevation, out double uplift, out bool isOceanic,
-            double erosionTimeMyr = 0.0)
+            double x, double y, double z, in DeepTimeContext context,
+            out double baseElevation, out double uplift, out bool isOceanic)
         {
-            if (timeMyr == 0.0 && erosionTimeMyr == 0.0)
+            if (context.IsStatic)
             {
                 Evaluate(worldSeed, seeds, out baseElevation, out uplift, out isOceanic);
                 return;
             }
+
+            double timeMyr = context.PlateTimeMyr;
 
             // ND-137 (A20): a relief-csillapitas tisztan pozicio- es
             // ido-fuggo, tehat a cache-elt (t=0) zajtagokra is alkalmazhato -
@@ -482,7 +485,7 @@ namespace WorldGen.Core.Tectonics
             // eredmenyt ad az alabbi (ujraszamolo) ag: a ToPlateFrame t=0-ra
             // egzakt azonossag.
             DeepTimeErosionGlaciation.ReliefDecayFactors(
-                z, erosionTimeMyr, out double primaryDecay, out double secondaryDecay);
+                z, context.ErosionTimeMyr, out double primaryDecay, out double secondaryDecay);
 
             PlateBoundaryEffect.TwoBestDots(
                 WarpedX, WarpedY, WarpedZ, seeds,

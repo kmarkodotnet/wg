@@ -42,7 +42,7 @@ internal static class Program
             var coarseTimer = Stopwatch.StartNew();
             var coarse = RiverPathTracing.BuildRiverNetworkFromSources(
                 Seed, movedSeeds, precipitation.SeaLevel, sources,
-                RiverPathTracing.DefaultFineDepth, timeMyr: timeMyr);
+                RiverPathTracing.DefaultFineDepth, context: DeepTimeContext.AtPlateTime(timeMyr));
             long coarsePoints = 0;
             int coarseMerges = 0;
             var coarseClaimed = new Dictionary<TileId, int>();
@@ -79,7 +79,7 @@ internal static class Program
                     Seed, movedSeeds, precipitation.SeaLevel, sources[index], index,
                     RiverPathTracing.DefaultFineDepth,
                     new Dictionary<TileId, RiverPathTracing.ClaimedTileInfo>(),
-                    stepMeters: 50.0, timeMyr: timeMyr);
+                    stepMeters: 50.0, context: DeepTimeContext.AtPlateTime(timeMyr));
                 int extraSteps = unclaimed.ClaimCheckIndices.Count - claimedSteps;
                 tailRows.WriteLine(string.Join(",", index, claimedSteps,
                     unclaimed.ClaimCheckIndices.Count, extraSteps,
@@ -99,7 +99,7 @@ internal static class Program
                 RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
                     Seed, movedSeeds, precipitation.SeaLevel, sources,
                     RiverPathTracing.DefaultFineDepth, stepMeters: 50.0,
-                    maxDegreeOfParallelism: workers, timeMyr: timeMyr);
+                    maxDegreeOfParallelism: workers, context: DeepTimeContext.AtPlateTime(timeMyr));
             double elapsedMs = parallelTimer.Elapsed.TotalMilliseconds;
             double cpuMs = (process.TotalProcessorTime - cpuBefore).TotalMilliseconds;
             int[] parallelWeights = RiverPathTracing.ComputeDischargeWeights(parallel);
@@ -133,7 +133,7 @@ internal static class Program
             var river = RiverPathTracing.TraceRiverPathContinuous(
                 Seed, movedSeeds, precipitation.SeaLevel, sources[i], i,
                 RiverPathTracing.DefaultFineDepth, claimed,
-                stepMeters: 50.0, onPitEscape: () => pitCalls++, timeMyr: timeMyr);
+                stepMeters: 50.0, onPitEscape: () => pitCalls++, context: DeepTimeContext.AtPlateTime(timeMyr));
             double traceMs = timer.Elapsed.TotalMilliseconds;
             timer.Restart();
             int fineLevel = sources[i].Level + RiverPathTracing.DefaultFineDepth;
@@ -159,7 +159,7 @@ internal static class Program
         {
             var canonical = RiverPathTracing.BuildContinuousRiverNetworkFromSources(
                 Seed, movedSeeds, precipitation.SeaLevel, sources.GetRange(0, count),
-                RiverPathTracing.DefaultFineDepth, stepMeters: 50.0, timeMyr: timeMyr);
+                RiverPathTracing.DefaultFineDepth, stepMeters: 50.0, context: DeepTimeContext.AtPlateTime(timeMyr));
             for (int i = 0; i < count; i++)
             {
                 if (rivers[i].Termination != canonical[i].Termination ||

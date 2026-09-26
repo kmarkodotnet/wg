@@ -182,7 +182,8 @@ namespace WorldGen.Cli
                     field0.Values, defaultTargetWaterFraction);
             }
             var field = SeaLevelCalibration.ComputeElevationFieldAtTime(
-                seed, plates, level, time, time, staticSeaLevel);
+                seed, plates, level,
+                DeepTimeContext.Uniform(time).WithStaticSeaLevel(staticSeaLevel));
             byte[] hash = WorldStateHash.ComputeFieldHash(field);
             return WorldStateHash.ToHexString(hash);
         }

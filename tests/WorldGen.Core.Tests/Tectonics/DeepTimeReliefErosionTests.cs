@@ -114,9 +114,8 @@ public class DeepTimeReliefErosionVectorFileTests
                 ? v.GetProperty("staticSeaLevelMeters").GetDouble()
                 : double.NaN;
             double elev = DeepTimeErosionGlaciation.ElevationAtTime(
-                worldSeed, plateId, x, y, z, seeds, plateT, erosionT, out bool oceanic,
-                DeepTimeErosionGlaciation.OrogenicRelaxationTauMyr,
-                DeepTimeErosionGlaciation.EquilibriumFraction, staticSea);
+                worldSeed, plateId, x, y, z, seeds,
+                new DeepTimeContext(plateT, erosionT, staticSea), out bool oceanic);
             Assert.True(Math.Abs(elev - v.GetProperty("elevation").GetDouble()) < 1e-9, $"elev: {elev}");
             Assert.Equal(v.GetProperty("isOceanic").GetBoolean(), oceanic);
             n++;
@@ -166,7 +165,7 @@ public class DeepTimeReliefErosionPropertyTests
             double withoutErosion = PlateBoundaryEffect.ElevationWithBoundary(
                 Seed, plateId, id.Value, x, y, z, seeds, out bool oc0);
             double withZeroErosion = DeepTimeErosionGlaciation.ElevationAtTime(
-                Seed, plateId, x, y, z, seeds, 0.0, 0.0, out bool oc1);
+                Seed, plateId, x, y, z, seeds, DeepTimeContext.Static, out bool oc1);
             Assert.Equal(oc0, oc1);
             // A maradék kizárólag az uplift-relaxáció `hEq + (h0 - hEq)`
             // átrendezéséből jön (ND-44 óta így van), NEM az új eróziós ágból.
@@ -203,7 +202,7 @@ public class DeepTimeReliefErosionPropertyTests
             TileGeometry.ToPosition(tiles[i], out double x, out double y, out double z);
             int pid = PlateGeneration.AssignPlate(x, y, z, seeds);
             sequential[i] = DeepTimeErosionGlaciation.ElevationAtTime(
-                Seed, pid, x, y, z, seeds, 600.0, 600.0, out _);
+                Seed, pid, x, y, z, seeds, DeepTimeContext.Uniform(600.0), out _);
         }
 
         var parallel = new double[tiles.Count];
@@ -212,7 +211,7 @@ public class DeepTimeReliefErosionPropertyTests
             TileGeometry.ToPosition(tiles[i], out double x, out double y, out double z);
             int pid = PlateGeneration.AssignPlate(x, y, z, seeds);
             parallel[i] = DeepTimeErosionGlaciation.ElevationAtTime(
-                Seed, pid, x, y, z, seeds, 600.0, 600.0, out _);
+                Seed, pid, x, y, z, seeds, DeepTimeContext.Uniform(600.0), out _);
         });
 
         for (int i = 0; i < tiles.Count; i++)
@@ -352,9 +351,9 @@ public class DeepTimeReliefErosionPropertyTests
                 TileGeometry.ToPosition(id, out double x, out double y, out double z);
                 int pid = PlateGeneration.AssignPlate(x, y, z, seeds);
                 double noErosion = DeepTimeErosionGlaciation.ElevationAtTime(
-                    Seed, pid, x, y, z, seeds, 0.0, 0.0, out bool oceanic);
+                    Seed, pid, x, y, z, seeds, DeepTimeContext.Static, out bool oceanic);
                 double eroded = DeepTimeErosionGlaciation.ElevationAtTime(
-                    Seed, pid, x, y, z, seeds, 0.0, t, out _);
+                    Seed, pid, x, y, z, seeds, DeepTimeContext.Static.WithErosionTime(t), out _);
                 if (!oceanic) landDiffs.Add(Math.Abs(eroded - noErosion));
             }
             means.Add(landDiffs.Average());
@@ -421,8 +420,8 @@ public class DeepTimeReliefErosionPropertyTests
         {
             TileGeometry.ToPosition(id, out double x, out double y, out double z);
             int pid = PlateGeneration.AssignPlate(x, y, z, seeds);
-            before.Add(DeepTimeErosionGlaciation.ElevationAtTime(Seed, pid, x, y, z, seeds, 0.0, 0.0, out _));
-            after.Add(DeepTimeErosionGlaciation.ElevationAtTime(Seed, pid, x, y, z, seeds, 0.0, 3000.0, out _));
+            before.Add(DeepTimeErosionGlaciation.ElevationAtTime(Seed, pid, x, y, z, seeds, DeepTimeContext.Static, out _));
+            after.Add(DeepTimeErosionGlaciation.ElevationAtTime(Seed, pid, x, y, z, seeds, DeepTimeContext.Static.WithErosionTime(3000.0), out _));
         }
 
         double Std(List<double> xs)

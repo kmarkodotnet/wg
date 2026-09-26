@@ -218,14 +218,17 @@ namespace WorldGen.Core.Tectonics
             double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters)
         {
             return ElevationWithBoundaryFromWarpedAtTime(
-                worldSeed, plateId, tileIdValue, x, y, z, wx, wy, wz, seeds, 0.0,
-                out isOceanic, gapScale, upliftMax);
+                worldSeed, plateId, tileIdValue, x, y, z, wx, wy, wz, seeds,
+                DeepTimeContext.Static, out isOceanic, gapScale, upliftMax);
         }
 
         /// <summary>
         /// ND-136 (A19): ugyanaz, mint <see cref="ElevationWithBoundaryFromWarped"/>,
         /// de a domborzati zaj a lemez SAJÁT vonatkoztatási rendszerében
-        /// értékelődik ki <paramref name="timeMyr"/>-nél.
+        /// értékelődik ki a <paramref name="context"/> lemez-idejénél.
+        ///
+        /// A22: a deep-time hármas (lemez-idő, eróziós idő, statikus
+        /// tengerszint) EGY paraméterben jön — ld. <see cref="DeepTimeContext"/>.
         ///
         /// A <paramref name="seeds"/> a MÁR ELMOZDÍTOTT lemez-magokat várja
         /// (<see cref="PlateMotion.MovedSeeds"/>) — a lemez-topológia
@@ -233,22 +236,22 @@ namespace WorldGen.Core.Tectonics
         /// WARPOLT pozíción dől el (ND-36); csak a zaj kerül át a lemez
         /// keretébe.
         ///
-        /// <paramref name="timeMyr"/> = 0-nál bitre azonos a korábbi
+        /// <see cref="DeepTimeContext.Static"/> esetén bitre azonos a korábbi
         /// eredménnyel.
         /// </summary>
         public static double ElevationWithBoundaryFromWarpedAtTime(
             ulong worldSeed, int plateId, ulong tileIdValue,
             double x, double y, double z,
             double wx, double wy, double wz, (double X, double Y, double Z)[] seeds,
-            double timeMyr,
+            in DeepTimeContext context,
             out bool isOceanic,
-            double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters,
-            double erosionTimeMyr = 0.0, double staticSeaLevelMeters = double.NaN)
+            double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters)
         {
             BaseAndUpliftFromWarpedAtTime(
-                worldSeed, x, y, z, wx, wy, wz, seeds, timeMyr,
+                worldSeed, x, y, z, wx, wy, wz, seeds, context,
                 out double baseElevation, out double uplift, out isOceanic,
-                gapScale, upliftMax, CrustElevation.DefaultBoundaryBlendGap, erosionTimeMyr);
+                gapScale, upliftMax);
+            double erosionTimeMyr = context.ErosionTimeMyr;
             if (erosionTimeMyr == 0.0)
                 return baseElevation + uplift;
             // ND-137 (A20): ez a TELJES elevációt adja vissza, tehát az
@@ -263,7 +266,7 @@ namespace WorldGen.Core.Tectonics
             // ND-137 2. kör: a parti abrázió a MÁR kész (relief + uplift)
             // felszínre hat. staticSeaLevelMeters = NaN -> kikapcsolva.
             return elevation + DeepTimeErosionGlaciation.CoastalAbrasionDelta(
-                elevation, staticSeaLevelMeters,
+                elevation, context.StaticSeaLevelMeters,
                 DeepTimeErosionGlaciation.AbsLatitudeRad(z), erosionTimeMyr);
         }
 
@@ -283,12 +286,12 @@ namespace WorldGen.Core.Tectonics
             ulong worldSeed,
             double x, double y, double z,
             double wx, double wy, double wz, (double X, double Y, double Z)[] seeds,
-            double timeMyr,
+            in DeepTimeContext context,
             out double baseElevation, out double uplift, out bool isOceanic,
             double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters,
-            double blendGap = CrustElevation.DefaultBoundaryBlendGap,
-            double erosionTimeMyr = 0.0)
+            double blendGap = CrustElevation.DefaultBoundaryBlendGap)
         {
+            double timeMyr = context.PlateTimeMyr;
             // ND-137 (A20): a relief-tagok csillapito tenyezoi TISZTAN a
             // pozicio (szelesseg) es az eroziós ido fuggvenyei - ezert
             // szamolhatok itt, egyszer, mindket lemezre kozosen. Az eroziós
@@ -296,7 +299,7 @@ namespace WorldGen.Core.Tectonics
             // "Erozio (kopas)" kapcsoloja). erosionTimeMyr = 0 -> a tenyezok
             // egzakt 1,0, es a kifejezes bitre a regi.
             DeepTimeErosionGlaciation.ReliefDecayFactors(
-                z, erosionTimeMyr, out double primaryDecay, out double secondaryDecay);
+                z, context.ErosionTimeMyr, out double primaryDecay, out double secondaryDecay);
 
             TwoBestDots(
                 wx, wy, wz, seeds,

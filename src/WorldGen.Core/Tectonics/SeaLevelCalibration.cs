@@ -22,7 +22,7 @@ namespace WorldGen.Core.Tectonics
         public static Dictionary<TileId, double> ComputeElevationField(ulong worldSeed, int plateCount, int level)
         {
             var seeds = PlateGeneration.GenerateSeeds(worldSeed, plateCount);
-            return ComputeElevationFieldWithSeeds(worldSeed, seeds, level, 0.0, 0.0, double.NaN);
+            return ComputeElevationFieldWithSeeds(worldSeed, seeds, level, DeepTimeContext.Static);
         }
 
         /// <summary>
@@ -33,18 +33,26 @@ namespace WorldGen.Core.Tectonics
         /// angle=0-nál egzaktul identitás: cos(0)=1, sin(0)=0 IEEE-754 pontosan).
         /// </summary>
         public static Dictionary<TileId, double> ComputeElevationFieldAtTime(
-            ulong worldSeed, int plateCount, int level, double timeMyr,
-            double erosionTimeMyr = 0.0, double staticSeaLevelMeters = double.NaN)
+            ulong worldSeed, int plateCount, int level, double timeMyr)
+            => ComputeElevationFieldAtTime(
+                worldSeed, plateCount, level, DeepTimeContext.AtPlateTime(timeMyr));
+
+        /// <summary>
+        /// Ld. a fenti tulterhelest; A22 ota a deep-time harmas (lemez-ido,
+        /// eroziós ido, statikus tengerszint) egyetlen
+        /// <see cref="DeepTimeContext"/>-ben jon.
+        /// </summary>
+        public static Dictionary<TileId, double> ComputeElevationFieldAtTime(
+            ulong worldSeed, int plateCount, int level, in DeepTimeContext context)
         {
             var seeds0 = PlateGeneration.GenerateSeeds(worldSeed, plateCount);
-            var movedSeeds = PlateMotion.MovedSeeds(worldSeed, seeds0, timeMyr);
-            return ComputeElevationFieldWithSeeds(
-                worldSeed, movedSeeds, level, timeMyr, erosionTimeMyr, staticSeaLevelMeters);
+            var movedSeeds = PlateMotion.MovedSeeds(worldSeed, seeds0, context.PlateTimeMyr);
+            return ComputeElevationFieldWithSeeds(worldSeed, movedSeeds, level, context);
         }
 
         private static Dictionary<TileId, double> ComputeElevationFieldWithSeeds(
-            ulong worldSeed, (double X, double Y, double Z)[] seeds, int level, double timeMyr,
-            double erosionTimeMyr, double staticSeaLevelMeters)
+            ulong worldSeed, (double X, double Y, double Z)[] seeds, int level,
+            DeepTimeContext context)
         {
             uint n = level == 0 ? 1u : (1u << level);
             int tileCount = checked((int)(6L * n * n));
@@ -95,9 +103,7 @@ namespace WorldGen.Core.Tectonics
                 // adja hozza kulon (viewer: ApplyDeepTimeErosionToField), hogy
                 // ne kelljen eloszor osszeadni, majd kivonni.
                 double elevation = PlateBoundaryEffect.ElevationWithBoundaryFromWarpedAtTime(
-                    worldSeed, plateId, id.Value, x, y, z, wx, wy, wz, seeds, timeMyr, out _,
-                    PlateBoundaryEffect.DefaultGapScale, PlateBoundaryEffect.DefaultUpliftMaxMeters,
-                    erosionTimeMyr, staticSeaLevelMeters);
+                    worldSeed, plateId, id.Value, x, y, z, wx, wy, wz, seeds, context, out _);
                 elevations[i] = elevation;
             });
 

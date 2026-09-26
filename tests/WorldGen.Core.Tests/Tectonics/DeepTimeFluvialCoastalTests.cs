@@ -280,11 +280,9 @@ public class DeepTimeRoundTwoIntegrationTests
             TileGeometry.ToPosition(id, out double x, out double y, out double z);
             int pid = PlateGeneration.AssignPlate(x, y, z, seeds);
             double withSeaLevel = DeepTimeErosionGlaciation.ElevationAtTime(
-                Seed, pid, x, y, z, seeds, 0.0, 0.0, out _,
-                DeepTimeErosionGlaciation.OrogenicRelaxationTauMyr,
-                DeepTimeErosionGlaciation.EquilibriumFraction, -150.0);
+                Seed, pid, x, y, z, seeds, DeepTimeContext.Static.WithStaticSeaLevel(-150.0), out _);
             double withoutSeaLevel = DeepTimeErosionGlaciation.ElevationAtTime(
-                Seed, pid, x, y, z, seeds, 0.0, 0.0, out _);
+                Seed, pid, x, y, z, seeds, DeepTimeContext.Static, out _);
             Assert.Equal(withoutSeaLevel, withSeaLevel);
         }
     }
@@ -301,9 +299,8 @@ public class DeepTimeRoundTwoIntegrationTests
             TileGeometry.ToPosition(id, out double x, out double y, out double z);
             int pid = PlateGeneration.AssignPlate(x, y, z, seeds);
             return DeepTimeErosionGlaciation.ElevationAtTime(
-                Seed, pid, x, y, z, seeds, 600.0, 600.0, out _,
-                DeepTimeErosionGlaciation.OrogenicRelaxationTauMyr,
-                DeepTimeErosionGlaciation.EquilibriumFraction, -150.0);
+                Seed, pid, x, y, z, seeds,
+                DeepTimeContext.Uniform(600.0).WithStaticSeaLevel(-150.0), out _);
         }
 
         var sequential = new double[tiles.Count];
@@ -332,11 +329,10 @@ public class DeepTimeRoundTwoIntegrationTests
             TileGeometry.ToPosition(id, out double x, out double y, out double z);
             int pid = PlateGeneration.AssignPlate(x, y, z, seeds);
             double without = DeepTimeErosionGlaciation.ElevationAtTime(
-                Seed, pid, x, y, z, seeds, 500.0, 500.0, out _);
+                Seed, pid, x, y, z, seeds, DeepTimeContext.Uniform(500.0), out _);
             double with = DeepTimeErosionGlaciation.ElevationAtTime(
-                Seed, pid, x, y, z, seeds, 500.0, 500.0, out _,
-                DeepTimeErosionGlaciation.OrogenicRelaxationTauMyr,
-                DeepTimeErosionGlaciation.EquilibriumFraction, staticSea);
+                Seed, pid, x, y, z, seeds,
+                DeepTimeContext.Uniform(500.0).WithStaticSeaLevel(staticSea), out _);
             // 5 szigmán túl a Gauss-sáv exp(-12,5) ~ 3,7e-6, tehát a hatás
             // milliméter alatti. 2 szigmánál még ~30 m — az NEM "kívül".
             if (Math.Abs(without - staticSea) > 5.0 * DeepTimeErosionGlaciation.CoastalBandMeters)

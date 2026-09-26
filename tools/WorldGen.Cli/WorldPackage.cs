@@ -62,8 +62,9 @@ namespace WorldGen.Cli
         public static WorldPackage Create(ulong worldSeed, int plateCount, int level, double deepTimeMyr)
         {
             var field = SeaLevelCalibration.ComputeElevationFieldAtTime(
-                worldSeed, plateCount, level, deepTimeMyr, deepTimeMyr,
-                StaticSeaLevelFor(worldSeed, plateCount, level, deepTimeMyr));
+                worldSeed, plateCount, level,
+                DeepTimeContext.Uniform(deepTimeMyr).WithStaticSeaLevel(
+                    StaticSeaLevelFor(worldSeed, plateCount, level, deepTimeMyr)));
             byte[] hash = WorldStateHash.ComputeFieldHash(field);
             return new WorldPackage
             {
@@ -120,8 +121,9 @@ namespace WorldGen.Cli
         {
             EnsureCompatible();
             var field = SeaLevelCalibration.ComputeElevationFieldAtTime(
-                WorldSeed, PlateCount, Level, DeepTimeMyr, DeepTimeMyr,
-                StaticSeaLevelFor(WorldSeed, PlateCount, Level, DeepTimeMyr));
+                WorldSeed, PlateCount, Level,
+                DeepTimeContext.Uniform(DeepTimeMyr).WithStaticSeaLevel(
+                    StaticSeaLevelFor(WorldSeed, PlateCount, Level, DeepTimeMyr)));
             byte[] hash = WorldStateHash.ComputeFieldHash(field);
             recomputedHashHex = WorldStateHash.ToHexString(hash);
             return string.Equals(recomputedHashHex, StateHashHex, StringComparison.OrdinalIgnoreCase);

@@ -1019,12 +1019,14 @@ namespace WorldGen.Viewer
             // ND-136 (A19): a nyomvonalkoveto UGYANAZT a lemez-keretes
             // domborzatot lassa, mint a megjelenitett mezo. Pillanatkep, mert
             // ez hatterszalon fut - a mezo kozben valtozhat.
-            double riverPlateTimeMyr = deepTimeMyr;
             // ND-137 (A20): a folyo a MAR erodalt terepen fusson - kulonben a
             // nyomvonal egy masik domborzaton keresne a lejtot, mint amit a
             // felhasznalo lat. Ugyanaz a kapcsolo vezerli, mint a mezot.
-            double riverErosionTimeMyr = showDeepTimeErosion ? deepTimeMyr : 0.0;
-            double riverStaticSeaLevel = _adaptiveStaticSeaLevel;
+            // A22: a harmas egy DeepTimeContext-ben utazik.
+            var riverDeepTime = new DeepTimeContext(
+                deepTimeMyr,
+                showDeepTimeErosion ? deepTimeMyr : 0.0,
+                _adaptiveDeepTime.StaticSeaLevelMeters);
             _riverRefinementCancellation = new System.Threading.CancellationTokenSource();
             System.Threading.CancellationToken cancellation = _riverRefinementCancellation.Token;
             _pendingRiverRefinementGeneration = _riverRefinementGeneration;
@@ -1039,8 +1041,7 @@ namespace WorldGen.Viewer
                             RiverPathTracing.BuildRiverNetworkFromSources(
                                 seed, seeds, seaLevel, sourceSnapshot,
                                 RiverPathTracing.DefaultFineDepth,
-                                timeMyr: riverPlateTimeMyr, erosionTimeMyr: riverErosionTimeMyr,
-                                staticSeaLevelMeters: riverStaticSeaLevel);
+                                context: riverDeepTime);
                         cancellation.ThrowIfCancellationRequested();
                         var preview = new PendingCoarseRiverNetwork
                         {
@@ -1064,8 +1065,7 @@ namespace WorldGen.Viewer
                         RiverPathTracing.DefaultFineDepth, stepMeters,
                         cancellation: cancellation,
                         maxDegreeOfParallelism: RiverRefinementWorkerCount,
-                        timeMyr: riverPlateTimeMyr, erosionTimeMyr: riverErosionTimeMyr,
-                        staticSeaLevelMeters: riverStaticSeaLevel);
+                        context: riverDeepTime);
                 },
                 cancellation, System.Threading.Tasks.TaskCreationOptions.LongRunning,
                 System.Threading.Tasks.TaskScheduler.Default);
@@ -1121,18 +1121,17 @@ namespace WorldGen.Viewer
             return result;
         }
         private double _adaptiveAxialTiltRad;
-        private double _adaptiveErosionTimeMyr;
 
-        // ND-136 (A19): a LEMEZ-ido kulon a kopas-idotol. A domborzati zaj a
-        // lemez sajat kereteben ertekelodik ki, es ezt a lemez-mozgas ideje
-        // vezerli (deepTimeMyr) - NEM az "Erozio (kopas)" kapcsolotol fuggo
-        // _adaptiveErosionTimeMyr. Kulonben a kapcsolo kikapcsolasa a
-        // domborzatot is visszarantana a t=0 keretbe.
-        private double _adaptivePlateTimeMyr;
-
-        // ND-137 2. kor: a parti abrazio referencia-szintje (statikus, t=0).
-        // NaN = kikapcsolva (t=0-nal nincs abrazio).
-        private double _adaptiveStaticSeaLevel = double.NaN;
+        // A22: a deep-time harmas EGY strukturaban (DeepTimeContext) -
+        //  - PlateTimeMyr: a LEMEZ-ido, kulon a kopas-idotol (ND-136/A19). A
+        //    domborzati zaj a lemez sajat kereteben ertekelodik ki, es ezt a
+        //    lemez-mozgas ideje vezerli (deepTimeMyr) - NEM az "Erozio (kopas)"
+        //    kapcsolotol fuggo eroziós ido. Kulonben a kapcsolo kikapcsolasa a
+        //    domborzatot is visszarantana a t=0 keretbe.
+        //  - ErosionTimeMyr: a kopas ideje ("Erozio (kopas)" kapcsolo).
+        //  - StaticSeaLevelMeters: a parti abrazio referencia-szintje
+        //    (statikus, t=0); NaN = kikapcsolva (t=0-nal nincs abrazio).
+        private DeepTimeContext _adaptiveDeepTime = DeepTimeContext.Static;
         private double _cachedStaticSeaLevel = double.NaN;
         private DailyInsolationSampleDirections _adaptiveDailyInsolationSamples;
 
@@ -2565,19 +2564,19 @@ namespace WorldGen.Viewer
             // ND-137 (A20): az erozios idot MAR ITT be kell allitani - a
             // relief-kopas a Core mezoszamitas RESZE lett (nem utolagos
             // korrekcio, mint az uplift-relaxacio).
-            _adaptiveErosionTimeMyr = showDeepTimeErosion ? deepTimeMyr : 0.0;
-            _adaptivePlateTimeMyr = deepTimeMyr;
+            double erosionTimeMyr = showDeepTimeErosion ? deepTimeMyr : 0.0;
             // ND-137 2. kor: a parti abrazioho z a statikus (t=0) tengerszint kell.
             // t=0-nal nem szamolunk ilyet (nincs is ra szukseg: az abrazio ott
             // azonosan 0), tehat a cache-t csak t>0-nal keszitjuk el.
-            _adaptiveStaticSeaLevel = double.NaN;
-            if (_adaptiveErosionTimeMyr != 0.0)
+            double staticSeaLevel = double.NaN;
+            if (erosionTimeMyr != 0.0)
             {
                 EnsureInitialWaterVolumeCache(seed);
-                _adaptiveStaticSeaLevel = _cachedStaticSeaLevel;
+                staticSeaLevel = _cachedStaticSeaLevel;
             }
+            _adaptiveDeepTime = new DeepTimeContext(deepTimeMyr, erosionTimeMyr, staticSeaLevel);
             Dictionary<TileId, double> field = SeaLevelCalibration.ComputeElevationFieldAtTime(
-                seed, plateCount, level, deepTimeMyr, _adaptiveErosionTimeMyr, _adaptiveStaticSeaLevel);
+                seed, plateCount, level, _adaptiveDeepTime);
             // A becsapodas mezo-hatasa a MAR kiszamolt krater-listaval, a Core
             // ImpactCratering.ApplyToField-jen keresztul - igy a mezo-hatas
             // BITRE ugyanaz a fuggveny (ElevationDelta), mint a sarok/tile-kozep
@@ -2628,7 +2627,7 @@ namespace WorldGen.Viewer
             _adaptiveSeed = seed;
             _adaptiveSeeds = seeds;
             _adaptiveCraters = craters;
-            // _adaptiveErosionTimeMyr MAR beallitva fentebb (a mezo-erozio elott),
+            // _adaptiveDeepTime MAR beallitva fentebb (a mezo-erozio elott),
             // hogy a sarok/adaptiv ComputeElevationAtPoint es a mezo UGYANAZT a
             // relaxacios idot lassa.
             Dictionary<TileId, bool> isOceanField = FlowNetwork.ComputeOceanField(field, seaLevel);
@@ -2676,8 +2675,7 @@ namespace WorldGen.Viewer
                     hydroTerrainBasisReused = EnsureTileCenterTerrainBasisCache(seed, hydroLevel);
                     hydroTerrainBasisMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds;
                     hydroField = BuildElevationFieldFromCachedTileCenters(
-                        seed, seeds, craters, _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr,
-                        _adaptiveStaticSeaLevel, hydroLevel,
+                        seed, seeds, craters, _adaptiveDeepTime, hydroLevel,
                         out hydroDenseField);
                     hydroOcean = FlowNetwork.ComputeOceanField(hydroField, seaLevel);
                     hydroDenseOcean = new bool[hydroDenseField.Length];
@@ -5774,8 +5772,8 @@ namespace WorldGen.Viewer
         /// </summary>
         private Dictionary<TileId, double> BuildElevationFieldFromCachedTileCenters(
             ulong seed, (double X, double Y, double Z)[] seeds,
-            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr, double plateTimeMyr,
-            double staticSeaLevelMeters, int targetLevel, out double[] denseValues)
+            List<ImpactCratering.CraterRecord> craters, DeepTimeContext context,
+            int targetLevel, out double[] denseValues)
         {
             if (_tileCenterTerrainBasisSeed != seed
                 || _tileCenterTerrainBasisLevel != targetLevel
@@ -5790,9 +5788,9 @@ namespace WorldGen.Viewer
                 // ND-136 (A19): a cache-elt WARP tovabbra is ervenyes (pozicio-
                 // fuggo), a ZAJ viszont t>0-nal a lemez kereteben szamolodik ujra.
                 _tileCenterTerrainBasis[i].EvaluateAtTime(
-                    seed, seeds, x, y, z, plateTimeMyr,
-                    out double baseElevation, out double uplift, out _,
-                    erosionTimeMyr);
+                    seed, seeds, x, y, z, context,
+                    out double baseElevation, out double uplift, out _);
+                double erosionTimeMyr = context.ErosionTimeMyr;
 
                 // ND-137 (A20): ugyanaz a muveleti sorrend, mint a Core
                 // mezoutjan es a pontszeru ComputeElevationAtPointFromBasis-ban:
@@ -5808,7 +5806,7 @@ namespace WorldGen.Viewer
                 // ElevationWithBoundaryFromWarpedAtTime-ban (abrazio a relief+uplift
                 // utan, krater utana).
                 elevation += DeepTimeErosionGlaciation.CoastalAbrasionDelta(
-                    elevation, staticSeaLevelMeters,
+                    elevation, context.StaticSeaLevelMeters,
                     DeepTimeErosionGlaciation.AbsLatitudeRad(z), erosionTimeMyr);
                 if (craters.Count > 0)
                     elevation += ImpactCratering.ElevationDelta(x, y, z, craters);
@@ -6014,15 +6012,13 @@ namespace WorldGen.Viewer
             {
                 elevation = ComputeElevationAtPointFromBasis(
                     cx, cy, cz, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
-                    _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr, _adaptiveStaticSeaLevel,
-                    in basis, out isCratered);
+                    _adaptiveDeepTime, in basis, out isCratered);
             }
             else
             {
                 elevation = ComputeElevationAtPoint(
                     cx, cy, cz, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
-                    _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr, _adaptiveStaticSeaLevel,
-                    out isCratered);
+                    _adaptiveDeepTime, out isCratered);
             }
 
             // Az oceani besorolas itt KOZVETLENUL a pontszeru elevaciobol jon
@@ -7751,15 +7747,14 @@ namespace WorldGen.Viewer
                     cornerBasisHits++;
                     elevation = ComputeElevationAtPointFromBasis(
                         x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
-                        _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr, _adaptiveStaticSeaLevel,
-                        in basis);
+                        _adaptiveDeepTime, in basis);
                 }
                 else
                 {
                     cornerBasisMisses++;
                     elevation = ComputeElevationAtPoint(
                         x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
-                        _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr, _adaptiveStaticSeaLevel);
+                        _adaptiveDeepTime);
                 }
                 cornerElevations[key] = elevation;
                 return elevation;
@@ -8614,8 +8609,7 @@ namespace WorldGen.Viewer
         {
             TileGeometry.PositionFromFaceUV(face, uc, vc, out double x, out double y, out double z);
             double elevation = ComputeElevationAtPointFromBasis(
-                x, y, z, seed, seeds, craters, _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr,
-                _adaptiveStaticSeaLevel, in basis);
+                x, y, z, seed, seeds, craters, _adaptiveDeepTime, in basis);
             float displacedRadius = radius + (float)(DisplayElevation(elevation) * elevationScale);
             return BodyFrameConversion.ToUnity(x, y, z) * displacedRadius;
         }
@@ -8711,8 +8705,7 @@ namespace WorldGen.Viewer
             List<ImpactCratering.CraterRecord> craters)
         {
             double elevation = ComputeElevationAtPoint(
-                x, y, z, seed, seeds, craters, _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr,
-                _adaptiveStaticSeaLevel);
+                x, y, z, seed, seeds, craters, _adaptiveDeepTime);
             return radius + (float)(DisplayElevation(elevation) * elevationScale);
         }
 
@@ -8777,10 +8770,8 @@ namespace WorldGen.Viewer
         /// </summary>
         private static double ComputeElevationAtPoint(
             double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
-            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr, double plateTimeMyr,
-            double staticSeaLevelMeters)
-            => ComputeElevationAtPoint(
-                x, y, z, seed, seeds, craters, erosionTimeMyr, plateTimeMyr, staticSeaLevelMeters, out _);
+            List<ImpactCratering.CraterRecord> craters, in DeepTimeContext context)
+            => ComputeElevationAtPoint(x, y, z, seed, seeds, craters, context, out _);
 
         /// <summary>
         /// Ugyanaz, mint a fenti, de <paramref name="isCratered"/>-ben EGY
@@ -8791,35 +8782,33 @@ namespace WorldGen.Viewer
         /// </summary>
         private static double ComputeElevationAtPoint(
             double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
-            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr, double plateTimeMyr,
-            double staticSeaLevelMeters, out bool isCratered)
+            List<ImpactCratering.CraterRecord> craters, in DeepTimeContext context,
+            out bool isCratered)
         {
             TerrainPointBasis basis = TerrainPointBasis.Compute(seed, x, y, z);
             return ComputeElevationAtPointFromBasis(
-                x, y, z, seed, seeds, craters, erosionTimeMyr, plateTimeMyr, staticSeaLevelMeters,
-                in basis, out isCratered);
+                x, y, z, seed, seeds, craters, context, in basis, out isCratered);
         }
 
         private static double ComputeElevationAtPointFromBasis(
             double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
-            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr, double plateTimeMyr,
-            double staticSeaLevelMeters, in TerrainPointBasis basis)
+            List<ImpactCratering.CraterRecord> craters, in DeepTimeContext context,
+            in TerrainPointBasis basis)
             => ComputeElevationAtPointFromBasis(
-                x, y, z, seed, seeds, craters, erosionTimeMyr, plateTimeMyr, staticSeaLevelMeters,
-                in basis, out _);
+                x, y, z, seed, seeds, craters, context, in basis, out _);
 
         private static double ComputeElevationAtPointFromBasis(
             double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
-            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr, double plateTimeMyr,
-            double staticSeaLevelMeters, in TerrainPointBasis basis, out bool isCratered)
+            List<ImpactCratering.CraterRecord> craters, in DeepTimeContext context,
+            in TerrainPointBasis basis, out bool isCratered)
         {
             isCratered = false;
+            double erosionTimeMyr = context.ErosionTimeMyr;
             // ND-136 (A19): a domborzati zaj a lemez sajat kereteben - a
             // cache-elt warp tovabbra is hasznalodik, csak a zaj szamolodik ujra.
             basis.EvaluateAtTime(
-                seed, seeds, x, y, z, plateTimeMyr,
-                out double baseElevation, out double uplift, out _,
-                erosionTimeMyr);
+                seed, seeds, x, y, z, context,
+                out double baseElevation, out double uplift, out _);
 
             // M10 deep-time erozio (DeepTimeErosionGlaciation): a lemezhatar-
             // uplift-BONUSZ idovel relaxal a MEGLEVO ertekenek eqFraction-jara
@@ -8834,7 +8823,7 @@ namespace WorldGen.Viewer
             double elevation = baseElevation + relaxedUplift;
             // ND-137 2. kor: parti abrazio a MAR kesz (relief + uplift) felszinre.
             elevation += DeepTimeErosionGlaciation.CoastalAbrasionDelta(
-                elevation, staticSeaLevelMeters,
+                elevation, context.StaticSeaLevelMeters,
                 DeepTimeErosionGlaciation.AbsLatitudeRad(z), erosionTimeMyr);
 
             // M11: a pont SAJAT pozicioja alapjan szamolt becsapodas-korrekcio -
@@ -9256,7 +9245,7 @@ namespace WorldGen.Viewer
             if (len < 1e-12) { px = 0; py = 0; pz = 0; } else { px /= len; py /= len; pz /= len; }
             return ComputeElevationAtPoint(
                 px, py, pz, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
-                _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr, _adaptiveStaticSeaLevel);
+                _adaptiveDeepTime);
         }
 
         /// <summary>Szél-sebesség szín-rámpa: kék (szélcsend) -&gt; cián/zöld -&gt; sárga -&gt; piros (viharos).</summary>

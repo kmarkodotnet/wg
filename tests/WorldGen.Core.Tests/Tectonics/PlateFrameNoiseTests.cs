@@ -52,7 +52,7 @@ public class PlateFrameNoiseVectorFileTests
             Assert.Equal(v.GetProperty("secondPlateId").GetInt32(), secondIndex);
 
             PlateBoundaryEffect.BaseAndUpliftFromWarpedAtTime(
-                worldSeed, x, y, z, wx, wy, wz, seeds, timeMyr,
+                worldSeed, x, y, z, wx, wy, wz, seeds, DeepTimeContext.AtPlateTime(timeMyr),
                 out double baseElevation, out double uplift, out bool oceanic);
 
             Assert.True(Math.Abs(baseElevation - v.GetProperty("baseElevation").GetDouble()) < Tol,
@@ -221,7 +221,7 @@ public class PlateFrameNoisePropertyTests
                     Seed, best, second, bestIndex, secondIndex, mask);
 
             double actual = PlateBoundaryEffect.ElevationWithBoundaryFromWarpedAtTime(
-                Seed, plateId, 0UL, x, y, z, wx, wy, wz, seeds, 0.0, out _);
+                Seed, plateId, 0UL, x, y, z, wx, wy, wz, seeds, DeepTimeContext.Static, out _);
 
             Assert.Equal(BitConverter.DoubleToInt64Bits(expected), BitConverter.DoubleToInt64Bits(actual));
         }
@@ -257,9 +257,11 @@ public class PlateFrameNoisePropertyTests
         DomainWarp.WarpPosition(Seed, x, y, z, out double wx, out double wy, out double wz);
 
         PlateBoundaryEffect.BaseAndUpliftFromWarpedAtTime(
-            Seed, x, y, z, wx, wy, wz, seeds, 333.0, out double b1, out double u1, out bool o1);
+            Seed, x, y, z, wx, wy, wz, seeds, DeepTimeContext.AtPlateTime(333.0),
+            out double b1, out double u1, out bool o1);
         PlateBoundaryEffect.BaseAndUpliftFromWarpedAtTime(
-            Seed, x, y, z, wx, wy, wz, seeds, 333.0, out double b2, out double u2, out bool o2);
+            Seed, x, y, z, wx, wy, wz, seeds, DeepTimeContext.AtPlateTime(333.0),
+            out double b2, out double u2, out bool o2);
 
         Assert.Equal(BitConverter.DoubleToInt64Bits(b1), BitConverter.DoubleToInt64Bits(b2));
         Assert.Equal(BitConverter.DoubleToInt64Bits(u1), BitConverter.DoubleToInt64Bits(u2));
@@ -292,7 +294,7 @@ public class PlateFrameNoisePropertyTests
     {
         DomainWarp.WarpPosition(Seed, p.X, p.Y, p.Z, out double wx, out double wy, out double wz);
         return PlateBoundaryEffect.ElevationWithBoundaryFromWarpedAtTime(
-            Seed, 0, 0UL, p.X, p.Y, p.Z, wx, wy, wz, seeds, timeMyr, out _);
+            Seed, 0, 0UL, p.X, p.Y, p.Z, wx, wy, wz, seeds, DeepTimeContext.AtPlateTime(timeMyr), out _);
     }
 
     /// <summary>Minden paraméter érdemben hat: timeMyr, worldSeed, lemez-azonosító.</summary>
@@ -316,7 +318,7 @@ public class PlateFrameNoisePropertyTests
         {
             DomainWarp.WarpPosition(Seed ^ 1UL, x, y, z, out double wx, out double wy, out double wz);
             otherSeed = PlateBoundaryEffect.ElevationWithBoundaryFromWarpedAtTime(
-                Seed ^ 1UL, 0, 0UL, x, y, z, wx, wy, wz, seeds0, 0.0, out _);
+                Seed ^ 1UL, 0, 0UL, x, y, z, wx, wy, wz, seeds0, DeepTimeContext.Static, out _);
         }
         Assert.NotEqual(atZero, otherSeed);
 
@@ -409,11 +411,11 @@ public class PlateFrameNoisePropertyTests
             {
                 DomainWarp.WarpPosition(Seed, x, y, z, out double wx, out double wy, out double wz);
                 PlateBoundaryEffect.BaseAndUpliftFromWarpedAtTime(
-                    Seed, x, y, z, wx, wy, wz, seeds, timeMyr,
+                    Seed, x, y, z, wx, wy, wz, seeds, DeepTimeContext.AtPlateTime(timeMyr),
                     out double expectedBase, out double expectedUplift, out bool expectedOceanic);
 
                 TerrainPointBasis basis = TerrainPointBasis.Compute(Seed, x, y, z);
-                basis.EvaluateAtTime(Seed, seeds, x, y, z, timeMyr,
+                basis.EvaluateAtTime(Seed, seeds, x, y, z, DeepTimeContext.AtPlateTime(timeMyr),
                     out double actualBase, out double actualUplift, out bool actualOceanic);
 
                 Assert.Equal(expectedOceanic, actualOceanic);
