@@ -71,8 +71,13 @@ namespace WorldGen.Viewer
         {
             // A target tengelyforgása/Buildje az Update után is változhatott.
             if (followLocalSurface) ApplyTransform();
+            // ND-19: a végleges (LateUpdate utáni) kamerapozícióból vezetjük le
+            // a render-origót - ugyanabban a képkockában, amiben a mesh is áll.
+            AdvanceRenderOrigin();
             if (Time.unscaledTime < _nextSurfaceLogTime) return;
             _nextSurfaceLogTime = Time.unscaledTime + 1f;
+            if (_surfacePlanet != null && logRenderOrigin)
+                _surfacePlanet.LogCameraSurface(BuildRenderOriginLog());
             if (_surfacePlanet != null)
                 _surfacePlanet.LogCameraSurface($"[ND-91 camera surface] enabled={followLocalSurface} " +
                     $"source={(_surfaceSampleValid ? "model" : "fallback")} distanceUnits={distance:F6} " +

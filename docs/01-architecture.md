@@ -572,6 +572,24 @@ Nem állítja, hogy renderelt háromszög-távolságot mért. Pontmintás első 
 meredek oldalak, near-plane sarkok, tavak és coarse/morph felület eltérése
 miatt nincs teljes ütközésgarancia. Core, relief és cut-küszöb változatlan.
 
+#### Render-origó követés (ND-19 / A12, 1. kör)
+
+Ugyanabban a `LateUpdate`-ben, a végleges kamerapozíció után fut az
+`AdvanceRenderOrigin` (`PlanetOrbitCamera.FloatingOrigin.cs`). A kamera
+modell-téri pozícióját a `target` **lokális, Unity-tengelyű, skálázatlan**
+terében számolja — pontosan ott, ahol a mesh csúcsai vannak —, majd a
+motorfüggetlen `Viewer/Lod/FloatingOrigin.cs` adja a 2-hatvány rácsra
+illesztett origót és a rebase-döntést (hiszterézis: 1,5 × rács-lépés).
+
+Az `originMode` alapértéke `PlanetCenter`, azaz **a renderelt geometria ebben
+a körben változatlan, abszolút** — a modul a követést és a mérést adja, nem az
+eltolást. A másodpercenkénti `[ND-19 floating origin]` napló az abszolút és az
+origó-relatív felbontást méterben egymás mellé teszi (`gainFactor`), tehát a
+2. kör (test-keretes renderelés) haszna előre mérhető. A `float32` felszíni
+hiba lépték-invarianciáját és a mért felbontás-táblát ld. `docs/04-decisions.md`
+ND-19; az `OrbitSurfaceMath`-hoz hasonlóan a modul .NET-ben, Unity nélkül
+tesztelt (`FloatingOriginTests`, 48 teszt).
+
 ### 3.24 Statikus terepmaszk-helyreállítás részleges commit-hibánál (ND-92)
 
 A CPU-maszk állapota nem bizonyíték a natív indexbufferre, ha valamelyik

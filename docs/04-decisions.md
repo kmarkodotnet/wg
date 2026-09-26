@@ -76,7 +76,7 @@ ez nem hiba, hanem a választott vetítés natúr viselkedése. Jobb vetítés
 keresése (a korábban felmerült "C" opció) külön munkát igényelt volna
 ismeretlen nyereségért, ezért elutasítva.
 
-### ND-19 — Floating origin implementációja: HALASZTVA M9-re
+### ND-19 — Floating origin: technika ELDÖNTVE, a matematikai mag KÉSZ, a geometria-eltolás A12/2
 
 Az ND-01 (Unity 6 + HDRP) aktiválta, M2/M3-ra sürgősnek jelölve — újragondolva
 M3 (csillagászat + fény) tervezésekor.
@@ -94,11 +94,123 @@ jelentkezne, ha a kamera **valós, km-skálájú bolygófelszín közelébe** ke
 A bolygó jelenleg (és M3 után is) önkényes `radius=100` Unity-egységben van,
 nem valós méretben.
 
-**Döntés:** az implementáció **halasztva M9-re** (Continent + Region nézet),
-vagy amikorra ténylegesen éles bolygóméretre váltunk — M2/M3 nem függ tőle.
-A konkrét technika (kamera-központú eltolás + logaritmikus depth, vagy
-szektorált rebase — ld. `JakubNei/UnityProceduralPlanets` kutatás) továbbra
-is nyitott, csak nem sürgős.
+**Döntés (2026-09-13):** az implementáció **halasztva M9-re** (Continent +
+Region nézet), vagy amikorra ténylegesen éles bolygóméretre váltunk — M2/M3
+nem függ tőle. A konkrét technika (kamera-központú eltolás + logaritmikus
+depth, vagy szektorált rebase — ld. `JakubNei/UnityProceduralPlanets`
+kutatás) továbbra is nyitott, csak nem sürgős.
+
+---
+
+#### 2026-09-27 (A12, 1. kör): a technika-kérdés eldöntve, a mag megvan
+
+**Az egyik fenti állítás MÉRÉSSEL megdőlt.** A „a bolygó `radius=100`
+Unity-egységben van, nem valós méretben" mondat implicit azt sugallta, hogy a
+kis lépték *védelem* a precíziós probléma ellen. Nem az: a `float32` felszíni
+pozíció-hibája **lépték-invariáns**, mert a `float32`-nek nem absztrakt
+felbontása van, hanem **relatív** (2^-23 … 2^-22 a bináris oktávon belüli
+helytől függően). Mért ULP-ek, ugyanarra a 7420 km-es bolygóra:
+
+| modell-sugár | ULP (modell-egység) | fizikai kvantálás a felszínen |
+|---|---|---|
+| 100 (a mai viewer) | 7,629e-06 | **0,566 m** |
+| 7 420 000 (valós lépték) | 0,5 | **0,500 m** |
+| 1 (egység-gömb) | 1,192e-07 | **0,885 m** |
+
+A három érték 2x-es faktoron belül azonos. Tehát a `radius` megválasztása
+**nem** precíziós kérdés, és a méterszintű közeli zoom (A11, M9 régió-nézet)
+**semmilyen** radius-értékkel nem érhető el — kizárólag origó-eltolással.
+A mérés reprodukálható: `FloatingOriginTests.SurfaceQuantizationIsScaleInvariant`.
+
+Ma ez azért nem látszik, mert a legközelebbi kameramagasság
+`OrbitSurfaceMath.MinimumClearance(100.1, 100, nearClip)` miatt
+**~7,4–24,5 km** (a `nearClip`-től függően) — ott a 0,57 m kvantálás
+szögben ~2e-5 rad, láthatatlan.
+
+**A választott technika: kamera-illesztett, rács-illesztett (snapped) origó,
+egyetlen emit-csatornán alkalmazva.**
+
+- Az origó a kamera modell-téri pozíciójából származik, egy **2-hatvány
+  lépésű rácsra illesztve**. A rács-lépés a kamera felszín feletti
+  magasságánál nem nagyobb legnagyobb 2-hatvány: így az origó legfeljebb
+  ~magasságnyira van, és rebase csak akkor kell, ha a kamera a saját
+  magasságával összemérhető utat tett meg (ekkorra a látvány maga is
+  átfordult, tehát az újraépítés nem többletköltség).
+- **Hiszterézis:** rebase-küszöb = 1,5 × rács-lépés. Frissen illesztett origó
+  tengelyenként legfeljebb 0,5 cellányira van, tehát a cellahatáron ülő
+  kamera nem tud oda-vissza billegni két origó között — enélkül minden
+  képkocka teljes geometria-újraépítést kérne.
+- **A kivonás DOUBLE-ban, a cast UTÁNA.** Ez a floating origin egésze; a
+  fordított sorrend semmit nem nyer.
+- **Felső cella-korlát + bolygó-nézeti kivétel** (élő Play-mérésből, ld.
+  lentebb): a rács-lépés legfeljebb annyi, hogy `RebaseFactor * cell` a
+  bolygósugáron belül maradjon (100-nál 64), és ha a kamera magassága eléri a
+  sugarat (a teljes gömb látszik), az origó **bolygóközép** — faktor-2
+  hiszterézis-sávval. Enélkül a nyereség-faktor 1 alá esett.
+
+Mért, elérhető felbontás a viewer léptékén (74 200 m/egység):
+
+| kameramagasság | rács-lépés | rebase-út | elért felbontás |
+|---|---|---|---|
+| 1 000 km | 8 egység (593,6 km) | 890,4 km | 70,8 mm |
+| 100 km | 1 egység (74,2 km) | 111,3 km | 8,85 mm |
+| 24 km (mai minimum) | 0,25 egység (18,55 km) | 27,8 km | 2,21 mm |
+| 1 km | 7,8125e-03 (579,7 m) | 869,5 m | 0,069 mm |
+| 10 m | 1,2207e-04 (9,06 m) | 13,6 m | 0,0011 mm |
+
+**Elvetett alternatívák.** (a) *Per-chunk pivot* (minden mesh-darab a saját
+középpontjához relatív): ugyanazt a precíziót adná, de a csúcsok
+chunk-határon nem lennének bitre azonosak két szomszédos chunk között →
+hézagok/T-illesztések, amiket az ND-70 sarok-megosztás pont most szüntetett
+meg. (b) *Logaritmikus depth*: a **depth**-precízió eszköze, a
+**pozíció**-precízióét nem oldja meg; a HDRP-ben amúgy sem szabadon
+cserélhető. Akkor lesz szükséges, ha a `nearClip`-et érdemben lejjebb
+visszük — külön, későbbi tétel. (c) *Valós léptékre váltás* (`radius` =
+7 420 000): a fenti táblázat szerint semmit nem nyer.
+
+**Ami ebben a körben elkészült (kód + teszt):**
+`unity/.../Assets/Scripts/Viewer/Lod/FloatingOrigin.cs` — motorfüggetlen
+(nulla UnityEngine-referencia), ezért Unity Editor nélkül tesztelt:
+`Float32Ulp` (könyvtárfüggetlen, csak 2-hatvány skálázás),
+`RecommendedCellUnits`, `MaximumUsefulCellUnits`, `Snap`, `TryAdvance`
+(hiszterézis), `LocalRadiusUnits`, `RenderOrigin.ToLocal/ToAbsolute`. 48 teszt
+(`tests/WorldGen.Viewer.LodChunking.Tests/FloatingOriginTests.cs`).
+`PlanetOrbitCamera.FloatingOrigin.cs` — az origó **követése** a kamerából +
+másodpercenkénti `[ND-19 floating origin]` napló, ami az abszolút és az
+origó-relatív felbontást méterben egymás mellé teszi.
+
+**Az élő mérés egy valódi hibát fogott.** Az első Play-menet naplója
+`gainFactor=0.5` és `0.3` értéket adott a bolygó-nézeti magasságokon
+(199,98 és 364,38 egység egy 100-as sugarú bolygó fölött): a magasság-alapú
+cella-szabály 128-256-os rács-lépést választott, tehát az origó MESSZEBB
+került a kamerától, mint a bolygóközép — az „origó-relatív" út rosszabb volt
+az abszolútnál. A fenti felső korlát + bolygó-nézeti kivétel ezt javítja; a
+javítás utáni napló `gainFactor=1.0` bolygó-nézetben és **256,0** a felszín
+közelében (28,1 km magasságon 0,566 m → **2,21 mm**), ami bitre egyezik a
+fenti táblázat „24 km" sorával. Három regressziós teszt köti ki
+(`AnchoredResolutionIsNeverWorseThanTheAbsoluteOne` és a két
+hiszterézis-teszt). Napló:
+[A12 / ND-19](../history/2026-09-27-a12-nd19-floating-origin.md).
+
+A `default(RenderOrigin)` szándékosan **érvénytelen**, nem „bolygóközép" —
+ugyanaz a hibaosztály-védelem, mint az A22 `DeepTimeContext` NaN-os
+tengerszintjénél: egy elfelejtett inicializálás ne állíthassa vissza
+CSENDBEN az abszolút emittálást.
+
+**Ami NYITVA marad (A12/2. kör), és miért külön döntés.** A geometria
+tényleges eltolása nem egy cast átírása: ha a mesh csúcsai origó-relatívak és
+a `transform` identitás, akkor a bolygó **tengelyforgása többé nem
+kifejezhető a transform-mal** (origó körüli forgatás helyett bolygóközép
+körüli kellene, amit csak `float32`-ben lehetne visszahozni — azaz pont a
+megnyert pontosságot dobnánk el). A helyes megoldás a **test-keretben (body
+frame) való renderelés**: a mesh transform identitás, a **kamerát** forgatjuk
+a test-keretbe, a fényirányt is oda transzformáljuk. Ez a viewer
+jelenet-konvencióját változtatja meg (érintett: `StarField`, `SunController`,
+`PlanetGridMesh` sarok-cache `Vector3` → `double`, `radialBias`,
+`ToWaterVector3`, a statikus `_staticCornerPositions` tömb). Ezt **csak a
+közeli zoom (A11) mellett érdemes megtenni**, mert addig nincs mérhető
+látvány-nyeresége — és a mai naplózás pont azt adja meg, mikor kezd
+számítani.
 
 ### ND-25 — Szomszédszám a kocka sarkainál: 4, nem 3
 
