@@ -28,7 +28,7 @@ namespace WorldGen.Core.Climate
     /// (az él alacsonyabb indexű cellájának óceán/eleváció adatával), a cella
     /// szélsebessége a cellaközépben. Nem szálbiztos.
     /// </summary>
-    public sealed class ThermalWind
+    public sealed partial class ThermalWind
     {
         private readonly DenseGridMetrics _grid;
         private readonly SurfaceThermalKind[] _kinds;

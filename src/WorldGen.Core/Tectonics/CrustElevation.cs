@@ -150,6 +150,21 @@ namespace WorldGen.Core.Tectonics
             return System.Math.Pow(normalized, MountainMaskBiasPower);
         }
 
+        /// <summary>
+        /// ND-136 (A19): a <see cref="MountainMask"/> a lemez SAJÁT keretében.
+        /// Külön van a <see cref="ComputeNoiseBasisInPlateFrame"/>-től, mert az
+        /// uplift-út (ND-35) csak a maszkot kéri — nincs értelme mellé a két
+        /// drága ridged-multifractal kiértékelést is elvégezni.
+        /// </summary>
+        public static double MountainMaskInPlateFrame(
+            ulong worldSeed, int plateId, double timeMyr, double x, double y, double z)
+        {
+            PlateMotion.ToPlateFrame(
+                worldSeed, plateId, timeMyr, x, y, z,
+                out double px, out double py, out double pz);
+            return MountainMask(worldSeed, px, py, pz);
+        }
+
         private static double Clamp01(double v) => v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v);
 
         /// <summary>
@@ -168,10 +183,15 @@ namespace WorldGen.Core.Tectonics
         }
 
         /// <summary>
-        /// Az eleváció időfüggetlen zajtagjai egy adott nyers pozíción.
-        /// Deep-time során a mozgó lemez és így a kéregtípus változhat, ezek
-        /// a részeredmények viszont kizárólag a world seedtől és a pozíciótól
-        /// függenek (ND-63).
+        /// Az eleváció zajtagjai egy adott nyers, VILÁG-keretes pozíción.
+        ///
+        /// ND-63 eredetileg azt rögzítette, hogy ezek a részeredmények
+        /// kizárólag a world seedtől és a pozíciótól függenek. ND-136 (A19)
+        /// óta ez már csak a <c>t = 0</c> útra igaz: deep-time-ban a zajt a
+        /// lemez SAJÁT keretében kell mintavételezni
+        /// (<see cref="ComputeNoiseBasisInPlateFrame"/>), különben a
+        /// lemezhatár átcsúszik egy álló textúra felett. Ez a túlterhelés
+        /// tehát a <c>t = 0</c> (és a cache-elt bázis) útja marad.
         /// </summary>
         public static void ComputeNoiseBasis(
             ulong worldSeed, double x, double y, double z,
@@ -187,6 +207,29 @@ namespace WorldGen.Core.Tectonics
             // az oceani amplitudo-csokkentes viszont az osszeallitasban erre
             // a tagra is ervenyes.
             secondaryNoise = SecondaryDetailNoise(worldSeed, x, y, z);
+        }
+
+        /// <summary>
+        /// ND-136 (A19): ugyanaz a három zajtag, de a
+        /// <paramref name="plateId"/> lemez SAJÁT vonatkoztatási rendszerében
+        /// mintavételezve — a világ-pozíciót előbb
+        /// <see cref="PlateMotion.ToPlateFrame"/> forgatja vissza
+        /// <c>R(-ωt)</c>-vel. Így a domborzat-textúra a kéreggel együtt
+        /// vándorol; a korábbi, rögzített világ-pozíciós mintavétel mellett a
+        /// hegyvonulat helyben maradt, miközben a lemez elvándorolt alóla.
+        ///
+        /// <paramref name="timeMyr"/> = 0-nál bitre azonos a
+        /// <see cref="ComputeNoiseBasis"/> eredményével (a visszaforgatás
+        /// egzakt azonosság, ld. <see cref="PlateMotion.ToPlateFrame"/>).
+        /// </summary>
+        public static void ComputeNoiseBasisInPlateFrame(
+            ulong worldSeed, int plateId, double timeMyr, double x, double y, double z,
+            out double primaryNoise, out double mountainMask, out double secondaryNoise)
+        {
+            PlateMotion.ToPlateFrame(
+                worldSeed, plateId, timeMyr, x, y, z,
+                out double px, out double py, out double pz);
+            ComputeNoiseBasis(worldSeed, px, py, pz, out primaryNoise, out mountainMask, out secondaryNoise);
         }
 
         /// <summary>
@@ -209,11 +252,16 @@ namespace WorldGen.Core.Tectonics
 
         /// <summary>
         /// ND-90: a két legközelebbi lemez között folytonos báziseleváció.
-        /// Eltérő kéregtípusnál a lemezhatáron 50/50 keverést, a zóna külső
-        /// szélén tisztán a legközelebbi lemez értékét adja. A smoothstep
-        /// polinom miatt mindkét végponton nulla a súly deriváltja; nincs új
-        /// transzcendens művelet. Az isOceanic továbbra is a nyertes lemez
-        /// anyagtulajdonsága, csak az eleváció válik folytonossá.
+        /// A lemezhatáron 50/50 keverést, a zóna külső szélén tisztán a
+        /// legközelebbi lemez értékét adja. A smoothstep polinom miatt mindkét
+        /// végponton nulla a súly deriváltja; nincs új transzcendens művelet.
+        /// Az isOceanic továbbra is a nyertes lemez anyagtulajdonsága, csak az
+        /// eleváció válik folytonossá.
+        ///
+        /// Ez a túlterhelés MINDKÉT lemezre UGYANAZT a zaj-bázist használja —
+        /// a <c>t = 0</c> (világ-keretes) út. A deep-time út a
+        /// <see cref="BlendedBaseElevationFromPlateFrameBases"/>-t hívja, ahol
+        /// a két lemez zaja már eltér.
         /// </summary>
         public static double BlendedBaseElevationFromNoiseBasis(
             ulong worldSeed,
@@ -222,8 +270,40 @@ namespace WorldGen.Core.Tectonics
             out bool isOceanic,
             double blendGap = DefaultBoundaryBlendGap)
         {
+            return BlendedBaseElevationFromPlateFrameBases(
+                worldSeed, best, second, bestIndex, secondIndex,
+                primaryNoise, mountainMask, secondaryNoise,
+                primaryNoise, mountainMask, secondaryNoise,
+                out isOceanic, blendGap);
+        }
+
+        /// <summary>
+        /// ND-136 (A19): ugyanaz az ND-90 keverés, de a két lemez zaj-bázisa
+        /// KÜLÖN érkezik — mindegyik a saját lemezének keretében
+        /// mintavételezve (<see cref="ComputeNoiseBasisInPlateFrame"/>).
+        ///
+        /// FONTOS KÜLÖNBSÉG az ND-90 eredeti alakjához képest: onnan kikerült
+        /// a „csak eltérő kéregtípusnál keverünk" kikötés. Az korábban helyes
+        /// volt, mert azonos kéregtípusnál a két lemez UGYANABBÓL a három
+        /// számból számolt, tehát a függvény amúgy is folytonos volt.
+        /// Lemez-keretes zajjal viszont a határ két oldalán MÁS zajérték áll,
+        /// így keverés nélkül MINDEN határ szakadásossá válna — nem csak a
+        /// kéregtípus-váltó.
+        ///
+        /// A <c>t = 0</c> kimenet ettől BITRE változatlan: ott a két bázis
+        /// azonos, tehát azonos kéregtípusnál a két eleváció is bitre egyenlő,
+        /// és <c>best + (best - best) * w == best</c>.
+        /// </summary>
+        public static double BlendedBaseElevationFromPlateFrameBases(
+            ulong worldSeed,
+            double best, double second, int bestIndex, int secondIndex,
+            double bestPrimaryNoise, double bestMountainMask, double bestSecondaryNoise,
+            double secondPrimaryNoise, double secondMountainMask, double secondSecondaryNoise,
+            out bool isOceanic,
+            double blendGap = DefaultBoundaryBlendGap)
+        {
             double bestElevation = BaseElevationFromNoiseBasis(
-                worldSeed, bestIndex, primaryNoise, mountainMask, secondaryNoise,
+                worldSeed, bestIndex, bestPrimaryNoise, bestMountainMask, bestSecondaryNoise,
                 out isOceanic);
 
             double gap = best - second;
@@ -231,10 +311,8 @@ namespace WorldGen.Core.Tectonics
                 return bestElevation;
 
             double secondElevation = BaseElevationFromNoiseBasis(
-                worldSeed, secondIndex, primaryNoise, mountainMask, secondaryNoise,
-                out bool secondOceanic);
-            if (isOceanic == secondOceanic)
-                return bestElevation;
+                worldSeed, secondIndex, secondPrimaryNoise, secondMountainMask, secondSecondaryNoise,
+                out _);
 
             double normalizedGap = gap / blendGap;
             double smoothGap = normalizedGap * normalizedGap * (3.0 - 2.0 * normalizedGap);
@@ -260,6 +338,15 @@ namespace WorldGen.Core.Tectonics
     /// Egy nyers gömbfelszíni pozíció world-seed-függő, de deep-time-
     /// független részeredményei (ND-63). Nem tartalmaz plate ID-t, kéregtípust,
     /// upliftet, eróziót vagy más időfüggő állapotot.
+    ///
+    /// ND-136 (A19) ÓTA PONTOSÍTVA. A <see cref="WarpedX"/>/<see cref="WarpedY"/>/
+    /// <see cref="WarpedZ"/> továbbra is tisztán pozíció-függő (a lemez-topológia
+    /// a világ keretében dől el), tehát a lemez-gyorsítótár (ND-122/ND-131)
+    /// RÁJUK deep-time-ban is érvényes marad — és épp ez a drága, három fBm-es
+    /// domain warp. A három ZAJTAG viszont már csak <c>t = 0</c>-ra érvényes:
+    /// <c>t &gt; 0</c>-nál a zaj a lemez saját keretében értékelődik ki, ezért
+    /// az <see cref="EvaluateAtTime"/> újraszámolja őket (a cache-elteket csak
+    /// <c>t = 0</c>-nál használja).
     /// </summary>
     public readonly struct TerrainPointBasis
     {
@@ -294,6 +381,10 @@ namespace WorldGen.Core.Tectonics
         /// <summary>
         /// A cache-elt bázisból és az aktuálisan mozgatott lemezmagokból adja
         /// vissza az időbeli relaxáció ELŐTTI base/uplift komponenseket.
+        ///
+        /// Ez a <c>t = 0</c> út: a cache-elt, VILÁG-keretes zajtagokat
+        /// használja. Deep-time-ban az <see cref="EvaluateAtTime"/> kell
+        /// (ND-136), különben a domborzat nem mozog a lemezzel.
         /// </summary>
         public void Evaluate(
             ulong worldSeed, (double X, double Y, double Z)[] seeds,
@@ -307,6 +398,54 @@ namespace WorldGen.Core.Tectonics
                 PrimaryNoise, MountainMask, SecondaryNoise, out isOceanic);
             uplift = PlateBoundaryEffect.BoundaryUpliftFromNearestPlates(
                 worldSeed, best, second, bestIndex, secondIndex, MountainMask);
+        }
+
+        /// <summary>
+        /// ND-136 (A19): ugyanaz, de a zaj a lemez saját keretében
+        /// értékelődik ki <paramref name="timeMyr"/>-nél.
+        ///
+        /// A cache-elt WARP (a drága, három fBm-es domain warp) itt is
+        /// hasznosul — csak a zajtagokat kell újraszámolni. A nyers
+        /// <paramref name="x"/>/<paramref name="y"/>/<paramref name="z"/>
+        /// ezért kell: a cache a warpot tárolja, a nyers pozíciót nem.
+        ///
+        /// <paramref name="timeMyr"/> = 0-nál bitre azonos az
+        /// <see cref="Evaluate"/> eredményével, és el is kerüli a
+        /// zaj-újraszámolást (a cache-elt tagokat használja).
+        /// </summary>
+        public void EvaluateAtTime(
+            ulong worldSeed, (double X, double Y, double Z)[] seeds,
+            double x, double y, double z, double timeMyr,
+            out double baseElevation, out double uplift, out bool isOceanic)
+        {
+            if (timeMyr == 0.0)
+            {
+                Evaluate(worldSeed, seeds, out baseElevation, out uplift, out isOceanic);
+                return;
+            }
+
+            PlateBoundaryEffect.TwoBestDots(
+                WarpedX, WarpedY, WarpedZ, seeds,
+                out double best, out double second, out int bestIndex, out int secondIndex);
+            CrustElevation.ComputeNoiseBasisInPlateFrame(
+                worldSeed, bestIndex, timeMyr, x, y, z,
+                out double bestPrimary, out double bestMask, out double bestSecondary);
+
+            double secondPrimary = bestPrimary, secondMask = bestMask, secondSecondary = bestSecondary;
+            if (secondIndex >= 0 && best - second < CrustElevation.DefaultBoundaryBlendGap)
+            {
+                CrustElevation.ComputeNoiseBasisInPlateFrame(
+                    worldSeed, secondIndex, timeMyr, x, y, z,
+                    out secondPrimary, out secondMask, out secondSecondary);
+            }
+
+            baseElevation = CrustElevation.BlendedBaseElevationFromPlateFrameBases(
+                worldSeed, best, second, bestIndex, secondIndex,
+                bestPrimary, bestMask, bestSecondary,
+                secondPrimary, secondMask, secondSecondary,
+                out isOceanic);
+            uplift = PlateBoundaryEffect.BoundaryUpliftFromNearestPlates(
+                worldSeed, best, second, bestIndex, secondIndex, bestMask);
         }
     }
 }

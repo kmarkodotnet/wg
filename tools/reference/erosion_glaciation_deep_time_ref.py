@@ -52,6 +52,7 @@ import json
 from crust_elevation_ref import blended_base_elevation
 from domain_warp_ref import warp_position
 from plate_boundary_ref import boundary_uplift, elevation_with_boundary, two_best_dots_with_indices
+from plate_frame_noise_ref import elevation_with_boundary_plate_frame, moved_seeds
 from plate_ref import generate_plate_seeds, assign_plate
 from morton_ref import tile_id
 from sphere_position_ref import position_from_tile
@@ -110,16 +111,19 @@ def uplift_relaxation_elevation(uplift_bonus_static, time_myr,
 def elevation_at_time(world_seed, plate_id, position, seeds, time_myr,
                        tau=OROGENIC_RELAXATION_TAU_MYR,
                        eq_fraction=EQUILIBRIUM_FRACTION):
-    """A tile elevacioja time_myr idopontban: a statikus (nem-orogen)
-    alap-elevacio VALTOZATLAN (a bazis-kereg maga nem "kopik el" ebben a
-    modellben), csak a lemezhatar uplift-bonusza relaxal az egyensulya
-    fele. Bitre megegyezik plate_boundary_ref.elevation_with_boundary-
-    val time_myr=0-nal (ld. __main__)."""
-    warped_position = warp_position(world_seed, position)
-    best, second, best_idx, second_idx = two_best_dots_with_indices(warped_position, seeds)
-    base, oceanic = blended_base_elevation(
-        world_seed, best, second, best_idx, second_idx, position)
-    uplift_static = boundary_uplift(world_seed, position, seeds)
+    """A tile elevacioja time_myr idopontban: a lemezhatar uplift-bonusza
+    relaxal az egyensulya fele, az alap-elevacio pedig a lemez SAJAT
+    vonatkoztatasi rendszereben mintavetelezett zajbol all elo
+    (ND-136 / A19 - plate_frame_noise_ref).
+
+    A `seeds` a MAR ELMOZDITOTT lemez-magokat varja (a hivo dolga
+    eloallitani, ld. plate_frame_noise_ref.moved_seeds); a `time_myr`
+    egyszerre vezerli a zaj visszaforgatasat es a relaxaciot.
+
+    Bitre megegyezik plate_boundary_ref.elevation_with_boundary-val
+    time_myr=0-nal (ld. __main__)."""
+    base, uplift_static, oceanic = elevation_with_boundary_plate_frame(
+        world_seed, position, seeds, time_myr)
     uplift_t = uplift_relaxation_elevation(uplift_static, time_myr, tau, eq_fraction)
     return base + uplift_t, oceanic
 
@@ -245,11 +249,26 @@ if __name__ == "__main__":
     h0 = best_uplift
     h_eq_expected = EQUILIBRIUM_FRACTION * h0
     elev_t0, _ = elevation_at_time(world_seed, plate_id, best_pos, seeds, 0.0)
-    elev_t_far, _ = elevation_at_time(world_seed, plate_id, best_pos, seeds, 2000.0)
-    diff_far_from_eq = abs(elev_t_far - (elev_t0 - h0 + h_eq_expected))
     print(f"  uplift-bonusz t=0: {h0:.2f}m, egyensulyi celertek: {h_eq_expected:.2f}m")
-    print(f"  elevacio t=0: {elev_t0:.2f}m, elevacio t=2000 Myr: {elev_t_far:.2f}m")
-    assert elev_t_far < elev_t0, "2000 Myr utan a hegynek alacsonyabbnak kell lennie (erozio nyert)"
+    print(f"  elevacio t=0: {elev_t0:.2f}m")
+
+    # ND-136 ota az ALAP-elevacio is t-fuggo (a zaj a lemez kereteben
+    # ertekelodik ki, es a lemez-magok is elmozdulnak), ezert a "2000 Myr
+    # mulva alacsonyabb" naiv osszehasonlitas nem a relaxaciot merne, hanem
+    # a lemez ala csuszott UJ zaj-mintat is. A relaxacio allitasa ezert
+    # UGYANANNAL a t-nel ellenorzodik:
+    #     elev(t) == base(t) + eq_fraction * uplift_static(t).
+    t_far = 2000.0
+    seeds_far = moved_seeds(world_seed, seeds, t_far)
+    far_base, far_uplift, _ = elevation_with_boundary_plate_frame(
+        world_seed, best_pos, seeds_far, t_far)
+    elev_t_far, _ = elevation_at_time(world_seed, plate_id, best_pos, seeds_far, t_far)
+    expected_far = far_base + EQUILIBRIUM_FRACTION * far_uplift
+    diff_far_from_eq = abs(elev_t_far - expected_far)
+    print(f"  t={t_far} Myr: uplift-bonusz {far_uplift:.2f}m, elevacio {elev_t_far:.2f}m, "
+          f"egyensulyi varakozas {expected_far:.2f}m")
+    assert elev_t_far <= far_base + far_uplift, (
+        "2000 Myr utan a hegynek alacsonyabbnak kell lennie a relaxalatlan erteknel")
     assert diff_far_from_eq < 1e-3, f"2000 Myr utan gyakorlatilag el kell erni az egyensulyi erteket, diff={diff_far_from_eq}"
     print("OK - a magas uplift-bonuszu pozicio ideje folyaman az egyensulyi relief fele kopik\n")
 
@@ -326,8 +345,12 @@ if __name__ == "__main__":
         v = p[2] % n
         time_myr = (p[3] % 2_000_000) / 1000.0  # 0..2000 Myr
         pos = position_from_tile(face, level, u, v)
-        plate_id = assign_plate(pos, seeds)
-        elev, oceanic = elevation_at_time(world_seed, plate_id, pos, seeds, time_myr)
+        # ND-136: a lemez-magok ELMOZDULNAK time_myr-ig, es a zaj ezek
+        # kereteben ertekelodik ki - a vektorok igy a TENYLEGES deep-time
+        # utat merik, nem a t=0 magokkal vett hibridet.
+        seeds_at_t = moved_seeds(world_seed, seeds, time_myr)
+        plate_id = assign_plate(pos, seeds_at_t)
+        elev, oceanic = elevation_at_time(world_seed, plate_id, pos, seeds_at_t, time_myr)
         erosion_vectors.append({
             "face": face, "level": level, "u": u, "v": v,
             "plateId": plate_id, "timeMyr": time_myr,

@@ -22,7 +22,7 @@ namespace WorldGen.Core.Tectonics
         public static Dictionary<TileId, double> ComputeElevationField(ulong worldSeed, int plateCount, int level)
         {
             var seeds = PlateGeneration.GenerateSeeds(worldSeed, plateCount);
-            return ComputeElevationFieldWithSeeds(worldSeed, seeds, level);
+            return ComputeElevationFieldWithSeeds(worldSeed, seeds, level, 0.0);
         }
 
         /// <summary>
@@ -37,11 +37,11 @@ namespace WorldGen.Core.Tectonics
         {
             var seeds0 = PlateGeneration.GenerateSeeds(worldSeed, plateCount);
             var movedSeeds = PlateMotion.MovedSeeds(worldSeed, seeds0, timeMyr);
-            return ComputeElevationFieldWithSeeds(worldSeed, movedSeeds, level);
+            return ComputeElevationFieldWithSeeds(worldSeed, movedSeeds, level, timeMyr);
         }
 
         private static Dictionary<TileId, double> ComputeElevationFieldWithSeeds(
-            ulong worldSeed, (double X, double Y, double Z)[] seeds, int level)
+            ulong worldSeed, (double X, double Y, double Z)[] seeds, int level, double timeMyr)
         {
             uint n = level == 0 ? 1u : (1u << level);
             int tileCount = checked((int)(6L * n * n));
@@ -85,8 +85,10 @@ namespace WorldGen.Core.Tectonics
                 // korabban, csak a redundans szamitas tunt el.
                 DomainWarp.WarpPosition(worldSeed, x, y, z, out double wx, out double wy, out double wz);
                 int plateId = PlateGeneration.AssignPlate(wx, wy, wz, seeds);
-                double elevation = PlateBoundaryEffect.ElevationWithBoundaryFromWarped(
-                    worldSeed, plateId, id.Value, x, y, z, wx, wy, wz, seeds, out _);
+                // ND-136 (A19): a domborzati zaj a lemez SAJAT kereteben
+                // ertekelodik ki - timeMyr=0-nal bitre a regi eredmeny.
+                double elevation = PlateBoundaryEffect.ElevationWithBoundaryFromWarpedAtTime(
+                    worldSeed, plateId, id.Value, x, y, z, wx, wy, wz, seeds, timeMyr, out _);
                 elevations[i] = elevation;
             });
 

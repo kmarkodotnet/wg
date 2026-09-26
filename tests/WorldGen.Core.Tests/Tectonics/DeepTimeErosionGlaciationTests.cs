@@ -26,7 +26,7 @@ public class DeepTimeErosionGlaciationVectorFileTests
         ulong worldSeed = root.GetProperty("worldSeed").GetUInt64();
         int plateCount = root.GetProperty("plateCount").GetInt32();
         int level = root.GetProperty("level").GetInt32();
-        (double X, double Y, double Z)[] seeds = PlateGeneration.GenerateSeeds(worldSeed, plateCount);
+        (double X, double Y, double Z)[] seeds0 = PlateGeneration.GenerateSeeds(worldSeed, plateCount);
 
         int nE = 0;
         foreach (JsonElement v in root.GetProperty("erosionVectors").EnumerateArray())
@@ -34,11 +34,15 @@ public class DeepTimeErosionGlaciationVectorFileTests
             TileId key = TileId.FromFaceLevelUV(v.GetProperty("face").GetInt32(), level,
                 v.GetProperty("u").GetUInt32(), v.GetProperty("v").GetUInt32());
             TileGeometry.ToPosition(key, out double x, out double y, out double z);
+            double timeMyr = v.GetProperty("timeMyr").GetDouble();
+            // ND-136 ota a vektorok a TENYLEGES deep-time utat merik: a
+            // lemez-magok elmozdulnak, es a zaj a lemez kereteben szamolodik.
+            (double X, double Y, double Z)[] seeds = PlateMotion.MovedSeeds(worldSeed, seeds0, timeMyr);
             int plateId = PlateGeneration.AssignPlate(x, y, z, seeds);
             Assert.Equal(v.GetProperty("plateId").GetInt32(), plateId);
 
             double elev = DeepTimeErosionGlaciation.ElevationAtTime(worldSeed, plateId, x, y, z, seeds,
-                v.GetProperty("timeMyr").GetDouble(), out bool oceanic);
+                timeMyr, out bool oceanic);
             Assert.True(Math.Abs(elev - v.GetProperty("elevation").GetDouble()) < Tol, $"elev elter: {elev}");
             Assert.Equal(v.GetProperty("isOceanic").GetBoolean(), oceanic);
             nE++;

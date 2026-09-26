@@ -94,10 +94,12 @@ namespace WorldGen.Viewer
                 terrainSlotOf[i] = slot;
                 terrainCounts[slot]++;
 
-                if (classification.IsOceanic
-                    && (classification.Biome == Biome.Ocean || classification.Biome == Biome.SeaIce))
+                // ND-149: ugyanaz a predikatum, mint a CreateStaticMeshBuckets
+                // darabszamolasaban - kulonben a bucket-kapacitas es az emit
+                // elcsusznak egymastol.
+                if (StaticTileEmitsWater(i))
                 {
-                    int waterBucket = WaterDepthBucket(_adaptiveSeaLevel - classification.Elevation);
+                    int waterBucket = StaticWaterDepthBucket(i);
                     waterBucketOf[i] = waterBucket;
                     waterCounts[waterBucket]++;
                 }

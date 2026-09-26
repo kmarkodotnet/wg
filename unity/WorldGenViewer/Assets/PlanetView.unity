@@ -179,7 +179,7 @@ MonoBehaviour:
   showRivers: 1
   riverTargetFraction: 0.03
   riverRefinementStepMeters: 50
-  riverLineRadialBias: 0.02
+  riverLineRadialBias: 0.5
   riverBaseHalfWidth: 0.08
   showLakesIce: 1
   minLakeTiles: 6

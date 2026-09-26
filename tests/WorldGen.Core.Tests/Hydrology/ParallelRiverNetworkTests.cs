@@ -114,8 +114,11 @@ public class ParallelRiverNetworkTests
         Assert.Equal(cancellation.Token, exception.CancellationToken);
     }
 
-    [Fact]
-    public void BoundedSequentialAndParallelNetworksMatchWithCancellationEnabled()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    public void BoundedSequentialAndParallelNetworksMatchWithCancellationEnabled(int workers)
     {
         const ulong seed = 0xA7C944210000UL;
         var seeds = PlateGeneration.GenerateSeeds(seed, 20);
@@ -131,12 +134,25 @@ public class ParallelRiverNetworkTests
             escapeNodeBudget: 32, maxSteps: 16, cancellation: cancellation.Token);
         var parallel = RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
             seed, seeds, -100000.0, sources, fineDepth: 2,
-            escapeNodeBudget: 32, maxSteps: 16, cancellation: cancellation.Token);
+            escapeNodeBudget: 32, maxSteps: 16, cancellation: cancellation.Token,
+            maxDegreeOfParallelism: workers);
 
         Assert.Contains(sequential, river => river.Points.Count > 1);
         AssertSameNetwork(sequential, parallel);
         Assert.Equal(RiverPathTracing.ComputeDischargeWeights(sequential),
             RiverPathTracing.ComputeDischargeWeights(parallel));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-2)]
+    public void ParallelWorkerLimitRejectsInvalidValues(int workers)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
+                1UL, Array.Empty<(double X, double Y, double Z)>(), 0.0,
+                Array.Empty<TileId>(), fineDepth: 2,
+                maxDegreeOfParallelism: workers));
     }
 
     private sealed class CancellingSources : IReadOnlyList<TileId>

@@ -638,6 +638,18 @@ wind -------->| near-surface air anomaly θa       |--> advekció + keveredés
 
 ### Implementációs fázisok és kapuk
 
+**A7-frissítés (2026-09-23, ND-141–143):** az egységes overlay-enum és a
+7. fázis explicit levegő–szél csatolása implementált és kalibrált. A kezdeti
+level-6 előfutási eltérés 1,63 K volt, a kiválasztott 0,1-es csatolásé
+0,173 K; teljes rácsos regresszió védi a ≤0,18 K mérési kaput. A 6. fázis
+checkpoint/hash és világazonosítási alapja elkészült, de a fogyasztók
+átállítása **nincs kész**. ND-144 óta a teljes napi `Ts/Ta` átlag/min/max
+Core-adatútja elkészült; a pillanatnyi GPU-overlay nem klímastatisztika.
+Az éves aggregáció, a jégmaszk körkörös függésének feloldása és a
+renderfüggetlen bemenetátadás továbbra is előfeltétel. A régi napi átlagú
+`Temperature` még a biome/jég/párolgás autoritatív forrása.
+[Részletek és ellenőrzések](../history/2026-09-23-a7-thermal-feedback-overlay.md).
+
 1. **Döntés és baseline:** ND-62 ütközés rendezése; a két hőállapot,
    felszíntípusok, egyirányú szél, idő/tick és kezdeti állapot új ND-jei. A
    jelenlegi Simple/Full hő- és wind-path teljesítmény-/eloszlásmérése.

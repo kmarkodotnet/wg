@@ -35,14 +35,18 @@ SZÉL (ND-102): determinisztikus átírás — zonális sáv −sin(6|lat|) z é
   élközéppontban, a cella szélsebessége a cellaközépben.
 
 LÉPÉS (ND-100–102), tickenként t → t + dt, tm = t + dt/2:
+  0. ND-142: a tick eleji θa LS-gradiense hozzáadódik a napi bázis szél-
+     gradienséhez; együtt kerülnek a 30 m/s korlát és Coriolis-forgatás elé.
   1. θa advekciója: kompenzált upwind fluxusforma, u(tm), determinisztikus
      részlépések a beáramlási Courant-szám alapján (≤ 0,5);
   2. lokális tagok Crank–Nicolson-IMEX-szel, tm-ben:
      ΔQ = F·(1 − albedo)·( max(0, n·s(tm)) − f_napi(tm) ).
 
 KANONIKUS ÁLLAPOT (ND-101): StateAt(T): S = floor(T/2880)·2880 − 960 tick
-  (30 napos bucket, 10 napos spin-up), θ = 0 S-ben, léptetés T-ig. Mérve: a
-  10 napos spin-up hibája ≤ 0,18 K.
+  (30 napos bucket, 10 napos spin-up), θ = 0 S-ben, léptetés T-ig.
+  A korábbi ≤ 0,18 K spin-up mérés az egyirányú modellre vonatkozott.
+  Modell v3, kalibrált 0,1 csatolás: level-6 10/30 nap eltérése max.
+  0,17317 K; a teljes erősségű kezdeti kísérlet 1,6286 K-ét korrigáltuk.
 
 Paraméterek: docs/reviews/thermal-parameters-sources-2026-09-13.md (M1–M10
 jóváhagyva). Ideiglenes, még megerősítendő modellválasztások:
@@ -64,7 +68,8 @@ from neighbor_ref import DIRECTIONS, neighbor
 from sphere_position_ref import position_from_face_uv, position_from_tile
 from temperature_ref import climate_cycle_temperature_k, greenhouse_temperature
 
-MODEL_VERSION = 2
+MODEL_VERSION = 3
+AIR_FEEDBACK_STRENGTH = 0.1  # ND-142: level-6 előfutási kontrollból kalibrálva.
 LEVEL = 6
 N = 1 << LEVEL
 CELL_COUNT = 6 * N * N
@@ -421,10 +426,14 @@ def point_temperature(q, samples, annual, is_oceanic, elevation_m, sea_level_m):
 
 
 def wind_from_temperatures(p, east, north, temps):
-    base_east = BASE_WIND_SPEED * zonal_band_index(p[2])
     e = GRADIENT_EPS
     grad_e = (temps[0] - temps[1]) / (2.0 * e)
     grad_n = (temps[2] - temps[3]) / (2.0 * e)
+    return wind_from_gradient(p, east, north, grad_e, grad_n)
+
+
+def wind_from_gradient(p, east, north, grad_e, grad_n):
+    base_east = BASE_WIND_SPEED * zonal_band_index(p[2])
     raw_e = grad_e * THERMAL_WIND_COEFF
     raw_n = grad_n * THERMAL_WIND_COEFF
     magnitude = math.sqrt(raw_e * raw_e + raw_n * raw_n)
@@ -490,6 +499,86 @@ class WindField:
                 [s0[c] + (s1[c] - s0[c]) * w for c in range(CELL_COUNT)])
 
 
+class AirWindFeedback:
+    """ND-142: kanonikus élsorrendű LS-gradiens, explicit levegő→szél csatolás."""
+
+    def __init__(self, wind):
+        self.wind, self.grid = wind, wind.grid
+        g = self.grid
+        self.frames = [east_north(p) for p in g.center]
+        self.links = [[] for _ in g.center]
+        for i, j in zip(g.edge_i, g.edge_j):
+            for c, nb in ((i, j), (j, i)):
+                east, north = self.frames[c]
+                delta = sub(g.center[nb], g.center[c])
+                self.links[c].append((nb, dot(delta, east), dot(delta, north)))
+        self.inverse = []
+        for links in self.links:
+            ee = en = nn = 0.0
+            for _, e, n in links:
+                ee += e * e
+                en += e * n
+                nn += n * n
+            det = ee * nn - en * en
+            assert det > 0.0
+            self.inverse.append((nn / det, -en / det, ee / det))
+        self.cache = {}
+
+    def gradients(self, theta):
+        out = []
+        for c, links in enumerate(self.links):
+            re = rn = 0.0
+            for nb, e, n in links:
+                delta = theta[nb] - theta[c]
+                re += e * delta
+                rn += n * delta
+            a, b, d = self.inverse[c]
+            ge, gn = a * re + b * rn, b * re + d * rn
+            east, north = self.frames[c]
+            out.append(tuple(ge * east[k] + gn * north[k] for k in range(3)))
+        return out
+
+    def baseline_gradients(self, day):
+        if day not in self.cache:
+            samples = daily_sample_directions(day - 0.5)
+            out = []
+            geometry = self.wind.edge_geom + self.wind.cell_geom
+            owners = self.grid.edge_i + list(range(len(self.grid.center)))
+            for geom, owner in zip(geometry, owners):
+                _, _, _, pts, annual = geom
+                temps = [point_temperature(pts[t], samples, annual[t], self.wind.kinds[owner] == OCEAN,
+                                          self.wind.elevation[owner], self.wind.sea_level_m) for t in range(4)]
+                out.append(((temps[0] - temps[1]) / (2.0 * GRADIENT_EPS),
+                            (temps[2] - temps[3]) / (2.0 * GRADIENT_EPS)))
+            if len(self.cache) >= 2:
+                self.cache.pop(next(iter(self.cache)))
+            self.cache[day] = out
+        return self.cache[day]
+
+    def at(self, seconds, theta):
+        day = seconds // SECONDS_PER_DAY
+        w = (seconds - day * SECONDS_PER_DAY) / float(SECONDS_PER_DAY)
+        a, b = self.baseline_gradients(day), self.baseline_gradients(day + 1)
+        grad = self.gradients(theta)
+        edge_u, speed = [], []
+        g = self.grid
+        for e, (i, j) in enumerate(zip(g.edge_i, g.edge_j)):
+            p, east, north, _, _ = self.wind.edge_geom[e]
+            mean = tuple(0.5 * (grad[i][k] + grad[j][k]) for k in range(3))
+            ge = a[e][0] + (b[e][0] - a[e][0]) * w + dot(mean, east) * AIR_FEEDBACK_STRENGTH
+            gn = a[e][1] + (b[e][1] - a[e][1]) * w + dot(mean, north) * AIR_FEEDBACK_STRENGTH
+            _, _, v = wind_from_gradient(p, east, north, ge, gn)
+            edge_u.append(dot(v, g.edge_normal[e]))
+        for c in range(len(g.center)):
+            k = len(g.edge_i) + c
+            p, east, north, _, _ = self.wind.cell_geom[c]
+            ge = a[k][0] + (b[k][0] - a[k][0]) * w + dot(grad[c], east) * AIR_FEEDBACK_STRENGTH
+            gn = a[k][1] + (b[k][1] - a[k][1]) * w + dot(grad[c], north) * AIR_FEEDBACK_STRENGTH
+            we, wn, _ = wind_from_gradient(p, east, north, ge, gn)
+            speed.append(math.sqrt(we * we + wn * wn))
+        return edge_u, speed
+
+
 # ---------------------------------------------------------------------------
 # Solver (SurfaceTemperatureField)
 # ---------------------------------------------------------------------------
@@ -500,6 +589,7 @@ class Field:
         self.kinds, self.elevation = synthetic_world(self.grid)
         self.baseline = Baseline(self.grid, self.kinds, self.elevation, sea_level_m, world_seed, t_years)
         self.wind = WindField(self.grid, self.kinds, self.elevation, sea_level_m)
+        self.feedback = AirWindFeedback(self.wind)
 
     def advect(self, theta_a, edge_u, dt):
         g = self.grid
@@ -534,10 +624,9 @@ class Field:
             theta = [theta[c] - dts / g.area[c] * (flux[c] - theta[c] * div[c]) for c in range(CELL_COUNT)]
         return theta, substeps
 
-    def step(self, tick, theta_s, theta_a):
-        dt = float(TICK_SECONDS)
-        tm = tick * TICK_SECONDS + TICK_SECONDS // 2
-        edge_u, speed = self.wind.at(tm)
+    def step(self, tick, theta_s, theta_a, dt=TICK_SECONDS):
+        tm = tick * TICK_SECONDS + dt / 2.0
+        edge_u, speed = self.feedback.at(tm, theta_a)
         theta_a, substeps = self.advect(theta_a, edge_u, dt)
         factor, base = self.baseline.at(tm)
         sun = sun_direction_body_frame(tm / float(SECONDS_PER_DAY))
@@ -604,6 +693,7 @@ def main():
         "bucketTicks": BUCKET_TICKS, "spinUpTicks": SPIN_UP_TICKS,
         "worldSeed": 184482873278464, "tYears": 0.0, "seaLevelM": 0.0,
         "radiativeSmoothing": RADIATIVE_SMOOTHING,
+        "airFeedbackStrength": AIR_FEEDBACK_STRENGTH,
         "sampleCells": cells,
         "metrics": {
             "edgeCount": len(g.edge_i),

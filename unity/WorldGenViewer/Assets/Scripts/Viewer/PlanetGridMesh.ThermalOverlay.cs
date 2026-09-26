@@ -29,18 +29,7 @@ namespace WorldGen.Viewer
     /// </summary>
     public partial class PlanetGridMesh
     {
-        public enum ThermalOverlayMode
-        {
-            Off = 0,
-            Surface = 1,
-            Air = 2,
-        }
-
         [Header("Pillanatnyi hőmérséklet (ND-104)")]
-        [SerializeField]
-        [Tooltip("Ki / felszíni hőmérséklet (Ts) / felszínközeli levegő (Ta, diagnosztikai).")]
-        private ThermalOverlayMode thermalOverlayMode = ThermalOverlayMode.Off;
-
         [SerializeField]
         [Tooltip("A fix, abszolút színskála alsó végpontja °C-ban (nincs automatikus min/max).")]
         private float thermalScaleMinCelsius = -60f;
@@ -146,7 +135,7 @@ namespace WorldGen.Viewer
 
         /// <summary>A Rétegek doboz ennyi sort foglal a hőmérséklet-blokknak.</summary>
         private int ThermalOverlayPanelRows => 2
-            + (thermalOverlayMode != ThermalOverlayMode.Off ? 1 : 0)
+            + (ThermalOverlayVisible ? 1 : 0)
             + (thermalShowDetails ? 9 : 0);
 
         private void UpdateThermalOverlay()
@@ -162,7 +151,7 @@ namespace WorldGen.Viewer
             UpdateThermalCursor();
             ApplyThermalShaderGlobals();
 
-            bool wanted = thermalOverlayMode != ThermalOverlayMode.Off || thermalSolverAlwaysOn;
+            bool wanted = ThermalOverlayVisible || thermalSolverAlwaysOn;
             if (!wanted || _thermalTask != null || _lastField == null)
                 return;
 
@@ -356,6 +345,12 @@ namespace WorldGen.Viewer
             ThermalJobResult? pending = _thermalPendingUpload;
             if (pending == null || pending.SurfaceTexels == null || pending.AirTexels == null)
                 return;
+            // A várakozás alatt történő világváltás után régi snapshot nem publikálható.
+            if (pending.Revision != _thermalRevision)
+            {
+                _thermalPendingUpload = null;
+                return;
+            }
             float interval = 1f / Mathf.Max(1f, thermalSnapshotHz);
             if (Time.unscaledTime - _thermalLastUploadRealtime < interval)
                 return;
@@ -389,7 +384,7 @@ namespace WorldGen.Viewer
                 "[ND-104 thermal] tick={0} restarted={1} ticks={2} inputMs={3:F1} stepMs={4:F1} packMs={5:F1} uploadMs={6:F2} " +
                 "mode={7} kinds=L{8}/O{9}/F{10}/I{11}",
                 pending.Tick, pending.Restarted, pending.TicksAdvanced, pending.InputMs, pending.StepMs, pending.PackMs, uploadMs,
-                thermalOverlayMode, pending.KindCounts[0], pending.KindCounts[1], pending.KindCounts[2], pending.KindCounts[3]));
+                surfaceOverlayMode, pending.KindCounts[0], pending.KindCounts[1], pending.KindCounts[2], pending.KindCounts[3]));
         }
 
         private static Texture2D EnsureThermalTexture(Texture2D? texture, string name)
@@ -407,12 +402,12 @@ namespace WorldGen.Viewer
 
         private void ApplyThermalShaderGlobals()
         {
-            bool visible = thermalOverlayMode != ThermalOverlayMode.Off
+            bool visible = ThermalOverlayVisible
                 && _thermalLatest != null
                 && _thermalLatest.Revision == _thermalRevision
                 && _thermalSurfaceTexture != null
                 && _thermalAirTexture != null;
-            Shader.SetGlobalFloat(ThermalModeId, visible ? (float)(int)thermalOverlayMode : 0f);
+            Shader.SetGlobalFloat(ThermalModeId, visible ? (float)(int)surfaceOverlayMode : 0f);
             if (!visible)
                 return;
             Shader.SetGlobalTexture(ThermalSurfaceTexId, _thermalSurfaceTexture);
@@ -479,16 +474,16 @@ namespace WorldGen.Viewer
         {
             GUI.Label(new Rect(x, y + 2f, 95f, rowH), "Hőmérséklet:");
             float bx = x + 95f, bw = (w - 95f) / 3f;
-            bool off = GUI.Toggle(new Rect(bx, y + 4f, bw, rowH), thermalOverlayMode == ThermalOverlayMode.Off, " Ki");
-            bool surface = GUI.Toggle(new Rect(bx + bw, y + 4f, bw, rowH), thermalOverlayMode == ThermalOverlayMode.Surface, " Felszín (Ts)");
-            bool air = GUI.Toggle(new Rect(bx + 2f * bw, y + 4f, bw, rowH), thermalOverlayMode == ThermalOverlayMode.Air, " Levegő (Ta)");
-            if (off && thermalOverlayMode != ThermalOverlayMode.Off) thermalOverlayMode = ThermalOverlayMode.Off;
-            else if (surface && thermalOverlayMode != ThermalOverlayMode.Surface) thermalOverlayMode = ThermalOverlayMode.Surface;
-            else if (air && thermalOverlayMode != ThermalOverlayMode.Air) thermalOverlayMode = ThermalOverlayMode.Air;
+            bool off = GUI.Toggle(new Rect(bx, y + 4f, bw, rowH), !ThermalOverlayVisible, " Ki");
+            bool surface = GUI.Toggle(new Rect(bx + bw, y + 4f, bw, rowH), surfaceOverlayMode == SurfaceOverlayMode.SurfaceTemperature, " Felszín (Ts)");
+            bool air = GUI.Toggle(new Rect(bx + 2f * bw, y + 4f, bw, rowH), surfaceOverlayMode == SurfaceOverlayMode.AirTemperature, " Levegő (Ta)");
+            if (off && ThermalOverlayVisible) surfaceOverlayMode = SurfaceOverlayMode.None;
+            else if (surface && surfaceOverlayMode != SurfaceOverlayMode.SurfaceTemperature) surfaceOverlayMode = SurfaceOverlayMode.SurfaceTemperature;
+            else if (air && surfaceOverlayMode != SurfaceOverlayMode.AirTemperature) surfaceOverlayMode = SurfaceOverlayMode.AirTemperature;
             y += rowH;
 
             // A fix °C-skála csak bekapcsolt overlaynél látszik.
-            if (thermalOverlayMode != ThermalOverlayMode.Off)
+            if (ThermalOverlayVisible)
             {
                 DrawThermalLegend(new Rect(x, y + 4f, w, rowH - 6f));
                 y += rowH;

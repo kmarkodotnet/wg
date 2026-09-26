@@ -313,26 +313,12 @@ namespace WorldGen.Viewer
 
         [Header("M5: Szél-sebesség overlay")]
         [SerializeField]
-        [Tooltip("Ha be van kapcsolva, a teljes felszínt (szárazföld + óceán + " +
-                 "vízfelszín) a per-tile SZÉLSEBESSÉG szerint színezi (WindPrecipitation." +
-                 "WindVector nagysága), a biome/óceán-szín helyett. Diagnosztikus overlay - " +
-                 "a világmodell nem változik. Kék=szélcsend ... piros=viharos.")]
-        private bool windSpeedOverlay = false;
-
-        [SerializeField]
         [Tooltip("A szín-rámpa felső vége (m/s): ekkora (vagy nagyobb) szélsebességnél " +
                  "teljesen piros. A tipikus zonális alap ~10 m/s (BaseWindSpeed), a termikus " +
                  "szél ezt tovább növeli, ezért 15 egy jó kezdőérték.")]
         private double windSpeedColorMaxMs = 15.0;
 
         [Header("M5: Csapadék overlay")]
-        [SerializeField]
-        [Tooltip("Ha be van kapcsolva, a felszínt a per-tile CSAPADÉK szerint színezi " +
-                 "(MoisturePrecipitation nedvesség-advekció: óceán-forrás → szél menti " +
-                 "transzport → orografikus lecsapódás), a referencia-szinten. Aridtól " +
-                 "(homok/barna) a csapadékosig (zöld → türkiz). A világmodell nem változik.")]
-        private bool precipitationOverlay = false;
-
         [SerializeField]
         [Tooltip("A csapadék-szín-rámpa felső vége (a modell dimenziómentes egységében). " +
                  "Az óceáni átlag ~5, a szárazföldi ~1, ezért 4-6 jó kezdőérték.")]
@@ -751,6 +737,41 @@ namespace WorldGen.Viewer
         private Vector3[] _staticCornerNormals = Array.Empty<Vector3>();
         private Color[] _staticCornerColors = Array.Empty<Color>();
 
+        /// <summary>
+        /// ND-149: a parti viz-GYURU maszkja a statikus base-racson (dense
+        /// index, ld. TerrainIndexMask.DenseIndex). Azok a NEM oceani
+        /// base-tile-ok, amik fole MEGIS kerul vizfelszin, mert a valodi
+        /// partvonal rajtuk BELUL fut.
+        ///
+        /// MIERT. A vizfelszin korabban pontosan azoknak a tile-oknak az
+        /// unioja volt, amiknek a KOZEPPONTJA oceani - a vizlap opak, es a
+        /// pereme a tile-hataron ert veget. Elo meressel (A18/ND-149) a
+        /// 30 150 level-8 partvonal-elbol 22,34%-nak MINDKET kozos sarka a
+        /// vizszint alatt volt, tehat ott semmi nem vagta ki a peremet: a
+        /// part nyers, tengelyparhuzamos, 36 km-es lepcso lett. A
+        /// szarazfold-oldali 20 223 hatartile 70,30%-anak van vizszint
+        /// alatti sarka - oda a viznek be KELLENE ernie.
+        ///
+        /// A MEGOLDAS ugyanaz, mint az ND-129-nel a tavaknal: a vizfelszin
+        /// TULNYULIK a valodi parton, es a mar renderelt, adaptiv terep
+        /// vagja ki belole a partvonalat a z-bufferrel. Igy a part NULLA uj
+        /// elevacio-kiertekelesbol adodik, egyetlen definicio szerint (a
+        /// terep), es a reszletessege AUTOMATIKUSAN koveti a terep-LOD-ot.
+        ///
+        /// MIERT NEM KELL AL-OSZTAS (elteres az ND-129-tol): a terep-quad es
+        /// a viz-quad UGYANAZON az UV-negyszogon, UGYANAZZAL a
+        /// haromszogelessel (AddQuad p00,p10,p11,p01) fekszik, es mindketto
+        /// a gomb HURJA gyakorlatilag azonos sugaron - a ~25 m-es
+        /// hur-behuras tehat mindkettobol KIESIK a kulonbsegkepzesnel. A
+        /// metszesvonal igy pontosan a sarok-elevaciok linearisan
+        /// interpolalt tengerszint-kontuja, vagyis ugyanaz a hatar, amit a
+        /// terep sarok-SZINE (ContinuousCornerColorAuto) mar ma is
+        /// folytonosan kirajzol.
+        /// </summary>
+        private bool[] _staticCoastalWaterRing = Array.Empty<bool>();
+        private int _coastalRingDrawn, _coastalRingSkipped, _coastalRingRounds, _coastalRingOpen;
+        private double _coastalRingMs;
+
         // ND-63/ND-64: a level-8 tile-KOZEPPONTOK azonos terrain-bazisat
         // hasznalja a hidrologiai elevation field es a base-level tile-
         // klasszifikacio. 393 216 * 48 byte ~= 18 MiB, plusz a TileId tomb.
@@ -944,9 +965,20 @@ namespace WorldGen.Viewer
         private MoisturePrecipitation.PrecipitationField _riverSourcePrecipField;
         private List<TileId> _riverSourceCache;
         private Stopwatch _riverRefinementStopwatch;
+        private const int RiverRefinementWorkerCount = 4;
+        private sealed class PendingCoarseRiverNetwork
+        {
+            public int Generation;
+            public List<RiverPathTracing.ContinuousRiverPath> Paths;
+            public Exception Error;
+        }
+        private PendingCoarseRiverNetwork _pendingCoarseRiverNetwork;
+        private bool _adaptiveRiverPathsArePreview;
 
         private void CancelRiverRefinement()
         {
+            System.Threading.Interlocked.Exchange(ref _pendingCoarseRiverNetwork, null);
+            _pendingRiverMesh = null;
             System.Threading.CancellationTokenSource cancellation = _riverRefinementCancellation;
             System.Threading.Tasks.Task<List<RiverPathTracing.ContinuousRiverPath>> task = _riverRefinementTask;
             if (cancellation != null)
@@ -984,21 +1016,112 @@ namespace WorldGen.Viewer
 
             var sourceSnapshot = new List<TileId>(sources);
             double stepMeters = riverRefinementStepMeters;
+            // ND-136 (A19): a nyomvonalkoveto UGYANAZT a lemez-keretes
+            // domborzatot lassa, mint a megjelenitett mezo. Pillanatkep, mert
+            // ez hatterszalon fut - a mezo kozben valtozhat.
+            double riverPlateTimeMyr = deepTimeMyr;
             _riverRefinementCancellation = new System.Threading.CancellationTokenSource();
             System.Threading.CancellationToken cancellation = _riverRefinementCancellation.Token;
             _pendingRiverRefinementGeneration = _riverRefinementGeneration;
+            int generation = _pendingRiverRefinementGeneration;
             _riverRefinementStopwatch = Stopwatch.StartNew();
             _riverRefinementTask = System.Threading.Tasks.Task.Factory.StartNew(
-                () => RiverPathTracing.BuildContinuousRiverNetworkFromSources(
-                    seed, seeds, seaLevel, sourceSnapshot,
-                    RiverPathTracing.DefaultFineDepth, stepMeters,
-                    cancellation: cancellation),
+                () =>
+                {
+                    try
+                    {
+                        List<RiverPathTracing.RiverPath> coarse =
+                            RiverPathTracing.BuildRiverNetworkFromSources(
+                                seed, seeds, seaLevel, sourceSnapshot,
+                                RiverPathTracing.DefaultFineDepth,
+                                timeMyr: riverPlateTimeMyr);
+                        cancellation.ThrowIfCancellationRequested();
+                        var preview = new PendingCoarseRiverNetwork
+                        {
+                            Generation = generation,
+                            Paths = ConvertCoarseRiverPaths(coarse)
+                        };
+                        System.Threading.Interlocked.Exchange(ref _pendingCoarseRiverNetwork, preview);
+                    }
+                    catch (System.OperationCanceledException) when (cancellation.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception error)
+                    {
+                        System.Threading.Interlocked.Exchange(ref _pendingCoarseRiverNetwork,
+                            new PendingCoarseRiverNetwork { Generation = generation, Error = error });
+                    }
+                    cancellation.ThrowIfCancellationRequested();
+                    return RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
+                        seed, seeds, seaLevel, sourceSnapshot,
+                        RiverPathTracing.DefaultFineDepth, stepMeters,
+                        cancellation: cancellation,
+                        maxDegreeOfParallelism: RiverRefinementWorkerCount,
+                        timeMyr: riverPlateTimeMyr);
+                },
                 cancellation, System.Threading.Tasks.TaskCreationOptions.LongRunning,
                 System.Threading.Tasks.TaskScheduler.Default);
-            PerfLog($"[ND-132 river start] generation={_pendingRiverRefinementGeneration} sources={sourceSnapshot.Count} scheduler=dedicated-sequential afterBuild=True");
+            PerfLog($"[ND-132 river start] generation={_pendingRiverRefinementGeneration} sources={sourceSnapshot.Count} "
+                + $"scheduler=dedicated-bounded-parallel workers={RiverRefinementWorkerCount} "
+                + $"timeMyr={deepTimeMyr:F3} stepMeters={stepMeters:F1} afterBuild=True");
+        }
+
+        private static List<RiverPathTracing.ContinuousRiverPath> ConvertCoarseRiverPaths(
+            IReadOnlyList<RiverPathTracing.RiverPath> coarse)
+        {
+            const double previewSegmentMeters = 4000.0;
+            var result = new List<RiverPathTracing.ContinuousRiverPath>(coarse.Count);
+            var claimed = new Dictionary<TileId, int>();
+            for (int i = 0; i < coarse.Count; i++)
+            {
+                RiverPathTracing.RiverPath source = coarse[i];
+                var path = new RiverPathTracing.ContinuousRiverPath
+                {
+                    SourceIndex = source.SourceIndex,
+                    Termination = source.Termination
+                };
+                if (source.Termination == RiverPathTracing.TerminationReason.Merged &&
+                    source.Path.Count > 0 &&
+                    claimed.TryGetValue(source.Path[source.Path.Count - 1], out int owner))
+                    path.MergedIntoRiverIndex = owner;
+                foreach (TileId tile in source.Path)
+                {
+                    TileGeometry.ToPosition(tile, out double x, out double y, out double z);
+                    if (path.Points.Count > 0)
+                    {
+                        (double X, double Y, double Z) previous = path.Points[path.Points.Count - 1];
+                        double dx = x - previous.X, dy = y - previous.Y, dz = z - previous.Z;
+                        double chordMeters = Math.Sqrt(dx * dx + dy * dy + dz * dz)
+                            * PlanetConstants.RadiusMeters;
+                        int segments = Math.Min(64,
+                            Math.Max(1, (int)Math.Ceiling(chordMeters / previewSegmentMeters)));
+                        for (int segment = 1; segment < segments; segment++)
+                        {
+                            double t = (double)segment / segments;
+                            double ix = previous.X + dx * t;
+                            double iy = previous.Y + dy * t;
+                            double iz = previous.Z + dz * t;
+                            double length = Math.Sqrt(ix * ix + iy * iy + iz * iz);
+                            path.Points.Add((ix / length, iy / length, iz / length));
+                        }
+                    }
+                    path.Points.Add((x, y, z));
+                    if (!claimed.ContainsKey(tile)) claimed[tile] = i;
+                }
+                result.Add(path);
+            }
+            return result;
         }
         private double _adaptiveAxialTiltRad;
         private double _adaptiveErosionTimeMyr;
+
+        // ND-136 (A19): a LEMEZ-ido kulon a kopas-idotol. A domborzati zaj a
+        // lemez sajat kereteben ertekelodik ki, es ezt a lemez-mozgas ideje
+        // vezerli (deepTimeMyr) - NEM az "Erozio (kopas)" kapcsolotol fuggo
+        // _adaptiveErosionTimeMyr. Kulonben a kapcsolo kikapcsolasa a
+        // domborzatot is visszarantana a t=0 keretbe.
+        private double _adaptivePlateTimeMyr;
         private DailyInsolationSampleDirections _adaptiveDailyInsolationSamples;
 
         // M8: az utolsó Build() eredményének gyorsítótára - a panel-adatok
@@ -1599,6 +1722,7 @@ namespace WorldGen.Viewer
 
         private void OnValidate()
         {
+            MigrateSurfaceOverlay();
             SynchronizePhysicalReliefScale();
             _uploadConfigRevision++;
             _adaptiveConfigDirty = true;
@@ -1713,15 +1837,13 @@ namespace WorldGen.Viewer
         // tenni, a szin-cache-eket uriteni, es CSAK a statikus alapreteget
         // ujraepiteni; a dinamikus chunkokat az _adaptiveConfigDirty viszi.
         private bool _hasOverlayConfigSnapshot;
-        private bool _ocWindOverlay, _ocPrecipOverlay, _ocTectonicOverlay;
+        private SurfaceOverlayMode _ocVertexOverlay;
         private double _ocWindMax, _ocPrecipMax;
 
         private void SnapshotOverlayConfig()
         {
             _hasOverlayConfigSnapshot = true;
-            _ocWindOverlay = windSpeedOverlay;
-            _ocPrecipOverlay = precipitationOverlay;
-            _ocTectonicOverlay = tectonicPlateOverlay;
+            _ocVertexOverlay = SurfaceOverlaySelection.VertexColorMode(surfaceOverlayMode);
             _ocWindMax = windSpeedColorMaxMs;
             _ocPrecipMax = precipitationColorMax;
         }
@@ -1729,8 +1851,7 @@ namespace WorldGen.Viewer
         private bool OverlayConfigChangedSinceBuild()
         {
             if (!_hasOverlayConfigSnapshot) return true;
-            return _ocWindOverlay != windSpeedOverlay || _ocPrecipOverlay != precipitationOverlay
-                || _ocTectonicOverlay != tectonicPlateOverlay
+            return _ocVertexOverlay != SurfaceOverlaySelection.VertexColorMode(surfaceOverlayMode)
                 || _ocWindMax != windSpeedColorMaxMs || _ocPrecipMax != precipitationColorMax;
         }
 
@@ -2026,20 +2147,13 @@ namespace WorldGen.Viewer
 
             showDeepTimeErosion = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), showDeepTimeErosion, " Erózió (kopás)");
             bool windToggle = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), windSpeedOverlay, " Szél-overlay");
-            if (windToggle && !windSpeedOverlay)
-                tectonicPlateOverlay = false; // az overlay-ek kolcsonosen kizarjak egymast
-            windSpeedOverlay = windToggle;
+            SetSurfaceOverlayToggle(SurfaceOverlayMode.WindSpeed, windToggle);
             y += rowH;
             showLakesIce = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), showLakesIce, " Tavak+jég");
             showCraters = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), showCraters, " Kráterek");
             y += rowH;
             bool precipToggle = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), precipitationOverlay, " Csapadék-overlay");
-            if (precipToggle && !precipitationOverlay)
-            {
-                windSpeedOverlay = false; // a ket overlay kolcsonosen kizarja egymast (a szel megy elobb)
-                tectonicPlateOverlay = false;
-            }
-            precipitationOverlay = precipToggle;
+            SetSurfaceOverlayToggle(SurfaceOverlayMode.Precipitation, precipToggle);
             showClouds = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), showClouds, " Felhők (MVP)");
             y += rowH;
             cloudDriftEnabled = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), cloudDriftEnabled, " Felhő-sodródás");
@@ -2049,13 +2163,7 @@ namespace WorldGen.Viewer
             // kizarja egymast, UGYANAZZAL a mintaval, mint a szel/csapadek
             // par: csak az AKTIVALODO (false->true) valtasra reagalunk.
             bool tectonicToggle = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), tectonicPlateOverlay, " Tektonikus lemezek");
-            if (tectonicToggle && !tectonicPlateOverlay)
-            {
-                windSpeedOverlay = false;
-                precipitationOverlay = false;
-                thermalOverlayMode = ThermalOverlayMode.Off;
-            }
-            tectonicPlateOverlay = tectonicToggle;
+            SetSurfaceOverlayToggle(SurfaceOverlayMode.TectonicPlates, tectonicToggle);
             y += rowH;
 
             // Kamera-mód: 3 kölcsönösen kizáró váltógomb (ugyanaz a minta,
@@ -2400,6 +2508,7 @@ namespace WorldGen.Viewer
         [ContextMenu("Rebuild")]
         public void Build()
         {
+            MigrateSurfaceOverlay();
             CancelRiverRefinement();
             SynchronizePhysicalReliefScale();
             CancelStagedTerrainUpload();
@@ -2457,7 +2566,9 @@ namespace WorldGen.Viewer
             // reszt relaxaljuk (+= relaxedUplift - uplift), a base/jitter/crater
             // valtozatlan. Ugyanaz a Core-keplet, mint ComputeElevationAtPoint-ban.
             _adaptiveErosionTimeMyr = showDeepTimeErosion ? deepTimeMyr : 0.0;
-            field = ApplyDeepTimeErosionToField(field, seed, seeds, _adaptiveErosionTimeMyr);
+            _adaptivePlateTimeMyr = deepTimeMyr;
+            field = ApplyDeepTimeErosionToField(
+                field, seed, seeds, _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr);
             PerfLog($"Build() elevation+crater+erosion(level={level}, tiles={field.Count})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
             buildPhaseStopwatch.Restart();
 
@@ -2541,7 +2652,7 @@ namespace WorldGen.Viewer
                     hydroTerrainBasisReused = EnsureTileCenterTerrainBasisCache(seed, hydroLevel);
                     hydroTerrainBasisMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds;
                     hydroField = BuildElevationFieldFromCachedTileCenters(
-                        seed, seeds, craters, _adaptiveErosionTimeMyr, hydroLevel,
+                        seed, seeds, craters, _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr, hydroLevel,
                         out hydroDenseField);
                     hydroOcean = FlowNetwork.ComputeOceanField(hydroField, seaLevel);
                     hydroDenseOcean = new bool[hydroDenseField.Length];
@@ -3311,6 +3422,14 @@ namespace WorldGen.Viewer
             }
             double terrainProxyMs = phaseStopwatch.Elapsed.TotalMilliseconds;
 
+            // ND-149: a parti víz-gyűrű maszkja. A klasszifikációk ÉS a
+            // sarok-pozíciók MÁR készen vannak; a bucket-előkészítés viszont
+            // MÁR ezt a maszkot is beleszámolja a víz-quadok darabszámába,
+            // ezért ide, a kettő KÖZÉ kell kerüljön.
+            allocationProfile?.Next("WorldGen.StaticBase.coastalRing");
+            if (useDenseStaticData) ComputeCoastalWaterRing();
+            else _staticCoastalWaterRing = Array.Empty<bool>();
+
             allocationProfile?.Next("WorldGen.StaticBase.bucketPrepare");
             var verticesByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
             var normalsByKey = new Dictionary<(RenderCategory Category, int Bucket), List<Vector3>>();
@@ -3405,6 +3524,10 @@ namespace WorldGen.Viewer
                 $"terrainProxy={terrainProxyMs:F1}ms proxyBytes={_terrainLodProxy?.StorageBytes ?? 0} proxyNewCoreSamples=0 | " +
                 $"bucketPrepare={bucketPrepareMs:F1}ms | emit={emitMs:F1}ms | mesh={meshMs:F1}ms | borders={bordersMs:F1}ms | " +
                 $"water={waterMs:F1}ms | eviction={evictionMs:F1}ms");
+            PerfLog($"[ND-149 coastal ring] enabled={coastalWaterRing} drawn={_coastalRingDrawn} " +
+                $"skippedAboveWater={_coastalRingSkipped} rounds={_coastalRingRounds} " +
+                $"openBoundary={_coastalRingOpen} maxExpansions={CoastalWaterRingMaxExpansions} " +
+                $"mask={_coastalRingMs:F1}ms");
         }
 
         private sealed class StaticMeshBuckets
@@ -3469,12 +3592,9 @@ namespace WorldGen.Viewer
                 AdaptiveTileClassification classification = _staticTileClassifications[i];
                 int terrainSlot = StaticTerrainBucketIndex(classification.Category, classification.Bucket);
                 terrainQuadCounts[terrainSlot]++;
-                if (classification.IsOceanic
-                    && (classification.Biome == Biome.Ocean || classification.Biome == Biome.SeaIce))
-                {
-                    int waterBucket = WaterDepthBucket(_adaptiveSeaLevel - classification.Elevation);
-                    waterQuadCounts[waterBucket]++;
-                }
+                // ND-149: az oceani tile-ok MELLETT a parti gyuru is kap vizlapot.
+                if (StaticTileEmitsWater(i))
+                    waterQuadCounts[StaticWaterDepthBucket(i)]++;
             }
 
             var buckets = new StaticMeshBuckets(terrainQuadCounts, waterQuadCounts);
@@ -3508,6 +3628,242 @@ namespace WorldGen.Viewer
 
         private static int StaticTerrainBucketIndex(RenderCategory category, int bucket)
             => (int)category * OceanRockBucketCount + bucket;
+
+        [SerializeField]
+        [Tooltip("ND-149 (A18): a vízfelszín 1 gyűrűvel túlnyúlik a valódi parton, és a " +
+                 "renderelt terep vágja ki belőle a partvonalat - így a part nem a level-8 " +
+                 "tile-él, hanem a terep tengerszint-kontúrja. Kikapcsolva a Build az " +
+                 "ND-149 ELŐTTI viselkedést adja (A/B összehasonlításhoz).")]
+        private bool coastalWaterRing = true;
+
+        /// <summary>
+        /// ND-149: hányszor terjeszthető TOVÁBB a vízfelszín az első gyűrűn
+        /// túl. A további körök CSAK azok körül futnak, amik TELJESEN víz alá
+        /// kerültek (mind a négy sarok a vízszint alatt) - ott ugyanis a part
+        /// még mindig nyers tile-él maradna.
+        ///
+        /// ELTÉRÉS AZ ND-129-TŐL: a tavaknál a terjesztés NEM konvergált (a
+        /// lefolyásnál a völgytalp hosszan a feltöltési szint alatt marad,
+        /// tehát a tó a folyó medrében elfolyna), ezért ott 1 kör a végleges.
+        /// Az ÓCEÁNNÁL a vízszint GLOBÁLIS és állandó, ezért a terjesztés a
+        /// valódi partvonalnál magától megáll: az első gyűrű 20 223
+        /// tile-jából mérve csak 133 (0,66%) kerül teljesen víz alá. A korlát
+        /// így nem konvergencia-, hanem BIZTOSÍTÉK-kérdés (egy level-8 tile,
+        /// aminek mind a négy sarka víz alatt van, de a belsejében gerinc fut,
+        /// elvileg beszivárogtatná a vizet egy zárt medencébe). A tényleges
+        /// körszámot és a maradék nyitott határt a Build naplózza
+        /// (`ND-149 coastal ring`).
+        /// </summary>
+        private const int CoastalWaterRingMaxExpansions = 4;
+
+        /// <summary>
+        /// A statikus base-tile fölé kerül-e vízfelszín-quad: vagy maga
+        /// óceáni (a régi feltétel), vagy az ND-149 parti gyűrű tagja.
+        /// </summary>
+        private bool StaticTileEmitsWater(int denseIndex)
+        {
+            AdaptiveTileClassification c = _staticTileClassifications[denseIndex];
+            if (c.IsOceanic && (c.Biome == Biome.Ocean || c.Biome == Biome.SeaIce))
+                return true;
+            return (uint)denseIndex < (uint)_staticCoastalWaterRing.Length
+                && _staticCoastalWaterRing[denseIndex];
+        }
+
+        /// <summary>
+        /// A víz-submesh bucket-je. A gyűrű-tile-oknál a középpont a vízszint
+        /// FÖLÖTT van, tehát a mélység negatív - a <see cref="WaterDepthBucket"/>
+        /// ezt 0-ra vágja (legsekélyebb bucket). A TÉNYLEGES szín ettől
+        /// független: sarkonként a <see cref="ContinuousWaterCornerColor"/>
+        /// adja a megfelelő SZÁRAZFÖLD-sarok elevációjából, tehát a gyűrű
+        /// vízszíne magától helyes marad.
+        /// </summary>
+        private int StaticWaterDepthBucket(int denseIndex)
+            => WaterDepthBucket(_adaptiveSeaLevel - _staticTileClassifications[denseIndex].Elevation);
+
+        /// <summary>
+        /// ND-149: a parti víz-gyűrű maszkjának felépítése a level-8
+        /// base-rácson. A KIMENET a <see cref="_staticCoastalWaterRing"/>;
+        /// a hívó a klasszifikációk ÉS a sarok-pozíciók elkészülte UTÁN,
+        /// a bucket-előkészítés ELŐTT hívja.
+        ///
+        /// Kihagyjuk azt a gyűrű-tile-t, aminek MIND a négy sarka a vízszint
+        /// FÖLÖTT van: ott a terep úgyis teljesen eltakarná a vízlapot
+        /// (mérve a határtile-ok 29,70%-a). Nulla új eleváció-kiértékelés:
+        /// kizárólag a már kiszámolt sarok-pozíciók sugarát olvassuk.
+        /// </summary>
+        private void ComputeCoastalWaterRing()
+        {
+            _staticCoastalWaterRing = Array.Empty<bool>();
+            _coastalRingDrawn = _coastalRingSkipped = _coastalRingRounds = _coastalRingOpen = 0;
+            _coastalRingMs = 0.0;
+            if (!coastalWaterRing) return;
+            int n = 1 << adaptiveBaseLevel;
+            int side = n + 1;
+            int tileCount = 6 * n * n;
+            if (_staticTileClassifications.Length != tileCount
+                || _staticCornerPositions.Length != 6 * side * side
+                || elevationScale <= 0f)
+                return;
+
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            double waterRadius = radius + _adaptiveSeaLevel * elevationScale;
+            double waterRadiusSquared = waterRadius * waterRadius;
+
+            var cornerBelow = new bool[_staticCornerPositions.Length];
+            System.Threading.Tasks.Parallel.For(0, cornerBelow.Length, i =>
+            {
+                cornerBelow[i] = SquaredRadius(_staticCornerPositions[i]) < waterRadiusSquared;
+            });
+
+            var emitsWater = new bool[tileCount];
+            System.Threading.Tasks.Parallel.For(0, tileCount, i =>
+            {
+                AdaptiveTileClassification c = _staticTileClassifications[i];
+                emitsWater[i] = c.IsOceanic && (c.Biome == Biome.Ocean || c.Biome == Biome.SeaIce);
+            });
+
+            // 0 = nem jelolt, 1 = kihagyott (mind a 4 sarok a vizszint folott),
+            // 2 = gyuru, 3 = gyuru ES teljesen viz alatt (innen terjed tovabb).
+            var state = new byte[tileCount];
+            System.Threading.Tasks.Parallel.For(0, tileCount, i =>
+            {
+                if (emitsWater[i]) return;
+                int face = i / (n * n);
+                int rest = i - face * n * n;
+                int u = rest / n, v = rest - u * n;
+                bool adjacent = false;
+                for (int d = 0; d < 4 && !adjacent; d++)
+                {
+                    int nb = BaseNeighborDenseIndex(face, u, v, (TileDirection)d, n);
+                    adjacent = (uint)nb < (uint)tileCount && emitsWater[nb];
+                }
+                if (!adjacent) return;
+                state[i] = ClassifyCoastalRingTile(face, u, v, side, cornerBelow);
+            });
+
+            var ring = new bool[tileCount];
+            var frontier = new List<int>();
+            for (int i = 0; i < tileCount; i++)
+            {
+                if (state[i] == (byte)CoastalRingTileState.Skipped) { _coastalRingSkipped++; continue; }
+                if (state[i] == 0) continue;
+                ring[i] = true;
+                _coastalRingDrawn++;
+                frontier.Add(i);
+            }
+            _coastalRingRounds = 1;
+
+            // Tovabbi korok ELENKENT. Egy el akkor es csak akkor marad NYERS
+            // vizperem, ha a KET KOZOS SARKA MINDKETTO a vizszint alatt van -
+            // ott ugyanis a terep sehol nem emelkedik a vizlap fole, tehat nem
+            // tudja kivagni. A terjesztes pontosan ezeken az eleken lep at.
+            // Ez szigoruan pontosabb, mint a "teljesen elontott tile" szabaly
+            // (az utobbi meghagyott 12 nyers elt), es ugyanugy konvergal: az
+            // ocean vizszintje globalis es allando, tehat a valodi partnal
+            // megall. A `_coastalRingOpen` a korlat elereseig meg nyitva
+            // maradt elek szama - ha nem 0, a korlatot kell emelni.
+            for (int round = 1; round < CoastalWaterRingMaxExpansions && frontier.Count > 0; round++)
+            {
+                var next = new List<int>();
+                foreach (int from in frontier)
+                {
+                    int face = from / (n * n);
+                    int rest = from - face * n * n;
+                    int u = rest / n, v = rest - u * n;
+                    for (int d = 0; d < 4; d++)
+                    {
+                        if (!SharedEdgeFullyBelowWater(face, u, v, (TileDirection)d, side, cornerBelow)) continue;
+                        int nb = BaseNeighborDenseIndex(face, u, v, (TileDirection)d, n);
+                        if ((uint)nb >= (uint)tileCount || emitsWater[nb] || state[nb] != 0) continue;
+                        int nbFace = nb / (n * n);
+                        int nbRest = nb - nbFace * n * n;
+                        int nbU = nbRest / n, nbV = nbRest - nbU * n;
+                        byte nbState = ClassifyCoastalRingTile(nbFace, nbU, nbV, side, cornerBelow);
+                        state[nb] = nbState;
+                        // Az 1-es (mind a negy sarok viz FOLOTT) allapot itt nem
+                        // fordulhat elo: az atlepett elnek ket sarka viz alatt van.
+                        ring[nb] = true;
+                        _coastalRingDrawn++;
+                        next.Add(nb);
+                    }
+                }
+                _coastalRingRounds++;
+                frontier = next;
+            }
+
+            // Meg nyitva maradt (nyers) elek szama a korlat utan.
+            _coastalRingOpen = 0;
+            foreach (int from in frontier)
+            {
+                int face = from / (n * n);
+                int rest = from - face * n * n;
+                int u = rest / n, v = rest - u * n;
+                for (int d = 0; d < 4; d++)
+                {
+                    if (!SharedEdgeFullyBelowWater(face, u, v, (TileDirection)d, side, cornerBelow)) continue;
+                    int nb = BaseNeighborDenseIndex(face, u, v, (TileDirection)d, n);
+                    if ((uint)nb < (uint)tileCount && !emitsWater[nb] && !ring[nb]) _coastalRingOpen++;
+                }
+            }
+
+            _staticCoastalWaterRing = ring;
+            _coastalRingMs = timer.Elapsed.TotalMilliseconds;
+        }
+
+        /// <summary>
+        /// A tile négy sarkának víz-alattisága a sűrű sarok-tömbből, a
+        /// quad-emisszió sorrendjében (00, 10, 11, 01).
+        /// </summary>
+        private static void ReadCornerFlags(int face, int u, int v, int side, bool[] cornerBelow,
+            out bool below00, out bool below10, out bool below11, out bool below01)
+        {
+            int c00 = face * side * side + u * side + v;
+            below00 = cornerBelow[c00];
+            below10 = cornerBelow[c00 + side];
+            below11 = cornerBelow[c00 + side + 1];
+            below01 = cornerBelow[c00 + 1];
+        }
+
+        /// <summary>
+        /// A besorolás a tiszta, Unity nélkül is tesztelt
+        /// <see cref="CoastalWaterRing.Classify"/>-ból; az állapot 0 = még
+        /// nem jelölt, egyébként a <see cref="CoastalRingTileState"/> értéke.
+        /// </summary>
+        private static byte ClassifyCoastalRingTile(int face, int u, int v, int side, bool[] cornerBelow)
+        {
+            ReadCornerFlags(face, u, v, side, cornerBelow, out bool b00, out bool b10, out bool b11, out bool b01);
+            return (byte)CoastalWaterRing.Classify(b00, b10, b11, b01);
+        }
+
+        /// <summary>
+        /// A (face,u,v) base-tile <paramref name="direction"/> irányú éle
+        /// nyers vízperem lenne-e - ld. <see cref="CoastalWaterRing.EdgeFullyBelowWater"/>.
+        /// </summary>
+        private static bool SharedEdgeFullyBelowWater(
+            int face, int u, int v, TileDirection direction, int side, bool[] cornerBelow)
+        {
+            ReadCornerFlags(face, u, v, side, cornerBelow, out bool b00, out bool b10, out bool b11, out bool b01);
+            return CoastalWaterRing.EdgeFullyBelowWater(direction, b00, b10, b11, b01);
+        }
+
+        /// <summary>
+        /// A base-szintű 4-szomszéd dense indexe. A lap BELSEJÉBEN tiszta
+        /// index-aritmetika; CSAK a lap-éleken (a tile-ok ~1,6%-a) hívjuk a
+        /// vetítéses <see cref="TileNeighbors.Neighbor"/>-t - így a 393 216
+        /// tile-os pászta nem fizet 1,6 M vetítést.
+        /// </summary>
+        private int BaseNeighborDenseIndex(int face, int u, int v, TileDirection direction, int n)
+        {
+            switch (direction)
+            {
+                case TileDirection.Right: if (u + 1 < n) return (face * n + u + 1) * n + v; break;
+                case TileDirection.Left: if (u > 0) return (face * n + u - 1) * n + v; break;
+                case TileDirection.Up: if (v + 1 < n) return (face * n + u) * n + v + 1; break;
+                default: if (v > 0) return (face * n + u) * n + v - 1; break;
+            }
+            TileId self = TileId.FromFaceLevelUV(face, adaptiveBaseLevel, (uint)u, (uint)v);
+            return TerrainIndexMask.DenseIndex(TileNeighbors.Neighbor(self, direction));
+        }
 
         private TerrainLodProxy? DesiredTerrainLodProxy()
             => useTerrainLodProxy && adaptiveMaxLevel >= adaptiveBaseLevel
@@ -4522,7 +4878,15 @@ namespace WorldGen.Viewer
             // felszin OPAK, ezert a jegszinu, tengerszintu lap elrejti a mely
             // fenekgeometriat - a tengeri jeg most a nyilt vizzel egy szinten,
             // laposan ul, csak FEHER (jeg) szinnel a kek helyett.
-            if (emitWater && isOceanic && (biome == Biome.Ocean || biome == Biome.SeaIce)
+            // ND-149: a base-szintu statikus utnal a parti GYURU is kap vizlapot
+            // (a kozeppontja szarazfold, de a valodi part a tile-on BELUL fut) -
+            // a renderelt terep vagja ki belole a partvonalat. A finomitott
+            // (adaptiv) uton ez nem kell: ott a viz tile-onkent ujra emittalodik,
+            // illetve a fuggetlen vizreteg mar lefedi a gyurut is.
+            bool emitsWaterSurface = (isOceanic && (biome == Biome.Ocean || biome == Biome.SeaIce))
+                || (useStaticDenseData && (uint)staticDenseIndex < (uint)_staticCoastalWaterRing.Length
+                    && _staticCoastalWaterRing[staticDenseIndex]);
+            if (emitWater && emitsWaterSurface
                 && !(replaceStaticTerrain && _requestedIndependentWater && _waterLodSource!.ContainsWater(id)))
             {
                 TileGeometry.GetContinuousBounds(id, out double uMin, out double uMax, out double vMin, out double vMax);
@@ -5385,7 +5749,7 @@ namespace WorldGen.Viewer
         /// </summary>
         private Dictionary<TileId, double> BuildElevationFieldFromCachedTileCenters(
             ulong seed, (double X, double Y, double Z)[] seeds,
-            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr,
+            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr, double plateTimeMyr,
             int targetLevel, out double[] denseValues)
         {
             if (_tileCenterTerrainBasisSeed != seed
@@ -5398,8 +5762,11 @@ namespace WorldGen.Viewer
             {
                 TileId id = _tileCenterTerrainIds[i];
                 TileGeometry.ToPosition(id, out double x, out double y, out double z);
-                _tileCenterTerrainBasis[i].Evaluate(
-                    seed, seeds, out double baseElevation, out double uplift, out _);
+                // ND-136 (A19): a cache-elt WARP tovabbra is ervenyes (pozicio-
+                // fuggo), a ZAJ viszont t>0-nal a lemez kereteben szamolodik ujra.
+                _tileCenterTerrainBasis[i].EvaluateAtTime(
+                    seed, seeds, x, y, z, plateTimeMyr,
+                    out double baseElevation, out double uplift, out _);
 
                 double elevation = baseElevation + uplift;
                 if (craters.Count > 0)
@@ -5612,13 +5979,13 @@ namespace WorldGen.Viewer
             {
                 elevation = ComputeElevationAtPointFromBasis(
                     cx, cy, cz, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
-                    _adaptiveErosionTimeMyr, in basis, out isCratered);
+                    _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr, in basis, out isCratered);
             }
             else
             {
                 elevation = ComputeElevationAtPoint(
                     cx, cy, cz, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
-                    _adaptiveErosionTimeMyr, out isCratered);
+                    _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr, out isCratered);
             }
 
             // Az oceani besorolas itt KOZVETLENUL a pontszeru elevaciobol jon
@@ -5808,6 +6175,7 @@ namespace WorldGen.Viewer
             _staticCornerPositions = Array.Empty<Vector3>();
             _staticCornerNormals = Array.Empty<Vector3>();
             _staticCornerColors = Array.Empty<Color>();
+            _staticCoastalWaterRing = Array.Empty<bool>();
             _staticRenderDataLevel = -1;
             // A szin-cache-t is uritettuk (fent) - a mod-flaget szinkronban
             // tartjuk, kulonben a kovetkezo Update() feleslegesen ujra uritene.
@@ -7027,7 +7395,8 @@ namespace WorldGen.Viewer
         /// es a (finomabb) hidrologia-mezohoz.
         /// </summary>
         private static Dictionary<TileId, double> ApplyDeepTimeErosionToField(
-            Dictionary<TileId, double> field, ulong seed, (double X, double Y, double Z)[] seeds, double erosionTimeMyr)
+            Dictionary<TileId, double> field, ulong seed, (double X, double Y, double Z)[] seeds,
+            double erosionTimeMyr, double plateTimeMyr)
         {
             if (erosionTimeMyr == 0.0)
                 return field;
@@ -7054,7 +7423,11 @@ namespace WorldGen.Viewer
             {
                 TileGeometry.ToPosition(keys[i], out double ex, out double ey, out double ez);
                 DomainWarp.WarpPosition(seed, ex, ey, ez, out double ewx, out double ewy, out double ewz);
-                double uplift = PlateBoundaryEffect.BoundaryUpliftFromWarped(seed, ex, ey, ez, ewx, ewy, ewz, seeds);
+                // ND-136 (A19): UGYANAZT az upliftet kell kivonni, amit a
+                // mezo mar tartalmaz - az pedig a lemez-keretes maszkkal
+                // szamolodott (SeaLevelCalibration.ComputeElevationFieldAtTime).
+                double uplift = PlateBoundaryEffect.BoundaryUpliftFromWarpedAtTime(
+                    seed, ex, ey, ez, ewx, ewy, ewz, seeds, plateTimeMyr);
                 double relaxedUplift = DeepTimeErosionGlaciation.UpliftRelaxationElevation(uplift, erosionTimeMyr);
                 erodedValues[i] = baseValues[i] + (relaxedUplift - uplift);
             });
@@ -7066,6 +7439,27 @@ namespace WorldGen.Viewer
         }
 
         private Material _riverLineMaterial;
+        private const double RiverMeshSliceBudgetMs = 4.0;
+
+        private sealed class RiverMeshBuildState
+        {
+            public int Generation;
+            public bool IsPreview;
+            public List<RiverPathTracing.ContinuousRiverPath> Paths;
+            public int[] Weights;
+            public int RiverIndex;
+            public int PointIndex;
+            public int ProjectedPoints;
+            public double ActiveMs;
+            public double MaxSliceMs;
+            public Stopwatch Wall = Stopwatch.StartNew();
+            public List<Vector3> Vertices = new List<Vector3>();
+            public List<Vector3> Normals = new List<Vector3>();
+            public List<int> Triangles = new List<int>();
+            public List<Vector3> RibbonPoints = new List<Vector3>();
+        }
+
+        private RiverMeshBuildState _pendingRiverMesh;
 
         /// <summary>
         /// M9/M7 (ND-49) dendritikus folyó-hálózat mesh-SZALAGKÉNT (nem
@@ -7073,50 +7467,99 @@ namespace WorldGen.Viewer
         /// visszajelzés 2026-09-06: "a szélessége nem korrelál azzal,
         /// mennyi vizet szállít").
         /// A háttér-szálon futó FOLYTONOS nyomvonal-követés (<see
-        /// cref="RiverPathTracing.BuildContinuousRiverNetworkFromSources"/>,
+        /// cref="RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel"/>,
         /// ld. Build()) eredményét használja: a felszín érintő-síkjában futó,
         /// kb. riverRefinementStepMeters felbontású pontsorozatot, a hozzá
         /// tartozó `_adaptiveRiverDischargeWeights`-ből levezetett
-        /// szélességgel. Amíg az aktuális deep-time állapot finomítása nincs
-        /// kész, a korábbi állapot érvénytelen vonala helyett nincs folyó-mesh.
-        /// EGYSZER épül fel (Build() vagy a finomítás elkészültekor), a
-        /// kamera-mozgás nem érinti.
+        /// szélességgel. A finomítás alatt az aktuális állapot durva
+        /// modell-előnézete látható; más világállapot vonala nem maradhat.
+        /// Egyetlen aktuális generációhoz készül, képkockákra bontva;
+        /// a kamera-mozgás nem érinti.
         /// </summary>
         private void BuildRiverNetwork()
         {
             Transform child = transform.Find("Rivers");
             if (!showRivers || _adaptiveRefinedRiverPaths == null || _adaptiveRefinedRiverPaths.Count == 0)
             {
+                _pendingRiverMesh = null;
                 if (child != null) child.gameObject.SetActive(false);
                 return;
             }
 
-            var verts = new List<Vector3>();
-            var normals = new List<Vector3>();
-            var triangles = new List<int>();
-            var ribbonPoints = new List<Vector3>();
-            for (int riverIdx = 0; riverIdx < _adaptiveRefinedRiverPaths.Count; riverIdx++)
+            _pendingRiverMesh = new RiverMeshBuildState
             {
-                List<(double X, double Y, double Z)> refinedPath = _adaptiveRefinedRiverPaths[riverIdx].Points;
+                Generation = _riverRefinementGeneration,
+                IsPreview = _adaptiveRiverPathsArePreview,
+                Paths = _adaptiveRefinedRiverPaths,
+                Weights = _adaptiveRiverDischargeWeights
+            };
+        }
 
-                if (refinedPath != null && refinedPath.Count >= 2)
-                {
-                    // A finomitott ut mar suru/folytonos-koveto - egyenes
-                    // szakaszok is simanak latszanak, nincs szukseg Catmull-
-                    // Rom-ra (az akar el is torzithatna a szamolt lejto-
-                    // iranytol).
-                    ribbonPoints.Clear();
-                    for (int i = 0; i < refinedPath.Count; i++)
-                        ribbonPoints.Add(RiverPositionOnSurface(refinedPath[i].X, refinedPath[i].Y, refinedPath[i].Z));
-
-                    int weight = _adaptiveRiverDischargeWeights != null && riverIdx < _adaptiveRiverDischargeWeights.Length
-                        ? _adaptiveRiverDischargeWeights[riverIdx] : 1;
-                    float halfWidth = riverBaseHalfWidth * Mathf.Sqrt(weight);
-                    AddRiverRibbon(verts, normals, triangles, ribbonPoints, halfWidth);
-                }
+        private void AdvanceRiverMeshBuild()
+        {
+            RiverMeshBuildState state = _pendingRiverMesh;
+            if (state == null) return;
+            if (!showRivers || state.Generation != _riverRefinementGeneration ||
+                !ReferenceEquals(state.Paths, _adaptiveRefinedRiverPaths))
+            {
+                _pendingRiverMesh = null;
+                return;
             }
 
-            BuildRivers(verts, normals, triangles);
+            var slice = Stopwatch.StartNew();
+            while (state.RiverIndex < state.Paths.Count &&
+                   slice.Elapsed.TotalMilliseconds < RiverMeshSliceBudgetMs)
+            {
+                List<(double X, double Y, double Z)> path = state.Paths[state.RiverIndex].Points;
+                if (path == null || path.Count < 2)
+                {
+                    state.RiverIndex++;
+                    state.PointIndex = 0;
+                    continue;
+                }
+                if (state.PointIndex < path.Count)
+                {
+                    (double X, double Y, double Z) point = path[state.PointIndex++];
+                    state.RibbonPoints.Add(RiverPositionOnSurface(point.X, point.Y, point.Z));
+                    state.ProjectedPoints++;
+                    continue;
+                }
+
+                int weight = state.Weights != null && state.RiverIndex < state.Weights.Length
+                    ? state.Weights[state.RiverIndex] : 1;
+                float halfWidth = riverBaseHalfWidth * Mathf.Sqrt(weight);
+                AddRiverRibbon(state.Vertices, state.Normals, state.Triangles,
+                    state.RibbonPoints, halfWidth);
+                state.RibbonPoints.Clear();
+                state.RiverIndex++;
+                state.PointIndex = 0;
+            }
+            double sliceMs = slice.Elapsed.TotalMilliseconds;
+            state.ActiveMs += sliceMs;
+            if (sliceMs > state.MaxSliceMs) state.MaxSliceMs = sliceMs;
+            if (state.RiverIndex < state.Paths.Count) return;
+
+            var upload = Stopwatch.StartNew();
+            BuildRivers(state.Vertices, state.Normals, state.Triangles);
+            double uploadMs = upload.Elapsed.TotalMilliseconds;
+            _pendingRiverMesh = null;
+            double meshMs = state.ActiveMs + uploadMs;
+            PerfLog($"[ND-147 river mesh staged] generation={state.Generation} "
+                + $"kind={(state.IsPreview ? "preview" : "fine")} rivers={state.Paths.Count} "
+                + $"points={state.ProjectedPoints} prepareWallMs={state.Wall.Elapsed.TotalMilliseconds:F1} "
+                + $"activeMs={state.ActiveMs:F1} maxSliceMs={state.MaxSliceMs:F1} "
+                + $"uploadMs={uploadMs:F1}");
+            if (state.IsPreview)
+            {
+                PerfLog($"[ND-145 river preview] generation={state.Generation} "
+                    + $"elapsedMs={_riverRefinementStopwatch?.Elapsed.TotalMilliseconds:F1} "
+                    + $"rivers={state.Paths.Count} points={state.ProjectedPoints} meshMs={meshMs:F1}");
+            }
+            else
+            {
+                PerfLog($"[ND-132 river mesh] generation={state.Generation} "
+                    + $"elapsedMs={meshMs:F1} totalElapsedMs={_riverRefinementStopwatch?.Elapsed.TotalMilliseconds:F1}");
+            }
         }
 
         /// <summary>
@@ -7316,13 +7759,14 @@ namespace WorldGen.Viewer
                     cornerBasisHits++;
                     elevation = ComputeElevationAtPointFromBasis(
                         x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
-                        _adaptiveErosionTimeMyr, in basis);
+                        _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr, in basis);
                 }
                 else
                 {
                     cornerBasisMisses++;
                     elevation = ComputeElevationAtPoint(
-                        x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters, _adaptiveErosionTimeMyr);
+                        x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
+                        _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr);
                 }
                 cornerElevations[key] = elevation;
                 return elevation;
@@ -8177,7 +8621,7 @@ namespace WorldGen.Viewer
         {
             TileGeometry.PositionFromFaceUV(face, uc, vc, out double x, out double y, out double z);
             double elevation = ComputeElevationAtPointFromBasis(
-                x, y, z, seed, seeds, craters, _adaptiveErosionTimeMyr, in basis);
+                x, y, z, seed, seeds, craters, _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr, in basis);
             float displacedRadius = radius + (float)(DisplayElevation(elevation) * elevationScale);
             return BodyFrameConversion.ToUnity(x, y, z) * displacedRadius;
         }
@@ -8272,7 +8716,8 @@ namespace WorldGen.Viewer
             double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
             List<ImpactCratering.CraterRecord> craters)
         {
-            double elevation = ComputeElevationAtPoint(x, y, z, seed, seeds, craters, _adaptiveErosionTimeMyr);
+            double elevation = ComputeElevationAtPoint(
+                x, y, z, seed, seeds, craters, _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr);
             return radius + (float)(DisplayElevation(elevation) * elevationScale);
         }
 
@@ -8337,8 +8782,8 @@ namespace WorldGen.Viewer
         /// </summary>
         private static double ComputeElevationAtPoint(
             double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
-            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr)
-            => ComputeElevationAtPoint(x, y, z, seed, seeds, craters, erosionTimeMyr, out _);
+            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr, double plateTimeMyr)
+            => ComputeElevationAtPoint(x, y, z, seed, seeds, craters, erosionTimeMyr, plateTimeMyr, out _);
 
         /// <summary>
         /// Ugyanaz, mint a fenti, de <paramref name="isCratered"/>-ben EGY
@@ -8349,27 +8794,32 @@ namespace WorldGen.Viewer
         /// </summary>
         private static double ComputeElevationAtPoint(
             double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
-            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr, out bool isCratered)
+            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr, double plateTimeMyr,
+            out bool isCratered)
         {
             TerrainPointBasis basis = TerrainPointBasis.Compute(seed, x, y, z);
             return ComputeElevationAtPointFromBasis(
-                x, y, z, seed, seeds, craters, erosionTimeMyr, in basis, out isCratered);
+                x, y, z, seed, seeds, craters, erosionTimeMyr, plateTimeMyr, in basis, out isCratered);
         }
 
         private static double ComputeElevationAtPointFromBasis(
             double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
-            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr,
+            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr, double plateTimeMyr,
             in TerrainPointBasis basis)
             => ComputeElevationAtPointFromBasis(
-                x, y, z, seed, seeds, craters, erosionTimeMyr, in basis, out _);
+                x, y, z, seed, seeds, craters, erosionTimeMyr, plateTimeMyr, in basis, out _);
 
         private static double ComputeElevationAtPointFromBasis(
             double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
-            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr,
+            List<ImpactCratering.CraterRecord> craters, double erosionTimeMyr, double plateTimeMyr,
             in TerrainPointBasis basis, out bool isCratered)
         {
             isCratered = false;
-            basis.Evaluate(seed, seeds, out double baseElevation, out double uplift, out _);
+            // ND-136 (A19): a domborzati zaj a lemez sajat kereteben - a
+            // cache-elt warp tovabbra is hasznalodik, csak a zaj szamolodik ujra.
+            basis.EvaluateAtTime(
+                seed, seeds, x, y, z, plateTimeMyr,
+                out double baseElevation, out double uplift, out _);
 
             // M10 deep-time erozio (DeepTimeErosionGlaciation): a lemezhatar-
             // uplift-BONUSZ idovel relaxal a MEGLEVO ertekenek eqFraction-jara
@@ -8800,7 +9250,9 @@ namespace WorldGen.Viewer
         {
             double len = Math.Sqrt(px * px + py * py + pz * pz);
             if (len < 1e-12) { px = 0; py = 0; pz = 0; } else { px /= len; py /= len; pz /= len; }
-            return ComputeElevationAtPoint(px, py, pz, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters, _adaptiveErosionTimeMyr);
+            return ComputeElevationAtPoint(
+                px, py, pz, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
+                _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr);
         }
 
         /// <summary>Szél-sebesség szín-rámpa: kék (szélcsend) -&gt; cián/zöld -&gt; sárga -&gt; piros (viharos).</summary>
@@ -9174,6 +9626,7 @@ namespace WorldGen.Viewer
 
         private void LateUpdate()
         {
+            long lateUpdateStarted = Stopwatch.GetTimestamp();
             // A folytonos felszin valos ideju vilagitasa a mozgo Napot koveti.
             // Olcso (egyetlen megosztott anyag nehany uniformja), minden frame.
             UpdateSurfaceLightingUniforms();
@@ -9182,6 +9635,7 @@ namespace WorldGen.Viewer
             // eredmenyenek fo-szalu atvetele, amint elkeszult - ld.
             // TryApplyCompletedRiverRefinement doksija.
             TryApplyCompletedRiverRefinement();
+            AdvanceRiverMeshBuild();
 
             // Felhasznaloi visszajelzes (2026-09-06): a periodikus felho-
             // sodrodas frame-hitchet okozott - a hatter-szalon futo
@@ -9189,18 +9643,59 @@ namespace WorldGen.Viewer
             // TryApplyCompletedCloudRebuild doksija.
             TryApplyCompletedCloudRebuild();
             TickDrawnTileDiagnostics();
+
+            // ND-148: ritka nagy frame-reseknel kulon merjuk az aktualis
+            // LateUpdate-ot; a delta az ELOZO frame-et is tartalmazza.
+            // Editor Pause/fokuszvaltas utan a delta onmagaban nem hibaok.
+            double lateUpdateMs = (Stopwatch.GetTimestamp() - lateUpdateStarted)
+                * 1000.0 / Stopwatch.Frequency;
+            double frameDeltaMs = Time.unscaledDeltaTime * 1000.0;
+            if (frameDeltaMs >= 100.0 || lateUpdateMs >= 100.0)
+            {
+                Camera camera = GetAdaptiveCamera();
+                double distance = camera != null
+                    ? Vector3.Distance(camera.transform.position, transform.position)
+                    : double.NaN;
+                double altitude = distance - radius;
+                double zoom = altitude > 0.0 ? radius / altitude : double.NaN;
+                PerfLog($"[ND-148 frame stall] frame={Time.frameCount} "
+                    + $"deltaMs={frameDeltaMs:F1} lateUpdateMs={lateUpdateMs:F1} "
+                    + $"zoomRatio={zoom:F3} focused={Application.isFocused} "
+                    + $"riverMeshPending={_pendingRiverMesh != null} "
+                    + $"lodPending={_cutTask != null || _pendingTerrainUpload != null} "
+                    + $"terrainUploadPending={_pendingTerrainUpload != null}");
+            }
         }
 
         /// <summary>
         /// Ha a háttér-szálon futó <see cref="RiverPathTracing.
-        /// BuildContinuousRiverNetworkFromSources"/>-számítás (ld. Build())
-        /// elkészült, itt (fő szál) alkalmazzuk: eltároljuk az eredményt és
-        /// újraépítjük a folyó-mesh-t a finomított nyomvonallal. Ha
+        /// BuildContinuousRiverNetworkFromSourcesParallel"/>-számítás
+        /// elkészült, itt (fő szál) átvesszük az eredményt, és elindítjuk
+        /// a képkockákra osztott folyómesh-építést. Ha
         /// időközben egy ÚJABB Build() futott le (más generáció), az
         /// eredményt ELDOBJUK - az már egy régi világállapotra vonatkozna.
         /// </summary>
         private void TryApplyCompletedRiverRefinement()
         {
+            PendingCoarseRiverNetwork preview =
+                System.Threading.Interlocked.Exchange(ref _pendingCoarseRiverNetwork, null);
+            if (preview != null && _riverRefinementTask != null &&
+                preview.Generation == _riverRefinementGeneration && showRivers)
+            {
+                if (preview.Error != null)
+                {
+                    Debug.LogWarning("PlanetGridMesh: a durva folyó-előnézet hibával zárult: "
+                        + preview.Error);
+                }
+                else
+                {
+                    _adaptiveRefinedRiverPaths = preview.Paths;
+                    _adaptiveRiverPathsArePreview = true;
+                    _adaptiveRiverDischargeWeights =
+                        RiverPathTracing.ComputeDischargeWeights(preview.Paths);
+                    BuildRiverNetwork();
+                }
+            }
             if (_riverRefinementTask == null || !_riverRefinementTask.IsCompleted)
                 return;
 
@@ -9227,12 +9722,11 @@ namespace WorldGen.Viewer
                 return; // elavult - egy ujabb Build() mar futott, amig ez a task dolgozott
 
             _adaptiveRefinedRiverPaths = task.Result;
+            _adaptiveRiverPathsArePreview = false;
             _adaptiveRiverDischargeWeights = RiverPathTracing.ComputeDischargeWeights(_adaptiveRefinedRiverPaths);
-            PerfLog($"[ND-132 river ready] generation={_pendingRiverRefinementGeneration} elapsedMs={_riverRefinementStopwatch?.Elapsed.TotalMilliseconds:F1} rivers={_adaptiveRefinedRiverPaths.Count}");
+            PerfLog($"[ND-132 river ready] generation={_pendingRiverRefinementGeneration} elapsedMs={_riverRefinementStopwatch?.Elapsed.TotalMilliseconds:F1} rivers={_adaptiveRefinedRiverPaths.Count} workers={RiverRefinementWorkerCount}");
             WarnIfAnyRiverHitMaxSteps(_adaptiveRefinedRiverPaths);
-            var riverMeshStopwatch = Stopwatch.StartNew();
             BuildRiverNetwork();
-            PerfLog($"[ND-132 river mesh] elapsedMs={riverMeshStopwatch.Elapsed.TotalMilliseconds:F1}");
         }
 
         /// <summary>

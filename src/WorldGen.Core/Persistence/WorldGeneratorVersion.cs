@@ -7,7 +7,11 @@ namespace WorldGen.Core.Persistence
     /// </summary>
     public static class WorldGeneratorVersion
     {
-        // Első explicit alapvonal: 2026-09-22, ND-126b/130 utáni modell.
-        public const string Current = "1";
+        // ND-136 (A19): a domborzati zaj a lemez saját vonatkoztatási
+        // rendszerében értékelődik ki, tehát együtt vándorol a kéreggel.
+        // Csak a `t > 0` deep-time kimenet változik; a statikus (t = 0)
+        // világok bitre azonosak maradnak.
+        // Előzmény — ND-142: a pillanatnyi levegőanomália visszahat a termikus szélre.
+        public const string Current = "3";
     }
 }

@@ -41,10 +41,12 @@
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/AdaptiveQuadTree.cs" Link="Source/AdaptiveQuadTree.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/AdaptiveViewState.cs" Link="Source/AdaptiveViewState.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/OceanRefinement.cs" Link="Source/OceanRefinement.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/CoastalWaterRing.cs" Link="Source/CoastalWaterRing.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/LodCoverage.cs" Link="Source/LodCoverage.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/LodCornerResolver.cs" Link="Source/LodCornerResolver.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/TerrainIndexMask.cs" Link="Source/TerrainIndexMask.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/ThermalOverlayPacking.cs" Link="Source/ThermalOverlayPacking.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/SurfaceOverlayMode.cs" Link="Source/SurfaceOverlayMode.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/TerrainBasisDiskCache.cs" Link="Source/TerrainBasisDiskCache.cs" />
   </ItemGroup>
 

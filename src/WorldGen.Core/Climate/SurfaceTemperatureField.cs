@@ -17,6 +17,9 @@ namespace WorldGen.Core.Climate
         /// </summary>
         public long? CanonicalStartTick { get; internal set; }
 
+        /// <summary>ND-143: a világ és a hőmodell bemeneteinek kanonikus azonosítója.</summary>
+        public string? ModelIdentity { get; internal set; }
+
         /// <summary>Felszíni anomália θs (K), cellánként.</summary>
         public double[] ThetaS { get; }
 
@@ -34,6 +37,7 @@ namespace WorldGen.Core.Climate
         {
             Tick = tick;
             CanonicalStartTick = null;
+            ModelIdentity = null;
             Array.Clear(ThetaS, 0, ThetaS.Length);
             Array.Clear(ThetaA, 0, ThetaA.Length);
         }
@@ -44,6 +48,7 @@ namespace WorldGen.Core.Climate
             if (other.ThetaS.Length != ThetaS.Length) throw new ArgumentException("Eltérő cellaszám.");
             Tick = other.Tick;
             CanonicalStartTick = other.CanonicalStartTick;
+            ModelIdentity = other.ModelIdentity;
             Array.Copy(other.ThetaS, ThetaS, ThetaS.Length);
             Array.Copy(other.ThetaA, ThetaA, ThetaA.Length);
         }
@@ -74,6 +79,8 @@ namespace WorldGen.Core.Climate
     ///
     /// Tickenként (t → t + dt, tm = t + dt/2):
     /// <list type="number">
+    /// <item>ND-142: a tick eleji θa gradiense visszahat a szélre; a teljes
+    /// mezőből egyszerre számolva, a termikus szélkorlátozás előtt;</item>
     /// <item>θa kompenzált upwind advekciója az élközépponti széllel, a
     /// beáramlási Courant-számból determinisztikusan választott részlépésekkel;</item>
     /// <item>lokális tagok Crank–Nicolson-IMEX-szel, a forcing, a bázis és a
@@ -98,6 +105,7 @@ namespace WorldGen.Core.Climate
         private readonly ThermalModelParameters _parameters;
         private readonly ThermalBaseline _baseline;
         private readonly ThermalWind _wind;
+        private string? _modelIdentity;
 
         private readonly double[] _edgeVelocity, _cellSpeed, _factor, _baseK;
         private readonly double[] _inflow, _divergence, _flux, _advectScratch;
@@ -121,6 +129,11 @@ namespace WorldGen.Core.Climate
             }
 
             _seaLevelM = seaLevelM;
+            if (double.IsNaN(seaLevelM) || double.IsInfinity(seaLevelM)
+                || double.IsNaN(tYears) || double.IsInfinity(tYears))
+                throw new ArgumentException("A tengerszint és a geológiai idő véges legyen.");
+            WorldSeed = worldSeed;
+            TYears = tYears;
             _orbit = orbit;
             _parameters = parameters ?? ThermalModelParameters.Default;
             _baseline = new ThermalBaseline(grid, _kinds, _elevationM, seaLevelM, worldSeed, tYears, orbit, _parameters);
@@ -152,6 +165,9 @@ namespace WorldGen.Core.Climate
         public ThermalModelParameters Parameters => _parameters;
         public ThermalOrbit Orbit => _orbit;
         public double SeaLevelM => _seaLevelM;
+        public ulong WorldSeed { get; }
+        public double TYears { get; }
+        public string ModelIdentity => _modelIdentity ?? (_modelIdentity = ThermalCheckpoint.ComputeModelIdentity(this));
         public SurfaceThermalKind KindAt(int cell) => _kinds[cell];
         public double ElevationAt(int cell) => _elevationM[cell];
 
@@ -165,12 +181,15 @@ namespace WorldGen.Core.Climate
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
             if (state.ThetaS.Length != _grid.CellCount) throw new ArgumentException("Eltérő cellaszám.", nameof(state));
+            if (state.ModelIdentity != null && state.ModelIdentity != ModelIdentity)
+                throw new ArgumentException("A hőállapot másik világhoz vagy modellhez tartozik.", nameof(state));
+            state.ModelIdentity = ModelIdentity;
 
             long tick = state.Tick;
             double dt = SimulationTime.TickSeconds;
             long tm = tick * SimulationTime.TickSeconds + SimulationTime.TickSeconds / 2;
 
-            _wind.Sample(tm, _edgeVelocity, _cellSpeed);
+            _wind.SampleCoupled(tm, state.ThetaA, _edgeVelocity, _cellSpeed);
             LastSubsteps = AdvectCompensatedUpwind(_grid, _edgeVelocity, state.ThetaA, dt,
                 _inflow, _divergence, _flux, _advectScratch);
 
@@ -288,6 +307,7 @@ namespace WorldGen.Core.Climate
             long start = SimulationTime.CanonicalStartTick(targetTick);
             state.Reset(start);
             state.CanonicalStartTick = start;
+            state.ModelIdentity = ModelIdentity;
         }
 
         /// <summary>
@@ -306,7 +326,7 @@ namespace WorldGen.Core.Climate
         /// <summary>Kanonikus állapot a <paramref name="targetTick"/>-en; ha lehet, a meglévő állapotból folytatva.</summary>
         public void StateAt(ThermalSnapshot state, long targetTick)
         {
-            if (!CanContinue(state, targetTick))
+            if (!CanContinue(state, targetTick) || state.ModelIdentity != ModelIdentity)
                 ResetCanonical(state, targetTick);
             RunTo(state, targetTick);
         }
@@ -330,7 +350,7 @@ namespace WorldGen.Core.Climate
 
             long seconds = state.Tick * SimulationTime.TickSeconds;
             _baseline.Sample(seconds, _factor, _baseK);
-            _wind.Sample(seconds, _edgeVelocity, _cellSpeed);
+            _wind.SampleCoupled(seconds, state.ThetaA, _edgeVelocity, _cellSpeed);
             OrbitalMechanics.SunDirectionBodyFrame(seconds / (double)SimulationTime.SecondsPerDay,
                 _orbit.OrbitalPeriodDays, _orbit.RotationPeriodDays, _orbit.AxialTiltRad, 0.0, 0.0,
                 out double sx, out double sy, out double sz);

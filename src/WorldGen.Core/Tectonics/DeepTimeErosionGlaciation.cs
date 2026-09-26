@@ -42,24 +42,27 @@ namespace WorldGen.Core.Tectonics
             return RelaxTowards(upliftBonusStatic, hEq, timeMyr, tau);
         }
 
-        /// <summary>A tile elevacioja timeMyr-nel: statikus alap-elevacio + a lemezhatar uplift-bonusz relaxalt erteke. t=0 = statikus M4.</summary>
+        /// <summary>
+        /// A tile elevacioja timeMyr-nel: alap-elevacio + a lemezhatar
+        /// uplift-bonusz relaxalt erteke. t=0 = statikus M4 (bitre).
+        ///
+        /// ND-136 (A19): az alap-elevacio zajtagjai a lemez SAJAT
+        /// vonatkoztatasi rendszereben ertekelodnek ki, tehat a domborzat
+        /// egyutt vandorol a keregge l - korabban a rogzitett vilag-pozicioban
+        /// szamolodtak, es a lemez atcsuszott egy allo textura felett.
+        /// A `seeds` a MAR ELMOZDITOTT lemez-magokat varja
+        /// (PlateMotion.MovedSeeds); ugyanaz a timeMyr vezerli a zaj
+        /// visszaforgatasat es a relaxaciot.
+        /// </summary>
         public static double ElevationAtTime(
             ulong worldSeed, int plateId, double x, double y, double z, (double X, double Y, double Z)[] seeds,
             double timeMyr, out bool isOceanic,
             double tau = OrogenicRelaxationTauMyr, double eqFraction = EquilibriumFraction)
         {
             DomainWarp.WarpPosition(worldSeed, x, y, z, out double wx, out double wy, out double wz);
-            PlateBoundaryEffect.TwoBestDots(
-                wx, wy, wz, seeds,
-                out double best, out double second, out int bestIndex, out int secondIndex);
-            CrustElevation.ComputeNoiseBasis(
-                worldSeed, x, y, z,
-                out double primaryNoise, out double mountainMask, out double secondaryNoise);
-            double baseElev = CrustElevation.BlendedBaseElevationFromNoiseBasis(
-                worldSeed, best, second, bestIndex, secondIndex,
-                primaryNoise, mountainMask, secondaryNoise, out isOceanic);
-            double upliftStatic = PlateBoundaryEffect.BoundaryUpliftFromNearestPlates(
-                worldSeed, best, second, bestIndex, secondIndex, mountainMask);
+            PlateBoundaryEffect.BaseAndUpliftFromWarpedAtTime(
+                worldSeed, x, y, z, wx, wy, wz, seeds, timeMyr,
+                out double baseElev, out double upliftStatic, out isOceanic);
             double upliftT = UpliftRelaxationElevation(upliftStatic, timeMyr, tau, eqFraction);
             return baseElev + upliftT;
         }

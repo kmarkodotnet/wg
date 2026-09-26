@@ -1,5 +1,73 @@
 # Felhasználói ellenőrzési lista
 
+## A19 — a domborzat együtt mozog a lemezzel (ND-136, 2026-09-26)
+
+**Mi változott:** deep-time-ban eddig csak a lemez-magok mozogtak, a
+domborzat-textúra állt — a lemez átcsúszott alatta, a hegyvonulat helyben
+maradt. Mostantól a zaj a lemez saját vonatkoztatási rendszerében
+értékelődik ki, tehát a domborzat a kéreggel együtt vándorol.
+
+**Már ellenőrizve:** Python orákulum (a zaj bitre együtt utazik a lemezzel,
+max eltérés 1e-14; a régi út ugyanitt 0,81-et ugrott), 400 + 100 tesztvektor,
+új C#-tesztcsomag, a teljes Core-készlet zöld, élő Unity-fordítás hiba nélkül.
+Play-menet még nem volt.
+
+**Play-próba:**
+
+1. Állítsd a deep-time csúszkát 0-ra, és jegyezz meg egy jól felismerhető
+   kontinenst/hegyvonulatot (érdemes képernyőképet készíteni).
+2. Lépj előre 100 → 200 → 300 my-t. Az elvárás: a **domborzat-minta** maga is
+   elfordul a lemezzel, nem csak a lemezhatárok csúsznak el egy álló textúra
+   felett. Kapcsold be a lemez-nézetet: a hegyvonulat maradjon ugyanazon a
+   lemezen, ne „másszon át" a szomszédra.
+3. Nézd meg a lemezhatárokat közelről. Kis időnél (≤ 100 my) ne legyen látható
+   varrat. **Ismert, dokumentált korlát:** nagy időnél (500–1000 my) a két
+   szomszédos lemez kerete több tíz fokkal elfordul egymáshoz képest, tehát a
+   határon egy keskeny **nyírási sáv** jelenik meg, ahol a két domborzat nem
+   folytatódik egymásban. Ez fizikailag nem hibás (egy transzform határ valóban
+   nem összetartozó kérget tol egymás mellé), de a sáv szélessége még nincs
+   kalibrálva — az ND-138-cal együtt jön.
+4. A csúszka 0-ra visszaállítva a világnak **pontosan** a kiinduló képet kell
+   adnia (a t = 0 kimenet bitre változatlan).
+5. Folyók: `t > 0`-nál a folyó a látott domborzaton fusson (völgyben, ne
+   hegyoldalon keresztben).
+6. Console: ne legyen új piros hiba. PerfLog: a Build ideje `t > 0`-nál ne
+   ugorjon meg érdemben (mérve, level 7, Core-oldalon: nincs mérhető
+   többletköltség).
+
+**Figyelem — mentés-kompatibilitás:** `WorldGeneratorVersion` 2 → 3, tehát a
+korábbi `.worldpkg` fájlok betöltése explicit hibát ad (ND-108). Ez szándékos.
+
+---
+
+## A7 — egységes overlay és hő–szél visszacsatolás (2026-09-23)
+
+**Mi változott:** egyetlen felszíni adatnézet választható, és a számított
+levegőhőmérséklet különbségei most már a hőmodell szelét is módosítják.
+Ez egyelőre a pillanatnyi hőmezőben látszik; a biome és a tartós jég
+átállítása még hátravan.
+
+**Már ellenőrizve:** élő Editor-fordítás, régi prefab-beállítások migrációja,
+mind a hat mód shaderállapota, kész level-6 hőmező és Play-képernyőkép.
+Ez rövid működési próba, nem sok seedes/sok évszakos felhasználói átvétel.
+A kezdeti túl erős csatolás előfutási hibáját kalibráció javította:
+level 6-on 1,63 → 0,173 K. A 30. napi kanonikus újraindításnál megmaradó
+maximum eltérés 0,198 K (csatolás nélküli kontroll: 0,219 K).
+A nézetváltásból eredő ugrást ettől külön kell kezelni.
+
+**Play-próba:** a Rétegek panelen válts felszínhő → léghő → szél → csapadék
+→ lemezek → kikapcsolt nézet között. Mindig csak egy nézet maradjon aktív;
+a hőnézet ne örököljön lemez- vagy csapadékszíneket. Nézd meg a pólusokat
+és a partvonalakat is. Álló időnél a hőmező számításának befejezése után
+a nézetváltástól ne változzanak a hőértékek. Előre lépő időnél folytonos
+változás várható, Console-hiba nélkül. A hőmező kezdeti felpörgése alatt
+a panel számítás alatt állapotot mutathat.
+
+Hibánál a seed, a nap/időpont, az aktív nézet és egy képernyőkép a hasznos
+visszajelzés. Jelen körben nem szükséges új standalone Playert indítani.
+
+---
+
 Ez a dokumentum azokat a tételeket gyűjti, amikhez **a felhasználónak
 kell tennie valamit** — élőben kipróbálni Unity-ben, egy Inspector-
 értéket beállítani, vagy visszajelzést adni. Minden tétel négy részből
@@ -11,7 +79,7 @@ dokumentum ANNAK egy leszűkített, tesztelés-központú nézete, csak azokra
 a tételekre, amikhez MÁR történt kódváltoztatás és élő megerősítés
 hiányzik. Frissítve tartom, ahogy új munka készül el.
 
-Legutóbb frissítve: 2026-09-07 (3. kör).
+Legutóbb frissítve: 2026-09-23 (A7-kiegészítés; lent a korábbi ellenőrzési tételek).
 
 **Code review-frissítés (2026-09-07, 2. kör)**: egy `/code-review
 --effort high` a napi teljes diffre 3 valós hibát talált és javított:

@@ -740,6 +740,33 @@ deep-time és `TerrainPointBasis` út ugyanazt a kétlegközelebbi-lemez és
 zajbázis számítást használja, így a render, hidrológia és panelmetrikák nem
 válhatnak szét. Ez numerikus világkép-változás, ezért `.worldpkg` v2.
 
+**ND-136 lemez-keretes zaj (A19).** A domborzati zaj nem a rögzített
+világ-pozícióban, hanem a **lemez saját vonatkoztatási rendszerében**
+értékelődik ki: a mintavételi pontot `PlateMotion.ToPlateFrame` előbb
+`R(−ωt)`-vel visszaforgatja a lemez Euler-pólusa körül. A kéreg anyag, a
+domborzat a kéreg tulajdonsága — tehát együtt kell vándorolnia vele.
+
+Az elevációs lánc három rétege ezért így oszlik:
+
+| Réteg | Kerete | Időfüggő? | Cache-elhető? |
+|---|---|---|---|
+| Lemez-hozzárendelés, határ-közelség (`gap`) | **világ** (warpolt pozíció, ND-36) | a mozgatott magokon át igen | a warp igen (pozíció-kulcs) |
+| Három zajtag (elsődleges, `MountainMask`, ND-52 másodlagos) | **lemez** (`R(−ωt)`) | **igen** | nem (`t`-függő) |
+| Uplift-relaxáció (ND-44) | — | igen | nem |
+
+Ebből következik, hogy a `TerrainPointBasis` lemez-gyorsítótára
+(ND-122/ND-131) **deep-time-ban is érvényes marad a warpra** — épp az a drága,
+három fBm-es tag —, és csak a három zajtag számolódik újra
+(`TerrainPointBasis.EvaluateAtTime`).
+
+A határ két oldalán más a keret, tehát a két zaj nem egyezik: az ND-90 keverés
+ezért **minden** lemezpárra kiterjed, nem csak a kéregtípus-váltóra
+(`BlendedBaseElevationFromPlateFrameBases`). A második zaj-bázis viszont csak a
+`0.005`-ös keverősávon belül számolódik ki, tehát a zaj-költség nem duplázódik.
+`t = 0`-nál a visszaforgatás egzakt azonosság, így a statikus világok bitre
+változatlanok; a `t > 0` kimenet változása miatt
+`WorldGeneratorVersion` 2 → 3 (ND-108).
+
 **Két új modul a v0.1-hez képest:**
 
 | Modul | Felelősség | Miért kritikus most |
@@ -1011,6 +1038,43 @@ seed, deep-time bucket, SimulationTime(tick)
 ```
 
 ### 11.3 Tervezett Core-interfészek
+
+**Aktuális kiegészítés (2026-09-23, ND-141–143):** a lentebbi eredeti terv
+mellé elkészült a `ThermalWind.SampleCoupled(seconds, thetaA, ...)`:
+a tick eleji teljes levegőanomália mező LS-gradiense a napi bázisgradienshez
+adódik, a termikus sebesség korlátozása és Coriolis-forgatása előtt.
+A solver ebből számolja az advekciót és a hőcserét; a diagnosztika is ezt
+a szélutat olvassa. Hőmodellverzió **3**, generátorverzió **"2"**.
+A level-6 előfutásból kalibrált `AirFeedbackStrength = 0,1` az
+anomáliagradiens dimenziómentes szorzója; a bázisszelet nem kapcsolja ki.
+A 10/30 nap eltérése max. 0,173 K; a havi újraindítás kis maradékeltérése
+0,198 K (a csatolás nélküli kontroll 0,219 K). A 6. fázis fogyasztói
+élesítése továbbra sem kész.
+
+A `ThermalSnapshot.ModelIdentity` a teljes fizikai bemenet, a rácsszint és
+a verziók SHA-256 azonosítója. A `ThermalCheckpoint` kanonikus big-endian
+checkpointot és állapothash-t ad, hibánál atomi visszaállítással; idegen
+világ vagy korábbi verzió állapota elutasított. A `StateAt` más világ
+állapotát újraszámolja, a közvetlen `Step` elutasítja. Az app mentési
+szekciójához kötés C3; az elevációs `WorldStateHash` jelentése változatlan.
+
+A viewer egyetlen `SurfaceOverlayMode` állapotot tart: `None`,
+`SurfaceTemperature`, `AirTemperature`, `WindSpeed`, `Precipitation`,
+`TectonicPlates`. A korábbi szerializált mezők egyszeri migrációt kapnak.
+A hőmódok között shader-váltás történik; a vertexszín-alapú nézetek a
+meglévő színinvalidációt használják, nem indítanak teljes világ-Buildet.
+
+**Még nem implementált 6. fázis:** a solver pillanatnyi mezője továbbra
+sem írja a biome-ot, jeget és párolgást. Napi/éves statisztika és a
+Buildből olvasott jég/tó bemenetek önálló, renderfüggetlen életciklusa
+szükséges. Ezt a kiegészítést ne tekintsük a lentebbi teljes terv lezárásának.
+
+**ND-144 részlépés:** a Core `ThermalDailyStatisticsCalculator` teljes,
+96 tickes modellnapon cellánkénti `Ts/Ta` átlagot, minimumot és maximumot
+állít elő. A tick eleji minták kanonikus sorrendben adódnak össze; az
+eredmény napindexet és ND-143 modellazonosítót hordoz. Ez még nem éves
+klímastatisztika. Az éves ablak, a számítás elfogadható költsége és a
+jégmaszk körfüggése továbbra is nyitott, a fogyasztók nem váltottak át.
 
 Mind `netstandard2.1`, C# 9, `double`, Unity-referencia nélkül. A nevek
 javaslatok; a végleges alak a Python-referencia után dől el.

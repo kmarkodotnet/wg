@@ -16,7 +16,7 @@ namespace WorldGen.Core.Climate
     /// </summary>
     public sealed class ThermalModelParameters
     {
-        public const int ModelVersion = 2;
+        public const int ModelVersion = 3;
 
         public static readonly ThermalModelParameters Default = new ThermalModelParameters();
 
@@ -34,6 +34,8 @@ namespace WorldGen.Core.Climate
         /// β az <c>f_eff = (1 − β)·f_napi + β·f_éves</c> radiatív faktorban (M13).
         /// </summary>
         public double RadiativeSmoothing { get; }
+        /// <summary>ND-142: az anomáliagradiens szél-visszacsatolásának 0..1 erőssége.</summary>
+        public double AirFeedbackStrength { get; }
 
         public ThermalModelParameters(
             double landAlbedo = 0.30,
@@ -56,7 +58,8 @@ namespace WorldGen.Core.Climate
             double airRelaxationDays = 4.0,
             double minExchangeWindMs = 1.0,
             double radiativeSmoothing = 0.5,
-            double solarConstant = Temperature.DefaultFPeak)
+            double solarConstant = Temperature.DefaultFPeak,
+            double airFeedbackStrength = 0.1)
         {
             RequirePositive(seawaterDensity, nameof(seawaterDensity));
             RequirePositive(seawaterSpecificHeat, nameof(seawaterSpecificHeat));
@@ -79,6 +82,7 @@ namespace WorldGen.Core.Climate
             RequireUnit(waterEmissivity, nameof(waterEmissivity));
             RequireUnit(landEmissivity, nameof(landEmissivity));
             RequireUnit(radiativeSmoothing, nameof(radiativeSmoothing));
+            RequireUnit(airFeedbackStrength, nameof(airFeedbackStrength));
 
             double oceanCs = seawaterDensity * seawaterSpecificHeat * oceanDepthM;
             double soilSpecificHeat = soilSpecificHeatRatio * calorieJoulesPerKgK;
@@ -94,6 +98,7 @@ namespace WorldGen.Core.Climate
             ExchangePerMetrePerSecond = airDensity * airSpecificHeat * transferCoefficient;
             MinExchangeWindMs = minExchangeWindMs;
             RadiativeSmoothing = radiativeSmoothing;
+            AirFeedbackStrength = airFeedbackStrength;
         }
 
         public double Albedo(SurfaceThermalKind kind) => _albedo[(int)kind];

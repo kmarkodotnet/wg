@@ -62,7 +62,8 @@ namespace WorldGen.Viewer
             BodyFrameConversion.ToCore(localDirection, out double x, out double y, out double z);
             System.Threading.Interlocked.Increment(ref _scaleSurfaceEvaluationCount);
             double elevation = ComputeElevationAtPoint(
-                x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters, _adaptiveErosionTimeMyr);
+                x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
+                _adaptiveErosionTimeMyr, _adaptivePlateTimeMyr);
             if (double.IsNaN(elevation) || double.IsInfinity(elevation))
                 return false;
 

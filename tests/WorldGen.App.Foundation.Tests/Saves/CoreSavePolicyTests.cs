@@ -52,6 +52,7 @@ namespace WorldGen.App.Foundation.Tests.Saves
         [InlineData("")]
         [InlineData(" ")]
         [InlineData("0")]
+        [InlineData("1")]
         [InlineData("999")]
         [InlineData("01")]
         [InlineData("unversioned-dev")]

@@ -69,6 +69,39 @@ namespace WorldGen.Core.Tectonics
             rz = vz * cosA + crossZ * sinA + kz * dot * (1.0 - cosA);
         }
 
+        /// <summary>
+        /// ND-136 (A19): egy VILÁG-pozíció visszaforgatva a lemez saját,
+        /// <c>t = 0</c>-beli vonatkoztatási rendszerébe — <c>R(-ωt)</c> a lemez
+        /// Euler-pólusa körül. Ez a lemez-keretes domborzati zaj alapja: a
+        /// zajt nem a rögzített világ-pozíción, hanem az itt kapott
+        /// lemez-koordinátán kell mintavételezni, így a domborzat együtt
+        /// vándorol a kéreggel, ahelyett hogy a lemez átcsúszna alatta.
+        ///
+        /// <paramref name="timeMyr"/> = 0 (vagy ismeretlen lemez) esetén
+        /// EGZAKT azonosság — a rövidzár szándékos: nem csak a
+        /// <c>cos 0 = 1</c> / <c>sin 0 = 0</c> miatt, hanem hogy a
+        /// <c>±0.0</c> tagok összeadása se módosíthasson egyetlen bitet sem.
+        /// Így a statikus (t = 0) világok kimenete GARANTÁLTAN bitre
+        /// változatlan marad, és a t = 0 út egy forgatásnyival olcsóbb is.
+        /// </summary>
+        public static void ToPlateFrame(
+            ulong worldSeed, int plateId, double timeMyr,
+            double x, double y, double z,
+            out double px, out double py, out double pz)
+        {
+            if (plateId < 0 || timeMyr == 0.0)
+            {
+                px = x;
+                py = y;
+                pz = z;
+                return;
+            }
+
+            GenerateEulerPole(worldSeed, plateId, out double axisX, out double axisY, out double axisZ);
+            double omega = GenerateAngularVelocity(worldSeed, plateId);
+            RodriguesRotate(x, y, z, axisX, axisY, axisZ, -(omega * timeMyr), out px, out py, out pz);
+        }
+
         /// <summary>A lemez-mag pozíciója <paramref name="timeMyr"/> időpontban.</summary>
         public static void PlateSeedAtTime(
             ulong worldSeed, int plateId,

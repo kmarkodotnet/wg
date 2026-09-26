@@ -6438,6 +6438,888 @@ A tíz kontroll utáni Unity-nyilvántartott memória 328,272–328,300 MB;
 állomány, nem natív allokációs forgalom. Részletek és korlátok:
 `history/2026-09-22-a5-water-cpu-player-profile.md`.
 
+### ND-136 — A domborzati zaj nem utazik a lemezzel (A19, LEZÁRVA: (C))
+
+**2026-09-22.** Felhasználói elvárás: „amennyiben a lemezek mozognak, akkor
+elvárnám, hogy mozogjanak velük a domborzati elemek, másképpen az elsődleges
+és másodlagos zajok. Azaz ha a lemez felfelé megy, akkor a zaj is menjen
+felfelé egyenletesen és arányosan vele."
+
+#### A tényállás — kódból ellenőrizve
+
+Deep-time-ban **csak a lemez-magok forognak el** (`PlateMotion.MovedSeeds`).
+A domborzat-textúra három tagja — elsődleges ridged zaj, `MountainMask`,
+másodlagos részletzaj — a **rögzített világ-pozícióból** számolódik:
+
+```
+CrustElevation.ComputeNoiseBasis(worldSeed, x, y, z, ...)
+   <- DeepTimeErosionGlaciation.ElevationAtTime         (DeepTimeErosionGlaciation.cs:55)
+   <- PlateBoundaryEffect.ElevationWithBoundaryFromWarped (PlateBoundaryEffect.cs:201)
+   <- TerrainPointBasis.Compute                          (CrustElevation.cs)
+```
+
+Ez az ND-63 óta **kimondott szándék** volt („Deep-time során a mozgó lemez és
+így a kéregtípus változhat, ezek a részeredmények viszont kizárólag a world
+seedtől és a pozíciótól függenek"), és pontosan ez tette lehetővé az ND-122 /
+ND-131 lemez-gyorsítótárat: a `TerrainPointBasis` struct doksija szó szerint
+azt mondja, hogy „nem tartalmaz … eróziót vagy más időfüggő állapotot".
+
+**A következmény fizikailag rossz.** A kéreg anyag; a domborzat a kéreg
+tulajdonsága, tehát együtt kell mozognia vele. Ma viszont a lemezhatár
+átcsúszik egy álló textúra fölött: a hegyvonulat helyben marad, a lemez
+elvándorol alóla. Ugyanaz a hibaosztály, mint az ND-119 (a szél-overlay nem a
+szimuláció szelét mutatta) és az ND-125 1. része (az overlay nem a világmodell
+lemezfelosztását rajzolta) — csak itt nem a megjelenítés tér el a modelltől,
+hanem a modell önmagával nem konzisztens.
+
+#### Amit a javítás megkövetel
+
+A mintavételi pontot a **lemez saját vonatkoztatási rendszerébe** kell
+visszavinni, mielőtt a zaj kiértékelődik: a `p` pontot a lemez Euler-pólusa
+körül `R(-omega*t)`-vel visszaforgatni, és a zajt ott mintavételezni. Ez
+egyetlen további Rodrigues-forgatás pontonként, a már meglévő, bitpontos
+`DeterministicMath.SinCos`-szal (ND-27) — **nincs új ND-23-kockázat**.
+
+Három dolog viszont nem magától értetődő:
+
+**(1) A határ menti folytonosság ma ingyen van, utána nem lesz az.** A
+`BlendedBaseElevationFromNoiseBasis` (ND-90) csak akkor kever, ha a két
+legközelebbi lemez **kéregtípusa eltér**; azonos típusnál egyszerűen a
+nyertes lemez értékét adja vissza. Ez ma helyes, mert a zaj-bázis mindkét
+lemezre **ugyanaz a három szám** — azonos típusnál tehát a függvény
+matematikailag folytonos. Lemez-keretes zajjal viszont a határ két oldalán
+**más zajérték** áll, így **minden** határ szakadásossá válik, nem csak a
+kéregtípus-váltó. A keverést ki kell terjeszteni az összes határra, és
+pontonként **két** zaj-bázist kell számolni (a nyertes és a második lemez
+keretében).
+
+**(2) Ez a legdrágább tag a legforróbb úton.** A `ComputeNoiseBasis` három
+fBm-jellegű kiértékelés (ridged multifractal + `MountainMask` + másodlagos
+részlet). Az ND-131 mérése szerint a tile-középpont-bázis számolása level 8-on
+**2 295 ms** volt, mielőtt lemezre került. A kétszeres kiértékelés ennek a
+nagyságrendnek a duplázását jelenti — **és a gyorsítótár nem menti meg**: a
+`TerrainPointBasis` kulcsa ma pozíció-alapú és időfüggetlen, lemez-keretes
+zajjal viszont a bázis `t`-függővé válik. (Ez nem új mérés, hanem az ND-131
+mért értékéből vett nagyságrend-becslés.)
+
+**(3) `t = 0`-nál a kimenet bitre változatlan.** A Rodrigues-forgatás
+`angle = 0`-nál egzakt identitás (`cos 0 = 1`, `sin 0 = 0` IEEE-754 pontosan,
+ugyanaz az érv, amit a `ComputeElevationFieldAtTime` már használ). A statikus
+világok tehát **nem törnek**; csak a `t > 0` deep-time kimenet módosul.
+
+#### Opciók
+
+- **(A) Maradjon (az ND-63 állapota).** Olcsó, cache-barát, `t`-független
+  bázis. A felhasználó ezt explicit elutasította, és fizikailag is rossz.
+- **(B) Lemez-keretes zaj, kemény hozzárendeléssel.** Minden pont a nyertes
+  lemez keretében mintavételez. Egyetlen extra forgatás, nincs
+  költség-duplázás — de **minden lemezhatáron szakadás** lesz (lásd (1)),
+  beleértve azokat is, amelyek ma tökéletesen simák. Az ND-90 folytonos parti
+  átmenete ellen dolgozna.
+- **(C) Lemez-keretes zaj, kétlemezes keveréssel.** Pontonként két zaj-bázis
+  (a nyertes és a második lemez keretében), a meglévő smoothstep-súllyal
+  keverve — a keverési feltételből viszont kikerül a „csak eltérő
+  kéregtípusnál" kikötés. Kétszeres zajköltség és `t`-függő cache.
+- **(D) A kéreg tulajdonságainak tile-onkénti követése.** Fizikailag ez a
+  helyes út (a zaj nem „újramintavételeződik", hanem a kéreggel utazik) — de
+  ez már az **ND-139** reprezentáció-váltása, és felveti az ND-04-et.
+
+**Javaslat: (C).** A (B) egy ma meglévő, jó tulajdonságot (sima határ azonos
+kéregtípusnál) rombolna le; a (D) nagyságrenddel nagyobb munka. A (C) ára a
+zaj-költség duplázása és a deep-time cache újragondolása — utóbbira a
+kézenfekvő MVP, hogy a lemez-gyorsítótár **csak `t = 0`-ra** marad érvényes
+(ott bitre azonos, lásd (3)), a `t > 0` pedig számol. Ezzel a statikus Build
+sebessége nem romlik, és a lassulás oda kerül, ahol az új viselkedés
+jelentkezik.
+
+**Nyitott alkérdés a (C)-n belül:** nagy `t`-nél (500–1000 Myr) a két
+szomszédos keret akár több tíz fokkal is elfordul egymáshoz képest, tehát a
+határ két oldalán a zaj **teljesen korrelálatlan**. Egy keskeny keverősáv
+ilyenkor nem simítás, hanem egy látható nyírási sáv lesz. Ez fizikailag nem
+rossz (egy transzform határ valóban egymás mellé tol nem összetartozó
+kérget), de a sáv szélességét kalibrálni kell — és ez az ND-138-cal együtt
+értelmes, mert ott dől el, melyik határ transzform.
+
+**Verziózás:** `t > 0` seed-törő → `WorldGeneratorVersion.Current` emelése
+(ND-108). `t = 0` bitre változatlan. Az ND-137-tel **egy** verzióemelésbe
+érdemes összefogni.
+
+**Munkarend (CLAUDE.md):** előbb Python orákulum
+(`tools/reference/plate_frame_noise_ref.py`) + tesztvektorok, aztán C#.
+
+#### LEZÁRVA (2026-09-26): a **(C)** opció implementálva
+
+A zaj a lemez saját vonatkoztatási rendszerében értékelődik ki:
+`PlateMotion.ToPlateFrame` a pontot `R(-omega*t)`-vel visszaforgatja a lemez
+Euler-pólusa körül, és a három zajtag
+(`CrustElevation.ComputeNoiseBasisInPlateFrame`) ott mintavételeződik. A
+határon a keverés kiterjed **minden** lemezpárra
+(`BlendedBaseElevationFromPlateFrameBases`) — a régi „csak eltérő
+kéregtípusnál" kikötés kikerült, mert lemez-keretes zajjal az azonos típusú
+határ is szakadásossá válna. Az ND-35 uplift-maszk szintén a nyertes lemez
+keretéből jön (`BoundaryUpliftFromWarpedAtTime`), tehát a hegyvonulat a
+kéreggel együtt vándorol.
+
+**A (2) pont költség-becslése FELÜLBÍRÁLVA — nem duplázódik a zaj.** A
+tervezet azt feltételezte, hogy pontonként *mindig* két zaj-bázis kell. Nem
+kell: a második bázisra csak akkor van szükség, ha a pont a keverősávon belül
+van (`gap < BoundaryBlendGap = 0.005`), azon kívül a függvény amúgy is a
+nyertes lemez értékét adja vissza. Az implementáció ezért csak ott számolja ki
+(`PlateBoundaryEffect.BaseAndUpliftFromWarpedAtTime`), tehát a költség
+**~1× mindenhol + egy keskeny sávnyi extra**, nem 2×.
+
+**A cache-stratégia is olcsóbb lett a tervezettnél.** A `TerrainPointBasis`
+két része szétvált: a WARP (a három fBm-es domain warp, a drága tag) tisztán
+pozíció-függő, tehát a lemez-gyorsítótár (ND-122/ND-131) `t > 0`-nál is
+érvényes marad rá; csak a három ZAJTAG számolódik újra
+(`TerrainPointBasis.EvaluateAtTime`). Nem kellett a cache-t `t = 0`-ra
+korlátozni, ahogy a javaslat MVP-je feltételezte.
+
+**Új, a tervezetben nem szereplő kiterjesztés: a hidrológia is követi.** A
+`RiverPathTracing` folytonos nyomvonalkövetése a saját, pontszerű
+elevációkiértékelését használja; ez `timeMyr`-t kapott, különben `t > 0`-nál a
+folyó egy másik (világ-keretes) terepen futna, mint amit a felhasználó lát
+(ugyanaz a hibaosztály, amit ez az ND javít).
+
+**Verziózás:** `WorldGeneratorVersion.Current` 2 → 3 (ND-108). `t = 0` bitre
+változatlan — ezt a `PlateFrameNoiseVectorFileTests` `zeroTimeVectors` blokkja
+és a `ZeroTimeIsBitIdenticalToTheStaticPath` teszt (ami a RÉGI keverési
+szabályt külön újraimplementálva hasonlítja össze) őrzi.
+
+**Nyitva marad** a javaslat alkérdése: nagy `t`-nél a szomszédos keretek
+elfordulnak egymáshoz képest, tehát a keverősáv egy látható nyírási sáv lesz. A
+sáv szélességének kalibrálása az **ND-138**-cal együtt értelmes, mert ott dől
+el, melyik határ transzform.
+
+**Referencia és tesztek:** `tools/reference/plate_frame_noise_ref.py`
+(+ `plate_frame_noise_vectors.json`, 400 + 100 vektor),
+`tests/WorldGen.Core.Tests/Tectonics/PlateFrameNoiseTests.cs`. Az
+`erosion_glaciation_deep_time_ref.py` és a vektorai újragenerálva (mostantól a
+ténylegesen elmozdított magokkal mérnek, nem a `t = 0` magokkal vett hibriddel).
+
+
+### ND-137 — „Deep time-ban hiányzik az erózió": ma csak uplift-relaxáció van (A20, NYITOTT)
+
+**2026-09-22.** Felhasználói észrevétel: „az erózió egy olyan dolog, amit
+deep time-ban hiányolok."
+
+#### A tényállás — kódból ellenőrizve
+
+A `DeepTimeErosionGlaciation` neve többet ígér, mint amit tesz. A teljes
+„erózió" egyetlen zárt alakú exponenciális relaxáció:
+
+```
+UpliftRelaxationElevation(upliftStatic, t) = H_eq + (H0 - H_eq) * exp(-t/tau)
+H0 = upliftStatic,  H_eq = 0.35 * upliftStatic,  tau = 50 Myr
+```
+
+Ez **kizárólag a lemezhatár-uplift bónuszra** hat (`ElevationAtTime`:
+`baseElev + upliftT`). Az alap-eleváció — a kéreg-bázis plusz az elsődleges és
+másodlagos zaj — **időben teljesen változatlan**. Vagyis a deep-time csúszka a
+hegycsúcsokat lelapítja 35%-ra, és a domborzattal ezen kívül semmit nem csinál.
+
+Ami nincs:
+
+- **vízhajtotta bevágódás** — pedig a folyóhálózat, a vízgyűjtők és a
+  vízhozam-súlyok **már megvannak** (ND-124, ND-127), és ma csak rajzoláshoz
+  használjuk, a domborzatra nem hatnak vissza;
+- **hordalékszállítás és lerakódás** — nincs tömegmegmaradás, a lekopott
+  anyag eltűnik ahelyett, hogy medencét töltene fel vagy deltát építene;
+- **parti abrázió**;
+- **jégtakaró-erózió** — a `GlaciationPeriodMyr` / `AmplitudeK` ciklus ma
+  csak a jégvonalat mozgatja (`IceLineAbsLatitude`), a felszínt nem koptatja.
+
+#### Két korlát, ami a megoldást alakítja
+
+**(1) ND-04, timestep-invariancia.** A mai relaxáció azért zárt alakú, hogy a
+„`t` közvetlen lekérdezése" és a „lépésenként szimulálva" **definíció szerint
+ugyanaz** legyen — ezt a `ChainRelaxation` teszt bizonyítja. Egy klasszikus,
+állapotot akkumuláló eróziós integrátor ezt **megtörné**: a csúszkával
+0 → 100 → 200 Myr más világot adna, mint a közvetlen 200 Myr, és a felhasználó
+pont ezt a két utat használja felváltva.
+
+**(2) A modul ma sem bit-determinisztikus.** A `DeepTimeErosionGlaciation`
+nyers `Math.Exp`-et és `Math.Sin`-t használ (a saját doksija ki is mondja),
+tehát a CLAUDE.md táblázata szerint platformok között **nem garantált**. Mivel
+az eróziós munka úgyis újragenerálja a vektorokat, a `DeterministicMath.Exp` /
+`SinCos`-ra váltást **ugyanebben a körben** kell elvégezni — különben kétszer
+törünk vektorfájlt.
+
+#### Opciók
+
+- **(A) Maradjon.** A felhasználó explicit hiányolja; elvetve.
+- **(B) Zárt alakú, hidrológia-vezérelt bevágódás.** A meglévő
+  vízhozam-súly-mező (ND-124) mint `t`-független eróziós hatékonyság; a
+  pontonkénti eleváció egy lokális bázisszint felé relaxál, a `tau` pedig a
+  vízhozamtól függ (stream-power-szerű, de **pontonként zárt alakban**, nem
+  integrátorral). Az ND-04 sértetlen marad, mert minden pont továbbra is
+  tiszta függvény `(seed, pozíció, t)`-ből. **Korlát:** bevágni tud,
+  **lerakni nem** — a lokális, zárt alakú forma nem mozgat tömeget lefelé a
+  hálózaton.
+- **(C) Rögzített lépésszámú, `t`-arányos integrátor.** `N` FIX részlépés,
+  `dt = t/N`, bármelyik `t`-re. Ez formálisan tiszta függvény `t`-ből, tehát
+  reprodukálható — de **nem láncolható**: a 0 → 100 → 200 út más eredményt ad,
+  mint a közvetlen 200. Cserébe valódi hordalékszállítást és feltöltést tud.
+  Ára: `O(N × tile)` minden időlekérdezésnél, a mai ~2,5 s-os deep-time Build
+  tetejére (ND-132/ND-133).
+- **(D) Akkumulált állapotú, iteratív erózió.** A szakmailag szokásos út, de
+  **közvetlenül sérti az ND-04-et** és az I1-et. Elvetve.
+
+**Javaslat: (B) először.** Olcsó, az ND-04-et nem bántja, és a meglévő,
+már validált hidrológiát végre visszacsatolja a domborzatra — a látvány
+szempontjából a völgybevágódás a legnagyobb egyedi nyereség. Ha a (B) után is
+lapos marad az eredmény, akkor (C), de **csak explicit döntéssel**, mert az
+ND-04 értelmezését módosítja: a „timestep-invariancia" onnantól azt jelenti,
+hogy „fix `N`-nel `t`-ből tiszta függvény", nem azt, hogy „láncolható".
+
+**Nyitott konstansok, amiket ez nem old meg:** a `GlaciationPeriodMyr = 150`
+és az `AmplitudeK = 6` továbbra is illusztratív érték (ND-44 nyitott pontja,
+todo2 B14) — a jégeróziós tag ezekre épülne, tehát előbb meg kell erősíteni
+őket.
+
+**Verziózás:** seed-törő minden `t > 0`-ra → `WorldGeneratorVersion.Current`
+emelése (ND-108), az ND-136-tal egy körben. `t = 0`-nál a relaxáció ma is
+identitás (`exp(0) = 1`), és ezt meg kell őrizni.
+
+**Munkarend:** Python orákulum
+(`tools/reference/erosion_glaciation_deep_time_ref.py` bővítése) → vektorok →
+C#, a `DeterministicMath`-váltással együtt.
+
+### ND-138 — Sebesség-alapú határ-interakció: konvergens / divergens / transzform (C7, NYITOTT)
+
+**2026-09-22.** Felhasználói kérés. A jelenlegi állapot a `PlateBoundaryEffect`
+saját doksijából idézve: „a lemezek NEM mozognak M4-ben, ezért nincs valódi
+konvergens/divergens/transform megkülönböztetés — az M10 (»Deep time«) adja
+majd hozzá a sebesség-adatot, ami ezt lehetővé tenné."
+
+**Az M10 azóta lezárult** (Euler-pólus + `omega` minden lemezre,
+`PlateMotion`), **de a határ-hatás nem lett rákötve.** Az uplift ma kizárólag
+a határtól mért távolságból jön (a két legnagyobb dot-product `gap`-je),
+kéregtípussal (ND-32) és `MountainMask`-kal (ND-35) modulálva. Következmény:
+
+**egy széttartó (rift) határ pontosan ugyanazt a hegység-bónuszt kapja, mint
+egy ütköző.** A spec §14.3 divergens ága (rifting, új kéreg, medence-képződés)
+és transzform ága (vetődés, lokális relief, földrengés-proxy) nincs
+implementálva.
+
+#### A hiányzó számítás — és hogy miért olcsó
+
+A `p` határponton a két lemez felszíni sebessége merevtest-forgásból:
+
+```
+v_i = omega_i * (k_i x p)        k_i = a lemez Euler-tengelye (egységvektor)
+dv  = v_i - v_j                  (relatív sebesség, sugár/Myr egységben)
+```
+
+A határ normálisa a `p*s_i - p*s_j` gradienséből, érintősíkra vetítve:
+
+```
+d     = s_i - s_j                (a két MOZGATOTT lemez-mag különbsége)
+n_raw = d - p * (p . d)
+n     = n_raw / |n_raw|          (n a nyertes lemez belseje felé mutat)
+```
+
+Besorolás a `c = dv . n` előjeles záródási rátából:
+
+```
+c < 0  -> konvergens   (i anyaga a határ felé nyomul)
+c > 0  -> divergens    (i anyaga visszahúzódik a saját belseje felé)
+|c| << |dv|  ->  transzform  (a mozgás a határral párhuzamos)
+```
+
+A transzform komponens `sqrt(|dv|^2 - c^2)`. **Minden tag csak `+ - * /` és
+`Math.Sqrt` — tehát bitpontos minden platformon, nincs ND-23-kockázat**, és a
+kereszt-/skalárszorzatok nagyságrendileg olcsóbbak, mint a már futó
+zaj-kiértékelés. Nincs új állapot: `(seed, p, t)` tiszta függvénye marad, az
+ND-04 sértetlen.
+
+#### Amit a három ág adna
+
+| Ág | Kontinentális–kontinentális | Óceáni–kontinentális | Óceáni–óceáni |
+|---|---|---|---|
+| **Konvergens** | orogén, a mai uplift teljes súllyal | vulkáni ív + árok (aszimmetrikus) | szigetív (ND-32 már csökkentett) |
+| **Divergens** | riftvölgy: **negatív** graben, kiemelt vállakkal | — (ritka) | óceánközépi hátság: mérsékelt pozitív relief |
+| **Transzform** | nincs uplift, csak lokális, vonal menti érdesség | ugyanaz | ugyanaz |
+
+Figyelem: a divergens ág **nem egyszerűen »nulla uplift«**. Egy óceánközépi
+hátság kiemelkedik az abisszális síkból, egy kontinentális rift pedig
+bemélyed — mindkettő előjeles, nem hiányzó hatás. A mai egységes
+`DefaultUpliftMaxMeters = 1000` plafon (ND-90) így két külön konstanssá válik.
+
+#### Opciók
+
+- **(A) Maradjon egységes.** A felhasználó explicit kérte a javítást; elvetve.
+- **(B) Háromirányú, folytonos besorolás a mai uplift-tagon.** A `c`-ből
+  folytonos súlyok (nem kemény kategória — a küszöb-alapú besorolás a
+  határ mentén villogó sávokat adna), ezek skálázzák/előjelezik a meglévő
+  `BoundaryUpliftFromNearestPlates`-et. Kis kódváltozás, a teljes lánc
+  bitpontos marad.
+- **(C) (B) + valódi hátság-/rift-morfológia.** A hátság profilja a kéreg
+  **korából** jön (a hátságtól távolodva mélyül az óceánfenék) — ehhez
+  kéreg-kor mező kell, ami az **ND-139** reprezentáció-váltása.
+
+**Javaslat: (B) most, (C) az ND-139-cel.** A (B) önmagában megszünteti a
+legszembetűnőbb hibát (hegylánc a riften), és nem igényel új adatszerkezetet.
+
+**Verziózás — fontos különbség az ND-136/137-hez képest:** ez **`t = 0`-nál is
+seed-törő**, mert a lemezek sebessége `t = 0`-ban sem nulla, tehát a
+besorolás már a statikus világot is átrendezi. Verzió-emelés (ND-108) **és**
+az ND-09 ordinális kalibráció újrafuttatása kell, ugyanúgy, mint a B2-nél.
+Ezért ez **felhasználói döntés**, nem önállóan elvégezhető munka.
+
+**Munkarend:** Python orákulum (`tools/reference/plate_boundary_kinematics_ref.py`)
+→ ismert-válasz vektorok (merevtest-forgás analitikus eseteivel: tiszta
+konvergencia, tiszta divergencia, tiszta nyírás) → C#.
+
+### ND-139 — Lemez-lemez ütközés és kéreg-megmaradás (C8, NYITOTT)
+
+**2026-09-22.** Felhasználói kérés. Ma a lemezek **szabadon áthaladnak
+egymáson**: a hozzárendelés minden pillanatban gömbi Voronoi az elmozgatott
+magokhoz (`PlateGeneration.AssignPlateWarped`), tehát definíció szerint nincs
+átfedés és nincs hézag — a partíció mindig tökéletes. Ebből következik, hogy
+**nincs ütközés, nincs kéreg-megmaradás, nincs szubdukciós fogyasztás, és
+nincs deformáció-visszacsatolás a mozgásra.** Két kontinens „átúszik"
+egymáson ahelyett, hogy összetorlódna.
+
+#### Miért ez a legnehezebb tétel
+
+A mai modell **euleri**: minden mező a rögzített térpont függvénye, a lemez
+csak egy címke, ami a pont fölött vált. Az ütközés viszont **lagrange-i**
+kérdés — ahhoz a kéreganyagot kell követni. Ez három dolgot bont meg
+egyszerre:
+
+1. **Az ND-63 „pozíció + seed" tisztaságát.** A kéreg-kor és -vastagság nem
+   számolható ki egy pontból zárt alakban: attól függ, mikor lépte át a pont
+   a hátságot, ami a határok korábbi mozgásának integrálja.
+2. **Az ND-04 timestep-invarianciát.** Ha a kéreg-állapot akkumulálódik, a
+   csúszkával 0 → 100 → 200 Myr más világot ad, mint a közvetlen 200 Myr.
+3. **A Voronoi-gyorsaságot.** Az `AssignPlate` a legforróbb úton van (minden
+   tile, minden sarok); egy anyagkövető réteg ezt nem helyettesíti, hanem
+   melléteszi.
+
+#### Opciók
+
+- **(A) Maradjon.** A felhasználó explicit kérte a javítást; elvetve, de
+  megjegyzendő, hogy ennek a tételnek a látható haszna a legkisebb a ráfordított
+  munkához képest — az ND-136 és ND-138 sokkal többet ad olcsóbban.
+- **(B) Tile-onkénti kéreg-nyilvántartás (teljes lagrange-i modell).**
+  Kéreg-kor, -vastagság és -típus tile-onként, a lemezzel együtt advektálva;
+  az eleváció izosztáziából (vastagság → felhajtóerő), konvergens határon
+  vastagodás, szubdukciónál fogyasztás. Ez a fizikailag helyes válasz, és
+  ugyanez a réteg oldaná meg a **C5**-öt (lemez-életciklus: a `PlateLifecycle`
+  split/merge ma kész, de nincs bekötve) és a **C6**-ot (lemezen belüli
+  kevert kéreg, ami a partvonal-simaság és a kontinensméret ütközését
+  feloldaná). **Ára:** az ND-04 explicit módosítása, perzisztált világállapot
+  (→ C3 mentés-szekció), és nagyságrendekkel nagyobb munka, mint az eddigi
+  tektonikai tételek együttvéve.
+- **(C) Fél-analitikus torlódás-proxy.** A Voronoi marad, de a két lemez
+  **integrált relatív elmozdulásából** (az ND-138 `c` záródási rátájának
+  `t`-re vett integrálja — merevtest-forgásnál ez zárt alakban megvan) egy
+  „mennyit torlódtak eddig" skalár, ami a kéregvastagodás proxyja, és
+  vastagodás-arányosan emeli az orogént. Megtartja a `(seed, p, t)` tisztaságot
+  és az ND-04-et, nincs perzisztált állapot, és megadja a **látható**
+  viselkedést: ahol két lemez régóta közeledik, ott magas hegység nő; ahol
+  épp most kezdett, ott még alacsony. Nem valódi tömegmegmaradás.
+
+**Javaslat: (C) MVP-ként, (B) csak külön, összevont tervvel.** A (C) az
+ND-138 melléktermékeként szinte ingyen adódik. A (B)-t **nem szabad
+önmagában** elkezdeni: a C5-tel és a C6-tal egy tervbe kell vonni, mert
+mindhárom ugyanazt a tile-onkénti kéreg-állapotot kéri, és külön-külön
+bevezetve háromszor törnénk seed-kompatibilitást.
+
+**Verziózás:** mindkét opció seed-törő minden `t`-re; a (B) ezen felül a
+mentés-formátumot is érinti (C3/D4) és a `PlateId` → `ulong` globális váltást
+is maga után vonja (a C5 régóta nyitott előfeltétele).
+
+### ND-140 — Előírt vs. számított lemezmozgás; az `omega`-tartomány felülvizsgálata (C9, NYITOTT)
+
+**2026-09-22.** Felhasználói kérés. A mozgás ma **kinematikai, nem dinamikai**:
+minden lemez a seedből kap egy fix Euler-pólust és egy fix szögsebességet
+(`PlateMotion.GenerateAngularVelocity`, egyenletes eloszlás
+`[0,01; 0,09] rad/Myr`), és ez a világ **teljes 1 milliárd évére konstans**.
+Nincs köpenyáramlás, nincs hajtóerő (slab pull, ridge push), nincs ellenállás,
+és nincs visszacsatolás a lemezek kölcsönhatásából.
+
+#### Egy külön, olcsó résztétel: maga a tartomány
+
+A `PlanetConstants.RadiusMeters = 7 420 000` mellett a kerületi sebesség az
+Euler-egyenlítőn:
+
+| `omega` | km/Myr | cm/év | viszonyítás |
+|---|---|---|---|
+| 0,01 rad/Myr (alsó) | 74,2 | **7,4** | reális (Föld: 1–15 cm/év) |
+| 0,09 rad/Myr (felső) | 667,8 | **66,8** | a földi maximum **~4,5×-e** |
+
+A felső vég tehát irreálisan gyors. Ez **nem a jelen ND fő kérdése**, de a
+legolcsóbb javítás az egész blokkban: egyetlen konstans, és a hatása a
+deep-time látványra azonnali (ma a csúszka végén a kontinensek indokolatlanul
+messzire szaladnak). Cserébe seed-törő, tehát verzióemeléssel jár — érdemes
+ugyanabba a körbe tenni, mint az ND-138-at.
+
+#### Opciók a mozgás-modellre
+
+- **(A) Marad a konstans `omega`**, csak a tartomány kerül felülvizsgálatra
+  (fent). Nincs új matek, nincs új adatszerkezet.
+- **(B) Időben változó, de ZÁRT ALAKÚ `omega(t)`.** Pl.
+  `omega(t) = omega_0 + A * sin(2*pi*t/T + phi)`, ahol az `A`, `T`, `phi`
+  seedből jön. A forgásszög ennek az integrálja, ami zárt alakban megvan:
+
+  ```
+  theta(t) = omega_0*t + (A*T / 2*pi) * (cos(phi) - cos(2*pi*t/T + phi))
+  ```
+
+  Tehát `P(t)` továbbra is **tiszta függvény `t`-ből**, az ND-04 sértetlen, és
+  a `DeterministicMath.SinCos` (ND-27) miatt bitpontos marad. Ezzel a lemezek
+  gyorsulnak-lassulnak a deep-time során, ami a valóságot sokkal jobban
+  közelíti, mint a konstans — dinamika nélkül.
+- **(C) Valódi erőegyensúly (köpenyáramlás, slab pull, ridge push).** Ehhez
+  kell az ND-139 (B) anyagkövető reprezentációja ÉS akkumulált állapot, tehát
+  az ND-04 feladása. Gyakorlatilag egy másik szimulátor. **Az 1.0 hatókörén
+  kívül.**
+
+**Javaslat: (A) most, (B) az ND-138 után, (C) nem az 1.0-ban.** A sorrend
+C7 → C8 → C9 (ND-138 → ND-139 → ND-140) azért ez, mert a (C)-nek nincs mire
+visszacsatolnia, amíg nincs kéreg-reprezentáció.
+
+**Verziózás:** mindkettő seed-törő minden `t > 0`-ra, de **`t = 0`-nál egyik
+sem**: az `omega` csak a `PlateSeedAtTime` `angle = omega * t` szorzatában
+jelenik meg, ami `t = 0`-nál azonosan nulla. (A `PlateLifecycle` is használja,
+de az ma nincs bekötve az elevációs láncba — C5.) Verzió-emelés (ND-108) kell,
+és ez a tétel ebből a szempontból az ND-136/137-tel egy csoportba esik, nem az
+ND-138-cal.
+
+### ND-141 — Egységes felszíni overlay-választás (A7, IMPLEMENTÁLT)
+
+**2026-09-23, implementáció előtt.** Az ND-104 szerinti egyetlen
+`SurfaceOverlayMode` a megjelenítés autoritatív állapota: None,
+SurfaceTemperature, AirTemperature, WindSpeed, Precipitation és a később
+hozzáadott TectonicPlates. A régi mezők csak rejtett, egyszeri
+szerializációs migrációhoz maradnak meg. Régi, egyszerre aktív kapcsolóknál
+a tényleges régi renderprioritás érvényes: hő → tektonika → szél → csapadék.
+Új, már verziózott beállítást a régi mezők soha nem írhatnak felül.
+
+A futásidejű gombok ugyanazt az enumot állítják, az Inspector is ezt mutatja.
+Hőmódok közt csak shader-/textúra-váltás történik; a vertexszínt használó
+módok a meglévő vizuális invalidáción mennek át, nem teljes világ-Buildön.
+A hősolver futása független a nézettől. Ez nem numerikus modellváltozás,
+ezért önmagában nem emeli a generátorverziót. A7 6–7. fázisa külön
+numerikus döntést és validációt kap; az enum elkészülte nem zárja le A7-et.
+
+### ND-142 — Levegőanomália visszahatása a szélre, explicit időintegráció (A7, IMPLEMENTÁLT, KALIBRÁLT)
+
+**Dátum:** 2026-09-23. **Az implementációt megelőző döntés.**
+
+A 7. fázisban a meglévő termikus szél közelítéséhez hozzáadjuk a számított
+`thetaA = Ta − Ba` térbeli gradiensét. A napi bázisgradiens és az anomália
+összege kerül a meglévő ND-126b sebességkorlátozás és Coriolis-forgatás elé;
+így a bázist nem számoljuk kétszer, és a termikus komponens határa továbbra
+is 30 m/s. Ez diagnosztikus nyomási hatást közelítő szélmodell, nem önálló
+légnyomás- vagy impulzusmegmaradási egyenlet. Nem jelenítünk meg belőle
+kitalált hPa-értéket. A termikus cirkuláció irányának fizikai ellenőrzése:
+[NWS: Lake Breezes](https://www.weather.gov/apx/lake_breeze); a modell
+együtthatói a meglévő játékmodellből származnak, nem ebből a forrásból.
+
+A cellagradiens a négy szomszéd érintősíkba vetített középpontkülönbségére
+illesztett, súlyozatlan 2D legkisebb négyzetes egyenes. A kanonikus élsorrend
+határozza meg az összegezést. Az élgradienst a két cella 3D gradienseinek
+számtani átlaga adja, az élközép érintősíkjába vetítve. Ez a cube-face
+varratokon is ugyanaz az eljárás. A geometriai együtthatók előre készülnek.
+
+Időintegráció: a tick **eleji**, minden cellán teljes `thetaA` határozza meg
+az adott 900 s-os tick szelét; a napi bázis továbbra is a tick közepén
+interpolált. Ezzel fut az advekció, majd a lokális hőcsere. Nincs bejárási
+sorrendfüggő cellánkénti visszacsatolás és nincs konvergálásig tartó,
+platformfüggő megállás. A fél/negyed időlépéses referenciafutás a
+konvergencia ellenőrzése; a produkciós tick változatlan.
+
+A Python referencia készül először, analitikus konstans/lineáris gradiens-
+ellenőrzéssel, utána a vektorok és C# port. Kötelező a paraméterhatás,
+varrat/pólus, véges/bounded szél, kanonikus újrajátszás, párhuzamos azonosság
+és teljes level-6 próba. A numerikus viselkedés változása miatt
+`ThermalModelParameters.ModelVersion: 2 → 3`,
+`WorldGeneratorVersion.Current: "1" → "2"`; a meglévő A6 betöltési kapu
+visszautasítja az előző generátor állapotát. A régi egyirányú `ThermalWind`
+mintavétel referencia/összehasonlítás céljára megmarad; a solver és a saját
+diagnosztikája a csatolt szelet használja.
+
+**Első validáció, kalibráció előtt (2026-09-23):** level 3-on a 10/20 napos előfutás
+maximális eltérése a 30 napos futástól 0,1021/0,0561 K; level 6-on viszont
+**1,6286/0,7708 K**. A korábbi egyirányú modellhez közölt ≤0,18 K érték
+nem volt átvihető a teljes erősségű csatolásra. Ezt a beállítást nem
+fogadtuk el; ezért következett az alábbi bucket-vizsgálat és kalibráció.
+A kisrácsos zöld teszt
+önmagában nem elegendő. Nem növeljük meg utólag a korábbi küszöböt.
+A tényleges 30. napi bucket-váltás level-6 kontrollja (folyamatos 40 napos
+futás vs. új 10 napos előfutás ugyanarra a tickre): maximum **1,6899 K**,
+globális `Ts/Ta` RMS **0,11275 K**, a maximum szárazföldi cellán jelentkezett.
+Ez a kezdeti beállítás kanonikus újraindítási hibája volt; nem véletlen
+mérési zajként vagy a teszt-tolerancia lazításával kezeltük.
+
+**Kontrollparaméter a kalibrációhoz (implementáció előtt):**
+`AirFeedbackStrength`, dimenziómentes 0..1 szorzó az anomáliagradiensre.
+Kezdeti értéke 1 (az eredeti teljes visszacsatolás), 0 az anomália nélküli
+kontroll. A napi bázisgradiens és a sebességkorlát nem változik. A paraméter
+a fizikai bemeneti azonosító része; nem viewer-/frame-függő kapcsoló.
+A 0/0,25/1 kontroll célja a régi előfutási hiba és a csatolás hatásának
+szétválasztása. Új alapérték csak a teljes rács mérése alapján választható.
+
+**Kalibrált alapérték (2026-09-23): `AirFeedbackStrength = 0,1`.**
+Azonos level-6 tesztvilágon, 10/30 nap max. eltérés: 0 → 0,14778 K;
+0,1 → **0,17317 K**; 0,25 → 0,22115 K; 1 → 1,62860 K.
+A 0,1-es érték megtartja az eredeti ≤0,18 K előfutási célt, miközben
+a visszacsatolás hatása nem nulla. Ez mérésből választott játékmodell-
+kalibráció, nem univerzális légkörfizikai konstans. A teljes erősségű
+kezdeti kísérletet nem tesszük alapértelmezetté. A regressziós kapu
+level 6-on is fut, hogy a kisrács ne fedhesse el a hibát. A vektorokat
+a kiválasztott alapértékkel újra kell generálni.
+
+**Kalibrált bucket-határ:** a 30. napon a 0,1-es csatolás max.
+**0,19788 K**, globális RMS **0,04880 K** újraindítási eltérést ad;
+a csatolás nélküli kontroll **0,21948 / 0,04961 K**. A kezdeti kísérlet
+1,69 K-os új hibáját a kalibráció korrigálta. A kanonikus újraindítás
+kis maradékeltérése már a kontrollban is létezik, nem tűnt el. A 0,18 K
+előfutási teszt az azonos időpontú 10/30 napos mérés kapuja, nem minden
+évszakra és bucket-határra bizonyított általános maximum. A kalibrált
+paraméterrel a teljes level-6 regresszió Debug/Release alatt is zöld.
+
+A 6. fázis fogyasztói kapuja külön marad: a visszacsatolás önmagában még
+nem teszi a pillanatnyi mezőt éves biome-/jégstatisztikává. Az A7 nem
+zárható le pusztán a 7. fázis és az overlay elkészítésével.
+
+### ND-143 — Hőállapot-azonosság, checkpoint és a 6. fázis fogyasztói kapuja (A7, CHECKPOINT IMPLEMENTÁLT, ÁTÁLLÁS NYITOTT)
+
+**Dátum:** 2026-09-23. **Az implementációt megelőző döntés.**
+
+A `ThermalSnapshot` folytathatóságához a kezdőtick önmagában nem elegendő:
+ugyanahhoz a rácshoz, felszíntípus-/magasságmezőhöz, seedhez, geológiai
+időhöz, pályához és fizikai paraméterekhez kell tartoznia. A Core ezekből,
+a generátor- és hőmodellverzióból kanonikus SHA-256 bemeneti azonosítót
+képez. A checkpoint ezt az azonosítót, a kezdő- és állapotticket, valamint
+a teljes double `thetaS/thetaA` mezőt tartalmazza. Rögzített byte-sorrend,
+fájlformátum-verzió, méretellenőrzés és SHA-256 integritás-ellenőrzés kell;
+hibánál a célállapot változatlan. Az eltérő modell vagy világ betöltése
+explicit hiba. A kanonikus újraszámítás továbbra is érvényes alternatíva.
+
+A hőállapot hash-e a teljes verziózott checkpoint tartalmából származik.
+Ez külön termikus állapothash: a meglévő, elevációt összegző
+`WorldStateHash` jelentését nem írjuk át csendben. Az app `simulation-state`
+szekciójába kötés továbbra is C3; az A7 Core-codec önmagában nem teljes
+alkalmazásmentés.
+
+**A 6. fázis átállítási határa:** a pillanatnyi `Ts` párolgási bemenetnek,
+a napi/évszakos `Ta` statisztika klímaosztályozásnak alkalmas adatút.
+A tartós jég éves statisztikát igényel. A jelenlegi solver a Build során
+már osztályozott jég- és tómezőből indul; ezt nem lehet ugyanazon Buildben
+egyszerű függvénycserével visszakötni. A légköri visszacsatolás nem oldja
+meg ezt a körkörös függést.
+
+Ezért a numerikus/élő validáció és a megfelelő időátlagokat előállító,
+renderfüggetlen klímafuttatás előtt a biome/jég/hidrológia fogyasztói kapu
+**nyitva marad**. Ezt az ND-103 és a backlog 6. fázisa már megköveteli;
+nem új jóváhagyási követelmény. Az overlay vagy egy elkészült GPU-textúra
+nem válhat fizikai bemenetté. A checkpoint/hash előkészítés és a 7. fázis
+elkészítése nem jelentheti a teljes A7 lezárását.
+
+### ND-144 — Kanonikus napi hőstatisztika a 6. fázis bemenetéhez (A7, IMPLEMENTÁLT)
+
+**2026-09-23, implementáció előtt.** A biome- és jégátálláshoz a pillanatnyi
+`Ts/Ta` nem elég. A Core egy teljes, egész UTC-modellnapra, rögzített
+900 s-os tickekből készít cellánkénti átlagot, minimumot és maximumot.
+A nap mintái a `[day·96, (day+1)·96)` tickek **eleji** állapotai; az
+egyenlő időközű napi átlag a 96 minta összegének 96-tal osztott értéke.
+Az összegzés cellánként és időben növekvő ticksorrendben történik.
+Az eredmény az ND-143 modellazonosítót és a napindexet hordozza. Az
+állapotot a nap elején a kanonikus útvonalra visszük; a nap végén a
+következő nap kezdetén áll. Így a kimenet független a korábbi viewer-
+snapshotoktól és a lekérdezési sorrendtől.
+
+Az első lépés a napi statisztika Core-adatútja és regressziója. Ez még
+nem éves éghajlati átlag: az év hosszát, az évszakmintavételt, a
+számítás költségét és a jégmaszk-visszacsatolást külön mérés és döntés
+után lehet rögzíteni. A biome/jég/párolgás fogyasztói kapu addig nyitott.
+Az új API a világ fizikai kimenetét még nem módosítja, ezért ez a lépés
+nem emeli a generátor- vagy hőmodellverziót.
+
+### ND-145 — Modellalapú előnézeti folyóhálózat a hosszú finomítás alatt (A8/B3, IMPLEMENTÁLT, ÉLŐ ELLENŐRZÉS NYITOTT)
+
+**Döntés (2026-09-23).** A felhasználó Play módban nem lát folyókat: a
+`PerfLog_20260923_113651.txt` hat egymás utáni, 96 forrásos ND-132 munkát
+indított, és mind a hatot a `river ready` előtt megszakította. A `Build()`
+az előző finomított hálózatot törli, a `BuildRiverNetwork()` csak a teljes
+új finomítás után tud rajzolni. Az A8/1 pontos scene-bemenettel mért
+szekvenciális Core-idő 102–150 s, a korábbi egyetlen kész Unity-menet
+`river ready` ideje 1477,6 s. A B3 várakozási ítélet ezért jelenleg nem
+vizsgálható: a hálózat hiányzik.
+
+**Választott megoldás:** az ND-132 dedikált szálán előbb a meglévő,
+gyors `BuildRiverNetworkFromSources` durva, modellalapú útja készül el
+ugyanabból a seedből, elmozdult lemezmagokból, tengerszintből és
+forráslistából. A level+4 tile-középpontok közé eredetileg legfeljebb 1 km-es,
+később az ND-147 mért mesh-költsége miatt legfeljebb 4 km-es
+gömbfelszíni köztes renderpontok kerülnek, majd átmeneti szalag-mesh lesz.
+Az előnézetet csak az aktuális generációhoz szabad átvenni, főszálon.
+Ugyanezen a szálon ezután változatlanul lefut a szekvenciális folytonos
+nyomkövető; a kész hálózat lecseréli az előnézetet. Új `Build()` vagy
+letiltás az előnézetet is érvényteleníti. Nem jelenítünk meg korábbi
+világállapothoz tartozó folyót, és nincs modellfüggetlen vonal.
+
+**Mérési alap:** az A8 diagnosztikai futtatóban a 96 durva út 0 Myr-nál
+679,7 ms / 2883 alappont volt .NET 8 Release alatt. Ez nem Unity-vizuális
+vagy Unity-falióraidő-mérés. A durva út geometriája ideiglenes és
+láthatóan szögletesebb lehet; a végleges numerikus hálózat és a
+generátorverzió változatlan. A Build teljes idejébe nem kerül vissza
+szinkron folyómunka.
+
+**Kapu:** offline viewer-fordítás és célzott ellenőrzés után élő Unity
+Play-kép és PerfLog kell: `river preview` az aktuális Build után rövid
+idővel jelenjen meg; deep-time váltáskor a régi előnézet tűnjön el;
+`river ready` után a finom vonalak váltsák fel. Az A8/1 round-major
+sorrendcseréjének elvetése ettől független.
+
+**Első élő visszajelzés (2026-09-23 15:38):** a felhasználó látta a
+folyókat a felszínen. A `PerfLog_20260923_153831.txt` t=0-nál 96 ág és
+59 986 renderpont előnézetét mutatja, a Build utáni indítástól 4,530 s
+alatt. Ebből a főszálú preview-mesh **3,395 s**, ami jelentős frame-
+megakadás; külön teljesítményvizsgálatot igényel. A Play-menet 19,586 s
+után `river cancel completed=False` sorral zárult, így a végleges hálózat
+és a deep-time csere még nem igazolt.
+
+**Második élő menet:** az előnézet ismét megjelent 4,331 s alatt,
+59 986 renderponttal; a főszálú mesh 3,205 s volt. Ez megerősíti az
+előnézet láthatóságát és a többmásodperces akadást. A finom hálózat
+elkészült; ennek teljesítményét az ND-146 rögzíti.
+
+### ND-146 — A8/2: körsorrend elvetve, korlátos spekulatív Core-próba (AKTÍV)
+
+**Döntés (2026-09-23).** Az A8/1 mérési kapuja nem teljesült a kör szerinti
+forrássorrendhez: a t=0 hálózatban a 43-as forrás a 32-es korábban lefoglalt
+ágába olvad. A kör szerinti feldolgozás a 43-ast a 32-es elé helyezné.
+Az eredeti forráslista, `SourceIndex`, pontsor és pontbitek, befejezési ok,
+`MergedIntoRiverIndex` és a `ComputeDischargeWeights` teljes vektora csak a
+kanonikus forrásindexű lefoglalással tartható meg. A források átszámozását
+vagy a `claimed` térkép kör szerinti írását az azonos kimenetű A8 keretében
+elvetjük. Ez a finom utak **medencék közötti** találkozása miatt nem oldható
+meg pusztán a durva vízgyűjtők elkülönítésével.
+
+**Megengedett szemantika.** A `claimed` nélküli teljes út spekulatívan,
+bármilyen sorrendben kiszámolható, mert a `claimed` csak a megállási pontot
+befolyásolja. A véglegesítés viszont 0-tól növekvő forrásindex szerint
+ellenőrzi kizárólag a `ClaimCheckIndices` pontokat, az első foglalt tile-nál
+a befogadó tényleges pontját fűzi hozzá, és csak a csonkolt út pontjait
+foglalja le. Ezt a Core meglévő
+`BuildContinuousRiverNetworkFromSourcesParallel` API-ja már megvalósítja.
+A későbbi forrás nem kaphat korai, változatlan `claimed` pillanatképet a
+korábbi források véglegesítése előtt; csak teljes, foglalás nélküli utat.
+Megszakításkor a még nem véglegesített eredmény nem adható át a viewernek.
+
+**Költség és kapu.** A scene-pontos t=0 alapvonalon a 96 szekvenciális út
+149,984 s, és a 17 beolvadó ág `claimed` nélküli teljes követése további
+38 797 lépést jelentene (+10,0%). A 400 698 végleges XYZ `double` pont
+nyers koordinátaterhe 9,62 MB; a spekulatív utak és a `claimed` térkép
+ezen felül memóriát kérnek. A korábbi ND-132 szerint a szabadon futó
+`Parallel.For` a terep munkáival versenghet. Az A8/1 önmagában nem mért
+korlátos párhuzamos konfiguráción stabil teljes elkészülési gyorsulást
+vagy memória-/előtéridejű korlátot. A B3 láthatósági hibára az ND-145 előnézete ad külön megoldást;
+annak élő Unity-elfogadása még nyitott.
+
+**Új mérés, ugyanazon a napon:** a meglévő, korlátlan `Parallel.For` Core-út
+ugyanazon t=0 scene-bemenettel **26,378 s** alatt befejeződött, a 96 folyó
+teljes SHA-256 lenyomata egyezik az A8/1 szekvenciális alapvonallal.
+Csúcs processz-munkakészlet: **168 972 288 byte**. A worker-korlátot
+paraméterré tettük az API-ban, változatlan kanonikus commit mellett.
+Két workerrel t=0: **129,422 s**, 117 301 248 byte csúcs; néggyel t=0:
+**70,487 s**, ismétlésben **67,347 s** / 222,203 s processz-CPU-idő,
+106 389 504, illetve 118 951 936 byte csúcs; t=22 Myr: **47,434 s**,
+107 675 648 byte csúcs. Minden teljes SHA-256 lenyomat egyezik a
+szekvenciális alapvonallal. A négyworker-es Core-út az A8/3 offline
+jelöltje; a korlátlan 16 szálas út viewerbe kötését az ND-132 miatt
+nem engedélyezzük. A8/4-hez a viewer előterével együtt mért CPU- és
+memóriahatás, a `Build()` és a folyó-mesh ideje, valamint élő Play-kép kell.
+
+**A8/4 bekötési próba:** az ND-132 `LongRunning` háttérfeladat megmarad;
+az ND-145 durva előnézet után a finom Core-hívás a négyworker-es párhuzamos
+API-ra vált. A forrássorrend és a generációellenőrzés változatlan. A
+PerfLog az ütemezést és a workerszámot rögzíti. Ez kísérleti viewer-út:
+ha a Unity előtér vagy memória romlik, a szekvenciális referenciaút
+visszaállítható, és a gyorsítás nem tekinthető elfogadottnak.
+
+**Első befejezett Unity-menet (2026-09-23 18:06):** t=0, 50 m, 96 forrás,
+4 worker; `Build() TELJES` 2,968 s, `river preview` 4,331 s (ebből
+főszálú mesh 3,205 s), `river ready` 144,683 s, végleges főszálú mesh
+18,505 s, a Build utáni teljes `river mesh` 163,188 s. Az egyetlen
+korábbi kész szekvenciális Unity-menet 1477,626 s + 13,236 s volt;
+ebből tájékoztatóan ~9,1× rövidebb teljes Build utáni idő látszik,
+de a régi idő/step és előtérterhelés nem kontrolláltan azonos. A
+3,2/18,5 s-os főszálú mesh-akadás jelentős és külön javítást igényel;
+az A8-at ettől még nem jelöljük teljesen elfogadottnak. Deep-time
+váltás, memória és képi B3 ítélet nyitott.
+
+### ND-147 — Folyómesh főszálú építés képkockákra osztása (A8/4, PRÓBA)
+
+**Ok (2026-09-23):** két élő t=0 Play-menetben az ND-145 előnézeti mesh
+3,205–3,395 s-ig, a második menet végleges 400 698 pontos folyómesh-e
+18,505 s-ig foglalta a főszálat. A felhasználó nem figyelte külön a
+váltás pillanatát; az észlelt akadás hiánya ezért nem ellenbizonyíték.
+Az A8/4 `river ready` 144,683 s-os eredménye mellett a megjelenítési
+akadás külön fennmaradó probléma.
+
+**Döntés:** a meglévő `RiverPositionOnSurface` számítást és
+`AddRiverRibbon` topológiát változatlanul, pontsorrendben futtatjuk a
+főszálon, de egyetlen `LateUpdate` helyett képkockánként korlátos munkával.
+A korábban kész aktuális előnézet látható marad, amíg a teljes új mesh
+elkészül. Az új mesh csak a teljes pont-/indexlista után, egyező
+Build-generációnál válthatja fel. Új Build, kikapcsolt folyók vagy új
+előnézet/fine eredmény a függő mesh-munkát eldobja. A 4 ms-os CPU-keret
+az egyes felszíni pontok között érvényes; egy hosszú szalag lezárása és a
+Unity mesh-feltöltés külön mérendő, ezért még nem ígérünk teljes
+frame-csúcs korlátot. Az előnézeti tile-közök 1 km helyett 4 km-enként
+kapnak renderpontot: a két élő 1 km-es menet 59 986 pontja és 3,2–3,4 s
+főszálú mesh-ideje miatt ezt külön csökkentjük. A durva modellút
+topológiája, a Core-folyóhálózat és a seed-verzió változatlan.
+
+**Kapu:** viewer-fordítás, majd élő PerfLogban külön `mesh prepare`
+falióraidő/aktív főszálú idő/maximális slice, `mesh upload` idő és a
+megjelenített preview/fine átmenet ellenőrzése. A8/B3 végső vizuális
+elfogadása csak ezek és felhasználói kép/visszajelzés után történhet.
+
+**Első élő próba (2026-09-23 22:44):** az előnézeti mesh 16 056 pontja
+970,4 ms aktív főszálú munkával, legfeljebb 5,1 ms-os szelettel és 1,1 ms
+feltöltéssel elkészült. A Play Pause állapota után a 400 696 pontos finom
+mesh is elkészült: 19 217,2 ms összesített főszálú munka 47 748,1 ms
+falióra alatt, 7,8 ms legnagyobb szelet és 10,8 ms feltöltés. A korábbi
+18,505 s egybefüggő mesh-munka megszűnt ebben a menetben. A Pause miatt
+az 1496,977 s-os `river ready` nem futásidő-bizonyíték. A felhasználói
+látványítélet, szünet nélküli ismétlés és Profiler frame-csúcs még nyitott.
+
+### ND-148 — Zoom közbeni folyó- és frame-megakadás elkülönítése (A8/B3, PRÓBA)
+
+**Megfigyelés (2026-09-23):** az ND-147 után a felhasználó a finom
+folyókat látja, de zoomkor néha az egész kép megakad, máskor a
+folyóvonalak maradnak le a tereptől. A kész `Rivers` mesh kameramozgásra
+nem épül újra. A 2026-09-23-i PerfLog zoomja mellett terep-LOD kérés és
+feltöltés szerepel, de összframe-/GPU-idő nincs; a korábbi Pause miatt
+a hosszú falióra-rések önmagukban nem bizonyítanak frame-hibát.
+
+**Feltárt konfigurációs hiba:** a `PlanetGridMesh` dokumentált
+`riverLineRadialBias` alapértéke 0,5, de a `PlanetView.unity` mentett
+értéke még 0,02. Az eredeti ND-49 vizsgálat szerint ez a kis eltérés
+nem tartja a folyóvonalat a darabos renderelt terep fölött. A scene
+értékét 0,5-re hozzuk; ez csak vizuális kiemelés, nem változtat Core-
+folyóutat vagy seedet. A tényleges, zoomfüggő terepmeshre vetítés külön
+nagyobb megoldás, ha az új élő kép még takarást mutat.
+
+**Mérési döntés:** 100 ms fölötti frame-réseknél a viewer ritka
+`ND-148 frame stall` bejegyzést ír: képkockaszám, delta, az aktuális
+`LateUpdate` költsége, zoom, folyómesh- és LOD-függő munka. Ez nem
+állít gyökérokot, de a következő megszakítás nélküli Play-menetben
+elkülöníti az egész kép akadását a kizárólagos folyó-takarás hibájától.
+Az Editor Pause/ablakfókusz váltás utáni nagy deltát külön kell kezelni
+az értékelésben. A vizuális és Profiler-elfogadás nyitott.
+
+**Első élő próba (2026-09-25):** a felhasználó az Inspectorban 0,5-re
+állított értékkel mind a folyóvonalak, mind az egész kép zoom közbeni
+viselkedését javultnak látta. A finom mesh elkészült. A finom hálózat
+előtti fókuszált, 1 s alatti 29 frame-rés 147,4 ms átlagú, 243,8 ms
+maximális volt, miközben az aktuális `LateUpdate` legfeljebb 2,4 ms;
+terep-LOD munka többnyire függőben volt. A finom mesh utáni zoomnál
+egy 100,2 ms-os rés még szerepel. A Playben volt Pause, ezért a
+`river ready` ideje nem mérvadó. A vizuális javulás megerősített, az
+egész kép akadásának oksági magyarázata és a frame-csúcs elfogadása
+nyitott.
+
+### ND-149 — Óceán-partvonal: parti víz-gyűrű a terep-vágáshoz (A18, ELFOGADVA, implementálva)
+
+**MÉRT gyökérok (2026-09-25, élő Editor, seed `0xA7C944210000`):** a
+szárazföld–óceán határ lépcsősségét a **vízfelszín pereme** adta, nem a
+terep-szín váltása. A terep sarok-színe pontszerű és folytonos
+(`ContinuousCornerColorAuto`), a vízfelszín viszont azoknak a level-8
+tile-oknak az uniója volt, amelyeknek a KÖZÉPPONTJA óceáni — a
+`WaterLodSource.ContainsWater` a `BaseLevel`-ig (8) sétál vissza, a statikus
+emisszió pedig tile-onként egy teljes, opak quadot rakott le. A/B bizonyíték: a
+vízrétegek elrejtésével a színhatár sima
+(`history/2026-09-25-a18-ocean-shoreline-diagnosis.md`).
+
+30 150 level-8 partvonal-élből **22,34%** (6 737) mindkét közös sarka a
+vízszint alatt volt — ott a vízlap pereme szabadon látszott, semmi nem vágta
+ki; további **53,38%** vegyes. A szárazföld-oldali 20 223 határtile
+**70,30%-ának** van vízszint alatti sarka. A víz-LOD geometriai finomítása nem
+segített: azonos kameránál `deepestLevel = 9`, `replacedRoots = 2048` a
+256 267 gyökérből — a KÖRVONAL végig level-8. A hiba nem múlik el zoomra:
+~126 km magasságban `deepestLevel = 13`, és a partvonalon a ~1,1 km-es
+lépcsők továbbra is látszottak — csak a lépték csökkent.
+
+**DÖNTÉS (az ND-129 mintája):** a vízfelszín tile-halmaza az óceáni tile-ok
+**+ parti gyűrű**, és a már renderelt, adaptív terep vágja ki belőle a partot
+a z-bufferrel — nulla új eleváció-kiértékelés, a részletesség a terep-LOD-dal
+finomodik. A gyűrűből kimarad az a tile, aminek mind a négy sarka a vízszint
+FÖLÖTT van (a terep úgyis eltakarná).
+
+**A terjesztés szabálya ÉLENKÉNTI, nem tile-onkénti.** Egy él akkor és csak
+akkor marad nyers vízperem, ha a KÉT KÖZÖS SARKA MINDKETTŐ a vízszint alatt
+van. A gyűrű pontosan ezeken az éleken lép tovább. Ez konvergál: az óceán
+vízszintje globális és állandó, tehát a valódi partnál magától megáll (az
+ND-129-nél a tavak feltöltési szintje miatt a terjesztés NEM konvergált, ezért
+ott 1 kör a végleges). MÉRVE: az első, tile-alapú („teljesen elöntött tile")
+változat 12 nyers élt hagyott (0,05%); az élenkénti szabály **0-t**.
+
+**MIÉRT NEM KELL AL-OSZTÁS (eltérés az ND-129-től):** a terep-quad és a
+víz-quad ugyanazon az UV-négyszögön, ugyanazzal a háromszögeléssel
+(`AddQuad` p00,p10,p11,p01) fekszik, gyakorlatilag azonos sugáron — a ~25 m-es
+húr-behúrás tehát mindkettőből kiesik a különbségképzésnél. A metszésvonal így
+pontosan a sarok-elevációk lineárisan interpolált tengerszint-kontúrja,
+vagyis ugyanaz a határ, amit a terep sarok-SZÍNE már ma is folytonosan
+kirajzol.
+
+**Az ND-149 négy nyitott kérdése lezárva:**
+
+1. *Al-osztás* — nem kell, ld. fent; az élő képek is ezt erősítik meg.
+2. *`OceanRefinement.CanSkip` / `IsBaseAncestorOceanic`* — változatlan. A
+   gyűrű-tile `IsOceanic` értéke hamis, ezért a finomítás-kihagyás sosem
+   alkalmazza rá — pontosan ez kell, hiszen ott a terepnek finomodnia KELL,
+   hogy kivágja a vizet.
+3. *A gyűrű vízszíne* — magától helyes. A `WaterDepthBucket` a negatív
+   mélységet 0-ra vágja (a bucket csak submesh-csoportosítás), a TÉNYLEGES
+   szín sarkonként a `ContinuousWaterCornerColor`-ból jön a megfelelő
+   szárazföld-sarok elevációja alapján.
+4. *Költség* — mérve, ld. lent.
+
+**MÉRT eredmény (ugyanaz a seed, level-8 partvonal-élek):**
+
+| | ND-149 előtt | ND-149 után |
+|---|---|---|
+| nyers vízperem (mindkét sarok víz alatt) | 6 737 — **22,34%** | **0 — 0,00%** |
+| vegyes (a terep átmetszi az élt) | 16 093 — 53,38% | 1 372 — 5,27% |
+| a terep teljesen eltakarja a peremet | 7 320 — 24,28% | 24 666 — **94,73%** |
+| vizet emittáló level-8 tile | 256 267 (65,17%) | 270 535 (68,80%), **+14 268 (+5,57%)** |
+
+A gyűrű 14 268 tile-t rajzol, 6 032-t kihagy (mind a négy sarka víz fölött),
+és 4 körben (a korlát 4) `openBoundary=0`-ra konvergál.
+
+**Költség (10+ Build, medián):** a maszk maga **4,2 ms**. A teljes
+`BuildStaticBaseLayer` mediánja 1333 ms (ki) → 1394 ms (be), **+61 ms**, de a
+fázisok futásonkénti szórása ennél NAGYOBB (`water` 53–344 ms kikapcsolva is,
+`mesh` 143–411 ms), tehát a különbség a zaj nagyságrendjében van; az `emit`
+fázis érdemben változatlan (262 → 264 ms). A Build ~2,4 s nagyságrendje nem
+változott.
+
+**Tesztelhetőség:** a két tiszta döntés (`Classify`, `EdgeFullyBelowWater`) az
+`OceanRefinement` mintájára külön, UnityEngine-referencia nélküli osztályba
+került (`Viewer/Lod/CoastalWaterRing.cs`), és Unity Editor NÉLKÜL tesztelt
+(`CoastalWaterRingTests`, 23 eset; a LodChunking projekt 526/526 zöld). A
+tiszta osztályba emelés után a Build élőben BITRE ugyanazt adta.
+
+**Kapcsoló:** `PlanetGridMesh.coastalWaterRing` (alapértelmezés: be) — az
+Inspectorból kikapcsolva a Build az ND-149 ELŐTTI viselkedést adja, így az
+A/B bármikor megismételhető.
+
+**Nem seed-törő:** kizárólag render-oldali; Core-mezőt, elevációt, seedet nem
+érint, a generátorverziót nem emeli.
+
+**Nyitott:** a felhasználói vizuális átvétel (B-kategória). A lap-varratokon
+(kereszt-lap szomszédok) futó partvonal-élek a fenti statisztikából
+kimaradtak — a maszk maga viszont a `TileNeighbors.Neighbor` vetítéses útján
+a varratokat is kezeli.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

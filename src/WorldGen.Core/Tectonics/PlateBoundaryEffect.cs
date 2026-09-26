@@ -127,10 +127,32 @@ namespace WorldGen.Core.Tectonics
             double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters,
             double oceanicOceanicUpliftFactor = DefaultOceanicOceanicUpliftFactor)
         {
+            return BoundaryUpliftFromWarpedAtTime(
+                worldSeed, x, y, z, wx, wy, wz, seeds, 0.0,
+                gapScale, upliftMax, oceanicOceanicUpliftFactor);
+        }
+
+        /// <summary>
+        /// ND-136 (A19): ugyanaz, mint <see cref="BoundaryUpliftFromWarped"/>,
+        /// de az ND-35 hegyvidékiség-maszk a lemez SAJÁT keretében értékelődik
+        /// ki <paramref name="timeMyr"/>-nél — így az uplift ugyanazzal a
+        /// maszkkal skálázódik, amit a báziseleváció is használ, és a
+        /// hegyvonulat a lemezzel együtt vándorol.
+        ///
+        /// <paramref name="timeMyr"/> = 0-nál bitre a korábbi eredmény.
+        /// </summary>
+        public static double BoundaryUpliftFromWarpedAtTime(
+            ulong worldSeed, double x, double y, double z,
+            double wx, double wy, double wz, (double X, double Y, double Z)[] seeds,
+            double timeMyr,
+            double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters,
+            double oceanicOceanicUpliftFactor = DefaultOceanicOceanicUpliftFactor)
+        {
             TwoBestDots(wx, wy, wz, seeds, out double best, out double second, out int bestIndex, out int secondIndex);
             if (best - second >= gapScale)
                 return 0.0;
-            double mountainMask = CrustElevation.MountainMask(worldSeed, x, y, z);
+            double mountainMask = CrustElevation.MountainMaskInPlateFrame(
+                worldSeed, bestIndex, timeMyr, x, y, z);
             return BoundaryUpliftFromNearestPlates(
                 worldSeed, best, second, bestIndex, secondIndex, mountainMask,
                 gapScale, upliftMax, oceanicOceanicUpliftFactor);
@@ -195,19 +217,84 @@ namespace WorldGen.Core.Tectonics
             out bool isOceanic,
             double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters)
         {
+            return ElevationWithBoundaryFromWarpedAtTime(
+                worldSeed, plateId, tileIdValue, x, y, z, wx, wy, wz, seeds, 0.0,
+                out isOceanic, gapScale, upliftMax);
+        }
+
+        /// <summary>
+        /// ND-136 (A19): ugyanaz, mint <see cref="ElevationWithBoundaryFromWarped"/>,
+        /// de a domborzati zaj a lemez SAJÁT vonatkoztatási rendszerében
+        /// értékelődik ki <paramref name="timeMyr"/>-nél.
+        ///
+        /// A <paramref name="seeds"/> a MÁR ELMOZDÍTOTT lemez-magokat várja
+        /// (<see cref="PlateMotion.MovedSeeds"/>) — a lemez-topológia
+        /// (hozzárendelés, határ-közelség) továbbra is a világ keretében, a
+        /// WARPOLT pozíción dől el (ND-36); csak a zaj kerül át a lemez
+        /// keretébe.
+        ///
+        /// <paramref name="timeMyr"/> = 0-nál bitre azonos a korábbi
+        /// eredménnyel.
+        /// </summary>
+        public static double ElevationWithBoundaryFromWarpedAtTime(
+            ulong worldSeed, int plateId, ulong tileIdValue,
+            double x, double y, double z,
+            double wx, double wy, double wz, (double X, double Y, double Z)[] seeds,
+            double timeMyr,
+            out bool isOceanic,
+            double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters)
+        {
+            BaseAndUpliftFromWarpedAtTime(
+                worldSeed, x, y, z, wx, wy, wz, seeds, timeMyr,
+                out double baseElevation, out double uplift, out isOceanic,
+                gapScale, upliftMax);
+            return baseElevation + uplift;
+        }
+
+        /// <summary>
+        /// ND-136 (A19): a báziseleváció és a (relaxálatlan) határ-uplift
+        /// KÜLÖN, lemez-keretes zajjal. A deep-time út ezt hívja, mert csak az
+        /// upliftre alkalmaz relaxációt — így nem kell előbb összeadni, majd
+        /// kivonni (az a kivonás biteket veszítene).
+        ///
+        /// TELJESÍTMÉNY: a MÁSODIK lemez zaj-bázisa CSAK a keverősávon belül
+        /// (<c>gap &lt; blendGap</c>, ND-90, alapértelmezés 0.005) számolódik.
+        /// A sáv a felszín töredéke, tehát ez NEM duplázza a zaj-költséget (az
+        /// ND-136 szövegének óvatos felső becslése volt) — kb. 1× mindenhol,
+        /// plusz egy keskeny sávnyi extra.
+        /// </summary>
+        public static void BaseAndUpliftFromWarpedAtTime(
+            ulong worldSeed,
+            double x, double y, double z,
+            double wx, double wy, double wz, (double X, double Y, double Z)[] seeds,
+            double timeMyr,
+            out double baseElevation, out double uplift, out bool isOceanic,
+            double gapScale = DefaultGapScale, double upliftMax = DefaultUpliftMaxMeters,
+            double blendGap = CrustElevation.DefaultBoundaryBlendGap)
+        {
             TwoBestDots(
                 wx, wy, wz, seeds,
                 out double best, out double second, out int bestIndex, out int secondIndex);
-            CrustElevation.ComputeNoiseBasis(
-                worldSeed, x, y, z,
-                out double primaryNoise, out double mountainMask, out double secondaryNoise);
-            double baseElevation = CrustElevation.BlendedBaseElevationFromNoiseBasis(
+            CrustElevation.ComputeNoiseBasisInPlateFrame(
+                worldSeed, bestIndex, timeMyr, x, y, z,
+                out double bestPrimary, out double bestMask, out double bestSecondary);
+
+            double secondPrimary = bestPrimary, secondMask = bestMask, secondSecondary = bestSecondary;
+            if (secondIndex >= 0 && blendGap > 0.0 && best - second < blendGap)
+            {
+                CrustElevation.ComputeNoiseBasisInPlateFrame(
+                    worldSeed, secondIndex, timeMyr, x, y, z,
+                    out secondPrimary, out secondMask, out secondSecondary);
+            }
+
+            baseElevation = CrustElevation.BlendedBaseElevationFromPlateFrameBases(
                 worldSeed, best, second, bestIndex, secondIndex,
-                primaryNoise, mountainMask, secondaryNoise, out isOceanic);
-            double uplift = BoundaryUpliftFromNearestPlates(
-                worldSeed, best, second, bestIndex, secondIndex, mountainMask,
+                bestPrimary, bestMask, bestSecondary,
+                secondPrimary, secondMask, secondSecondary,
+                out isOceanic, blendGap);
+            uplift = BoundaryUpliftFromNearestPlates(
+                worldSeed, best, second, bestIndex, secondIndex, bestMask,
                 gapScale, upliftMax);
-            return baseElevation + uplift;
         }
     }
 }

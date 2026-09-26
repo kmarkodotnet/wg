@@ -16,11 +16,6 @@ namespace WorldGen.Viewer
     /// </summary>
     public partial class PlanetGridMesh
     {
-        [Header("Tektonikus lemez overlay")]
-        [SerializeField]
-        [Tooltip("Be/ki - a felszín a lemez-hovatartozás szerint színeződik (kölcsönösen kizárja a szél-/csapadék-/hő-overlay-t).")]
-        private bool tectonicPlateOverlay = false;
-
         /// <summary>
         /// Egy sarokpont színe a tektonikus overlay-ben - a MÁR MEGLÉVŐ,
         /// deep-time-mozgatott <c>_adaptiveSeeds</c>-hez tartozó lemez

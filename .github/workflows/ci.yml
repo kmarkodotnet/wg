@@ -54,3 +54,16 @@ jobs:
           diff testvectors.json ../../tests/WorldGen.Core.Tests/testdata/testvectors.json \
             && echo "A tesztvektorok reprodukalhatok" \
             || (echo "ELTERES: a tesztvektorok nem reprodukalhatok a referenciabol" && exit 1)
+      - name: Lemez-keretes zaj es deep-time oracle (ND-136)
+        working-directory: tools/reference
+        run: |
+          python plate_frame_noise_ref.py
+          diff plate_frame_noise_vectors.json ../../tests/WorldGen.Core.Tests/testdata/plate_frame_noise_vectors.json
+          python erosion_glaciation_deep_time_ref.py
+          diff erosion_glaciation_deep_time_vectors.json ../../tests/WorldGen.Core.Tests/testdata/erosion_glaciation_deep_time_vectors.json
+      - name: Ho-visszacsatolas es checkpoint oracle (ND-142/143)
+        working-directory: tools/reference
+        run: |
+          python verify_thermal_feedback.py --check ../../tests/WorldGen.Core.Tests/testdata/thermal_feedback_vectors.json
+          python thermal_checkpoint_ref.py
+          diff thermal_checkpoint_vectors.json ../../tests/WorldGen.Core.Tests/testdata/thermal_checkpoint_vectors.json
