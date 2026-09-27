@@ -89,5 +89,15 @@ namespace WorldGen.Core.Random
         /// mint a csillagmező.
         /// </summary>
         public const uint PlateColorHue = 42;
+
+        /// <summary>
+        /// A felszíni mikro-részlet (ND-151, M13 4. fázis) zaj-FÁZISA. Szintén
+        /// a <see cref="RandomDomain.Decorative"/> domainben: a mikro-részlet
+        /// per-pixel, render-oldali, és SEMMI nem csatolja vissza a
+        /// világmodellbe (ld. <see cref="Terrain.SurfaceMicroDetail"/>), ezért
+        /// az I1 seed-kompatibilitási garanciái nem terjednek ki rá — a
+        /// "ugyanaz a seed, ugyanaz a látvány" viszont teljesül.
+        /// </summary>
+        public const uint MicroDetailPhase = 43;
     }
 }

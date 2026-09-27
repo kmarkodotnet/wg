@@ -7831,6 +7831,140 @@ terjedés, subnormális `Ln` plauzibilitás a `Math.Log` ellen, `Exp(Ln(x))`
 körbejárás, `Pow`-élesetek, és ismételhetőség (I2).
 
 
+### ND-151 — M13 2-4. fázis: a GPU-vezérelt geometria elvetése, per-pixel mikro-részlet helyette (A15, ELFOGADVA, implementálva)
+
+**Kiindulás (2026-09-27, A15).** A `docs/backlog.md` 297. sora a
+"fotorealisztikus" négyfázisú terv maradékát így írta le: **2. fázis** — a
+meglévő GPU compute pipeline kiterjesztése a teljes kiértékelésre; **3. fázis**
+— GPU-vezérelt mesh; **4. fázis** — procedurális mikro-részlet textúra. Az
+1. fázis (folytonos árnyalás) kész és megerősített.
+
+**A 2. és 3. fázis TÁRGYTALAN — az ND-128 óta.** A terv arra a GPU compute
+pipeline-ra épült, amit az ND-128 MÉRÉS ALAPJÁN törölt: a
+`TileClassification.compute` a Core-eleváció HLSL-be ÚJRAÍRT mása volt, és a
+tile-ok ~22%-át a tengerszint másik oldalára tette; ráadásul lassabb is volt
+(~50 s/újraépítés). A `Gpu/` mappa megszűnt, a "kiterjesztendő pipeline"
+fizikailag nincs meg.
+
+A hibaosztály neve pontosan megfogalmazható, és ez dönti el a kérdést:
+**a GPU-n számolt érték a MODELL BEMENETE lett.** Egy GPU-vezérelt mesh
+(3. fázis) ugyanezt követelné meg — a csúcspont-eltolásnak eleváció kell, azt
+pedig a GPU-n kellene számolni, bitpontosan a Core-ral megegyezően. Az I1
+(bitre azonos világ minden platformon) és a HLSL lebegőpontos szabadsága
+(átrendezés, `mad`-összevonás, gyors matematikai helyettesítések) egymást
+kizárják. A 2-3. fázist tehát **nem halasztjuk, hanem ELVETJÜK**; ha valaha
+GPU-geometria kell, az új ND-t igényel, és a bemenetnek akkor is a
+CPU-elevációból kell jönnie (displacement-textúra feltöltése, nem
+újraszámolás).
+
+**Amit a 3. fázis VALÓJÁBAN akart, azt a 4. fázis megadja.** A cél nem a
+"GPU-n futó geometria" volt, hanem a **mesh-felbontás alatti felszíni
+részlet**. Ez per-pixel árnyalással elérhető: a fragment shader perturbálja a
+normált és modulálja az albedót. Ugyanaz a látvány, ÚJ GEOMETRIA NÉLKÜL, és
+— a döntő eltérés — a GPU-n számolt érték KIZÁRÓLAG kimenet.
+
+#### A megvalósítás
+
+| Réteg | Fájl | Szerep |
+|---|---|---|
+| Core | `src/WorldGen.Core/Terrain/SurfaceMicroDetail.cs` | Konstansok + a válasz-leképezés (amplitúdó, albedó-szórás, frekvencia-szorzó) + seedből a zaj-fázis |
+| Viewer (motorfüggetlen) | `Assets/Scripts/Viewer/Lod/MicroDetailBand.cs` | A nézetfüggő sávválasztás (a Core nem tud a kameráról) |
+| Viewer (Unity) | `Assets/Scripts/Viewer/PlanetGridMesh.MicroDetail.cs` | Uniform-átadás frame-enként, overlay-kapu, anyag-kapu |
+| Shader | `Assets/Shaders/VertexColorUnlit.shader` | A per-pixel fBm és a normál/albedó módosítás |
+
+**A frekvencia-létra SZÁRMAZTATOTT, nem választott.**
+
+- *Alsó vég:* `BaseFrequency = SecondaryNoiseFrequency * 2^SecondaryNoiseOctaves`
+  = **4,0744 ciklus/radián** (~1564 km hullámhossz) — pontosan a következő
+  oktáv a modell saját másodlagos relief-zaja után. A mikro-részlet ott
+  folytatja a létrát, ahol a világmodell abbahagyta.
+- *Felső vég:* `MaxFrequency = 2^17` = **131 072 ciklus/radián** (~49 m
+  Föld-méreten). A shader a bolygó-lokál egységvektorból számolja a
+  zaj-koordinátát; 32 bites float relatív eps `2^-23`, és `(1/64) / 2^-23 = 2^17`
+  az a frekvencia, aminél a rács-cella hibája még 1/64 cella alatt marad.
+  Ennél finomabb részlet a geometria pozíció-ábrázolását is kérné (ND-19 /
+  A12/2 test-keretes renderelés) — ez a korlát tehát nem önkényes, hanem
+  egy MÁSIK nyitott döntésre mutat.
+
+**A sávváltás folytonossága (a kritikus rész).** ~15 oktávot egy fragment
+shader nem számol ki, ezért négy oktávot használunk, és a létrát toljuk a
+pixel-lábnyom szerint. Ha a sáv ugrálna, zoomolás közben az EGÉSZ felszíni
+textúra pattogna. A megoldás a létra két végének ellentétes átúsztatása:
+`w = (1-frac, 1, 1, frac) * persistence^k`, súlyösszeggel normálva.
+BIZONYÍTOTT folytonosság: `frac = 1`-nél az n. sáv normált súlyai a
+(2B, 4B, 8B) frekvenciákon `(0,571; 0,286; 0,143)` — pontosan ugyanazok, mint
+az (n+1). sáv `frac = 0`-nál. Külön C#-teszt fogja
+(`BandCrossing_IsContinuous_TheLadderShiftChangesNothing`).
+
+**Mi jön a világmodellből (I3).** Nincs kézzel festett textúra:
+
+- **lejtő** = a MÁR RENDERELT geometria normálja és a radiális irány szöge;
+- **magasság** = a MÁR RENDERELT rádiusz, a `WorldElevationFromDisplacedRadius`
+  inverzével (ugyanaz az elv, mint az ND-129/ND-149 parti gyűrűjénél: **nulla új
+  eleváció-kiértékelés**);
+- **tengerszint** = a kalibrált ND-38 szint;
+- **fázis** = a világ seedje (`RandomDomain.Decorative` / új
+  `RandomProperty.MicroDetailPhase = 43`, ugyanaz a besorolás, mint a
+  csillagmezőé) — ugyanaz a seed, ugyanaz a mikro-részlet.
+
+**Miért nem érinti az I1-et.** A mikro-részlet egyetlen mezőbe,
+gyorsítótárba, hash-be vagy mentésbe sem folyik vissza. BIZONYÍTVA: a
+`worldgen hash --seed A7C944210000 --plates 20 --level 6` mindhárom
+időpontban **bitre az ND-150 óta dokumentált érték**: `t=0`
+`2b98af9a…6213738b`, `t=400` `14dc8ad2…59a7ea07`, `t=3000`
+`823e8ba0…cdcfe7ab`. A `WorldGeneratorVersion` marad `"5"`. **Nem seed-törő.**
+
+**A HLSL-másolat kérdése — külön kezelve.** A shader a leképezés ALAKJÁT
+(lerp + kvintikus smoothstep) tükrözi, a SZÁMOKAT viszont uniformként a
+Core-ból kapja. Így az ND-128 hibaosztálya (két, egymástól elcsúszó
+számkészlet) strukturálisan nem alakulhat ki; és mivel az érték csak kimenet,
+egy esetleges eltérés VIZUÁLIS hiba lenne, soha nem determinizmus-sérülés.
+
+#### Mérés (élő Play, 2026-09-27, 1600x900)
+
+| Mit | Mikro-részlet KI | Mikro-részlet BE | Arány |
+|---|---|---|---|
+| Helyi kontraszt (átlagos abs. Laplace a megvilágított pixeleken), bolygó-nézet | 7,18 | 10,27 | **1,43x** |
+| Ugyanaz, közeli nézet (115 egység, ~1,15 R) | 3,20 | 18,46 | **5,76x** |
+| GPU-idő (`frameTiming.gpuFrameTimeMs`, néhány minta) | 3,66-5,79 ms | 3,09-3,16 ms | nincs mérhető különbség — a képkockák közti szórás NAGYOBB |
+| CPU-költség | — | frame-enként néhány uniform | — |
+| Memória | — | **nulla** (se mesh-csatorna, se textúra) | — |
+
+**Menet közben javítva két, méréssel talált hiba.**
+
+1. **A pixelek/legfinomabb-oktáv arány 3,0-val homokpapírt adott.** Az első
+   élő menetben a felszín egyenletes, sűrű SZEMCSÉT kapott — zajnak látszott,
+   nem domborzatnak: a legfinomabb oktáv éppen a Nyquist-határra esett. **8,0**-ra
+   emelve a legfinomabb oktáv 8 pixel, az alap-oktáv 64 pixel — ez már
+   felismerhető részlet-domborzat.
+2. **Súroló nézetnél villogás a limbnél.** A sáv a LEGKÖZELEBBI felszínpont
+   lábnyomából számol; a limb felé ugyanaz a felszín `1/cos`-szor akkora
+   szöget fed egy pixelen, tehát ott a részlet a Nyquist alá csúszott. A
+   halványítás (`smoothstep` a `N·V`-n) UGYANABBÓL a lábnyom-kritériumból
+   következik, ami a sávot is adja — nem külön kozmetika.
+
+**Kapuk.** Az overlay-ek (tektonika, szél, csapadék, hő) SZÁNDÉKOSAN kizárják
+a mikro-részletet: ott a szín egy MÉRT mennyiség palettája (I4), amit egy
+részlet-moduláció félreolvashatóvá tenne. A vízfelszín anyag-szintű kapuval
+(`_MicroDetailEnable = 0`) marad sima. Inspector-kapcsolók: `surfaceMicroDetail`
+(A/B) és `microDetailStrength` (0-2, élő hangoláshoz).
+
+**Kikapcsolva a kép BITRE az ND-151 előtti** — a shader a kapunál egzaktul
+`1.0` albedó-szorzót ad vissza és a normált nem módosítja.
+
+**Tesztek.** 20 új Core-teszt (`SurfaceMicroDetailTests`: tisztaság,
+paraméter-hatás, partvonal-simaság, monotonitás, élesetek `double.MaxValue`-ig,
+a származtatott konstansok visszaellenőrzése) és 13 új viewer-teszt
+(`MicroDetailBandTests`: sávfolytonosság, láthatóság-monotonitás,
+pontossági plafon, érvénytelen bemenetek). Teljes futás: **1761/1761 zöld**
+(Core 698, Viewer 587, App 452, CLI 24), Unity `compilationFailed: false`,
+0 konzol-hiba, shader `msgCount=0`.
+
+**NYITOTT: a vizuális átvétel.** A mérés azt mutatja, hogy a részlet ott van
+és a modellt követi; hogy a mostani erősség (1,0) SZÉP-e, az felhasználói
+ítélet — ld. B16.
+
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

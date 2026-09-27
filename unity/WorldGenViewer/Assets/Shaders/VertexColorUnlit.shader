@@ -41,6 +41,11 @@ Shader "WorldGen/VertexColorUnlit"
         // elo-hangolhato ertekek.
         _SpecStrength ("Specular Strength", Range(0, 2)) = 0.12
         _Shininess ("Shininess", Range(1, 128)) = 8
+        // ND-151: ANYAG-szintu kapu a mikro-reszlethez. A terep-anyag 1-et kap,
+        // a vizfelszin 0-t (egy oceanfelszin nem kozetes szemcses). A GLOBALIS
+        // erosseg (_MicroDetailStrength) es a sav-uniformok a C#-bol jonnek;
+        // ha nincsenek beallitva, a reszlet automatikusan ki van kapcsolva.
+        _MicroDetailEnable ("Micro Detail Enable", Range(0, 1)) = 1
     }
     SubShader
     {
@@ -51,6 +56,10 @@ Shader "WorldGen/VertexColorUnlit"
             CGPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
+            // ND-151: a mikro-reszlet ertek-zaja EGESZ (uint) bitmuveletekkel
+            // hash-el; a CG alapertelmezett 2.5-es shader modell ezeket nem
+            // tamogatja, ezert kell a 3.5.
+            #pragma target 3.5
             #include "UnityCG.cginc"
 
             float4 _SunDir;
@@ -155,6 +164,189 @@ Shader "WorldGen/VertexColorUnlit"
                 return lenSq > 1e-10 ? v * rsqrt(lenSq) : fallback;
             }
 
+            // ---------------------------------------------------------------
+            // ND-151 (M13 4. fazis): PER-PIXEL MIKRO-RESZLET.
+            //
+            // MIT AD. A legfinomabb mesh-quad is sok pixelt fed kozelbol; ott
+            // a felszin ma teljesen sima. Ez a blokk a modell sajat fBm-letrajat
+            // folytatja a mesh-felbontas ALATT: perturbalja a normalt (reszlet-
+            // domborzat arnyalasa) es modulalja az albedot. UJ GEOMETRIA NELKUL.
+            //
+            // MINDEN SZAM A CORE-BOL JON (SurfaceMicroDetail + MicroDetailBand,
+            // uniformkent) - itt CSAK a lekepezes ALAKJA van. Ez a valasz az
+            // ND-128 hibaosztalyara: nincs ket, egymastol elcsuszo szamkeszlet.
+            //
+            // SEMMI NEM CSATOLJA VISSZA a vilagmodellbe (I1 erintetlen), es
+            // minden bemenete a modellbol jon: a lejto a mar renderelt
+            // geometria normaljabol, a magassag a mar renderelt radiuszbol,
+            // a faziseltolas a vilag seedjebol (I3).
+            float4 _MicroDetailBand;      // (alap-frekvencia ciklus/radian, sav-tort, lathatosag, -)
+            float4 _MicroDetailPhase;     // seedbol szarmazo zaj-faziseltolas
+            float4 _MicroDetailResponse;  // (PlainsNormalAmplitude, RockNormalAmplitude, PlainsAlbedoJitter, RockAlbedoJitter)
+            float4 _MicroDetailShape;     // (SlopeReferenceSin, RockAltitudeMeters, RockFrequencyScale, SubmergenceBandMeters)
+            float4 _MicroDetailSubmerged; // (SubmergedNormalScale, SubmergedAlbedoScale, -, -)
+            float4 _MicroDetailGeometry;  // (rajzolt radiusz, elevationScale, relief-exaggeration, tengerszint m)
+            float4x4 _MicroWorldToPlanet;
+            float _MicroDetailStrength;   // globalis, elo-hangolhato erosseg (0 = kikapcsolva)
+            float _MicroDetailEnable;     // ANYAG-szintu kapu: a vizfelszin 0-t kap
+
+            uint MicroHash(uint3 p)
+            {
+                p *= uint3(0x9E3779B1u, 0x85EBCA77u, 0xC2B2AE3Du);
+                uint h = p.x ^ p.y ^ p.z;
+                h ^= h >> 15; h *= 0x2545F491u; h ^= h >> 13;
+                return h;
+            }
+
+            float MicroLatticeValue(int3 cell)
+            {
+                return MicroHash(uint3(cell)) * (1.0 / 4294967296.0);
+            }
+
+            // Ertek-zaj kvintikus fade-gorbevel - ugyanaz a fade, mint a Core
+            // FractalNoise-ban (6t^5-15t^4+10t^3), hogy a letra karaktere
+            // folytonosan folytatodjon a modell sajat zaja alatt.
+            float MicroValueNoise(float3 x)
+            {
+                float3 fi = floor(x);
+                float3 f = x - fi;
+                float3 w = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+                int3 c = int3(fi);
+                float n000 = MicroLatticeValue(c + int3(0, 0, 0));
+                float n100 = MicroLatticeValue(c + int3(1, 0, 0));
+                float n010 = MicroLatticeValue(c + int3(0, 1, 0));
+                float n110 = MicroLatticeValue(c + int3(1, 1, 0));
+                float n001 = MicroLatticeValue(c + int3(0, 0, 1));
+                float n101 = MicroLatticeValue(c + int3(1, 0, 1));
+                float n011 = MicroLatticeValue(c + int3(0, 1, 1));
+                float n111 = MicroLatticeValue(c + int3(1, 1, 1));
+                float x00 = lerp(n000, n100, w.x);
+                float x10 = lerp(n010, n110, w.x);
+                float x01 = lerp(n001, n101, w.x);
+                float x11 = lerp(n011, n111, w.x);
+                return lerp(lerp(x00, x10, w.y), lerp(x01, x11, w.y), w.z) * 2.0 - 1.0;
+            }
+
+            // Negy oktav, a sav-tort szerint atusztatva. A sulyozas
+            // (1-frac, 1, 1, frac) * persistence^k, normalva - a
+            // MicroDetailBand.OctaveWeights parja; a folytonossagat C#-teszt
+            // bizonyitja (BandCrossing_IsContinuous).
+            float MicroFbm(float3 q, float frac)
+            {
+                float total = 0.0;
+                float norm = 0.0;
+                float amplitude = 1.0;
+                float3 p = q;
+                [unroll]
+                for (int k = 0; k < 4; k++)
+                {
+                    float fade = k == 0 ? (1.0 - frac) : (k == 3 ? frac : 1.0);
+                    float weight = amplitude * fade;
+                    if (weight > 0.0)
+                        total += MicroValueNoise(p) * weight;
+                    norm += weight;
+                    amplitude *= 0.5;
+                    p *= 2.0;
+                }
+                return norm > 1e-6 ? total / norm : 0.0;
+            }
+
+            float MicroSmoothstep01(float t)
+            {
+                t = saturate(t);
+                return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+            }
+
+            // A felszini pont "kozetessege" es viz-alattisaga - a
+            // SurfaceMicroDetail.Rockiness/Submergence parja, ugyanazokkal a
+            // (uniformkent atadott) konstansokkal.
+            void MicroDetailResponseAt(
+                float slopeSin, float elevation, float seaLevel,
+                out float normalAmplitude, out float albedoJitter, out float frequencyScale)
+            {
+                float bySlope = MicroSmoothstep01(slopeSin / max(_MicroDetailShape.x, 1e-6));
+                float byAltitude = MicroSmoothstep01((elevation - seaLevel) / max(_MicroDetailShape.y, 1e-6));
+                float rock = max(bySlope, byAltitude);
+                float wet = MicroSmoothstep01((seaLevel - elevation) / max(_MicroDetailShape.w, 1e-6));
+                normalAmplitude = lerp(_MicroDetailResponse.x, _MicroDetailResponse.y, rock)
+                    * lerp(1.0, _MicroDetailSubmerged.x, wet);
+                albedoJitter = lerp(_MicroDetailResponse.z, _MicroDetailResponse.w, rock)
+                    * lerp(1.0, _MicroDetailSubmerged.y, wet);
+                frequencyScale = lerp(1.0, _MicroDetailShape.z, rock);
+            }
+
+            // Stabil tangens-bazis a radialis iranyhoz (a legkisebb komponens
+            // tengelyet valasztva - igy soha nem degeneralodik).
+            void MicroTangentBasis(float3 up, out float3 t, out float3 b)
+            {
+                float3 a = abs(up);
+                float3 axis = (a.x <= a.y && a.x <= a.z) ? float3(1, 0, 0)
+                    : ((a.y <= a.z) ? float3(0, 1, 0) : float3(0, 0, 1));
+                t = SafeNormalize(cross(up, axis), float3(1, 0, 0));
+                b = cross(up, t);
+            }
+
+            // A normal perturbalasa + az albedo modulalasa. A visszaadott ertek
+            // a szin-multiplikator; a normalt helyben modositja.
+            float ApplyMicroDetail(float3 positionWS, inout float3 N)
+            {
+                float gate = _MicroDetailEnable * _MicroDetailStrength * _MicroDetailBand.z;
+                if (gate <= 0.0)
+                    return 1.0;
+
+                float3 planetPos = mul(_MicroWorldToPlanet, float4(positionWS, 1.0)).xyz;
+                float r = length(planetPos);
+                if (r <= 1e-6)
+                    return 1.0;
+                float3 up = planetPos / r;
+
+                // Elevacio-visszanyeres: a PlanetGridMesh.
+                // WorldElevationFromDisplacedRadius inverze, uj kiertekeles nelkul.
+                float displayElevation = (r - _MicroDetailGeometry.x) / max(_MicroDetailGeometry.y, 1e-20);
+                float k = _MicroDetailGeometry.z == 0.0 ? 1.0 : _MicroDetailGeometry.z;
+                float seaLevel = _MicroDetailGeometry.w;
+                float elevation = seaLevel + (displayElevation - seaLevel) / k;
+
+                // Lejto: a felszini normal es a radialis irany kozti szog szinusza.
+                float slopeSin = sqrt(saturate(1.0 - dot(N, up) * dot(N, up)));
+
+                float normalAmplitude, albedoJitter, frequencyScale;
+                MicroDetailResponseAt(slopeSin, elevation, seaLevel, normalAmplitude, albedoJitter, frequencyScale);
+
+                float frequency = _MicroDetailBand.x * frequencyScale;
+                float3 q = up * frequency + _MicroDetailPhase.xyz;
+                float frac = _MicroDetailBand.y;
+
+                float3 t, b;
+                MicroTangentBasis(up, t, b);
+                // A ket tangencialis minta fel zaj-cellaval tavolabb: a veges
+                // differencia igy a zaj SAJAT lepteken meri a meredekseget,
+                // frekvenciatol fuggetlenul.
+                // (A valtozo NEVE szandekosan nem "step": az HLSL-intrinsic.)
+                const float sampleStep = 0.5;
+                float h0 = MicroFbm(q, frac);
+                float ht = MicroFbm(q + t * sampleStep, frac);
+                float hb = MicroFbm(q + b * sampleStep, frac);
+                float dt = (ht - h0) / sampleStep;
+                float db = (hb - h0) / sampleStep;
+
+                // SUROLO NEZET-KORREKCIO. A sav (_MicroDetailBand) a
+                // LEGKOZELEBBI felszinpont pixel-labnyomabol szamol; a limb
+                // fele nezve ugyanaz a felszin 1/cos-szor akkora szoget fed
+                // egy pixelen, tehat ott a reszlet a Nyquist ala csuszna es
+                // szemcses villogast adna (elso elo menetben pontosan ez
+                // latszott a limbnel). A halvanyitas ugyanabbol a
+                // labnyom-kriteriumbol kovetkezik, ami a savot is adja.
+                float ndotv = saturate(dot(N, SafeNormalize(_WorldSpaceCameraPos - positionWS, N)));
+                float grazing = MicroSmoothstep01((ndotv - 0.05) / 0.25);
+                float gain = gate * grazing;
+                if (gain <= 0.0)
+                    return 1.0;
+
+                N = SafeNormalize(N - normalAmplitude * gain * (dt * t + db * b), N);
+                return 1.0 + h0 * albedoJitter * gain;
+            }
+
             fixed4 Frag(Varyings i) : SV_Target
             {
                 if (_ThermalMode > 0.5 && dot(i.positionPlanet, i.positionPlanet) > 1e-10)
@@ -171,6 +363,12 @@ Shader "WorldGen/VertexColorUnlit"
                 }
 
                 float3 N = SafeNormalize(i.normalWS, float3(0, 1, 0));
+                // ND-151: a mikro-reszlet a VILAGITAS ELOTT perturbalja a
+                // normalt (igy a Lambert ES a spekularis is latja), es visszaad
+                // egy albedo-multiplikatort. Kikapcsolva (vagy nem beallitott
+                // uniformokkal) egzaktul 1.0-t ad es a normalt nem valtoztatja,
+                // tehat a korabbi kep BITRE valtozatlan.
+                float microAlbedo = ApplyMicroDetail(i.positionWS, N);
                 float3 L = SafeNormalize(_SunDir.xyz, float3(0, 1, 0));
                 float ndotl = saturate(dot(N, L));
 
@@ -199,7 +397,7 @@ Shader "WorldGen/VertexColorUnlit"
                     spec = pow(saturate(dot(N, H)), _Shininess) * _SpecStrength * ndotl;
                 }
 
-                float3 rgb = i.color.rgb * diffuse + spec * _SunColor.rgb;
+                float3 rgb = i.color.rgb * microAlbedo * diffuse + spec * _SunColor.rgb;
 
                 // 2026-09-09 DIAGNOSZTIKA: ha a fenti szamitas (pl. normalize()
                 // egy majdnem-nulla normalon, vagy pow() egy negativ/NaN

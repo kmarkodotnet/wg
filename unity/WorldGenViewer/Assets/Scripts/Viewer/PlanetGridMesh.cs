@@ -9594,6 +9594,10 @@ namespace WorldGen.Viewer
                 _waterSurfaceMaterial.SetFloat(SpecStrengthId, waterSpecularStrength);
                 _waterSurfaceMaterial.SetFloat(ShininessId, waterShininess);
             }
+
+            // ND-151: a per-pixel mikro-részlet uniformjai ugyanebben a
+            // frame-enkénti, olcsó menetben (ld. PlanetGridMesh.MicroDetail.cs).
+            UpdateMicroDetailUniforms();
         }
 
         private Light FindSurfaceSun()
