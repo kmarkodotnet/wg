@@ -8441,6 +8441,294 @@ teljes éjszaka), a felszín-rajzolat viszont NEM pörög; a Nap-korong egy kör
 tesz a bolygó körül; a panel szubszoláris szélessége ±23,44° között
 oszcillál, a csillagmező fixen áll.
 
+### ND-154 — M13 térfogati felhő: saját, gömbi raymarch (A16, ELFOGADVA, implementálva)
+
+**Kiindulás (2026-09-27, A16).** Az ND-21 a HDRP volumetrikus felhőjét
+**ELUTASÍTOTTA** (négy mért blokkoló: 100 m-es rétegvastagság-clamp, ami a mi
+léptékünkben 7420 km vastag héjat ír elő; a `ComputeNormalizationFactor`
+bedrótozott Föld-sugara; a felhőtérképes út féltekére vágása a shaderben; és a
+`Simple` preset shaderben KONSTANS lefedettsége, ami I3-sértés). Az A16
+volumetrikus tétele ezzel saját, gömbi raymarch lett.
+
+Ami eddig volt: az M6-os felhő-MVP egyetlen **LAPOS quad-héj**, a csapadék a
+vertex-alfában. A limbnél nincs vastagsága, nem árnyékol, és egyetlen
+Lambert-tag világítja meg.
+
+#### A megvalósítás
+
+| Réteg | Fájl | Szerep |
+|---|---|---|
+| Core | `src/WorldGen.Core/Climate/CloudVolume.cs` | A héj fizikája: alj (LCL), vastagság, optika, sub-grid szétbontás, többszörös szórás |
+| Core | `src/WorldGen.Core/Terrain/SurfaceSkyOpenness.cs` | Égbolt-nyitottság (ND-155) — ugyanabba az atlaszba megy |
+| Viewer (motorfüggetlen) | `Assets/Scripts/Viewer/Lod/CloudSkyAtlas.cs` | A négycsatornás atlasz + a forrás→atlasz bilineáris felskálázás |
+| Viewer (motorfüggetlen) | `Assets/Scripts/Viewer/Lod/CloudRaymarchPlan.cs` | Nézetfüggő lépésszám, burkoló-nagyítás |
+| Viewer (Unity) | `Assets/Scripts/Viewer/PlanetGridMesh.CloudVolume.cs` | Háttérszálas atlasz-munka, héj-mesh, uniformok |
+| Shader | `Assets/Shaders/CloudVolume.shader` | A raymarch |
+| Shader | `Assets/Shaders/PlanetCubeAtlas.cginc` | **ÚJ, KÖZÖS** atlasz-UV — a terep-shader és a felho-shader ugyanazt olvassa |
+
+**Az adatút — minden a MÁR KISZÁMÍTOTT mezőkből (I3).** A háttérmunka a
+`_lastPrecipField`-ből dolgozik: **nulla új csapadék- és eleváció-kiértékelés**.
+A lefedettség a domain-relatív (óceán/szárazföld KÜLÖN) percentilis-alakítás
+eredménye — ugyanaz a képlet, amit a lapos MVP használt, most a Core-ban
+(`CloudVolume.ShapeCoverage`). Négy csatorna egyetlen RGBA32 kocka-atlaszban
+(396×66 texel = 104 KB, **nulla dead channel**): R = lefedettség, G = felhőalap,
+B = vastagság, A = égbolt-nyitottság. Az atlasz GEOMETRIÁJA nem új: pontosan a
+hő-overlay (ND-104) hat-lapos, gutteres atlasza, ugyanazzal a texel→cella
+leképezéssel.
+
+**A felhőalap SZÁRMAZTATOTT, nem csúszka.** Lawrence (2005, BAMS 86(2)) két
+közelítéséből: `z_LCL ≈ 125·(T − T_d)` és `(T − T_d) ≈ (100 − RH)/5`, tehát
+`z_LCL ≈ 25·(100 − RH)` — a hőmérséklet-tag kiesik, ami azért fontos, mert a
+modell nem hordoz harmatpontot. Az alj a TALAJ fölött képződik, ezért a
+domborzattal együtt emelkedik: a felhőtakaró **ráborul a hegyláncra**, nem
+átvágja. A vastagság rétegfelhő-alap + konvektív tag a lefedettség
+KVADRÁTJÁVAL + orografikus tag a terepmagasságból.
+
+#### Három MÉRT hiba, ami a fejlesztés közben derült ki
+
+1. **A pass egyáltalán nem rajzolódott.** Az első változat `Cull Front` +
+   `ZTest Always` volt (hogy egy sugárra egy fragment essen). Az így megmaradó
+   HÁTSÓ héjlapok a bolygó MÖGÖTT vannak, és a HDRP mélységtesztje eldobta
+   őket — a beépített diagnosztika 1-es módja (a burkoló tömör kitöltése)
+   teljesen üres képet adott. **Javítás:** `Cull Off` + `ZTest LEqual` +
+   GEOMETRIAI lapválasztás (`dot(p − kamera, p) < 0` a közeli oldal), ami
+   ráadásul ingyen ad mélység-takarást felszín-közeli nézetben.
+2. **A menet átlépett a felhő fölött.** A héj a LEGNAGYOBB lehetséges felhőt
+   fogja be (24 km), a tipikus dekk viszont 500–2000 m. 12 lépéssel a menet
+   gyakorlatilag nem mintázta meg a dekket. **Javítás:** a szakasz
+   középpontjának irányában kiolvassuk a HELYI aljat/vastagságot, és a menetet
+   a két helyi gömbhéj közé szorítjuk (+25% padding). Egy extra
+   textúraolvasás, és minden lépés a felhőbe esik.
+3. **Szögletes felhőárnyék-foltok.** A csapadék-mező a referencia-szinten él
+   (level 5, 364 km-es cella), az atlasz level 6-on; a legközelebbi cella
+   átvétele a forrás cellaméretén hagyott hard éleket, amit a GPU bilineáris
+   szűrése nem tud elsimítani. **Javítás:** `CloudSkyAtlas.UpsampleTable` —
+   bilineáris felskálázás a forrás-szintről, a laphatárokat a `TileNeighbors`
+   kezeli. Ez RESAMPLING, nem kiegészítés: a súlyok nemnegatívak és 1-re
+   összegződnek, a csúcsértékek nem nőnek.
+
+#### Három modell-hiba, amit a kép mutatott meg
+
+**(a) Egyenletes szürke fátyol.** Az első változat a lefedettséget
+MULTIPLIKATÍVAN modulálta a részlet-zajjal. Ez fizikailag rossz: egy 364 km-es
+cella 0,1-es lefedettsége azt jelenti, hogy a terület **10%-án VAN felhő és
+90%-án NINCS** — nem azt, hogy az egészet egy tizednyi sűrűségű fátyol fedi.
+A mért következmény pontosan ez lett: derült területek nélküli szürke fátyol.
+
+A javítás a **sub-grid szétbontás**: ott van felhő, ahol a [0,1]-re normált
+részlet-zaj a küszöb alatt van. A küszöb ZÁRT ALAKBAN levezethető, nem hangolt.
+Legyen `f(n) = clamp((T − n)/w, 0, 1)` egyenletes `n`-re:
+
+| tartomány | várható érték | a küszöb |
+|---|---|---|
+| `T < w` | `T²/(2w)` | `T = √(2wc)` |
+| `w ≤ T ≤ 1` | `T − w/2` | `T = c + w/2` |
+| `T > 1` | `(T−w) + (w² − (T−1)²)/(2w)` | `T = 1 + w − √(2w(1−c))` |
+
+A három ág `c = w/2`-nél és `c = 1 − w/2`-nél folytonosan illeszkedik, a két
+végpont EGZAKT: `T(0) = 0` (nulla lefedettség → egzaktul üres, **I3-garancia**)
+és `T(1) = 1 + w` (teljes lefedettség → mindenütt felhő). Csak `√` kell hozzá,
+ami IEEE-754 szerint korrekt kerekítésű. **A zajra vett várható érték a
+modellezett cella-átlag**, tehát a modell mennyisége nem vész el és nem is nő —
+a szétbontás csak ott ad információt, ahol a modellnek nincs: a cella
+BELSEJÉBEN. Teszt bizonyítja (`SubGridCoverage_PreservesTheModelledCellMean`).
+
+**(b) Az ÉJSZAKAI oldal felhői is világítottak.** A Nap felé mért optikai
+mélység csak azt mondja meg, mennyi FELHŐ van a minta fölött — azt nem, hogy a
+Nap a horizont FÖLÖTT van-e. Enélkül a sötét oldal felhői teljes napfényt
+kaptak, és világosszürke foltokként ragyogtak a majdnem fekete felszín fölött.
+**Javítás:** `CloudVolume.DaylightFactor`, ami a TELJES szórási tagot kapuzza —
+az ambiens (égbolt-) részt is, mert az égboltfény maga is SZÓRT NAPFÉNY, tehát
+éjszaka nincs. Az alfa megmarad, ezért az éjszakai felhő SZILUETTKÉNT takar, ami
+fizikailag helyes. A sáv szélessége SZÁRMAZTATOTT: egy h magasságban lévő
+felhőt a Nap még `√(2h/R)` szöggel a horizont alatt is megvilágít; a dekk
+tetejére (h ≈ 2 km, R = 7420 km) ez 0,023 rad, amit a ±0,05-ös
+koszinusz-sáv lefed — ezért a felhő-terminátor a felszínihez képest kissé
+később jön, ami maga a szürkület.
+
+**(c) Sötét szürke felhőfoltok.** Egy egyszeres-szórású raymarch az optikailag
+vastag felhőt **definíció szerint** sötétnek mutatja: a dekk belsejében a Nap
+felé mért optikai mélység 5–20, tehát `exp(−τ)` gyakorlatilag nulla. A valódi
+felhő viszont FEHÉR, mert a vízcsepp egyszeres-szórási albedója ~1 — a fotonok
+nem elnyelődnek, hanem sokszor szóródnak és kijutnak. Ezt a hányadot egy
+egyszeres-szórású modell soha nem tartalmazza. **Javítás:** a szokásos oktávos
+közelítés (`CloudVolume.SunScatterGain`, 4 oktáv): a k. oktáv
+`energia^k` energiát hordoz, `kioltás^k`-szoros optikai mélységet lát, és
+`aszimmetria^k`-val laposabb fázisfüggvénnyel szóródik. A nulladik oktáv
+EGZAKTUL az egyszeres szórás. Mérve `τ = 6`-nál: egyszeres szórás `2,5·10⁻³`,
+oktávos összeg `> 0,2` — két nagyságrend.
+
+#### Mérés (élő Play, 2026-09-27, 1600×900, befagyasztott Nap)
+
+| Mit | Felhő KI | Felhő BE (review előtt) | Felhő BE (**végleges**) |
+|---|---|---|---|
+| Átlagos luminancia a bolygókorongon | 75,55 | 80,93 | **96,89** |
+| Fényes (L > 140) pixelek aránya | 14,01% | 16,22% | **25,13%** |
+| Eltérő pixelek a teljes képen | — | 10,57% | — |
+| GPU-idő (`gpuFrameTime`, 16 minta átlaga) | 2,46 ms | 2,67 ms (**+0,21 ms**) | — |
+| Atlasz-memória | — | 104 KB (egy RGBA32 textúra) | — |
+
+A GPU-különbség a képkockák közti szórás (2,2–3,3 ms) felső határán van, tehát
+**tájékoztató**, nem szigorú mérés — de a nagyságrend (tized ms) egyértelmű.
+
+A harmadik oszlop a code review 3. megállapításának javítása UTÁN mért érték, és
+önmagában is tanulságos: a naiv `0,5 + 0,5·fbm` leképezés a modellezett felhő
+kb. NÉGYÖTÖDÉT elnyomta (a felhőnek tulajdonítható fényes hányad 2,2
+százalékpontról 11,1-re nőtt). A „szebb" korábbi kép tehát nem jobb volt, hanem
+HIÁNYOS — a mostani a modellhez hű.
+
+**Következmény a látvány-ítéletre (B17).** A részlet-létra legfinomabb oktávja
+~23 km hullámhossz, ami teljes bolygó-nézetben (1600 px, 4,6 km/pixel) ~5 pixel
+— az ND-151 MÉRÉSSEL megállapított 8 pixel/oktáv kritériuma ALATT. Kontinens-
+nézetben ez nem probléma (ott a felhő szemmel láthatóan térfogati), bolygó-
+nézetben viszont szemcsés lehet. A lehetséges javítás ugyanaz a nézetfüggő
+sáv-eltolás, amit az ND-151 használ, vagy kevesebb oktáv; hogy KELL-e,
+felhasználói ítélet.
+
+#### Amit a code review talált (mind javítva, kivéve a két dokumentált korlátot)
+
+| # | Mi volt | Javítás |
+|---|---|---|
+| 1 | A felszíni felhőárnyék a bolygó-lokál `up`-ot egy VILÁG-téri Nap-iránnyal szorozta — tengely-forgatásos módban a zenitszög a bolygó forgását követte a Napé helyett | a Nap-irányt a bolygó keretébe forgatjuk |
+| 2 | Az égbolt-nyitottság kiszámolva és becsomagolva, de a shader SEHOL nem olvasta; ráadásul minden sodródási ütemben (1,5 s) újraszámolt ~786 000 mintát | az A csatorna bekötve az ambiens tagba; a nyitottság világonként EGYSZER számolódik (gyorsítótár) |
+| 3 | A sub-grid küszöb zárt alakja EGYENLETES zajra van levezetve, a shader viszont egy közel NORMÁLIS fBm-et adott neki (`0,5 + 0,5·fbm` → a minták a [0,37; 0,63] sávban) — a mean-preservation, amire az I3-érvelés épül, NEM teljesült | `DetailNoiseToUniform`: a normális eloszlásfüggvény logisztikus közelítése; a σ = 0,2537 **MÉRT**, és teszt méri újra a shader zajának tükrével |
+| 4 | A menet ablaka egyetlen, a húr közepén vett mintából jött — a limbet súroló ~1100 km-es húron a terep-követő felhőalap kicsúszott belőle | három minta a húr mentén, min-alj/max-tető uniója |
+| 5 | A héj-anyagot csak a GameObjectet LÉTREHOZÓ ág állította be; Play közbeni domain-reload után a felhő örökre a shader alapértelmezett Napjával rendereltetett volna | a meglévő ág visszaveszi a renderer anyagát |
+| 6 | A régi héj-mesh minden sugárváltozásnál (deep-time lépés!) elszivárgott | a régit eldobjuk |
+| 7 | Nem volt `OnDisable`/`OnDestroy` — a textúra, az anyag és a futó munka Play-ciklusonként felhalmozódott | `CancelCloudAtlasWork` + `ReleaseCloudVolumeResources` |
+| 8 | Az árnyék a cella-átlagos lefedettséggel számol, a felhő a sub-grid szétbontással — az árnyéknak nincsenek a felhő pereméhez illeszkedő élei | **dokumentált korlát**: az egyeztetéshez a részlet-zaj MÁSODIK példánya kellene a terep-shaderben |
+| 9 | A `_CloudWorldToPlanet` az `Update`-ből ment ki, a bolygó forgása viszont egy MÁSIK komponens `Update`-jéből jön — a keret egy frame-et késhetett | az uniformok a `LateUpdate`-ből mennek (ugyanott, ahol a mikro-részleté) |
+| 10 | Holt státusz-property: az „RGBA32 nem támogatott" és „hiba az atlasz-építésben" sosem jutott ki | a státusz a teljesítmény-naplóba kerül |
+| 11 | A `SurfaceSkyOpenness` doksija „nincs benne transzcendens"-t állított, a kód viszont nyers `Math.Cos`/`Sin`-t hívott | `DeterministicMath`, és a gyűrűk szögfüggvényei a ciklusból kiemelve |
+
+**ISMERT KORLÁT, dokumentálva.** Űrből nézve a burkoló KÖZELI lapja van elöl,
+ezért ott a mélységteszt nem segít: egy a felhődekkbe emelkedő HEGY nem takarja
+el a mögötte lévő felhőt. A domináns takaró (a bolygó túloldala) analitikusan
+kezelt (belső héjgömb-metszés). A teljes megoldás mélységtextúra-olvasást
+kívánna, ami HDRP-ben custom pass — külön tétel.
+
+**Kapu.** `cloudVolumetric` (Inspector). Kikapcsolva a réteg nem rajzolódik és
+a felszíni felhőárnyék EGZAKTUL 1-es szorzót ad, tehát a kép bitre az ND-154
+előtti. Diagnosztika: `cloudVolumeDiagnostic` 0–4 (0 = ki, 1 = a burkoló tömör
+kitöltése, 2 = a menet ablakának hossza, 3 = a nyers lefedettség, 4 = az alfa).
+
+**Nem seed-törő, bizonyítva.** A `worldgen hash --seed A7C944210000 --plates 20
+--level 6` mindhárom időpontban bitre az ND-150 óta dokumentált érték
+(`t=0` `2b98af9a…6213738b`, `t=400` `14dc8ad2…59a7ea07`, `t=3000`
+`823e8ba0…cdcfe7ab`). A `WorldGeneratorVersion` marad `"5"`.
+
+**Tesztek.** 48 új Core-teszt (`CloudVolumeTests`) és 20 új viewer-teszt
+(`CloudSkyAtlasTests`, `CloudRaymarchPlanTests`). Teljes futás:
+**1901/1901 zöld**, Unity `compilationFailed: false`, 0 konzol-hiba, mindhárom
+shader `msgCount = 0`.
+
+**NYITOTT: a vizuális átvétel** — ld. todo2 B17. A mérés azt mutatja, hogy a felhő
+ott van, a modellt követi és szerkezete van; hogy a mostani fényesség/sűrűség
+SZÉP-e, felhasználói ítélet.
+
+
+### ND-155 — M13 ambient occlusion: a mikro-relief sávja, mert makro-léptéken NINCS okkludáló domborzat (A16, ELFOGADVA, implementálva)
+
+**A kérdés.** Az M13 „AO" tétele kézenfekvőnek tűnt: völgyek sötétedjenek,
+gerincek ne. A kérdés az volt, MELYIK léptéken.
+
+**A MÉRÉS döntötte el.** A klasszikus terep-AO az égbolt-nyitottság (sky view
+factor). Az új, motorfüggetlen `SurfaceSkyOpenness` ezt zárt alakban számolja:
+egy azimut-szektorban, ahol a horizont α szögben emelkedik, a
+koszinusz-súlyozott látható hányad `cos²α = d²/(d² + Δh²)` — **tisztán
+racionális**, nincs benne se szög, se transzcendens. A valódi világ
+eleváció-mezőjén mérve (seed `A7C944210000`, 20 lemez):
+
+| szint | cellaméret | szárazföldi nyitottság-ÁTLAG | minimum |
+|---|---|---|---|
+| 6 | 182 km | 0,999999 | 0,999965 |
+| 8 | 45,5 km | 0,999996 | 0,999254 |
+| 9 | 22,8 km | 0,999994 | 0,997554 |
+| 10 | 11,4 km | 0,999992 | 0,990073 |
+
+**Makro-léptéken okkludáló domborzat NEM LÉTEZIK — nem csak „nem látszik".**
+Az ok nem a mintavétel: a világmodell relief-létrája ~1564 km hullámhossznál
+VÉGET ÉR (`SurfaceMicroDetail.BaseFrequency`, ld. ND-151), tehát a modellezett
+domborzat ezeken a léptékeken sima. Egy AO, ami itt bármit is mutatna, csak
+felnagyított zaj lenne.
+
+**Következmény: az AO oda kerül, ahol a meredek relief TÉNYLEGESEN van** — az
+ND-151 per-pixel mikro-részletébe. Ez nem kompromisszum, hanem az egyetlen
+hely, ahol okkludáló felület létezik. `SurfaceMicroDetail.AmbientOcclusion`:
+a részlet-zaj MÉLYEDÉSEIBEN csökken, a kiemelkedéseken 1 marad, és a relief
+AMPLITÚDÓJÁVAL skálázódik (sík üledéken gyakorlatilag nincs AO, szirten van) —
+tehát nincs hozzá külön szabad csúszka.
+
+**Az AO KIZÁRÓLAG az AMBIENS tagot csillapítja.** Ez fizika, nem stílus: a
+horizont-eltakarás a SZÓRT (égbolt-) fényt veszi el, a közvetlen napfényt nem —
+azt a `N·L` és a felhőárnyék kezeli.
+
+**A makro sáv mégis be van kötve, MÉRT értékkel.** A nyitottság az atlasz A
+csatornájában megy a shaderhez, és a terep-shader a fizikailag helyes módon
+alkalmazza — az adat viszont azt mondja, hogy nincs eltakarás (~1), tehát a
+látható hatása nulla. Ez SZÁNDÉKOS: nem erősítünk fel egy nem létező jelet.
+Ha a modell valaha finomabb reliefet kap, az út kész, és a
+`ReferenceLevelOpenness_IsEffectivelyOne_TheMeasurementBehindNd155` teszt —
+ami CSAPDAZSINÓR, nem elvárás — elbukik, és pontosan erre mutat rá.
+
+**A HARMADIK okkluder viszont valódi és planetáris: a FELHŐ.** A terep-shader
+ugyanabból az atlaszból olvassa a lefedettséget és a vastagságot, és a DIREKT
+napfényt Beer–Lambert szerint csillapítja, plusz a borult égbolt diffúz
+padlójával (`OvercastDiffuseTransmission = 0,25`) — enélkül az árnyék FEKETE
+lenne (τ = 10-nél az áteresztés 4,5·10⁻⁵), ami se nem fizikai, se nem nézhető.
+Elég a felszíni pont fölött mintavenni: a Nap sugara a felhőalapot
+`alap·tan(zenit)` távolságban keresztezi, ami 1500 m-es alapnál és 60°-os
+zenitnél 2,6 km — az atlasz cellája 182 km, tehát az eltolás a felbontás ALATT
+van, nem közelítés.
+
+**Kapuk.** Az adat-overlay-ek (tektonika, szél, csapadék, hő) alatt a
+felhőárnyék KI van kapcsolva — ugyanaz az elv, mint az ND-151 mikro-részleténél:
+ott a szín egy MÉRT mennyiség palettája (I4), amit egy árnyék-moduláció
+félreolvashatóvá tenne. Kikapcsolva (`cloudShadowStrength = 0` vagy a
+mikro-részlet kapuja zárva) a shader EGZAKTUL 1-es szorzót és 1-es AO-t ad,
+tehát a kép bitre a korábbi.
+
+**Tesztek.** 11 új Core-teszt (`SurfaceSkyOpennessTests`, benne a fenti mérés
+csapdazsinórként) és 5 új AO-teszt a `SurfaceMicroDetailTests`-ben.
+
+
+### ND-156 — Színkalibráció: mi készült el most, és miért a felhasználói átvétel után jön a többi (A16, RÉSZBEN HALASZTVA)
+
+**A tétel.** Az M13 harmadik lába a „végleges színkalibráció" (spec §73).
+
+**Ami MOST elkészült: a felhő-réteg saját kalibrációja.** Ez új réteg, nincs
+mihez „visszanyúlni", tehát a kalibrációja az ND-154 része és fizikai
+alapokon áll: a kioltási együttható (0,02 1/m → egy 500 m-es rétegfelhő
+optikai mélysége 10, a mért stratus-tartomány alsó sávja), a
+Henyey–Greenstein-aszimmetria (0,62), a többszörös szórás oktávjai, és a
+borult égbolt diffúz padlója (0,25 — a mért 20–30%-os globális sugárzás-arány).
+Egyik sem szemre állított szám.
+
+**Ami HALASZTVA: a TEREP-paletta újrafokozása.** Ennek két oka van, és
+mindkettő tárgyi:
+
+1. **A paletta jelenlegi értékeit a felhasználó ÉLŐBEN, szemre hangolta be**
+   több körben (ld. a backlog felhő-/csillanás-/ambiens-köreit). Lineáris
+   színtérben (`m_ActiveColorSpace: 1`) ezek a számok lineáris
+   radiancia-szorzók, nem sRGB-albedók — egy „helyes színtérre hozás" tehát
+   NEM javítás lenne, hanem a hangolás eldobása.
+2. **A felhő megváltoztatja a referenciát.** Mostantól a kép jelentős része
+   felhő, és a felhő fényessége a terep fölé kerül; hogy a terep ehhez képest
+   hol legyen, csak a felhő vizuális átvétele UTÁN dönthető el. A todo2 maga is
+   így fogalmaz: „a színkalibráció csak a többi látvány-tétel után értelmes".
+
+**Az eljárás, amikor sorra kerül** (hogy ne kelljen újra kitalálni): minden
+render-kategóriához tartozzon egy dokumentált FIZIKAI albedó (spec §29
+kategóriái: víz, hó, jég, kőzet, homok, növényzet), a paletta lineáris
+luminanciáinak RENDEZÉSE egyezzen az albedók rendezésével, és egyetlen
+globális expozíciós tényezővel illeszkedjenek — ami ebből kilóg, azt kell
+újrafokozni. Ez mérhető, tesztelhető kapu; a hiányzó bemenet nem a módszer,
+hanem a felhasználói ítélet arról, hogy a felhővel együtt milyen összkép a cél.
+
+**Következmény a listán:** az A16 volumetrikus felhő + AO lába KÉSZ, a
+színkalibrációs lába a todo2 B18 sora (a B17 vizuális átvétel UTÁN).
+
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

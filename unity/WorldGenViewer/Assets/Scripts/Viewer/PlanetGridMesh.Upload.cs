@@ -265,6 +265,9 @@ namespace WorldGen.Viewer
             if (_riverRefinementTask != null)
                 _fullBuildRequestedAfterCut = true;
             CancelRiverRefinement();
+            // ND-154: a felho-atlasz hatterszalas munkajat is le kell allitani,
+            // kulonben egy letiltott komponens utan is dolgozik.
+            CancelCloudAtlasWork();
         }
         private void OnDestroy()
         {
@@ -273,6 +276,7 @@ namespace WorldGen.Viewer
             // A szülő megszűnése már törli a gyerekeket; csak saját mesh-einket takarítjuk.
             ClearAllDynamicChunkResources(destroyTargets: false);
             if (_uploadBorderMaterial != null) SafeDestroy(_uploadBorderMaterial);
+            ReleaseCloudVolumeResources();
         }
     }
 }

@@ -40,6 +40,7 @@ namespace WorldGen.Viewer
         private static readonly int MicroWorldToPlanetId = Shader.PropertyToID("_MicroWorldToPlanet");
         private static readonly int MicroDetailStrengthId = Shader.PropertyToID("_MicroDetailStrength");
         private static readonly int MicroDetailEnableId = Shader.PropertyToID("_MicroDetailEnable");
+        private static readonly int MicroDetailAoId = Shader.PropertyToID("_MicroDetailAo");
 
         private ulong _microDetailPhaseSeed;
         private bool _microDetailPhaseValid;
@@ -81,6 +82,10 @@ namespace WorldGen.Viewer
 
             MicroDetailBand.Band band = SelectMicroDetailBand();
             Shader.SetGlobalFloat(MicroDetailStrengthId, microDetailStrength);
+            // ND-155: a mikro-relief onarnyekolasa (AO). A szam a Core-bol jon;
+            // a kapu ugyanaz, mint a reszletnel (kikapcsolva a shader egzaktul
+            // 1-es AO-t ad, tehat a kep bitre a korabbi).
+            Shader.SetGlobalFloat(MicroDetailAoId, (float)SurfaceMicroDetail.AmbientOcclusionStrength);
             Shader.SetGlobalVector(MicroDetailBandId, new Vector4(
                 (float)band.BaseFrequency, (float)band.Fraction, (float)band.Visibility, 0f));
             Shader.SetGlobalVector(MicroDetailPhaseId, MicroDetailPhase());

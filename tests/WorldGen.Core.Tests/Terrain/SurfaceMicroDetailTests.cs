@@ -167,5 +167,60 @@ namespace WorldGen.Core.Tests.Terrain
             foreach (double v in new[] { x1, y1, z1, x3, y3, z3 })
                 Assert.InRange(v, 0.0, 1024.0);
         }
+
+        // ------------------------------------------------------------------
+        // ND-155: a mikro-relief onarnyekolasa (AO)
+        // ------------------------------------------------------------------
+
+        [Fact]
+        public void AmbientOcclusion_OnRidges_IsUnoccluded()
+        {
+            // A zaj POZITIV vege (kiemelkedes) teljes egboltot lat.
+            Assert.Equal(1.0, SurfaceMicroDetail.AmbientOcclusion(1.0, SurfaceMicroDetail.RockNormalAmplitude), 12);
+            Assert.Equal(1.0, SurfaceMicroDetail.AmbientOcclusion(5.0, SurfaceMicroDetail.RockNormalAmplitude), 12);
+        }
+
+        [Fact]
+        public void AmbientOcclusion_InPits_IsDarkenedByTheDocumentedStrength()
+        {
+            double deepest = SurfaceMicroDetail.AmbientOcclusion(-1.0, SurfaceMicroDetail.RockNormalAmplitude);
+            Assert.Equal(1.0 - SurfaceMicroDetail.AmbientOcclusionStrength, deepest, 12);
+            Assert.Equal(deepest, SurfaceMicroDetail.AmbientOcclusion(-9.0, SurfaceMicroDetail.RockNormalAmplitude), 12);
+        }
+
+        [Fact]
+        public void AmbientOcclusion_ScalesWithTheReliefAmplitude()
+        {
+            // Sik uledeken gyakorlatilag nincs AO, kozeten van - a relief
+            // AMPLITUDOJA szabja meg, nem egy kulon csuszka.
+            double plains = SurfaceMicroDetail.AmbientOcclusion(-1.0, SurfaceMicroDetail.PlainsNormalAmplitude);
+            double rock = SurfaceMicroDetail.AmbientOcclusion(-1.0, SurfaceMicroDetail.RockNormalAmplitude);
+            Assert.True(plains > rock, "a sikabb felszin kevesebb onarnyekot ad");
+            Assert.True(plains > 0.9, $"sik felszinen az AO elhanyagolhato: {plains}");
+            Assert.Equal(1.0, SurfaceMicroDetail.AmbientOcclusion(-1.0, 0.0), 12);
+        }
+
+        [Fact]
+        public void AmbientOcclusion_IsMonotoneAndBounded()
+        {
+            double previous = 0.0;
+            for (int i = -10; i <= 10; i++)
+            {
+                double ao = SurfaceMicroDetail.AmbientOcclusion(i / 10.0, SurfaceMicroDetail.RockNormalAmplitude);
+                Assert.InRange(ao, 0.0, 1.0);
+                Assert.True(ao >= previous, "a magasabb reszlet-pont nem lehet arnyekosabb");
+                previous = ao;
+            }
+        }
+
+        [Fact]
+        public void AmbientOcclusion_ClampsAnAmplitudeAboveTheRockMaximum()
+        {
+            // Az elo-hangolhato erosseg (microDetailStrength) a shaderben
+            // 2-ig mehet, tehat az amplitudo tulloghet a Core maximuman -
+            // az AO ott sem fordulhat negativba.
+            Assert.InRange(SurfaceMicroDetail.AmbientOcclusion(-1.0, 10.0), 0.0, 1.0);
+            Assert.InRange(SurfaceMicroDetail.AmbientOcclusion(-1.0, -3.0), 0.0, 1.0);
+        }
     }
 }

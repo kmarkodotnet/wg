@@ -1273,6 +1273,9 @@ namespace WorldGen.Viewer
             // ND-104: a hőmező háttérmunkája és snapshot-átvétele független a
             // LOD-ág korai visszatéréseitől.
             UpdateThermalOverlay();
+            // ND-154/ND-155: a térfogati felhő atlaszának háttérmunkája és a
+            // héj-uniformok - szintén független a LOD-ág korai visszatéréseitől.
+            UpdateCloudVolume();
             TickUnusedTerrainChunks();
             if (!useAdaptiveLod)
             {
@@ -1983,7 +1986,12 @@ namespace WorldGen.Viewer
                 Build();
                 return;
             }
-            if (!showClouds)
+            // ND-154: a LAPOS felho-MVP es a TERFOGATI felho UGYANAZT a fizikai
+            // reteget abrazolja, csak mashogy - egyszerre rajzolva ket, egymast
+            // atfedo felhoreteget adnanak. Ha a terfogati aktiv, a lapos
+            // kikapcsol; a `showClouds` igy a terfogati kikapcsolasa utan
+            // valtozatlanul mukodik (visszaesesi ut).
+            if (!showClouds || CloudVolumeActive)
             {
                 BuildClouds(null);
                 SnapshotCloudConfig();
@@ -3203,7 +3211,10 @@ namespace WorldGen.Viewer
             // M6/M13 felho-reteg MVP - ld. showClouds doksija: a suruseget a
             // MAR kiszamolt csapadek-mezobol vezetjuk le, nincs kulon
             // szimulacios lepes.
-            BuildClouds(showClouds ? precipField : null, cloudDriftEnabled ? _cloudDriftTime : 0.0);
+            // ND-154: a terfogati felho aktiv allapotaban a lapos MVP-reteg
+            // kikapcsol - ugyanazt a fizikai reteget abrazoljak (ld.
+            // ApplyCloudOnlyRebuild ugyanezen kapuja).
+            BuildClouds(showClouds && !CloudVolumeActive ? precipField : null, cloudDriftEnabled ? _cloudDriftTime : 0.0);
             PerfLog($"Build() clouds(enabled={showClouds})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
             buildPhaseStopwatch.Restart();
 
@@ -9800,6 +9811,14 @@ namespace WorldGen.Viewer
                 _cloudMaterial.SetColor(SunColorId, sunColor);
                 _cloudMaterial.SetFloat(AmbientId, diagForceZeroLighting ? 0f : cloudAmbient);
             }
+            // ND-154: a terfogati felho ugyanezt a Nap-iranyt/szint kapja. A
+            // shader a _CloudWorldToPlanet-tel forgatja bolygo-lokalba, tehat
+            // itt is a VILAG-teri irany kell.
+            if (_cloudVolumeMaterial != null)
+            {
+                _cloudVolumeMaterial.SetVector(SunDirId, new Vector4(toSun.x, toSun.y, toSun.z, 0f));
+                _cloudVolumeMaterial.SetColor(SunColorId, diagForceZeroLighting ? Color.black : sunColor);
+            }
             // A vizfelszin SAJAT, alacsonyabb specular-parametereket kap - ld.
             // CreateWaterSurfaceMaterial doksija (a sima gombhej-geometria
             // koherens normalja miatt ugyanaz a specular-ertek sokkal
@@ -9849,6 +9868,9 @@ namespace WorldGen.Viewer
             // A folytonos felszin valos ideju vilagitasa a mozgo Napot koveti.
             // Olcso (egyetlen megosztott anyag nehany uniformja), minden frame.
             UpdateSurfaceLightingUniforms();
+            // ND-154: a felho-uniformok (kozottuk a bolygo-lokal keret) MINDEN
+            // Update utan mennek ki - ld. ApplyCloudVolumeUniforms doksijat.
+            ApplyCloudVolumeUniforms();
 
             // ND-49 kiegeszites: a hatter-szalon futo folyo-finomitas
             // eredmenyenek fo-szalu atvetele, amint elkeszult - ld.

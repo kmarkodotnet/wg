@@ -99,5 +99,15 @@ namespace WorldGen.Core.Random
         /// "ugyanaz a seed, ugyanaz a látvány" viszont teljesül.
         /// </summary>
         public const uint MicroDetailPhase = 43;
+
+        /// <summary>
+        /// A TÉRFOGATI felhő (ND-154, M13) részlet-zajának FÁZISA. Szintén a
+        /// <see cref="RandomDomain.Decorative"/> domainben: a felhő-raymarch
+        /// per-pixel, render-oldali, és SEMMI nem csatolja vissza a
+        /// világmodellbe (ld. <see cref="Climate.CloudVolume"/>) — a felhő
+        /// LEFEDETTSÉGE a modellezett csapadék-mezőből jön, csak a
+        /// lefedettség-mező felbontása ALATTI részlet fázisa ez.
+        /// </summary>
+        public const uint CloudDetailPhase = 44;
     }
 }

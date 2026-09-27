@@ -61,6 +61,10 @@ Shader "WorldGen/VertexColorUnlit"
             // tamogatja, ezert kell a 3.5.
             #pragma target 3.5
             #include "UnityCG.cginc"
+            // ND-154: a kockagomb-atlasz UV-kepletet MOSTANTOL kozos include
+            // adja, mert a felho-raymarch (CloudVolume.shader) ugyanazt olvassa -
+            // ket masolat pont az ND-128 hibaosztalya lenne.
+            #include "PlanetCubeAtlas.cginc"
 
             float4 _SunDir;
             float4 _SunColor;
@@ -107,34 +111,6 @@ Shader "WorldGen/VertexColorUnlit"
                 return o;
             }
 
-            // Core-irányból (Unity-lokál (x, z, y) tengelycserével) atlasz-UV.
-            // A TileGeometry lapkonvencióját és a tan-warp inverzét tükrözi;
-            // a CPU-oldali pár: ThermalOverlayPacking.AtlasCoordinate.
-            float2 ThermalAtlasUv(float3 planetLocal)
-            {
-                float3 u = normalize(planetLocal);
-                float3 p = float3(u.x, u.z, u.y);
-                float3 a = abs(p);
-                int axis = 0;
-                if (a.y > a.x) axis = 1;
-                if (a.z > (axis == 0 ? a.x : a.y)) axis = 2;
-                float dominant = axis == 0 ? p.x : (axis == 1 ? p.y : p.z);
-                int face = axis * 2 + (dominant >= 0.0 ? 0 : 1);
-                float inv = 1.0 / max(abs(dominant), 1e-6);
-                float wx, wy;
-                if (face == 0)      { wx = -p.z; wy = p.y; }
-                else if (face == 1) { wx = p.z;  wy = p.y; }
-                else if (face == 2) { wx = p.x;  wy = p.z; }
-                else if (face == 3) { wx = p.x;  wy = -p.z; }
-                else if (face == 4) { wx = p.x;  wy = p.y; }
-                else                { wx = -p.x; wy = p.y; }
-                float uc = atan(wx * inv) * 4.0 / UNITY_PI;
-                float vc = atan(wy * inv) * 4.0 / UNITY_PI;
-                float x = (66.0 * face + 1.0 + (uc + 1.0) * 32.0) / 396.0;
-                float y = (1.0 + (vc + 1.0) * 32.0) / 66.0;
-                return float2(x, y);
-            }
-
             // Fix, abszolút skála: min → kék → cián → 0 °C világos semleges →
             // sárga → piros ← max. A C# jelmagyarázat ugyanezt a függvényt
             // tükrözi (ThermalOverlayPacking.Palette).
@@ -155,13 +131,81 @@ Shader "WorldGen/VertexColorUnlit"
                 return w < 0.5 ? lerp(neutral, warm1, w * 2.0) : lerp(warm1, warm0, w * 2.0 - 1.0);
             }
 
-            // Biztonsagos normalize: nulla-kozeli (degeneralt) bemenetre a
-            // megadott tartalek-iranyt adja NaN helyett (HLSL normalize(0,0,0)
-            // = NaN, 0/0 miatt).
-            float3 SafeNormalize(float3 v, float3 fallback)
+            // A SafeNormalize/PlanetSmoothstep01 a kozos PlanetCubeAtlas.cginc-bol jon.
+            #define SafeNormalize PlanetSafeNormalize
+
+            // ---------------------------------------------------------------
+            // ND-154 (M13): FELHOARNYEK A FELSZINEN.
+            //
+            // A felho mar nem csak a bolygo fole rajzolt reteg: eltakarja a
+            // Napot. A lefedettseg es a vastagsag UGYANABBOL az atlaszbol jon,
+            // amit a felho-raymarch olvas (CloudSkyAtlas: R=lefedettseg,
+            // B=vastagsag) - egyetlen textura, nulla extra feltoltes.
+            //
+            // A KEPLET a Core CloudVolume.SurfaceSunlightFactor tukre:
+            // Beer-Lambert a Nap zenitszogevel megnyujtott uton, PLUSZ a borult
+            // egbolt diffuz padloja (OvercastDiffuseTransmission) - enelkul az
+            // arnyek FEKETE lenne (tau=10-nel az atereszte 4,5e-5), ami se nem
+            // fizikai, se nem nezheto.
+            //
+            // ISMERT FELBONTAS-ELTERES (dokumentalt, ld. ND-154). Az ARNYEK a
+            // CELLA-ATLAGOS lefedettseggel szamol (level 6, ~182 km), a
+            // felho-raymarch viszont a cellan BELULI szetbontast rajzolja.
+            // Kovetkezmeny: az arnyek egy sima, 182 km leptekű mosas, aminek
+            // nincsenek a felho pereméhez illeszkedo elei. Az egyezteteshez a
+            // reszlet-fBm-et ide is be kellene hozni (a felhoalap magassagaban
+            // mintavetelezve), ami a zaj MASODIK peldanyat jelentene ebben a
+            // shaderben - ezert tudatosan nem tettuk meg.
+            //
+            // MIERT ELEG A FELSZINI PONT FOLOTT MINTAVENNI. A Nap sugara a
+            // felhoalapot a felszini ponttol `alap * tan(zenit)` -re keresztezi:
+            // 1500 m-es alapnal es 60 fokos zenitnel 2,6 km - az atlasz cellaja
+            // 182 km, tehat az eltolas a felbontas ALATT van, nem kozelites.
+            //
+            // _CloudShadow = (erosseg, extinction*profil-atlag, maxThickness, diffuz padlo)
+            // Ha a C# nem allitja be (vagy a felho ki van kapcsolva), az elso
+            // komponens 0, es a fuggveny EGZAKTUL 1-et ad: a kep bitre a
+            // korabbi.
+            float4 _CloudShadow;
+            sampler2D _CloudSkyTex;
+            // A bolygo-lokal keret a felhoarnyekhoz. SZANDEKOSAN NEM a
+            // _MicroWorldToPlanet: azt a C# csak a mikro-reszlet aktiv
+            // allapotaban allitja be, ez viszont a felho-uniformokkal egyutt
+            // MINDIG friss (ld. PlanetGridMesh.CloudVolume ApplyCloudVolumeUniforms).
+            float4x4 _CloudWorldToPlanet;
+
+            // Az atlasz A csatornaja az EGBOLT-NYITOTTSAG (ND-155): a makro
+            // AO. MERVE ez a mezo ~1 (level 6-on 0,999999), mert a
+            // vilagmodell domborzatanak nincs teljesitmenye ~1564 km alatt -
+            // a lathato hatasa tehat nulla, ES EZ IGY HELYES: nem erositunk
+            // fel egy nem letezo jelet. Az ut viszont KESZ, ha a modell valaha
+            // finomabb reliefet kap (a Core-oldali csapdazsinor-teszt akkor
+            // elbukik, ld. SurfaceSkyOpennessTests).
+            //
+            // Ha a C# nem allitotta be az atlaszt, a mintavetel 0-t adna -
+            // ezert a _CloudShadow.x kapu itt is dont (0 = nincs adat).
+            float SkyOpennessAt(float3 planetPos)
             {
-                float lenSq = dot(v, v);
-                return lenSq > 1e-10 ? v * rsqrt(lenSq) : fallback;
+                if (_CloudShadow.x <= 0.0)
+                    return 1.0;
+                return tex2D(_CloudSkyTex, PlanetAtlasUv(planetPos)).a;
+            }
+
+            float CloudSunlightFactor(float3 planetPos, float3 up, float3 L)
+            {
+                if (_CloudShadow.x <= 0.0)
+                    return 1.0;
+                float4 atlas = tex2D(_CloudSkyTex, PlanetAtlasUv(planetPos));
+                float coverage = atlas.r;
+                if (coverage <= 0.0)
+                    return 1.0;
+                float thicknessMeters = atlas.b * _CloudShadow.z;
+                float cosSun = max(dot(up, L), 0.15);
+                float tau = _CloudShadow.y * coverage * thicknessMeters / cosSun;
+                float transmitted = exp(-tau);
+                float shadowed = transmitted + (1.0 - transmitted) * _CloudShadow.w;
+                float factor = 1.0 + (shadowed - 1.0) * coverage;
+                return lerp(1.0, factor, saturate(_CloudShadow.x));
             }
 
             // ---------------------------------------------------------------
@@ -188,6 +232,7 @@ Shader "WorldGen/VertexColorUnlit"
             float4 _MicroDetailGeometry;  // (rajzolt radiusz, elevationScale, relief-exaggeration, tengerszint m)
             float4x4 _MicroWorldToPlanet;
             float _MicroDetailStrength;   // globalis, elo-hangolhato erosseg (0 = kikapcsolva)
+            float _MicroDetailAo;         // SurfaceMicroDetail.AmbientOcclusionStrength (0 = nincs AO)
             float _MicroDetailEnable;     // ANYAG-szintu kapu: a vizfelszin 0-t kap
 
             uint MicroHash(uint3 p)
@@ -251,11 +296,7 @@ Shader "WorldGen/VertexColorUnlit"
                 return norm > 1e-6 ? total / norm : 0.0;
             }
 
-            float MicroSmoothstep01(float t)
-            {
-                t = saturate(t);
-                return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
-            }
+            #define MicroSmoothstep01 PlanetSmoothstep01
 
             // A felszini pont "kozetessege" es viz-alattisaga - a
             // SurfaceMicroDetail.Rockiness/Submergence parja, ugyanazokkal a
@@ -288,8 +329,9 @@ Shader "WorldGen/VertexColorUnlit"
 
             // A normal perturbalasa + az albedo modulalasa. A visszaadott ertek
             // a szin-multiplikator; a normalt helyben modositja.
-            float ApplyMicroDetail(float3 positionWS, inout float3 N)
+            float ApplyMicroDetail(float3 positionWS, inout float3 N, out float ambientOcclusion)
             {
+                ambientOcclusion = 1.0;
                 float gate = _MicroDetailEnable * _MicroDetailStrength * _MicroDetailBand.z;
                 if (gate <= 0.0)
                     return 1.0;
@@ -344,6 +386,19 @@ Shader "WorldGen/VertexColorUnlit"
                     return 1.0;
 
                 N = SafeNormalize(N - normalAmplitude * gain * (dt * t + db * b), N);
+
+                // ND-155: a mikro-relief ONARNYEKOLASA. MIERT ITT: a
+                // vilagmodell domborzatanak nincs teljesitmenye ~1564 km
+                // hullamhossz alatt, es MERVE a referencia-szintu
+                // eleváció-mezobol szamolt egbolt-nyitottsag szarazfoldi atlaga
+                // 0,999999 (level 6) / 0,999992 (level 10) - makro-lepteken
+                // OKKLUDALO domborzat nem letezik. A kepen tenylegesen meredek
+                // relief EGYEDUL ez a mikro-reszlet, tehat az AO is csak itt
+                // ertelmes (ld. ND-155). A Core par: SurfaceMicroDetail.AmbientOcclusion.
+                float relief = saturate(normalAmplitude / max(_MicroDetailResponse.y, 1e-6));
+                float depth = 0.5 - 0.5 * clamp(h0, -1.0, 1.0);
+                ambientOcclusion = saturate(1.0 - _MicroDetailAo * relief * depth * gain);
+
                 return 1.0 + h0 * albedoJitter * gain;
             }
 
@@ -351,7 +406,7 @@ Shader "WorldGen/VertexColorUnlit"
             {
                 if (_ThermalMode > 0.5 && dot(i.positionPlanet, i.positionPlanet) > 1e-10)
                 {
-                    float2 uv = ThermalAtlasUv(i.positionPlanet);
+                    float2 uv = PlanetAtlasUv(i.positionPlanet);
                     float normalized = _ThermalMode < 1.5 ? tex2D(_ThermalSurfaceTex, uv).r : tex2D(_ThermalAirTex, uv).r;
                     float kelvin = normalized * 655.35 + 150.0;
                     float3 thermal = ThermalPalette(kelvin);
@@ -368,13 +423,33 @@ Shader "WorldGen/VertexColorUnlit"
                 // egy albedo-multiplikatort. Kikapcsolva (vagy nem beallitott
                 // uniformokkal) egzaktul 1.0-t ad es a normalt nem valtoztatja,
                 // tehat a korabbi kep BITRE valtozatlan.
-                float microAlbedo = ApplyMicroDetail(i.positionWS, N);
+                float microAo;
+                float microAlbedo = ApplyMicroDetail(i.positionWS, N, microAo);
                 float3 L = SafeNormalize(_SunDir.xyz, float3(0, 1, 0));
                 float ndotl = saturate(dot(N, L));
 
+                // ND-154: a felhoarnyek a DIREKT tagot csillapitja; ND-155: az
+                // AO az AMBIENS tagot. Ez nem stiluskerdes, hanem fizika: a
+                // horizont-eltakaras a szort (egbolt-) fenyt veszi el, a felho
+                // pedig a Nap direkt sugarzasat.
+                float3 planetPos = mul(_CloudWorldToPlanet, float4(i.positionWS, 1.0)).xyz;
+                float3 up = SafeNormalize(planetPos, N);
+                // A Nap iranyat a BOLYGO keretebe kell forgatni, mert az `up`
+                // is ott van. Vilag-teri L-lel a zenitszog a bolygo forgasat
+                // koveti a Nape helyett (tengely-forgatasos modban a
+                // SunController a Planet transzformot forgatja) - a
+                // szubszolaris cella a 0,15-os padlora eshet, ami ~6,7x-re
+                // felfujja az optikai melyseget. A felho-raymarch ugyanezt
+                // mar helyesen teszi (CloudVolume.shader).
+                float3 sunPlanet = SafeNormalize(mul((float3x3)_CloudWorldToPlanet, L), up);
+                float sunFactor = CloudSunlightFactor(planetPos, up, sunPlanet);
+                // ND-155: a MAKRO AO (egbolt-nyitottsag) ugyanugy az AMBIENS
+                // tagot csillapitja, mint a mikro sav - a ketto szorzodik.
+                float macroAo = SkyOpennessAt(planetPos);
+
                 // Diffuz: ambiens padlo + iranyfeny (sose teljesen fekete az
                 // ejszakai oldal, hogy a domborzat/szin ott is kivehet
-                float3 diffuse = _Ambient + (1.0 - _Ambient) * ndotl * _SunColor.rgb;
+                float3 diffuse = _Ambient * microAo * macroAo + (1.0 - _Ambient) * ndotl * sunFactor * _SunColor.rgb;
 
                 // Blinn-Phong spekularis a valos kamera- es Nap-irannyal.
                 // 2026-09-09: ha a Nap- (L) es kamera-irany (V) KOZEL
@@ -394,7 +469,7 @@ Shader "WorldGen/VertexColorUnlit"
                 if (lvLenSq > 1e-10)
                 {
                     float3 H = LV * rsqrt(lvLenSq);
-                    spec = pow(saturate(dot(N, H)), _Shininess) * _SpecStrength * ndotl;
+                    spec = pow(saturate(dot(N, H)), _Shininess) * _SpecStrength * ndotl * sunFactor;
                 }
 
                 float3 rgb = i.color.rgb * microAlbedo * diffuse + spec * _SunColor.rgb;

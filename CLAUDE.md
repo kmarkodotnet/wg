@@ -173,6 +173,14 @@ a geometria-eltolás kész, ld. `docs/04-decisions.md` ND-19 A12/2.)*
 
 Részletek: `docs/05-milestones.md`.
 
+**M13 (2026-09-27, A16):** a Planet nézet felhője mostantól TÉRFOGATI —
+saját, gömbi raymarch a csapadék-mezőből (ND-154), felszíni felhőárnyékkal.
+Az AO helyét MÉRÉS döntötte el (ND-155): a szárazföldi égbolt-nyitottság level
+6-on 0,999999, level 10-en 0,999992, tehát makro-léptéken NINCS okkludáló
+domborzat (a relief-létra ~1564 km-nél véget ér) — az AO ezért a per-pixel
+mikro-reliefbe került, a planetáris okkluder pedig a felhő. A színkalibráció
+(ND-156) tudatosan a vizuális átvétel utánra halasztva.
+
 **ND-01 lezárva: Unity 6 + HDRP.** A `src/` motorfüggetlensége (netstandard2.1,
 nulla Unity-referencia) ettől függetlenül megmarad — a Unity-projekt a
 `src/WorldGen.Core`-t helyi package-ként, forrás szerint hivatkozza, nem

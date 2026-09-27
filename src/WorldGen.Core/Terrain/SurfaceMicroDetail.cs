@@ -113,6 +113,39 @@ namespace WorldGen.Core.Terrain
         /// </summary>
         public const double SubmergenceBandMeters = 200.0;
 
+        /// <summary>
+        /// A mikro-relief ÖNÁRNYÉKOLÁSÁNAK (ambient occlusion) erőssége —
+        /// M13/ND-155. MIÉRT ITT VAN AZ AO: a világmodell domborzatának
+        /// NINCS teljesítménye ~1564 km hullámhossz alatt (a relief-létra a
+        /// <see cref="BaseFrequency"/>-nél véget ér), és MÉRVE a
+        /// referencia-szintű eleváció-mezőből számolt égbolt-nyitottság
+        /// (<see cref="SurfaceSkyOpenness"/>) szárazföldi átlaga level 6-on
+        /// 0,999999, level 10-en 0,999992 — azaz makro-léptéken okkludáló
+        /// domborzat NEM LÉTEZIK, nem csak „nem látszik”. A képen ténylegesen
+        /// meredek relief EGYEDÜL a mikro-részlet, tehát az AO is CSAK itt
+        /// értelmes. Ld. ND-155.
+        /// </summary>
+        public const double AmbientOcclusionStrength = 0.6;
+
+        /// <summary>
+        /// A mikro-relief AO-ja [0,1]: a részlet-zaj MÉLYEDÉSEIBEN
+        /// (<paramref name="noise"/> &lt; 0) csökken, a kiemelkedéseken 1
+        /// marad, és a relief AMPLITÚDÓJÁVAL skálázódik (sík üledéken
+        /// gyakorlatilag nincs AO, szirten van). Az AO KIZÁRÓLAG az AMBIENS
+        /// (égbolt-) tagot csillapítja: fizikailag a horizont-eltakarás a
+        /// szórt fényt veszi el, a közvetlen napfényt nem — azt a
+        /// <c>N·L</c> és az árnyék kezeli.
+        /// </summary>
+        public static double AmbientOcclusion(double noise, double normalAmplitude)
+        {
+            double relief = normalAmplitude / RockNormalAmplitude;
+            if (relief < 0.0) relief = 0.0;
+            else if (relief > 1.0) relief = 1.0;
+            double depth = 0.5 - 0.5 * (noise < -1.0 ? -1.0 : (noise > 1.0 ? 1.0 : noise));
+            double ao = 1.0 - AmbientOcclusionStrength * relief * depth;
+            return ao < 0.0 ? 0.0 : ao;
+        }
+
         /// <summary>Egy pont mikro-részlet-válasza (mind dimenziótlan, render-oldali).</summary>
         public readonly struct MicroDetailResponse
         {
