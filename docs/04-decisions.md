@@ -1064,19 +1064,47 @@ balance), `src/WorldGen.Core/Tectonics/SeaLevelCalibration.cs`
 LOD), ND-39 (Burst/Job és a sarok-cache/warp-hoisting), spec §51-52 és
 §70.5.
 
-### ND-20 — Burst `FloatMode.Strict` kikényszerítése ⚠️ M2, korai
+### ND-20 — Burst `FloatMode.Strict` kikényszerítése (A13, LEZÁRVA: CI-szkript, előre megírva)
 
 Az ND-01 miatt aktív. A Burst alapból `FloatMode.Default`-ban fordít, ami
 engedélyezi a lebegőpontos műveletek átrendezését — ez csendben megsérti
 I1-et. Egyetlen hiányzó `[BurstCompile(FloatMode = FloatMode.Strict)]` csak
 platformok közötti hash-eltérésnél derül ki, ami nagyon drága hibakeresés.
 
-**Javaslat:** CI-szkript vagy Roslyn analyzer, ami hibát dob minden
-`WorldGen.*` névtérbeli `[BurstCompile]`-ra, aminek nincs
-`FloatMode = FloatMode.Strict` paramétere.
+**Döntés (2026-09-27): CI-szkript, nem Roslyn analyzer.** A kapu
+`tools/ci/check_burst_strict.py`, a CI-ben önálló `burst-strict` job. Miért
+szkript és nem analyzer: az analyzert csak a `dotnet build` futtatja, a
+Unity-oldali `Assets/` fordítását pedig a CI-gépeken nincs mivel elvégezni
+(nincs Unity — ld. a `tests/WorldGen.*.Compile` kapuk indoklását). A
+szöveges scanner ugyanazzal az egy futással látja a `src/`, `tests/`,
+`tools/` és `unity/WorldGenViewer/Assets/` alatti **összes** `.cs`-t,
+függetlenül attól, hogy melyik assembly-be fordulna — és Unity nélkül is fut.
 
-**Sürgősség:** amint az első Burst-kód megjelenik a szimulációs oldalon —
-ne utólag foltozzuk be.
+**A kikényszerített szabály.** Minden `[BurstCompile]` attribútum-használat
+explicit `FloatMode = FloatMode.Strict`-et kap. Ezen felül a kapu elutasítja a
+`FloatPrecision.Low` / `.Medium` értékeket is: ezek nem az átrendezést, hanem
+a matematikai függvények approximációját engedélyezik, tehát ugyanabba az
+I1-osztályba tartoznak. A `Standard` és a `High` átmegy. A `FloatMode`
+többi értéke (`Default`, `Fast`, `Deterministic`) mind sértés — a
+`Deterministic` is, mert a Burst-ben ma nem garantált szemantika.
+
+**A kapu ELŐRE készült el, nulla találaton.** A repóban ma egyetlen
+`[BurstCompile]` sincs (301 átvizsgált `.cs`); az ND-39 „A" opciója még nem
+indult el. A kapu szándékosan a használat **előtt** került be, hogy az első
+Burst-commit-tal EGYÜTT váltson pirosra, ne utólag, foltozásként. Egy mindig
+zöld kapu viszont értéktelen, ezért a szkript `--self-test` módja 28
+fixture-on (13 átengedendő, 14 elutasítandó, 1 sorszám-ellenőrzés) bizonyítja,
+hogy valóban fog — a CI mindkettőt futtatja. A self-test a fejlesztés során
+egy valódi hibát fogott a kapuban: az összevont attribútum-listában
+(`[StructLayout(...), BurstCompile]`) a visszafelé-olvasás megállt az előző
+attribútum záró zárójelén, és a sértés átment.
+
+**Ismert, tudatos határ:** a scanner szöveges, nem szemantikus. Ha valaki
+saját, `BurstCompile` nevű attribútumot ír, vagy `using`-aliasszal átnevezi a
+Burst-ét, a kapu megtévedhet. Ez a csere elfogadható: a hamis pozitív
+zajos-de-biztonságos, és a valós használati minták (kvalifikált nevtér,
+`Attribute` utótag, assembly-szintű cél, több soros paraméterlista, komment-
+és sztring-beli említés) fixture-ral fedettek.
 
 ### ND-21 — HDRP volumetrikus felhő űrből (A14, ELUTASÍTVA, prototípussal mérve)
 

@@ -34,6 +34,24 @@ jobs:
       - name: Test
         run: dotnet test --no-build -c ${{ matrix.config }} --verbosity normal
 
+  # ND-20: a Burst alapbol FloatMode.Default-tal fordit, ami atrendezheti a
+  # lebegopontos muveleteket -> csendes I1-sertes. A kapu SZANDEKOSAN elore
+  # keszult el, mielott az elso [BurstCompile] megjelenne: igy a bevezeto
+  # commit-tal EGYUTT valt pirosra, nem utolag. A --self-test azert kell, hogy
+  # az ures halmazon zold kapu ne legyen "vakon zold".
+  burst-strict:
+    name: Burst FloatMode.Strict kapu (ND-20)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: A kapu onellenorzese (fixture-ok)
+        run: python tools/ci/check_burst_strict.py --self-test
+      - name: A repo atvizsgalasa
+        run: python tools/ci/check_burst_strict.py --verbose
+
   # A Python referencia az "orakulum". Ha ez elter a hivatalos Random123
   # vektoroktol, a teljes tesztvektor-keszlet ervenytelen.
   reference-oracle:

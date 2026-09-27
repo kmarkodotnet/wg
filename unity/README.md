@@ -42,8 +42,10 @@ kikényszeríti, hogy ez az assembly Unity alól sem hivatkozhat
 
 ## Hátralevő nyitott döntések (ND-01 miatt aktívak)
 
-`docs/04-decisions.md`: **ND-19** (floating origin, M2-ben eldöntendő),
-**ND-20** (Burst `FloatMode.Strict` CI-kikényszerítés). Egyik sem blokkolja a
-projekt megnyitását, de mielőtt szimulációs kód kerül Burst alá, ND-20-at le
-kell zárni. Az **ND-21** (HDRP volumetrikus felhő űrből) 2026-09-27-én
-**lezárva: elutasítva** — a felhő a saját, világmodell-vezérelt úton marad.
+`docs/04-decisions.md`: **ND-19** (floating origin — az A12 1. köre kész,
+a geometria tényleges eltolása hátra van). Az **ND-20** (Burst
+`FloatMode.Strict` CI-kikényszerítés) 2026-09-27-én **lezárva**: a kapu
+`tools/ci/check_burst_strict.py`, a CI-ben önálló `burst-strict` job — így a
+szabály már az első Burst-kód előtt élesben van. Az **ND-21** (HDRP
+volumetrikus felhő űrből) 2026-09-27-én **lezárva: elutasítva** — a felhő a
+saját, világmodell-vezérelt úton marad.

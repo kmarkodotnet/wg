@@ -52,10 +52,21 @@ számítási lánca — lásd `docs/01-architecture.md` §2.
 Ha transzcendens függvényre van szükség a szimulációban, az ND-23 döntést
 igényel — ne kerüld meg csendben.
 
-**Ha Unity mellett dőlne el az ND-01:** a Burst compiler alapból `FloatMode.Default`
-módban fordít, ami engedélyezi a lebegőpontos műveletek átrendezését. Minden
-szimulációs kódra `[BurstCompile(FloatMode = FloatMode.Strict)]` kötelező, és ezt
-CI-ban ki kell kényszeríteni (ND-20).
+**Burst (az ND-01 Unity-döntése miatt élő):** a Burst compiler alapból
+`FloatMode.Default` módban fordít, ami engedélyezi a lebegőpontos műveletek
+átrendezését. Minden szimulációs kódra `[BurstCompile(FloatMode = FloatMode.Strict)]`
+kötelező. **Ezt CI-kapu kényszeríti ki** (ND-20, A13):
+
+```
+python tools/ci/check_burst_strict.py             # a repo atvizsgalasa
+python tools/ci/check_burst_strict.py --self-test # a kapu onellenorzese
+```
+
+A kapu a `src/`, `tests/`, `tools/` és `unity/WorldGenViewer/Assets/` alatti
+minden `.cs`-t átvizsgálja, Unity nélkül is fut, és a `FloatPrecision.Low` /
+`.Medium` értékeket is elutasítja. Ma nulla `[BurstCompile]` van a repóban —
+a kapu szándékosan előre készült el, hogy az első Burst-commit-tal együtt
+váltson pirosra.
 
 ## Repo-struktúra
 
@@ -164,8 +175,9 @@ Részletek: `docs/05-milestones.md`.
 **ND-01 lezárva: Unity 6 + HDRP.** A `src/` motorfüggetlensége (netstandard2.1,
 nulla Unity-referencia) ettől függetlenül megmarad — a Unity-projekt a
 `src/WorldGen.Core`-t helyi package-ként, forrás szerint hivatkozza, nem
-másolja. Aktív nyitott döntés a választás miatt: **ND-20** (Burst
-`FloatMode.Strict` CI-kikényszerítés). Az **ND-21** (HDRP volumetrikus felhő
+másolja. Az **ND-20** (Burst `FloatMode.Strict` CI-kikényszerítés) 2026-09-27-én
+**lezárva**: a kapu `tools/ci/check_burst_strict.py`, a CI-ben önálló
+`burst-strict` job. Az **ND-21** (HDRP volumetrikus felhő
 űrből) 2026-09-27-én **lezárva: elutasítva** — a prototípus szerint a HDRP
 felhője bolygó-léptékben nem használható (rétegvastagság-clamp, bedrótozott
 Föld-sugár, féltekére vágó felhőtérkép, I3-sértő `Simple` mód), így a Planet
