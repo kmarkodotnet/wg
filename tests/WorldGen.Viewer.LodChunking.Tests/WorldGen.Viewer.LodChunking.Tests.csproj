@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/OrbitSurfaceMath.cs" Link="Source/OrbitSurfaceMath.cs" />
+    <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/OrbitalFollowMath.cs" Link="Source/OrbitalFollowMath.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/LodRequestTiming.cs" Link="Source/LodRequestTiming.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/Lod/LodGeometryCache.cs" Link="Source/LodGeometryCache.cs" />
     <Compile Include="../../unity/WorldGenViewer/Assets/Scripts/Viewer/ScaleBarMath.cs" Link="Source/ScaleBarMath.cs" />

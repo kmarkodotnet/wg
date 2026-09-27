@@ -386,8 +386,10 @@ namespace WorldGen.Viewer
         /// jelenlegi viselkedés (a Planet mindig identitáson marad, a fény
         /// forog a test-keretben). `AxialRotation`: a Planet TÉNYLEGESEN
         /// forog (a Nap/csillagok fixek) - ld. SunController.ApplySunDirection.
-        /// `OrbitalFollow`: MÉG NEM implementálva, egyelőre a Free-vel
-        /// megegyező viselkedést kap.
+        /// `OrbitalFollow` (ND-153): UGYANAZ a pálya-keretes renderelés, de a
+        /// spin-szög BEFAGYASZTVA és az idő éves ütemben fut - így az éves jel
+        /// (terminátor-vándorlás, sarki nappal/éjszaka, a Nap körbefordulása)
+        /// látszik, a napi forgás pedig nem alias-ol.
         /// </summary>
         public enum CameraViewMode { Free, AxialRotation, OrbitalFollow }
 
@@ -396,7 +398,9 @@ namespace WorldGen.Viewer
         [Tooltip("Szabad kamera: a jelenlegi viselkedés (a bolygó mesh sosem forog, " +
                  "csak a fény/nap/csillagok). Tengelyforgás: a bolygó TÉNYLEGESEN forog, " +
                  "a Nap/csillagok fixek - a tengelyforgás vizuálisan láthatóvá válik. " +
-                 "Pálya mentén: MÉG NEM implementálva (egyelőre Szabad kamera-ként viselkedik).")]
+                 "Pálya mentén (éves, ND-153): az idő éves ütemben fut (SunController." +
+                 "orbitalFollowSecondsPerYear), a napi forgás befagy - a terminátor " +
+                 "észak-déli vándorlása és a sarki nappal/éjszaka válik láthatóvá.")]
         private CameraViewMode cameraViewMode = CameraViewMode.Free;
 
         public CameraViewMode CurrentCameraViewMode => cameraViewMode;
@@ -2152,7 +2156,9 @@ namespace WorldGen.Viewer
         /// </summary>
         private void DrawLayersPanel(float x, float y, float w, float rowH)
         {
-            float panelRowCount = 5f + ThermalOverlayPanelRows;
+            // ND-153: a kamera-mód blokk 2 sor (a harmadik mód saját sorban,
+            // mellette a pálya-állás kijelzése).
+            float panelRowCount = 6f + ThermalOverlayPanelRows;
             GUI.Box(new Rect(x - 6f, y - 6f, w + 12f, rowH * panelRowCount + 16f), "Rétegek");
             y += rowH * 0.6f;
 
@@ -2183,12 +2189,43 @@ namespace WorldGen.Viewer
             // sose lehessen mindet egyszerre kikapcsolni kattintással.
             bool freeToggle = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), cameraViewMode == CameraViewMode.Free, " Szabad kamera");
             bool axialToggle = GUI.Toggle(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), cameraViewMode == CameraViewMode.AxialRotation, " Tengelyforgás");
+            y += rowH;
+            // ND-153: a harmadik mód SAJÁT sorban - a "Pálya menti (éves)"
+            // felirat a fél szélességbe már nem olvashatóan fér ki; a jobb
+            // félbe a pálya-állás kijelzése kerül.
+            bool orbitalToggle = GUI.Toggle(new Rect(x, y + 4f, w * 0.5f, rowH), cameraViewMode == CameraViewMode.OrbitalFollow, " Pálya menti (éves)");
             if (freeToggle && cameraViewMode != CameraViewMode.Free) cameraViewMode = CameraViewMode.Free;
             else if (axialToggle && cameraViewMode != CameraViewMode.AxialRotation) cameraViewMode = CameraViewMode.AxialRotation;
+            else if (orbitalToggle && cameraViewMode != CameraViewMode.OrbitalFollow) cameraViewMode = CameraViewMode.OrbitalFollow;
+
+            // A pálya-állás kijelzése CSAK ebben a módban (I4: minden kiírt szám
+            // a modellből olvasva - a szub-napponti SZÉLESSÉG a befagyasztott
+            // spin mellett is igaz, a HOSSZÚSÁG nem, azt ezért nem írjuk ki).
+            if (cameraViewMode == CameraViewMode.OrbitalFollow)
+            {
+                SunController clock = CameraModeClock();
+                string orbitText = clock != null
+                    ? $"nap {clock.DayOfYear:F1}/{clock.OrbitalPeriodDays:F1} " +
+                      $"({clock.YearFraction * 100.0:F0}%), szubszol. szél. {clock.SubsolarLatitudeDegrees:+0.0;-0.0}°"
+                    : "nincs SunController a jelenetben";
+                GUI.Label(new Rect(x + w * 0.5f, y + 4f, w * 0.5f, rowH), orbitText);
+            }
             y += rowH;
 
             // ND-104: pillanatnyi hőmérséklet-overlay blokk (PlanetGridMesh.ThermalOverlay.cs).
             DrawThermalOverlayRows(x, y, w, rowH);
+        }
+
+        // ND-153: a pálya-állás kijelzésének órája. UGYANAZ a példány, amit a
+        // hőmodell is olvas (thermalClockSource / _thermalClock), csak itt a
+        // hőoverlay bekapcsolásától FÜGGETLENÜL is meg kell találnunk.
+        private SunController _cameraModeClock;
+
+        private SunController CameraModeClock()
+        {
+            if (thermalClockSource != null) return thermalClockSource;
+            if (_cameraModeClock == null) _cameraModeClock = FindFirstObjectByType<SunController>();
+            return _cameraModeClock;
         }
 
         /// <summary>

@@ -8231,6 +8231,91 @@ hibridet írják le). **Ezzel az ND-05 lezárul**: mindhárom tagja
 **NYITOTT: a vizuális átvétel.** Hogy a 9–11 régió határai a képen
 tetszetősek-e, az felhasználói ítélet — ld. B5.
 
+### ND-153 — Pálya menti (éves) kameramód: a pálya-keretben rendereljük, a napi forgás befagyasztva (A11, ELFOGADVA)
+
+**2026-09-27, A11.** Az ND-62 a kameramód-kapcsolót és a tengelyforgásos
+módot lezárta, a harmadik értéket (`OrbitalFollow`) viszont szándékosan
+no-opként hagyta — a saját tooltipje vallotta be, hogy „egyelőre Szabad
+kameraként viselkedik". A backlog három nyitott kérdést sorolt hozzá:
+(1) befagyasztjuk-e a kameracélpontot, (2) fusson-e közben a napi ciklus,
+(3) hogyan kalibráljuk a nem valós lépték miatt (ND-19). Ez a döntés
+mindháromra válaszol.
+
+**Mit kell látni.** A mód célja az ÉVES jel: a terminátor észak–déli
+vándorlása, a sarki nappal/éjszaka megjelenése és eltűnése, a Nap-korong
+körbefordulása a bolygó körül. Ez a három dolog kizárólag a pálya-szögtől
+és a tengelydőléstől függ, a bolygó napi forgásától NEM.
+
+**(3) A lépték-kérdés nem merül fel — ezért nem blokkol az ND-19.** A
+kamera a bolygó közepe körül orbitál (`PlanetOrbitCamera`, a `target.position`
+körül), a bolygó a világ origójában áll, a Nap-korong pedig egy fix
+`sunVisualDistance` sugarú körön mozog. Vagyis a pálya menti követést a
+bolygóval EGYÜTT MOZGÓ, nem forgó (inerciális) pálya-keretben rendereljük —
+nem a csillag-központú keretben. Kör pálya mellett (ND-26 hatókör) a
+csillag-távolság konstans, tehát ebben a keretben a látvány EXAKT: a bolygó
+valós pálya menti helyzetét egyetlen szög (`OrbitalMechanics.OrbitalAngle`)
+hordozza, és pont az látszik is. Valós léptékű pálya-koordinátára
+(1 AU ≈ 1,5·10^11 m float32-ben) így nincs szükség — az ND-19/A12 geometria-
+eltolása ettől a módtól függetlenül marad az A11 közeli zoomjának a kérdése.
+
+**(1) A kameracélpontot NEM fagyasztjuk be — nincs is mit.** A
+`PlanetOrbitCamera` sosem olvassa a `target.rotation`-t, csak a
+`target.position`-t, ami a világ origója. Az egér tehát ebben a módban is
+teljes körűen a felhasználónál van: a mód a VILÁGOT teszi inerciálissá,
+nem a kamerát kötözi meg. Ez azért is a helyes választás, mert egy a
+Naphoz rögzített kameraorientáció pont azt tüntetné el, amit meg akarunk
+mutatni (a terminátor elmozdulását a képen).
+
+**(2) A napi ciklus NEM fut — a spin befagy, a modellidő nem.** Ez a
+döntés valódi tartalma. Ha egy év 60 másodperc (alapérték), akkor 60 fps-en
+365,25 forgás jut 3600 képkockára: ~36°/képkocka, azaz a napi forgás
+ALIAS-OL (kerékszprich-effektus), nem „gyors", hanem félrevezető. Ezért
+`OrbitalFollow`-ban a mesh a módba lépés pillanatában érvényes spin-szögen
+áll meg (nincs ugrás a módváltáskor), a dőlés viszont ÉL — így a tengely
+láthatóan a pálya-síkhoz képest ferdén áll, és a terminátor emiatt vándorol.
+
+Fontos, hogy mit NEM állítunk ezzel: a modellidő (`currentTimeDays`)
+TOVÁBBFUT, tehát a panel, a hőmodell és minden szám a valódi órát olvassa;
+csak a KÉP spin-fázisa konstans. Emiatt a szub-napponti HOSSZÚSÁG ebben a
+módban nem a modell szerinti — a szub-napponti SZÉLESSÉG viszont igen, mert
+az csak a pálya-szögtől és a dőléstől függ. A panel ezért kizárólag a
+szélességet írja ki (I4: minden kiírt szám levezetett és igaz), a hosszúságot
+nem. A befagyasztás kikapcsolható (`orbitalFollowFreezeSpin`), hogy az
+alias-jelenség maga is megvizsgálható legyen — de nem az alapérték.
+
+**Időlépték és a hitch-korlát.** Az éves rátát külön mező adja
+(`orbitalFollowSecondsPerYear`, alapérték 60 s/év), a napi ciklus
+`daysPerSecond`-ját nem írja át (módváltáskor a napi mód ott folytatódik,
+ahol tartott). Egy képkockára eső előrehaladás az év 2%-ára korlátozva
+(`OrbitalFollowMath.MaxYearFractionPerStep`): egy fordítási/GC-akadás így
+nem ugraszt évszakot, és a hőmodell cél-tickje sem lő el.
+
+**A hőmodell nem tart lépést, és ez nem hiba.** A pillanatnyi hőmodell
+(ND-104) képkockánként `thermalMaxTicksPerJob` tickre van korlátozva; éves
+ütemben a cél-tick ennél gyorsabban nő. A hőoverlay tehát ebben a módban
+látványosan LE MARAD (a saját státuszsora ezt kiírja) — szándékosan nem
+gyorsítottuk fel, mert az a hőmodell időléptékét hamisítaná meg. A két
+funkciót együtt nem érdemes használni.
+
+**A `Free` mód változatlan.** A módelágazás `SunController.ApplySunDirection`-ben
+egyetlen ponton nő eggyel: a pálya-keretes renderelés ága mostantól
+`AxialRotation` ÉS `OrbitalFollow` esetén is fut, a kettő KIZÁRÓLAG a
+felhasznált spin-szögben tér el (élő vs. befagyasztott). Ezzel az ND-62
+ott dokumentált, élesben már ellenőrzött dőlés-/spin-előjel levezetése
+újrahasznosul, nem íródik újra.
+
+**Verziózás:** nem seed-törő — tisztán Viewer-oldali render-útvonal, a Core
+egyetlen új függvényt sem kapott (a már publikus `SunDirectionOrbitalFrame`
+/ `SubsolarPoint` hívódik). Az új, motorfüggetlen `OrbitalFollowMath`
+(`unity/.../Viewer/OrbitalFollowMath.cs`) az `OrbitSurfaceMath`/`ScaleBarMath`
+mintájára Unity nélkül is tesztelhető — 24 teszt.
+
+**Élő ellenőrzés kritériuma:** `OrbitalFollow`-ban a terminátor egy 60 s-os
+kör alatt láthatóan észak-délre vándorol (a sarkvidéken teljes nappal →
+teljes éjszaka), a felszín-rajzolat viszont NEM pörög; a Nap-korong egy kört
+tesz a bolygó körül; a panel szubszoláris szélessége ±23,44° között
+oszcillál, a csillagmező fixen áll.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

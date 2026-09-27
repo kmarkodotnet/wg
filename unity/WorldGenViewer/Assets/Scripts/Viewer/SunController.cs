@@ -24,6 +24,15 @@ namespace WorldGen.Viewer
     /// ApplySunDirection). Ez az EGYETLEN hely, ahol a Planet-rotáció
     /// szándékosan eltér az identitástól.
     ///
+    /// UGYANEZ A KIVÉTEL (ND-153, A11): `OrbitalFollow` (pálya menti,
+    /// éves) módban is a pálya-keretben rendereljük a világot - a
+    /// KÜLÖNBSÉG mindössze annyi, hogy a spin-szög BEFAGY (a módba lépés
+    /// pillanatának szögén), az idő pedig éves ütemben fut
+    /// (`orbitalFollowSecondsPerYear`). Így az éves jel (a terminátor
+    /// észak-déli vándorlása, a sarki nappal/éjszaka) látható, a napi
+    /// forgás pedig nem alias-ol. A modellidő TOVÁBBFUT: csak a kép
+    /// spin-fázisa konstans, a panel/hőmodell a valódi órát olvassa.
+    ///
     /// Ezt a komponenst a Directional Light GameObjectre kell tenni - a
     /// saját transform.rotation-ját írja át minden képkockán.
     /// </summary>
@@ -61,6 +70,20 @@ namespace WorldGen.Viewer
         [Tooltip("5.0 tul gyors volt (napi forgas < 1 mp alatt lezajlott) - " +
                  "0.05-tel egy teljes nap kb. 20 masodperc, jol kovetheto.")]
         [SerializeField] private double daysPerSecond = 0.05;
+
+        [Header("Pálya menti (éves) mód - ND-153")]
+        [SerializeField]
+        [Tooltip("Ennyi valós másodperc alatt telik le EGY teljes pálya-kör, ha a " +
+                 "kameramód 'Pálya mentén'. A napi mód daysPerSecond értékét NEM írja " +
+                 "át - módváltáskor a napi ciklus ott folytatódik, ahol tartott.")]
+        private double orbitalFollowSecondsPerYear = OrbitalFollowMath.DefaultSecondsPerYear;
+
+        [SerializeField]
+        [Tooltip("ND-153 alapdöntés: éves ütemben a napi forgás ALIAS-OL (60 s/év mellett " +
+                 "~36 fok/képkocka), ezért a mesh a módba lépés spin-szögén megáll - a " +
+                 "dőlés viszont él, a terminátor vándorol. Kikapcsolva maga az " +
+                 "alias-jelenség is megvizsgálható (nem alapérték).")]
+        private bool orbitalFollowFreezeSpin = true;
 
         [Header("Látható Nap + csillagos háttér (felhasználói kérés, 2026-09-06)")]
         [SerializeField]
@@ -101,16 +124,76 @@ namespace WorldGen.Viewer
         public double OrbitalPhase0 => orbitalPhase0;
         public double RotationPhase0 => rotationPhase0;
 
+        /// <summary>ND-153: hol tartunk a pályán, [0,1) - a panel éves kijelzéséhez.</summary>
+        public double YearFraction =>
+            OrbitalFollowMath.YearFraction(currentTimeDays, orbitalPeriodDays, orbitalPhase0);
+
+        /// <summary>ND-153: az aktuális pálya-körön eltelt napok száma.</summary>
+        public double DayOfYear =>
+            OrbitalFollowMath.DayOfYear(currentTimeDays, orbitalPeriodDays, orbitalPhase0);
+
+        /// <summary>
+        /// ND-153: a szub-napponti pont SZÉLESSÉGE fokban. SZÁNDÉKOSAN csak a
+        /// szélesség publikus: ez kizárólag a pálya-szögtől és a dőléstől függ,
+        /// tehát a befagyasztott spin mellett is IGAZ (I4). A szub-napponti
+        /// HOSSZÚSÁG a spin-fázisból jön, amit a pálya menti mód befagyaszt -
+        /// azt ezért nem írjuk ki sehol.
+        /// </summary>
+        public double SubsolarLatitudeDegrees
+        {
+            get
+            {
+                if (orbitalPeriodDays <= 0.0 || rotationPeriodDays <= 0.0) return 0.0;
+                OrbitalMechanics.SunDirectionBodyFrame(
+                    currentTimeDays, orbitalPeriodDays, rotationPeriodDays,
+                    axialTiltDegrees * Math.PI / 180.0, orbitalPhase0, rotationPhase0,
+                    out double x, out double y, out double z);
+                OrbitalMechanics.SubsolarPoint(x, y, z, out double latitude, out _);
+                return latitude * 180.0 / Math.PI;
+            }
+        }
+
         private void OnEnable() => ApplySunDirection();
         private void OnValidate() => ApplySunDirection();
 
         private void Update()
         {
             if (autoAdvance && Application.isPlaying)
-                currentTimeDays += daysPerSecond * Time.deltaTime;
+            {
+                // ND-153: pálya menti módban NEM a napi ütem fut, hanem az
+                // éves (orbitalFollowSecondsPerYear) - a napi `daysPerSecond`
+                // érintetlen marad, hogy a módból visszalépve ott folytassa.
+                if (CurrentMode == PlanetGridMesh.CameraViewMode.OrbitalFollow)
+                {
+                    currentTimeDays = OrbitalFollowMath.AdvanceDays(
+                        currentTimeDays, Time.deltaTime,
+                        OrbitalFollowMath.DaysPerSecond(orbitalPeriodDays, orbitalFollowSecondsPerYear),
+                        orbitalPeriodDays);
+                }
+                else
+                {
+                    currentTimeDays += daysPerSecond * Time.deltaTime;
+                }
+            }
 
             ApplySunDirection();
         }
+
+        /// <summary>
+        /// Az aktív kameramód - bekötött <see cref="planetGridMesh"/> nélkül
+        /// mindig `Free` (a mód-váltás ilyenkor hatástalan, ld. a mező tooltipje).
+        /// </summary>
+        private PlanetGridMesh.CameraViewMode CurrentMode =>
+            planetGridMesh != null
+                ? planetGridMesh.CurrentCameraViewMode
+                : PlanetGridMesh.CameraViewMode.Free;
+
+        // ND-153: a befagyasztott spin-szög (radián) és az a mód, amiben
+        // utoljára voltunk. A befagyasztás a MÓDBA LÉPÉS pillanatának szögén
+        // történik, hogy a felszín-rajzolat ne UGORJON a váltáskor.
+        private double _frozenSpinAngle;
+        private bool _hasFrozenSpinAngle;
+        private PlanetGridMesh.CameraViewMode _lastMode = PlanetGridMesh.CameraViewMode.Free;
 
         private void ApplySunDirection()
         {
@@ -118,7 +201,10 @@ namespace WorldGen.Viewer
                 return; // érvénytelen bemenet (pl. Inspectorban 0-ra állítva) - ne törjön el
 
             double axialTiltRad = axialTiltDegrees * Math.PI / 180.0;
-            double rotationAngle = rotationPhase0 + 2.0 * Math.PI * (currentTimeDays / rotationPeriodDays);
+            // Egyetlen igazságforrás a spin-szögre (ND-153): ugyanaz a képlet,
+            // amit a Core SunDirectionBodyFrame és a befagyasztás is használ.
+            double rotationAngle = OrbitalFollowMath.RotationAngle(
+                currentTimeDays, rotationPeriodDays, rotationPhase0);
 
             // KAMERA-MÓD (felhasználói kérés, 2026-09-10): AxialRotation
             // módban a bolygó mesh-nek TÉNYLEGESEN kell forognia (a Nap/
@@ -128,11 +214,33 @@ namespace WorldGen.Viewer
             // docs/04-decisions.md a levezetésért (tengelycsere-konvenció,
             // a forgás-előjel a StarField MÁR élesben helyesnek bizonyult
             // ellentétes-forgatásából levezetve).
-            bool axialRotationMode = planetGridMesh != null
-                && planetGridMesh.CurrentCameraViewMode == PlanetGridMesh.CameraViewMode.AxialRotation;
+            // ND-153: a pálya menti (éves) mód UGYANEZEN az ágon fut - a
+            // pálya-keretben rendereljük a világot, a Nap/csillagok fixek. A
+            // KÜLÖNBSÉG kizárólag a felhasznált spin-szög: itt a módba lépés
+            // pillanatában befagyasztott érték (különben éves ütemben a napi
+            // forgás alias-olna, ld. a döntést).
+            PlanetGridMesh.CameraViewMode mode = CurrentMode;
+            bool orbitalFollowMode = mode == PlanetGridMesh.CameraViewMode.OrbitalFollow;
+            bool axialRotationMode = mode == PlanetGridMesh.CameraViewMode.AxialRotation;
+            bool orbitalFrameMode = axialRotationMode || orbitalFollowMode;
+
+            if (mode != _lastMode)
+            {
+                _lastMode = mode;
+                _hasFrozenSpinAngle = false;
+            }
+            if (orbitalFollowMode && orbitalFollowFreezeSpin && !_hasFrozenSpinAngle)
+            {
+                _frozenSpinAngle = rotationAngle;
+                _hasFrozenSpinAngle = true;
+            }
+
+            double bodySpinAngle = orbitalFollowMode && orbitalFollowFreezeSpin
+                ? _frozenSpinAngle
+                : rotationAngle;
 
             Vector3 sunDirection;
-            if (axialRotationMode)
+            if (orbitalFrameMode)
             {
                 // Pálya-keret: a Nap iránya CSAK az évszaktól függ, a
                 // bolygó saját forgásától NEM - ez marad fix a világtérben.
@@ -150,7 +258,7 @@ namespace WorldGen.Viewer
                     // ELLENTÉTES forgatásából levezetve (ld. ott).
                     planetGridMesh.transform.rotation =
                         Quaternion.AngleAxis((float)axialTiltDegrees, Vector3.right) *
-                        Quaternion.AngleAxis((float)(rotationAngle * Mathf.Rad2Deg), Vector3.up);
+                        Quaternion.AngleAxis((float)(bodySpinAngle * Mathf.Rad2Deg), Vector3.up);
                 }
             }
             else
@@ -188,7 +296,7 @@ namespace WorldGen.Viewer
                 // forgását. Itt valóban a világtérhez rögzítjük. Más módokban
                 // a régi, ellentétes helyi forgatás szimulálja a bolygó
                 // forgását az identitáson álló Planet mellett.
-                if (axialRotationMode)
+                if (orbitalFrameMode)
                     starField.KeepFixedInWorldSpace();
                 else
                     starField.SetRotationAngleRadians(rotationAngle);
