@@ -439,12 +439,13 @@ panelek élesben (`docs/01-architecture.md` §2).
 - **Kontinens-szegmentálás** — már megvan (`SeaLevelCalibration.
   CountContinents`, M7-ből újrahasznosítva), csak metrikákkal bővítve
   (terület, biome-diverzitás).
-- **Régió-szegmentálás EGYSZERŰSÍTVE**: csak vízgyűjtő-alapú (a
-  `FlowNetwork` már meglévő szülő-fájából — minden szárazföld-tile
-  ugyanahhoz a régióhoz tartozik, mint az óceán-"gyökér" tile, amihez
-  végül lefolyik). A spec ND-05 hibrid kritériuma (vízgyűjtő ∪ biome-
-  klaszter ∪ domborzati törés) közül csak az első van benne — a
-  biome-klaszter/domborzati törés finomítás később.
+- **Régió-szegmentálás**: vízgyűjtő-alapú (a `FlowNetwork` már meglévő
+  szülő-fájából — minden szárazföld-tile ugyanahhoz a régióhoz tartozik,
+  mint az óceán-"gyökér" tile, amihez végül lefolyik). A spec ND-05 hibrid
+  kritériuma (vízgyűjtő ∪ biome-klaszter ∪ domborzati törés) **az
+  ND-152 (2026-09-27) óta teljes**: a másik két tag az összevonás
+  élsúlyaként van benne (azonos biome → bónusz, domborzati törés →
+  levonás), nem külön klaszterezésként.
   **ND-127 (2026-09-21) óta a vízgyűjtő nem nyersen a régió**: a torkolat
   óceán-tile-ja szerinti kulcsolás a lefolyás azonosítója, nem földrajzi
   egységé (level 5-ön a szárazföld 50%-a kimaradt a panelről, a régiók

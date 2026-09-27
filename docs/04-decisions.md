@@ -8059,6 +8059,178 @@ pontossági plafon, érvénytelen bemenetek). Teljes futás: **1761/1761 zöld**
 ítélet — ld. B16.
 
 
+### ND-152 — Az ND-05 hibrid maradék két tagja: biome-klaszter + domborzati törés az összevonás élsúlyában (A10, ELFOGADVA: (A))
+
+**2026-09-27, A10.** Az ND-127 a hibrid ELSŐ tagját (vízgyűjtő) tette rendbe:
+a torkolat szerint kulcsolt nyers vízgyűjtőket összefüggő komponensekre
+bontotta (cellák), szomszédsági gráfot épített rájuk, és agglomeratívan
+összevonta cél-méretig — 100% szárazföld-lefedettség, 0 szétesett régió,
+10–11 régió a legnagyobb landmasson. A záró mondata kimondta, hogy az ND-05
+maradéka „ugyanezen a cella-gráfon csak más összevonási költségfüggvény
+lenne". Ez a döntés azt a költségfüggvényt írja le.
+
+**Mi hiányzott.** Az ND-127 partner-választása kizárólag GEOMETRIAI: a
+legkisebb cél alatti cella abba a szomszédjába olvad, amelyikkel a
+LEGHOSSZABB közös határt osztja. Se a biome, se a domborzat nem szól bele,
+így két, a specifikációban nevesített természetes határ nem jelenik meg a
+régió-határokon:
+
+1. **biome-klaszter** — a tundra és a sivatag egy régióba kerülhet, ha a
+   vízválasztó éppen úgy esik;
+2. **domborzati törés** — a hegygerinc / peremlépcső mint határ nem kap
+   semmilyen előnyt, holott a valódi régió-határok nagy része pontosan ilyen.
+
+**Opciók.**
+
+- **(A) Súlyozott élhossz ugyanazon a cella-gráfon.** A közös határ hossza
+  helyett a határ SÚLYOZOTT hossza dönt: minden érintkező tile-él alapsúlyt
+  kap, a biome-egyezés bónuszt ad, a domborzati törés levon. Minden más
+  (a cél alatti szomszéd előnye, a méret- és `TileId`-döntetlenek, a
+  kanonikus kimeneti sorrend) VÁLTOZATLAN, tehát az ND-127 mindhárom
+  garanciája (partíció, összefüggőség, kanonikus sorrend) konstrukció
+  szerint megmarad. Tiszta egész aritmetika.
+- **(B) Három külön klaszterezés összefésülése** — a spec szó szerinti
+  olvasata (vízgyűjtő ∪ biome-klaszter ∪ domborzati törés mint három
+  független szegmentálás, utólag egyesítve). Ez az ND-127 (C) opciója:
+  három klaszterezés saját súlyozási paraméterekkel, és az egyesítésük NEM
+  garantálja sem a partíciót, sem az összefüggőséget — a két legfontosabb
+  megszerzett garanciát kellene újra bizonyítani.
+- **(C) Nem csináljuk meg.** A mai régiók összefüggőek és lefedik a
+  szárazföldet; a határaik „csak" nem követik a biome-/domborzat-váltást.
+
+**ELFOGADVA: (A).** A (B) a garanciákat kockáztatja azért, amit az (A) egy
+élsúly-képlettel megkap; a (C) az ND-05-öt tartósan félkészen hagyná.
+
+**A KÉPLET.** Minden `t → nb` érintkező tile-élre (`t` az `i`, `nb` a `j`
+cellában):
+
+```
+w(t, nb) = RegionMergeBaseEdgeWeight                                   (= 4)
+         + (biome[t] == biome[nb] ? RegionMergeSameBiomeBonus : 0)     (= 3)
+         - (|m(t) - m(nb)| >= breakThreshold
+              ? RegionMergeTerrainBreakPenalty : 0)                    (= 3)
+
+m(t) = (long)Math.Floor(elevationM[t] + 0.5)
+```
+
+`borders[i][j]` ennek az ÖSSZEGE az összes érintkező tile-élen (a mai
+darabszám helyett). Egy tile-él súlya így 1…7: biome-egyező, töréstelen él
+7, biome-váltó törés-él 1 — hétszeres különbség, de mindig POZITÍV, tehát a
+„van-e szomszédja" feltétel (`borders[i].Count == 0`) jelentése nem
+változik, és a súly az összevonásnál továbbra is egyszerűen összegződik.
+(A pozitivitás nem kozmetika: nulla súlyú él eltüntetné a szomszédságot, és
+egy cella cél alatti méretben beragadna — a „méretpadló" teszt bukna.)
+
+**Determinizmus (I1/I2).** Tiszta egész aritmetika; a lebegőpont egyetlen
+helyen jelenik meg, a magasság egész méterre kerekítésében, ami
+`Math.Floor(e + 0.5)` — összeadás + korrekt kerekítésű floor, tehát
+IEEE-754 szerint bitpontos (ld. a CLAUDE.md lebegőpont-táblázatát). Nincs
+transzcendens függvény, nincs random, nincs szótár-bejárási sorrendtől való
+függés. Az élsúly SZIMMETRIKUS a két tile-ban, tehát az ND-127 szimmetria-
+feltevése (az élt a saját oldaláról számoljuk) érvényben marad.
+
+**A törés-küszöb RELATÍV, nem fix méter.** `breakThreshold` = a
+`|m(t) - m(nb)|` eloszlás **p75**-e, a gráf ÖSSZES cella-közi érintkező
+tile-élén mérve. Ok: fix méter-küszöb szintfüggő lenne (level 5-ön a tile
+négyszer nagyobb területű, tehát nagyobb a tipikus él-menti magasságugrás),
+az ND-127 kifejezett célja viszont az volt, hogy a régiók SZÁMA
+szintfüggetlen legyen. A p75-tel definíció szerint a legmeredekebb negyed
+számít törésnek, szinttől és bolygótól függetlenül (mérve: level 5-ön
+és level 6-on is a cella-közi élek 5–45%-os sávján belül — a
+`TerrainBreakThresholdIsRelativeAtEveryLevel` teszt ezt rögzíti; a
+`0xA7C944210000` világon level 6-on a küszöb **230 m**, 13 318 cella-közi
+élen). A percentilis-konvenció a projektben már meglévő
+`idx = (int)(q * count)`, clampelve (ugyanaz, mint a
+`BiomeClassification.Percentile`) — nincs interpoláció, tehát nincs
+kerekítési kétértelműség.
+
+**A súlyok megválasztása.** `4 / +3 / −3`: a bónusz és a levonás azonos
+nagyságú (egyik tag sem dominál a másikon), és mindkettő elég nagy ahhoz,
+hogy egy él súlyát megfordítsa a szomszédjáéhoz képest, de nem annyi, hogy
+a határhossz-jelet elnyomja — egy 2 tile hosszú, biome-egyező, töréstelen
+határ (14) még mindig veszít egy 4 tile hosszú, alapsúlyú határral (16)
+szemben. A geometria tehát továbbra is a vezető jel, a két új tag a
+döntetlenek és a közeli esetek eldöntője. (Az
+`EdgeWeightStaysPositiveInTheWorstCase` teszt mindhárom viszonyt rögzíti.)
+
+**MÉRT eredmény** (seed `0xA7C944210000`, 20 lemez, víz 0,65, level 6, cél
+258 tile; a mutatók a LEGNAGYOBB landmassra, 4171 tile). A
+„régióhatár-él" a két különböző régióba eső, szomszédos szárazföld-tile-pár;
+a „törésen ül" azt jelenti, hogy a magasságkülönbsége eléri a p75 küszöböt —
+vaktában húzott határ várható értéke tehát ~25%:
+
+| | ND-127 (csak geometria) | ND-152 (hibrid) |
+|---|---|---|
+| régió a legnagyobb landmasson | 11 | 9 |
+| régióhatár-él | 410 | 296 |
+| ebből domborzati TÖRÉSEN | **21,0%** | **43,2%** |
+| ebből biome-VÁLTÁSON | **25,4%** | **41,2%** |
+| átmérő/√terület (átlag) | 2,42 | **2,39** |
+| átmérő/√terület (min–max) | 1,91–3,48 | 1,72–2,94 |
+
+A geometriai út tehát a törésekhez képest NEM javít (21% < a 25%-os
+véletlen szint), a hibrid megduplázza; ugyanez a biome-váltásra 25,4% →
+41,2%. A kompaktság közben nem romlik — sőt a legnyúlványosabb régió
+mutatója 3,48-ról 2,94-re esik.
+
+**MÉRET-ILLESZTETT ellenőrzés** (ugyanaz a világ, több cél-mérettel — a
+régiószám és az átlagos méret azonos, tehát a különbség nem a méretből jön):
+
+| cél | régió (geo → hibrid) | törésen % | biome-váltáson % | domináns-biome tisztaság |
+|---|---|---|---|---|
+| 180 | 14 → 15 | 27,7 → 38,6 | 22,8 → 37,2 | 0,373 → 0,389 |
+| 210 | 13 → 14 | 27,9 → 37,5 | 20,5 → 35,6 | 0,365 → 0,374 |
+| 258 | 11 → 9 | 21,0 → 43,2 | 25,4 → 41,2 | 0,356 → 0,350 |
+| 300 | 8 → 8 | 21,3 → 39,5 | 18,1 → 37,2 | 0,342 → 0,334 |
+| 360 | 7 → 7 | 21,7 → 35,8 | 18,9 → 35,8 | 0,339 → 0,340 |
+| 430 | 7 → 7 | 17,6 → 35,7 | 20,0 → 30,2 | 0,321 → 0,338 |
+
+**Amit ez a mérés NEM állít.** A régión BELÜLI domináns-biome tisztaság
+gyakorlatilag nem mozdul (±0,01, hol így, hol úgy). Ez nem hiba, hanem a
+lépték: egy 250–700 tile-os régió a mi szintjeinken több klímazónát fog át,
+akármi is a határa. A biome-klaszter tag NEM homogén biome-régiókat ígér,
+hanem azt, hogy a HATÁR ott legyen, ahol a biome tényleg váltik — és ezt a
+25,4% → 41,2% méri.
+
+**Visszamenős kompatibilitás / hatókör.** A két új tag a `biomeOf` ÉS az
+`elevationM` szótár együttes átadásához kötött. Ha a hívó bármelyiket
+elhagyja (`null`), minden él az alapsúlyt kapja, ami a darabszámmal
+ARÁNYOS, tehát a partner-választás bitre az ND-127-beli. Ez nem kényelmi
+visszaút, hanem a hibrid tagjainak szétválaszthatósága: a fenti táblázat
+pontosan ezt a két futást állítja szembe, és a
+`PartialHybridInputFallsBackToTheGeometricPath` teszt rögzíti, hogy „fél
+hibrid" nem létezik. A PRODUKCIÓS hívók (viewer panel/navigáció,
+`OrdinalCalibration`) mind a hibridet hívják.
+
+**Verziózás.** NEM seed-törő az ND-108 értelmében: a domborzat, a
+hidrológia, a biome-osztályozás és a `FindWatershedRegions` egyetlen bitje
+sem változik; az összevonás továbbra is tiszta, utólagos prezentációs réteg
+a már kiszámolt vízgyűjtők fölött. A régiónevek viszont MEGVÁLTOZNAK (más
+tile-halmaz → más domináns biome/morfológia), és — mint az ND-127-nél — a
+`SoilFertilityThresholds` kalibrációs populációja is más lesz, mert az
+`OrdinalCalibration` ugyanezt az összevonást mintázza. **Ez ebben a
+menetben megtörtént**: az `OrdinalCalibration` is a hibrid összevonást
+mintázza (a biome-mezőt a regolit-lánc MÁR kiszámolt hőmérsékletéből és
+csapadékából építi, nem proxyból), és a `SoilFertilityThresholds` v3-ra
+cserélve — 500 világ, 23 555 régió-minta (v2: 23 492), p20/p80
+0,157734/0,230240 → **0,164778/0,228259**. Ellenőrzés: a
+CoastalComplexity vágópontjai ugyanebben a futásban BITRE ugyanazok
+maradtak (14 895 minta), tehát tényleg csak a talaj-populáció mozdult.
+
+**LEZÁRVA (A), 2026-09-27** — implementálva:
+`FeatureSegmentation.MergeWatershedsIntoRegions` opcionális `biomeOf` /
+`elevationM` paraméterekkel + `RegionMergeBaseEdgeWeight`,
+`RegionMergeSameBiomeBonus`, `RegionMergeTerrainBreakPenalty`,
+`RegionMergeTerrainBreakPercentile`; Python-referencia
+(`features_ref.py: merge_watersheds_into_regions`, ugyanezekkel a
+konstansokkal) és BITPONTOS vektor-teszt
+(`MatchesPythonReferenceMergedRegionsExactly` — a vektorok innentől a
+hibridet írják le). **Ezzel az ND-05 lezárul**: mindhárom tagja
+(vízgyűjtő, biome-klaszter, domborzati törés) benne van.
+
+**NYITOTT: a vizuális átvétel.** Hogy a 9–11 régió határai a képen
+tetszetősek-e, az felhasználói ítélet — ld. B5.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |
@@ -8066,7 +8238,6 @@ pontossági plafon, érvénytelen bemenetek). Teljes futás: **1761/1761 zöld**
 | ND-02 | Szimuláció bázis-LOD: fix vagy adaptív | Fix level 6; LOD csak lekérdezésre/renderre | M2 |
 | ND-03 | Köztes időpont interpolációja | Engedett, HUD-on jelölve | M10 |
 | ND-04 | Timestep-invariancia toleranciái | `docs/01-architecture.md` §9 kiindulásnak, M10 után revideálni | M10 |
-| ND-05 | Régiószegmentálás algoritmusa | Hibrid: vízgyűjtő + biome-klaszter + domborzati törés | M8 |
 | ND-06 | Névgenerálás módszere | Szótag-templétek + hangulati készlet a feature tulajdonságaiból | M8 |
 | ND-08 | Óceáni áramlatok | 1.0-ban egyszerűsített gyre-modell M6-tól (a ciklonokhoz kell) | M6 |
 | ND-09 | Ordinális kvantálás referencia-eloszlása | Előre kalibrált, ~1000 világból, verziózva | M8 |

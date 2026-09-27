@@ -852,25 +852,33 @@ Régió     = kontinensen belüli szegmens, hibrid kritérium:
             vízgyűjtő-határok ∪ biome-klaszterek ∪ domborzati törések
 ```
 
-**A megvalósított régió (ND-127, 2026-09-21) az első tag, összevonva.** Az
-ND-05 hibridjéből egyelőre csak a vízgyűjtő-határ van meg, de nem nyersen:
-a `FindWatershedRegions` a torkolat ÓCEÁN-tile-ja szerint kulcsol, ami a
-LEFOLYÁS azonosítója, nem egy földrajzi egységé — level 5-ön 789 vízgyűjtő,
-a szárazföld 50%-a egyetlen (≥5 tile-os) régióba sem esett, és a régiók
-több mint harmada térben szétesett. Ezért a panel-régió két lépésben áll elő:
+**A megvalósított régió: mindhárom tag (ND-127 + ND-152).** A vízgyűjtő az
+ATOM, de nem nyersen: a `FindWatershedRegions` a torkolat ÓCEÁN-tile-ja
+szerint kulcsol, ami a LEFOLYÁS azonosítója, nem egy földrajzi egységé —
+level 5-ön 789 vízgyűjtő, a szárazföld 50%-a egyetlen (≥5 tile-os) régióba
+sem esett, és a régiók több mint harmada térben szétesett. Ezért a
+panel-régió két lépésben áll elő:
 
 ```
 cella  = egy vízgyűjtő egy ÖSSZEFÜGGŐ komponense
 régió  = cellák agglomeratív összevonása, amíg el nem éri a cél-méretet
-         (a szárazföld 3%-a), a legHOSSZABB közös határ mentén
+         (a szárazföld 3%-a), a legnagyobb SÚLYOZOTT közös határ mentén
 ```
 
 `FeatureSegmentation.MergeWatershedsIntoRegions` +
 `RecommendedRegionTileTarget`. Következmények, amikre a panelrétegek
 építenek: minden szárazföld-tile PONTOSAN egy régióban van, minden régió
-térben összefüggő, és egyetlen landmasson belül marad. A biome-klaszter és
-a domborzati törés (az ND-05 másik két tagja) továbbra is nyitott — ugyanezen
-a cella-gráfon más összevonási költségfüggvényként jönne be.
+térben összefüggő, és egyetlen landmasson belül marad.
+
+**Az ND-05 másik két tagja az ÉLSÚLYBAN van (ND-152, 2026-09-27).** A
+súlyozott közös határ az érintkező tile-élek súlyainak összege: alapsúly 4,
+az azonos biome-ú él +3 (biome-klaszter), a domborzati törésen átmenő él −3
+(a törés = a cella-közi magasságkülönbségek p75-e fölötti ugrás, tehát
+RELATÍV, szintfüggetlen küszöb). Mérve a legnagyobb landmasson (level 6):
+a régióhatár-élek 21,0%-a helyett 43,2%-a ül domborzati törésen, és 25,4%
+helyett 41,2%-a biome-váltáson, közben a kompaktság nem romlik
+(átmérő/√terület átlag 2,42 → 2,39). Részletek és a méret-illesztett
+kontroll-mérés: ND-152.
 
 ### 6.2 Morfológiai típusfelismerés
 
@@ -966,7 +974,7 @@ Minden jövőbeli seed-törő ND-nek a verzióemelést is rögzítenie kell.
 | **ND-02** | Szimuláció bázis-LOD | Fix level 6, LOD csak lekérdezésre/renderre | M2 |
 | **ND-03** | Köztes idő interpolációja | Engedett, HUD-on jelölve | M10 |
 | **ND-04** | Timestep-tolerancia | v0.1 táblázat kiindulásnak, M10 után revideálni | M10 |
-| **ND-05** | Régiószegmentálás | Hibrid: vízgyűjtő + biome-klaszter + domborzati törés | M8 |
+| **ND-05** | ~~Régiószegmentálás~~ | **Lezárva (ND-127 + ND-152): mindhárom tag megvan** — vízgyűjtő-atom, agglomeratív összevonás, a biome-klaszter és a domborzati törés az élsúlyban | — |
 | **ND-06** | Névgenerálás | Szótag-templétek + hangulati készlet a feature tulajdonságaiból | M8 |
 | **ND-07** | ~~Render scope~~ | **Lezárva: a render a projekt része, M2-től folyamatosan** | — |
 | **ND-08** | Óceáni áramlatok | 1.0-ban nincs; a felszíni hőmérséklet-mezőt egyszerűsített gyre-modell adja M6-tól, mert a ciklonok kellenek hozzá | M6 |
