@@ -104,9 +104,9 @@ namespace WorldGen.Core.Features
         };
 
         /// <summary>
-        /// ND-117 kalibráció **v2** (ND-127, 2026-09-21): N=500 világ, a minta
+        /// ND-117 kalibráció **v3** (ND-152, 2026-09-27): N=500 világ, a minta
         /// minden ÖSSZEVONT (`MergeWatershedsIntoRegions`) RÉGIÓ <see
-        /// cref="FeatureMetrics.SoilFertility"/>-értéke — összesen 23 492
+        /// cref="FeatureMetrics.SoilFertility"/>-értéke — összesen 23 555
         /// régió-minta —, a
         /// `dotnet run --project tools/WorldGen.Cli -- calibrate-ordinals
         /// --count 500 --plates 20 --level 6 --water 0.65 --soil true`
@@ -131,15 +131,34 @@ namespace WorldGen.Core.Features
         /// ettől még helyes (definíció szerint egyenlő gyakoriságú sávokat
         /// ad), de a sáv-váltás NEM jelent nagy fizikai különbséget.
         ///
+        /// MIÉRT KELLETT ÚJRA (v2 → v3): az ND-152 (A10) a hibrid összevonás
+        /// másik két tagját (biome-klaszter, domborzati törés) vitte be az
+        /// élsúlyba, tehát MÁS tile-halmazok lettek a régiók — ugyanaz a
+        /// helyzet, mint a v1 → v2-nél: a küszöbök populációjának azonosnak
+        /// kell lennie azzal, amit a panel osztályoz. A minta 23 492-ről
+        /// 23 555-re nőtt (más a régiók száma), és az eloszlás FÖLFELÉ,
+        /// SZŰKEBBRE tolódott: p20 0,157734 → 0,164778, p80 0,230240 →
+        /// 0,228259. A v2 küszöbeivel tehát a mai régiók alsó sávja
+        /// alulnépesedne.
+        ///
+        /// v2 (ND-127, 2026-09-21, 23 492 minta): 0.157734, 0.193976,
+        /// 0.215019, 0.230240
+        ///
+        /// A Habitability és a CoastalComplexity NEM része ennek a
+        /// változásnak (az összevonás nem szól bele egyikbe sem); a
+        /// CoastalComplexity ugyanebben a futásban BITRE ugyanazt adta
+        /// (14 895 minta, négy azonos vágópont), ami vissza is igazolja,
+        /// hogy csak a talaj-populáció mozdult.
+        ///
         /// ÚJRAKALIBRÁLANDÓ, ha a SoilFertility képlete, a RegolithProfile
         /// MVP-je (ND-117), az elevációs lánc VAGY a régió-definíció
-        /// (ND-127: `RegionTargetLandSharePercent`) változik. Ha a
-        /// `minerality` tag valaha bekerül a képletbe, ez a kalibráció
-        /// ÉRVÉNYÉT VESZTI.
+        /// (ND-127: `RegionTargetLandSharePercent`; ND-152: az élsúly-
+        /// konstansok vagy a törés-percentilis) változik. Ha a `minerality`
+        /// tag valaha bekerül a képletbe, ez a kalibráció ÉRVÉNYÉT VESZTI.
         /// </summary>
         public static readonly double[] SoilFertilityThresholds =
         {
-            0.157734, 0.193976, 0.215019, 0.230240,
+            0.164778, 0.199749, 0.215054, 0.228259,
         };
     }
 }

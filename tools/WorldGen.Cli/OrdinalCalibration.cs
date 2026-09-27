@@ -111,8 +111,18 @@ namespace WorldGen.Cli
 
                 Dictionary<TileId, List<TileId>> watersheds =
                     FeatureSegmentation.FindWatershedRegions(regolith.Parent, regolith.IsOcean);
+
+                // ND-152: az osszevonas HIBRID (biome-klaszter + domborzati
+                // tores), ezert a kalibraciohoz is kell a biome-mezo -
+                // kulonben a minta populacioja mas felosztasbol jonne, mint
+                // amit a panel mutat, es a kvantalas ugyanugy hazudna, mint
+                // az ND-127 elott. A biome csak SZARAZFOLD-tile-okra kell:
+                // az osszevonas cellai definicio szerint szarazfoldiek.
+                Dictionary<TileId, Biome> biomeOf = BuildLandBiomeField(regolith);
+
                 List<List<TileId>> soilRegions = FeatureSegmentation.MergeWatershedsIntoRegions(
-                    watersheds, FeatureSegmentation.RecommendedRegionTileTarget(landTiles));
+                    watersheds, FeatureSegmentation.RecommendedRegionTileTarget(landTiles),
+                    biomeOf, regolith.Elevation);
                 foreach (List<TileId> region in soilRegions)
                 {
                     if (region.Count < minRegionTiles) continue;
@@ -128,6 +138,36 @@ namespace WorldGen.Cli
                 CoastalComplexitySamples = coastalComplexitySamples.ToArray(),
                 SoilFertilitySamples = soilFertilitySamples.ToArray(),
             };
+        }
+
+        /// <summary>
+        /// ND-152: biome minden SZÁRAZFÖLD-tile-ra, a regolit-lánc MÁR
+        /// kiszámolt éves középhőmérsékletéből és csapadékából — nem proxyból,
+        /// tehát ugyanaz a klíma-bemenet, amit a viewer panelje is használ.
+        /// Az óceán-tile-ok szándékosan kimaradnak: az összevonás cellái
+        /// szárazföldiek, tehát az élsúly sosem kérdez óceán-tile biome-ot,
+        /// és a <see cref="RegolithModel.RegolithField.MeanTemperatureK"/> is
+        /// csak szárazföldön van kitöltve.
+        /// </summary>
+        private static Dictionary<TileId, Biome> BuildLandBiomeField(RegolithModel.RegolithField regolith)
+        {
+            var landPrecipitation = new List<double>();
+            foreach (KeyValuePair<TileId, bool> kv in regolith.IsOcean)
+                if (!kv.Value) landPrecipitation.Add(regolith.Precipitation[kv.Key]);
+
+            BiomeClassification.PrecipitationThresholds thresholds =
+                BiomeClassification.ComputeThresholds(landPrecipitation);
+
+            var biomeOf = new Dictionary<TileId, Biome>(landPrecipitation.Count);
+            foreach (KeyValuePair<TileId, bool> kv in regolith.IsOcean)
+            {
+                if (kv.Value) continue;
+                double? meanT = regolith.MeanTemperatureK[kv.Key];
+                if (!meanT.HasValue) continue;
+                biomeOf[kv.Key] = BiomeClassification.Classify(
+                    meanT.Value, false, regolith.Precipitation[kv.Key], thresholds);
+            }
+            return biomeOf;
         }
 
         /// <summary>Kvintilis-vágópontok (p20/p40/p60/p80) - a "nearest-rank" módszerrel, hogy determinisztikus/hordozható legyen (nincs interpoláció-választási kétértelműség).</summary>

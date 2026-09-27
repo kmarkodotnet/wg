@@ -6462,8 +6462,14 @@ namespace WorldGen.Viewer
             // PARTICIOJA (minden tile pontosan egy regioban), tehat itt
             // NINCS tobb meretszuro: korabban a >=5 tile-os szuro a
             // szarazfold 50%-at (level 5) hagyta ki a navigaciobol.
+            // ND-152 (A10): az osszevonas HIBRID - a partner-valasztas
+            // sulyozott hatarhosszon dol el, ahol az azonos biome-u el
+            // bonuszt kap, a domborzati toresen atmeno el levonast. Ez az
+            // ND-05 hibrid maradek ket tagja; a biome- es elevacio-mezo
+            // atadasa nelkul a tisztan geometriai (ND-127) ut futna.
             List<List<TileId>> panelRegions = FeatureSegmentation.MergeWatershedsIntoRegions(
-                regions, FeatureSegmentation.RecommendedRegionTileTarget(totalLandTiles));
+                regions, FeatureSegmentation.RecommendedRegionTileTarget(totalLandTiles),
+                _lastBiomeOf, _lastField);
 
             // ld. a mezok doksijat: a navigacios menu negyedik szintje ebbol
             // dolgozik, a TELJES (nem csak a WorldGenPanelData.Regions top 10-e)
