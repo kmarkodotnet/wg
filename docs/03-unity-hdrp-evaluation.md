@@ -149,5 +149,5 @@ Ha az 1. pont teljesül, a döntés **visszafordítható**: rossz esetben a view
 |---|---|---|---|
 | **ND-19** | Floating origin stratégia | Kamera-központú világeltolás + logaritmikus depth; M2-ben megtervezve | M2 |
 | **ND-20** | Burst determinizmus-kikényszerítés | Roslyn analyzer vagy CI-szkript, ami hibát dob `FloatMode.Strict` nélküli `[BurstCompile]`-ra a `WorldGen.*` névtérben | M1 |
-| **ND-21** | HDRP volumetrikus felhő űrből | M2 prototípus dönti el; fallback: saját felhő-shader a Planet nézetre | M2 |
+| **ND-21** | HDRP volumetrikus felhő űrből | **LEZÁRVA 2026-09-27: elutasítva** — a prototípus szerint a HDRP felhője bolygó-léptékben nem használható, tehát a **fallback lép életbe: saját felhő-shader a Planet nézetre** | M2 |
 | **ND-22** | Core assembly-izoláció | `netstandard2.1`, nulla Unity-referencia, külön solutionben építve és tesztelve | M0 |

@@ -164,9 +164,12 @@ Részletek: `docs/05-milestones.md`.
 **ND-01 lezárva: Unity 6 + HDRP.** A `src/` motorfüggetlensége (netstandard2.1,
 nulla Unity-referencia) ettől függetlenül megmarad — a Unity-projekt a
 `src/WorldGen.Core`-t helyi package-ként, forrás szerint hivatkozza, nem
-másolja. Aktív nyitott döntések a választás miatt: **ND-20** (Burst
-`FloatMode.Strict` CI-kikényszerítés), **ND-21**
-(HDRP felhő űrből — prototípussal ellenőrizendő).
+másolja. Aktív nyitott döntés a választás miatt: **ND-20** (Burst
+`FloatMode.Strict` CI-kikényszerítés). Az **ND-21** (HDRP volumetrikus felhő
+űrből) 2026-09-27-én **lezárva: elutasítva** — a prototípus szerint a HDRP
+felhője bolygó-léptékben nem használható (rétegvastagság-clamp, bedrótozott
+Föld-sugár, féltekére vágó felhőtérkép, I3-sértő `Simple` mód), így a Planet
+nézet felhői a saját úton maradnak.
 
 ## Nyelv
 

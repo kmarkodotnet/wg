@@ -125,6 +125,6 @@ Inspector-bekötést vagy a vizuális/performance validációt.
 - A `core-deferred-features` két lokális committal előzi az origint; a jelenlegi
   handover/camera ág öt committal épül rá. A feature branchek nincsenek az
   originre pusholva. Branchművelet előtt mindig ellenőrizd újra a gráfot.
-- Az ND-20 (Burst strict CI), ND-21 (HDRP volumetrikus felhő) és több későbbi
-  ND/backlog tétel nyitott. Ne tekintsd a milestone-nevet teljes
+- Az ND-20 (Burst strict CI) és több későbbi ND/backlog tétel nyitott; az
+  ND-21 (HDRP volumetrikus felhő) 2026-09-27-én lezárva: elutasítva. Ne tekintsd a milestone-nevet teljes
   spec-lefedettségnek: több feature tudatosan halasztott.

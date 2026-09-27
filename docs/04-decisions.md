@@ -31,7 +31,9 @@ valós, kezelt kockázat, nem elutasítási ok.
    kötelező minden szimulációs kódon, CI-ellenőrzéssel → **ND-20**.
 3. A floating origin stratégia M2-ben megtervezve/megvalósítva → **ND-19**.
 4. A HDRP volumetrikus felhő űrből-nézeti működése M2-ben prototípussal
-   ellenőrizve → **ND-21**.
+   ellenőrizve → **ND-21** (2026-09-27: a prototípus lefutott, a HDRP
+   volumetrikus felhő **elutasítva**; a fallback — saját felhő-shader — lép
+   életbe. A feltétel teljesült, csak nem a HDRP javára.)
 
 Ha az 1. feltétel bármikor sérülne, a döntés visszafordítható: a viewer
 cserélődik, a mag nem.
@@ -1076,15 +1078,79 @@ platformok közötti hash-eltérésnél derül ki, ami nagyon drága hibakeresé
 **Sürgősség:** amint az első Burst-kód megjelenik a szimulációs oldalon —
 ne utólag foltozzuk be.
 
-### ND-21 — HDRP volumetrikus felhő űrből ⚠️ M2
+### ND-21 — HDRP volumetrikus felhő űrből (A14, ELUTASÍTVA, prototípussal mérve)
 
-Az ND-01 miatt aktív. A HDRP volumetrikus felhőrendszere eredetileg
-földfelszíni nézetre készült; bizonytalan, hogy az űrből nézett teljes
-bolygó felhőzete milyen minőségű.
+**A kérdés (eredeti felvetés, ND-01 nyitotta).** A HDRP volumetrikus
+felhőrendszere földfelszíni nézetre készült; bizonytalan volt, hogy az űrből
+nézett teljes bolygó felhőzete milyen minőségű. A javaslat prototípus-
+ellenőrzés volt, fallback-ként saját felhő-shader.
 
-**Javaslat:** M2-ben prototípussal ellenőrizni. Ha nem működik jól, a
-Planet nézet felhői saját shaderrel készülnek — ez befolyásolja a
-fidelity-becslést (`docs/02-fidelity-strategy.md`).
+**A prototípus lefutott (2026-09-27, A14).** Élő Unity 6000.0.77f1 + HDRP
+17.0.1, `PlanetView` jelenet, Play módban: a `HDRP High Fidelity` assetben
+`supportVolumetricClouds` IDEIGLENESEN bekapcsolva, egy eldobható,
+`HideFlags.DontSave` Volume-mal (`VisualEnvironment` + `VolumetricClouds`,
+később `PhysicallyBasedSky`), `planetRadius = 100`, `planetCenter = (0,0,0)`,
+`renderingSpace = World`. A menet után minden visszaállt (`git status` tiszta,
+`supportVolumetricClouds: 0` mind a négy assetben). Képek:
+`artifacts/a14/` (gitignore alatt), napló:
+`history/2026-09-27-a14-nd21-hdrp-volumetric-clouds.md`.
+
+**Döntés: ELUTASÍTVA — a Planet nézet felhői a saját úton maradnak** (ma a
+mesh-alapú MVP a csapadék-mezőből, `WorldGen/CloudUnlit`; a volumetrikus
+folytatás az A16/M13 saját shaderé). A HDRP volumetrikus felhő NEM opció
+bolygó-léptékben, űrből. Négy független, mért ok — bármelyik önmagában is
+elég lenne:
+
+1. **Geometria: a rétegvastagság alsó korlátja a bolygónk sugara.** Az
+   `altitudeRange` egy `MinFloatParameter(2000, 100)`, és a `value` setter
+   keményen vág (`Mathf.Max(value, min)`). MÉRVE: `kért = 0,05 →
+   tényleges = 100`. A mi léptékünkben (`radius = 100` egység = 7420 km, azaz
+   1 egység = 74,2 km) a LEGVÉKONYABB lehetséges felhőhéj `r = 100,02 …
+   200,02`, vagyis **7420 km vastag** — a felhő nem a felszínt takarja, hanem
+   egy második, bolygónyi burkot képez körülötte. A valós-lépték nem kiút: az
+   az ND-19/A12 (float32) miatt zárva van.
+2. **A sűrűség-normalizálás a Föld sugarát drótozza be.** A
+   `HDRenderPipeline.VolumetricClouds.cs` `ComputeNormalizationFactor`-ja
+   `const float k_EarthRadius = 6378100.0f` mellett számol, és ez a
+   `_NormalizationFactor` osztja a felhőtérkép UV-jét
+   (`VolumetricCloudsUtilities.hlsl`, `GetCloudCoverageData`). A mi 200
+   egységnyi bolygónk így a térkép EGYETLEN texeljére képződik. MÉRVE: a
+   `Advanced` (felhőtérképes) módban **semmi nem renderelődött** — sem a héjon
+   kívülről (`03`, `06`), sem belülről, sem az északi, sem a déli féltekéről
+   (`08`, `09`).
+3. **A felhőtérképes út — az EGYETLEN, amit a világmodell hajthatna — a
+   shaderben kizárja a fél bolygót.** `VolumetricCloudsUtilities.hlsl`,
+   `EvaluateCloudProperties`: *„When using a cloud map, we cannot support the
+   full planet due to UV issues"*, majd `if (positionPS.y < 0.0f) return;`.
+   A térkép sík, XZ-vetületű, nem gömbi — a déli félteke elvileg sem kaphat
+   felhőt a saját adatunkból.
+4. **Ami renderel, az sérti az I3-at.** Egyedül a `Simple` preset ad képet, de
+   ott a lefedettség a shaderben `float4(0.9f, 0.0f, 0.25f, 1.0f)` konstans +
+   procedurális zaj — nulla köze a világmodellhez. MÉRVE (`07`): a héjon
+   belülről fekete pettyek szórva az egész felszínen, mert a `shapeScale` /
+   `erosionScale` méter-alapú, Föld-léptékű felhőkre hangolt zajfrekvenciái a
+   mi skálánkon ~1 egység (≈74 km) méretű szemcsét adnak.
+
+**Járulékos megfigyelés.** A felhő bekapcsolása behúzza a HDRP saját
+bolygó-/ég-modelljét (`VisualEnvironment` planet radius/center,
+`PhysicallyBasedSky`), ami a mi M3-as megvilágításunkkal ütközik: MÉRVE (`04`)
+a terminátor és a nappali oldal fényessége észrevehetően átrendeződött, pedig
+csak az ég került be. Ez az I4/M3 szempontjából külön kockázat lenne.
+
+**GPU-költség: nem mérhető a rendelkezésre álló műszerrel.** A
+`get_performance_stats` képkocka-időzítése ebben a jelenetben 3,4–6,1 ms között
+szórt (a terep-LOD háttérmunkája dominál), egy érvénytelen 0,03 ms-os mintával.
+Egyetlen tiszta bolygónézeti pár adódott (2,71 → 3,16 ms), ez **tájékoztató,
+nem bizonyíték**. A döntés nem is ezen múlik: az 1–4. pont geometriai és
+invariáns-okokból zár.
+
+**Következmény.** A `docs/03-unity-hdrp-evaluation.md` fallback-ága lép életbe:
+a Planet nézet felhői saját shaderrel készülnek. Az ND-01 fidelity-becslésének
+az a tétele, hogy „a HDRP kész felhő-rendszere renderelési munkát spórol",
+a felhőre nézve NEM teljesül — az atmoszférára (`PhysicallyBasedSky`) és a
+vízre külön kell majd megvizsgálni, ez az ND nem dönt róluk. Az A16/M13
+volumetrikus felhő-tétele innentől nem „kapcsoljuk be a HDRP-t", hanem saját,
+gömbi raymarch a meglévő csapadék-/nedvesség-mezőből.
 
 ### ND-23b — Transzcendens függvények a kritikus úton
 
