@@ -1552,6 +1552,37 @@ a csillagok világkoordinátában állnak. A scene forgásperiódusa 1 nap, ezé
 
 ---
 
+## 16. Pálya menti (éves) kameramód (ND-153, 2026-09-27)
+
+**Mit módosítottam:** új `OrbitalFollowMath.cs` (motorfüggetlen, 24 teszt),
+`SunController.cs` (a pálya-keretes ág mostantól `OrbitalFollow`-ra is fut,
+befagyasztott spin-szöggel + éves időléptetés: `Orbital Follow Seconds Per
+Year`, alap 60 s/év; `Orbital Follow Freeze Spin`, alap be),
+`PlanetGridMesh.cs` (harmadik váltógomb: „Pálya menti (éves)”, mellette a
+pálya-állás kijelzése).
+
+**Hogyan teszteld:** Play módban a Rétegek dobozban kattints a „Pálya menti
+(éves)” gombra, és nézd a bolygót kb. egy percig (ennyi egy teljes év).
+
+**Elvárt eredmény:**
+1. A felszín-rajzolat (partvonalak) **NEM pörög** — a bolygó áll.
+2. A terminátor viszont láthatóan **észak–délre vándorol**; a sarkvidéken
+   teljes nappalból teljes éjszaka lesz és vissza.
+3. A Nap-korong egy teljes kört tesz a bolygó körül ~60 s alatt, a
+   csillagmező közben fixen áll.
+4. A gomb melletti kijelzés: „nap X/365,2 (N%), szubszol. szél. ±Y°” — az Y
+   a ±23,44°-os sávban oszcillál, és a napfordulóknál éri el a szélsőt.
+5. Visszaváltva „Szabad kamera”-ra minden a régi (napi ciklus, álló mesh).
+
+**Tudatos korlát:** a hőmérséklet-overlay ebben a módban LE MARAD (a
+hőmodell képkockánként korlátos tickszámmal lép; éves ütemben a cél gyorsabban
+nő). A két funkciót együtt nem érdemes használni — ez nem hiba, ld. ND-153.
+
+**Ha a napi forgást is látni akarod** (az alias-jelenséggel együtt): a
+`SunController` Inspectorában vedd ki az `Orbital Follow Freeze Spin` pipát.
+
+---
+
 ## Régebbi, még nyitott tételek (korábbi munkamenetekből)
 
 Ezekhez korábban készült kód, de élő megerősítés még nem történt -
