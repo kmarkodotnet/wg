@@ -696,7 +696,13 @@ namespace WorldGen.Viewer
         private double _currentGeomorphRangeFraction = 0.35;
         private TerrainLodProxy? _terrainLodProxy;
         private TerrainLodProxy? _requestedTerrainLodProxy;
-        private readonly Dictionary<(int Face, int Level, uint CornerU, uint CornerV), Vector3> _persistentCornerCache = new();
+        // ND-19 (A12/2): a pozicio-cache ABSZOLUT test-keretbeli DOUBLE-t tarol
+        // (SurfacePoint), nem Vector3-at. Korabban a float32-re valo kerekites
+        // MAR a cache IRASAKOR megtortent, tehat a floating origin kivonasa
+        // (ami definicio szerint csak double-ban ad nyereseget) sosem
+        // ferhetett hozza a pontos ertekhez. A cache igy origo-FUGGETLEN:
+        // rebase-nel NEM kell eldobni (csak a mar emittalt geometriat).
+        private readonly Dictionary<(int Face, int Level, uint CornerU, uint CornerV), SurfacePoint> _persistentCornerCache = new();
         private readonly LinkedList<(int Face, int Level, uint CornerU, uint CornerV)> _cornerCacheLru = new();
         private readonly Dictionary<(int Face, int Level, uint CornerU, uint CornerV), LinkedListNode<(int Face, int Level, uint CornerU, uint CornerV)>> _cornerCacheLruNodes = new();
 
@@ -1242,6 +1248,10 @@ namespace WorldGen.Viewer
 
         private void Start()
         {
+            // ND-19 (A12/2): a jelenetben MEGADOTT Planet-pozicio, meg az
+            // origo-eltolas elott - ehhez kepest tolunk el, es ehhez terunk
+            // vissza bolygokozepu origonal.
+            CaptureAuthoredPlanetLocalPosition();
             SynchronizePhysicalReliefScale();
             Built.AddListener(RefreshNavigationCache);
             Build();
@@ -3022,12 +3032,14 @@ namespace WorldGen.Viewer
                             Color cc10 = ContinuousCornerColor(p10, isOceanic, seaLevel, axialTiltRad);
                             Color cc11 = ContinuousCornerColor(p11, isOceanic, seaLevel, axialTiltRad);
                             Color cc01 = ContinuousCornerColor(p01, isOceanic, seaLevel, axialTiltRad);
-                            AddQuad(vertices, normals, triangles, colors, cc00, cc10, cc11, cc01, pn00, pn10, pn11, pn01, p00, p10, p11, p01);
+                            AddQuad(vertices, normals, triangles, colors, cc00, cc10, cc11, cc01, pn00, pn10, pn11, pn01,
+                                in AbsoluteEmitOrigin, ToSurfacePoint(p00), ToSurfacePoint(p10), ToSurfacePoint(p11), ToSurfacePoint(p01));
                         }
                         else
                         {
                             Color cUniform = CategoryColor(category, bucket);
-                            AddQuad(vertices, normals, triangles, colors, cUniform, cUniform, cUniform, cUniform, pn00, pn10, pn11, pn01, p00, p10, p11, p01);
+                            AddQuad(vertices, normals, triangles, colors, cUniform, cUniform, cUniform, cUniform, pn00, pn10, pn11, pn01,
+                                in AbsoluteEmitOrigin, ToSurfacePoint(p00), ToSurfacePoint(p10), ToSurfacePoint(p11), ToSurfacePoint(p01));
                         }
 
                         // M13: vizfelszin a KALIBRALT tengerszint sugaranal,
@@ -3067,7 +3079,8 @@ namespace WorldGen.Viewer
                             Color wc11 = ContinuousWaterCornerColor(p11, seaLevel);
                             Color wc01 = ContinuousWaterCornerColor(p01, seaLevel);
                             AddQuad(waterVerts, waterNormalsByBucket[waterBucket], waterTrianglesByBucket[waterBucket],
-                                waterColorsByBucket[waterBucket], wc00, wc10, wc11, wc01, wp00, wp10, wp11, wp01);
+                                waterColorsByBucket[waterBucket], wc00, wc10, wc11, wc01,
+                                in AbsoluteEmitOrigin, ToSurfacePoint(wp00), ToSurfacePoint(wp10), ToSurfacePoint(wp11), ToSurfacePoint(wp01));
                         }
 
                         if (showBorders)
@@ -4037,6 +4050,9 @@ namespace WorldGen.Viewer
             int renderBudget = ResolveRenderBudget(cam.pixelWidth, cam.pixelHeight);
             // ND-72: az ND-71 ágankénti terepmintázása élőben súlyos regresszió.
             // A gömbös ND-70 kiválasztás marad; csak EGY renderelt nadírt mérünk.
+            // ND-19 (A12/2): az emit-origo UGYANANNAK a keresnek a resze, mint a
+            // tobbi snapshot - a worker szal ezt olvassa, a fo szal csak itt irja.
+            SnapshotRequestedRenderOrigin();
             _requestedLodLocalToCamera = cam.worldToCameraMatrix * transform.localToWorldMatrix;
             _requestedLodLocalToClip = cam.projectionMatrix * _requestedLodLocalToCamera;
             _requestedLodPixelWidth = cam.pixelWidth;
@@ -4414,6 +4430,14 @@ namespace WorldGen.Viewer
             public Dictionary<TileId, ConcatenatedMesh> ChangedChunkTerrain;
             public List<TileId> RemovedChunkRoots;
             public Dictionary<TileId, HashSet<TileId>> NewChunkGroups;
+
+            /// <summary>
+            /// ND-19 (A12/2): AZ AZ ORIGO, amihez az itteni csucsok relativak.
+            /// A bufferrel EGYUTT utazik, mert a feltoltes kepkockakkal kesobb
+            /// tortenik, es a jelenet-eltolast PONTOSAN ehhez kell allitani -
+            /// nem a kozben mar tovabblepett aktualishoz.
+            /// </summary>
+            public RenderOrigin RenderOrigin = RenderOrigin.PlanetCenter(1.0);
         }
 
         /// <summary>
@@ -4431,6 +4455,7 @@ namespace WorldGen.Viewer
             var b = new AdaptiveMeshBuffers
             {
                 Cut = cut,
+                RenderOrigin = _requestedRenderOrigin,
                 WaterVertices = new Dictionary<int, List<Vector3>>(),
                 WaterNormals = new Dictionary<int, List<Vector3>>(),
                 WaterTriangles = new Dictionary<int, List<int>>(),
@@ -4512,7 +4537,7 @@ namespace WorldGen.Viewer
                         bool changed = changedSet.Contains(group.Key);
                         var orderedLeaves = new List<TileId>(group.Value);
                         orderedLeaves.Sort((a, c) => a.Value.CompareTo(c.Value));
-                        List<Vector3> resolved = CaptureResolvedPositions(orderedLeaves);
+                        List<SurfacePoint> resolved = CaptureResolvedPositions(orderedLeaves);
                         bool hasCached = _previousChunkCache.TryGetValue(group.Key, out CachedLodChunk cached);
                         bool canReuse = !changed && hasCached
                             && DynamicMeshChunking.SamePositions(cached.ResolvedPositions, resolved);
@@ -4628,7 +4653,7 @@ namespace WorldGen.Viewer
                     }
                     foreach (string name in new[] { "DynamicRefined", "DynamicWater", "DynamicBorders" })
                     {
-                        Transform child = transform.Find(name);
+                        Transform child = LayerRoot(name).Find(name);
                         if (child != null) child.gameObject.SetActive(false);
                     }
                     _previousChunkGroups.Clear();
@@ -4657,8 +4682,8 @@ namespace WorldGen.Viewer
             TileId leaf = coverage.FindRenderedLeaf(sample, adaptiveBaseLevel);
             // Pontosan ugyanaz a morph/közösél-feloldás, mint az emitnél;
             // az _activeCornerResolver a teljes kérés lezárásáig él.
-            GetAdaptiveCorners(leaf, out Vector3 a, out Vector3 c, out Vector3 d, out Vector3 e);
-            b.NadirTerrainQuad = new SurfaceQuad(ToSurfacePoint(a), ToSurfacePoint(c), ToSurfacePoint(d), ToSurfacePoint(e));
+            GetAdaptiveCorners(leaf, out SurfacePoint a, out SurfacePoint c, out SurfacePoint d, out SurfacePoint e);
+            b.NadirTerrainQuad = new SurfaceQuad(a, c, d, e);
             b.NadirTerrainLevel = leaf.Level;
             b.NadirOceanBlocked = IsBaseAncestorOceanic(sample);
             b.NadirMorphAlpha = leaf.Level > adaptiveBaseLevel ? ComputeGeomorphAlpha(leaf) : 1;
@@ -4698,10 +4723,14 @@ namespace WorldGen.Viewer
 
         private void ApplyAdaptiveMeshBuffersCore(AdaptiveMeshBuffers b)
         {
+            // ND-19 (A12/2): a vilag-eltolas ES a finomitott geometria
+            // UGYANEBBEN a kepkockaban valt. A buffer SAJAT origot hordoz,
+            // ezert egy elavult keres alkalmazasa is konzisztens allapotot ad.
+            AdoptAppliedRenderOrigin(b.RenderOrigin);
             var publishTimer = Stopwatch.StartNew();
             if (b.ChangedChunkTerrain != null)
             {
-                Transform oldUnchunked = transform.Find("DynamicRefined");
+                Transform oldUnchunked = LayerRoot("DynamicRefined").Find("DynamicRefined");
                 if (oldUnchunked != null) oldUnchunked.gameObject.SetActive(false);
                 // CSAK a VALTOZOTT/UJ chunk-ok GameObject-jet toltjuk fel ujra -
                 // ez a chunkolas teljes celja (ld. useChunkedDynamicMesh doksija).
@@ -4818,9 +4847,20 @@ namespace WorldGen.Viewer
             List<Vector3> borderVerts, List<int> borderIndices,
             float waterSurfaceRadius, float radialBias, int staticDenseIndex = -1,
             StaticMeshBuckets? staticBuckets = null, bool replaceStaticTerrain = false,
-            List<Vector3>? resolvedPositions = null, int resolvedStart = 0,
+            List<SurfacePoint>? resolvedPositions = null, int resolvedStart = 0,
             bool emitTerrain = true, bool emitWater = true)
         {
+            // ND-19 (A12/2): a STATIKUS alap-reteg a Planet transzformjan el,
+            // aminek a lokalis tere ABSZOLUT test-keret maradt - ott tehat
+            // bolygokozepu origoval (kivonas nelkul) emittalunk, es a kimenet
+            // BITRE a korabbi. A FINOMITOTT (dinamikus) reteg viszont a
+            // RefinedLayerRoot alatt el, aminek a lokalis tere origo-relativ -
+            // ott az eppen kert origoval. A ket ut diszkriminatora ugyanaz a
+            // `replaceStaticTerrain` flag, ami a hivoban is a ket reteget
+            // valasztja szet.
+            RenderOrigin emitOrigin = replaceStaticTerrain
+                ? _requestedRenderOrigin
+                : RenderOrigin.PlanetCenter(1.0);
             bool useStaticDenseData = staticDenseIndex >= 0
                 && id.Level == _staticRenderDataLevel
                 && (uint)staticDenseIndex < (uint)_staticTileClassifications.Length;
@@ -4854,7 +4894,7 @@ namespace WorldGen.Viewer
 
             id.GetUV(out uint u, out uint v);
             int lvl = id.Level;
-            Vector3 p00, p10, p11, p01;
+            SurfacePoint p00, p10, p11, p01;
             Vector3 pn00, pn10, pn11, pn01;
             int staticCorner00 = -1;
             int staticCorner10 = -1;
@@ -4867,10 +4907,13 @@ namespace WorldGen.Viewer
                 staticCorner10 = staticCorner00 + side;
                 staticCorner11 = staticCorner10 + 1;
                 staticCorner01 = staticCorner00 + 1;
-                p00 = _staticCornerPositions[staticCorner00];
-                p10 = _staticCornerPositions[staticCorner10];
-                p11 = _staticCornerPositions[staticCorner11];
-                p01 = _staticCornerPositions[staticCorner01];
+                // Veszteseg-mentes szelesites: a statikus tomb float32 ertekeit
+                // double-ba emeljuk, tehat a kesobbi cast VISSZAADJA ugyanazt a
+                // bitmintat (bolygokozepu origo mellett).
+                p00 = ToSurfacePoint(_staticCornerPositions[staticCorner00]);
+                p10 = ToSurfacePoint(_staticCornerPositions[staticCorner10]);
+                p11 = ToSurfacePoint(_staticCornerPositions[staticCorner11]);
+                p01 = ToSurfacePoint(_staticCornerPositions[staticCorner01]);
                 pn00 = _staticCornerNormals[staticCorner00];
                 pn10 = _staticCornerNormals[staticCorner10];
                 pn11 = _staticCornerNormals[staticCorner11];
@@ -4891,10 +4934,10 @@ namespace WorldGen.Viewer
             }
             if (radialBias != 0f && !replaceStaticTerrain)
             {
-                p00 += p00.normalized * radialBias;
-                p10 += p10.normalized * radialBias;
-                p11 += p11.normalized * radialBias;
-                p01 += p01.normalized * radialBias;
+                p00 = ApplyRadialBias(p00, radialBias);
+                p10 = ApplyRadialBias(p10, radialBias);
+                p11 = ApplyRadialBias(p11, radialBias);
+                p01 = ApplyRadialBias(p01, radialBias);
             }
             // ND-55: a lejto-erzekeny, DE tile-hatarokon (es LOD-hatarokon
             // is, mert a kulcs a face/level/uv, nem a hivo tile) folytonos
@@ -4921,12 +4964,12 @@ namespace WorldGen.Viewer
                 Color cc10 = useStaticDenseData ? _staticCornerColors[staticCorner10] : GetOrComputePersistentCornerColor(id.Face, lvl, u + 1, v);
                 Color cc11 = useStaticDenseData ? _staticCornerColors[staticCorner11] : GetOrComputePersistentCornerColor(id.Face, lvl, u + 1, v + 1);
                 Color cc01 = useStaticDenseData ? _staticCornerColors[staticCorner01] : GetOrComputePersistentCornerColor(id.Face, lvl, u, v + 1);
-                AddQuad(vertices, normals, triangles, colors, cc00, cc10, cc11, cc01, pn00, pn10, pn11, pn01, p00, p10, p11, p01);
+                AddQuad(vertices, normals, triangles, colors, cc00, cc10, cc11, cc01, pn00, pn10, pn11, pn01, in emitOrigin, p00, p10, p11, p01);
             }
             else
             {
                 Color cUniform = CategoryColor(category, bucket);
-                AddQuad(vertices, normals, triangles, colors, cUniform, cUniform, cUniform, cUniform, pn00, pn10, pn11, pn01, p00, p10, p11, p01);
+                AddQuad(vertices, normals, triangles, colors, cUniform, cUniform, cUniform, cUniform, pn00, pn10, pn11, pn01, in emitOrigin, p00, p10, p11, p01);
             }
 
             // A vizfelszin (tengerszintnel) MINDEN oceani tile fole kerul -
@@ -4950,16 +4993,29 @@ namespace WorldGen.Viewer
                 && !(replaceStaticTerrain && _requestedIndependentWater && _waterLodSource!.ContainsWater(id)))
             {
                 TileGeometry.GetContinuousBounds(id, out double uMin, out double uMax, out double vMin, out double vMax);
-                Vector3 wp00 = ToWaterVector3(id.Face, uMin, vMin, waterSurfaceRadius);
-                Vector3 wp10 = ToWaterVector3(id.Face, uMax, vMin, waterSurfaceRadius);
-                Vector3 wp11 = ToWaterVector3(id.Face, uMax, vMax, waterSurfaceRadius);
-                Vector3 wp01 = ToWaterVector3(id.Face, uMin, vMax, waterSurfaceRadius);
+                // A statikus uton a REGI, float32-es alak (bit-azonossag), a
+                // finomitott uton a vegig-double valtozat - ld. ToWaterPoint.
+                SurfacePoint wp00, wp10, wp11, wp01;
+                if (replaceStaticTerrain)
+                {
+                    wp00 = ToWaterPoint(id.Face, uMin, vMin, waterSurfaceRadius);
+                    wp10 = ToWaterPoint(id.Face, uMax, vMin, waterSurfaceRadius);
+                    wp11 = ToWaterPoint(id.Face, uMax, vMax, waterSurfaceRadius);
+                    wp01 = ToWaterPoint(id.Face, uMin, vMax, waterSurfaceRadius);
+                }
+                else
+                {
+                    wp00 = ToSurfacePoint(ToWaterVector3(id.Face, uMin, vMin, waterSurfaceRadius));
+                    wp10 = ToSurfacePoint(ToWaterVector3(id.Face, uMax, vMin, waterSurfaceRadius));
+                    wp11 = ToSurfacePoint(ToWaterVector3(id.Face, uMax, vMax, waterSurfaceRadius));
+                    wp01 = ToSurfacePoint(ToWaterVector3(id.Face, uMin, vMax, waterSurfaceRadius));
+                }
                 if (radialBias != 0f)
                 {
-                    wp00 += wp00.normalized * radialBias;
-                    wp10 += wp10.normalized * radialBias;
-                    wp11 += wp11.normalized * radialBias;
-                    wp01 += wp01.normalized * radialBias;
+                    wp00 = ApplyRadialBias(wp00, radialBias);
+                    wp10 = ApplyRadialBias(wp10, radialBias);
+                    wp11 = ApplyRadialBias(wp11, radialBias);
+                    wp01 = ApplyRadialBias(wp01, radialBias);
                 }
 
                 double depth = _adaptiveSeaLevel - elevation;
@@ -4997,12 +5053,12 @@ namespace WorldGen.Viewer
                 // MINDIG a valodi melysegbol jon, fuggetlenul a homerseklettol/
                 // szelessegtol (a korabbi isSeaIceRendered-fehér kapcsolo a
                 // durva racson egy latitude-tisztan kor alaku, eles hatart adott).
-                Color wc00 = ContinuousWaterCornerColor(p00, _adaptiveSeaLevel);
-                Color wc10 = ContinuousWaterCornerColor(p10, _adaptiveSeaLevel);
-                Color wc11 = ContinuousWaterCornerColor(p11, _adaptiveSeaLevel);
-                Color wc01 = ContinuousWaterCornerColor(p01, _adaptiveSeaLevel);
+                Color wc00 = ContinuousWaterCornerColor(ToUnityPoint(p00), _adaptiveSeaLevel);
+                Color wc10 = ContinuousWaterCornerColor(ToUnityPoint(p10), _adaptiveSeaLevel);
+                Color wc11 = ContinuousWaterCornerColor(ToUnityPoint(p11), _adaptiveSeaLevel);
+                Color wc01 = ContinuousWaterCornerColor(ToUnityPoint(p01), _adaptiveSeaLevel);
                 AddQuad(waterVerts, waterNormals, waterTriangles,
-                    waterColors, wc00, wc10, wc11, wc01, wp00, wp10, wp11, wp01);
+                    waterColors, wc00, wc10, wc11, wc01, in emitOrigin, wp00, wp10, wp11, wp01);
             }
 
             // ND-65: BuildBorders kikapcsolt allapotban eldobja a listakat,
@@ -5010,7 +5066,15 @@ namespace WorldGen.Viewer
             if (showBorders)
             {
                 int b = borderVerts.Count;
-                borderVerts.Add(p00); borderVerts.Add(p10); borderVerts.Add(p11); borderVerts.Add(p01);
+                // A hatarvonal ugyanabba a GameObject-be (es igy ugyanabba a
+                // lokalis terbe) kerul, mint a tile terepe - tehat UGYANAZT az
+                // origot kell hasznalnia.
+                emitOrigin.ToLocalVertex(p00, out float bx0, out float by0, out float bz0);
+                emitOrigin.ToLocalVertex(p10, out float bx1, out float by1, out float bz1);
+                emitOrigin.ToLocalVertex(p11, out float bx2, out float by2, out float bz2);
+                emitOrigin.ToLocalVertex(p01, out float bx3, out float by3, out float bz3);
+                borderVerts.Add(new Vector3(bx0, by0, bz0)); borderVerts.Add(new Vector3(bx1, by1, bz1));
+                borderVerts.Add(new Vector3(bx2, by2, bz2)); borderVerts.Add(new Vector3(bx3, by3, bz3));
                 borderIndices.Add(b + 0); borderIndices.Add(b + 1);
                 borderIndices.Add(b + 1); borderIndices.Add(b + 2);
                 borderIndices.Add(b + 2); borderIndices.Add(b + 3);
@@ -5153,7 +5217,7 @@ namespace WorldGen.Viewer
         /// háromszög-interpolációjából származó coarse pozíció felé blendelve.
         /// ND-70: a CPU-s fedéscsere a közös sarkokat/éleket is feloldja.
         /// </summary>
-        private void GetAdaptiveCorners(TileId id, out Vector3 p00, out Vector3 p10, out Vector3 p11, out Vector3 p01)
+        private void GetAdaptiveCorners(TileId id, out SurfacePoint p00, out SurfacePoint p10, out SurfacePoint p11, out SurfacePoint p01)
         {
             if (_activeCornerResolver == null || id.Level <= adaptiveBaseLevel)
             {
@@ -5161,29 +5225,32 @@ namespace WorldGen.Viewer
                 return;
             }
             id.GetUV(out uint u, out uint v);
-            p00 = ToUnityPoint(_activeCornerResolver.Corner(id.Face, id.Level, u, v));
-            p10 = ToUnityPoint(_activeCornerResolver.Corner(id.Face, id.Level, u + 1, v));
-            p11 = ToUnityPoint(_activeCornerResolver.Corner(id.Face, id.Level, u + 1, v + 1));
-            p01 = ToUnityPoint(_activeCornerResolver.Corner(id.Face, id.Level, u, v + 1));
+            // ND-19 (A12/2): a kozos-sarok feloldo MAR double-ban (SurfacePoint)
+            // dolgozott; korabban itt egy folosleges ToUnityPoint-cast allt, ami
+            // a feloldo pontossagat AZONNAL eldobta.
+            p00 = _activeCornerResolver.Corner(id.Face, id.Level, u, v);
+            p10 = _activeCornerResolver.Corner(id.Face, id.Level, u + 1, v);
+            p11 = _activeCornerResolver.Corner(id.Face, id.Level, u + 1, v + 1);
+            p01 = _activeCornerResolver.Corner(id.Face, id.Level, u, v + 1);
         }
 
         private static SurfacePoint ToSurfacePoint(Vector3 p) => new SurfacePoint(p.x, p.y, p.z);
         private static Vector3 ToUnityPoint(SurfacePoint p) => new Vector3((float)p.X, (float)p.Y, (float)p.Z);
         private SurfaceQuad GetRawSurfaceQuad(TileId id)
         {
-            GetUnstitchedAdaptiveCorners(id, out Vector3 a, out Vector3 b, out Vector3 c, out Vector3 d);
-            return new SurfaceQuad(ToSurfacePoint(a), ToSurfacePoint(b), ToSurfacePoint(c), ToSurfacePoint(d));
+            GetUnstitchedAdaptiveCorners(id, out SurfacePoint a, out SurfacePoint b, out SurfacePoint c, out SurfacePoint d);
+            return new SurfaceQuad(a, b, c, d);
         }
 
-        private void GetUnstitchedAdaptiveCorners(TileId id, out Vector3 p00, out Vector3 p10, out Vector3 p11, out Vector3 p01)
+        private void GetUnstitchedAdaptiveCorners(TileId id, out SurfacePoint p00, out SurfacePoint p10, out SurfacePoint p11, out SurfacePoint p01)
         {
             id.GetUV(out uint u, out uint v);
             int lvl = id.Level;
 
-            Vector3 fine00 = GetOrComputePersistentCorner(id.Face, lvl, u, v);
-            Vector3 fine10 = GetOrComputePersistentCorner(id.Face, lvl, u + 1, v);
-            Vector3 fine11 = GetOrComputePersistentCorner(id.Face, lvl, u + 1, v + 1);
-            Vector3 fine01 = GetOrComputePersistentCorner(id.Face, lvl, u, v + 1);
+            SurfacePoint fine00 = GetOrComputePersistentCorner(id.Face, lvl, u, v);
+            SurfacePoint fine10 = GetOrComputePersistentCorner(id.Face, lvl, u + 1, v);
+            SurfacePoint fine11 = GetOrComputePersistentCorner(id.Face, lvl, u + 1, v + 1);
+            SurfacePoint fine01 = GetOrComputePersistentCorner(id.Face, lvl, u, v + 1);
 
             if (lvl <= adaptiveBaseLevel)
             {
@@ -5200,10 +5267,10 @@ namespace WorldGen.Viewer
 
             TileId parent = id.Parent();
             parent.GetUV(out uint pu, out uint pv);
-            Vector3 parent00 = GetOrComputePersistentCorner(parent.Face, parent.Level, pu, pv);
-            Vector3 parent10 = GetOrComputePersistentCorner(parent.Face, parent.Level, pu + 1, pv);
-            Vector3 parent11 = GetOrComputePersistentCorner(parent.Face, parent.Level, pu + 1, pv + 1);
-            Vector3 parent01 = GetOrComputePersistentCorner(parent.Face, parent.Level, pu, pv + 1);
+            SurfacePoint parent00 = GetOrComputePersistentCorner(parent.Face, parent.Level, pu, pv);
+            SurfacePoint parent10 = GetOrComputePersistentCorner(parent.Face, parent.Level, pu + 1, pv);
+            SurfacePoint parent11 = GetOrComputePersistentCorner(parent.Face, parent.Level, pu + 1, pv + 1);
+            SurfacePoint parent01 = GetOrComputePersistentCorner(parent.Face, parent.Level, pu, pv + 1);
 
             // A gyerek 4 sarka a szulo [0,1]x[0,1] lap-lokalis tereben pontosan
             // {0, 0.5, 1} relativ koordinatakra esik (a gyerek cornerU/cornerV
@@ -5214,22 +5281,24 @@ namespace WorldGen.Viewer
             double relU1 = (u + 1 - pu * 2) / 2.0;
             double relV1 = (v + 1 - pv * 2) / 2.0;
 
-            Vector3 coarse00 = InterpolateTriangulatedQuad(parent00, parent10, parent11, parent01, relU0, relV0);
-            Vector3 coarse10 = InterpolateTriangulatedQuad(parent00, parent10, parent11, parent01, relU1, relV0);
-            Vector3 coarse11 = InterpolateTriangulatedQuad(parent00, parent10, parent11, parent01, relU1, relV1);
-            Vector3 coarse01 = InterpolateTriangulatedQuad(parent00, parent10, parent11, parent01, relU0, relV1);
+            SurfacePoint coarse00 = InterpolateTriangulatedQuad(parent00, parent10, parent11, parent01, relU0, relV0);
+            SurfacePoint coarse10 = InterpolateTriangulatedQuad(parent00, parent10, parent11, parent01, relU1, relV0);
+            SurfacePoint coarse11 = InterpolateTriangulatedQuad(parent00, parent10, parent11, parent01, relU1, relV1);
+            SurfacePoint coarse01 = InterpolateTriangulatedQuad(parent00, parent10, parent11, parent01, relU0, relV1);
 
-            float a = (float)alpha;
-            p00 = Vector3.Lerp(coarse00, fine00, a);
-            p10 = Vector3.Lerp(coarse10, fine10, a);
-            p11 = Vector3.Lerp(coarse11, fine11, a);
-            p01 = Vector3.Lerp(coarse01, fine01, a);
+            // A geomorph-blend is DOUBLE-ban (korabban `Vector3.Lerp`, float32):
+            // enelkul a legkozelebbi zoomban EPPEN a morphing kozben veszne el a
+            // megnyert pontossag. Az `alpha` maga double.
+            p00 = SurfacePoint.Lerp(coarse00, fine00, alpha);
+            p10 = SurfacePoint.Lerp(coarse10, fine10, alpha);
+            p11 = SurfacePoint.Lerp(coarse11, fine11, alpha);
+            p01 = SurfacePoint.Lerp(coarse01, fine01, alpha);
         }
 
-        private static Vector3 InterpolateTriangulatedQuad(Vector3 c00, Vector3 c10, Vector3 c11, Vector3 c01, double u, double v)
+        private static SurfacePoint InterpolateTriangulatedQuad(
+            in SurfacePoint c00, in SurfacePoint c10, in SurfacePoint c11, in SurfacePoint c01, double u, double v)
         {
-            var quad = new SurfaceQuad(ToSurfacePoint(c00), ToSurfacePoint(c10), ToSurfacePoint(c11), ToSurfacePoint(c01));
-            return ToUnityPoint(quad.At(u, v));
+            return new SurfaceQuad(c00, c10, c11, c01).At(u, v);
         }
 
         /// <summary>
@@ -5304,19 +5373,22 @@ namespace WorldGen.Viewer
         /// szintu cache-szel), mert kulonbozo aktiv csomopontok kulonbozo
         /// szinten kernek sarkokat.
         /// </summary>
-        private Vector3 GetOrComputePersistentCorner(int face, int lvl, uint cornerU, uint cornerV)
+        private SurfacePoint GetOrComputePersistentCorner(int face, int lvl, uint cornerU, uint cornerV)
         {
+            // A statikus, suru tomb tovabbra is Vector3 (az az alap-reteg SAJAT
+            // adata, amit BITRE valtozatlanul emittalunk) - itt csak
+            // veszteseg-mentesen szelesitunk double-ra.
             if (TryGetStaticCornerIndex(face, lvl, cornerU, cornerV, _staticCornerPositions.Length, out int staticIndex))
-                return _staticCornerPositions[staticIndex];
+                return ToSurfacePoint(_staticCornerPositions[staticIndex]);
 
             var key = (face, lvl, cornerU, cornerV);
-            if (_persistentCornerCache.TryGetValue(key, out Vector3 cached))
+            if (_persistentCornerCache.TryGetValue(key, out SurfacePoint cached))
             {
                 TouchLru(key);
                 return cached;
             }
 
-            Vector3 p = ComputeCorner(face, lvl, cornerU, cornerV);
+            SurfacePoint p = ComputeCorner(face, lvl, cornerU, cornerV);
             _persistentCornerCache[key] = p;
             _cornerCacheLruNodes[key] = _cornerCacheLru.AddLast(key);
             return p;
@@ -5340,8 +5412,8 @@ namespace WorldGen.Viewer
             if (_persistentCornerColorCache.TryGetValue(key, out Color cached))
                 return cached;
 
-            Vector3 p = GetOrComputePersistentCorner(face, lvl, cornerU, cornerV);
-            Color c = ContinuousCornerColorAuto(p);
+            SurfacePoint p = GetOrComputePersistentCorner(face, lvl, cornerU, cornerV);
+            Color c = ContinuousCornerColorAuto(ToUnityPoint(p));
             _persistentCornerColorCache[key] = c;
             return c;
         }
@@ -5367,18 +5439,18 @@ namespace WorldGen.Viewer
         }
 
         /// <summary>Cache-tol fuggetlen, szalbiztos sarok-szamitas - ld. PrecomputeCornersInParallel.</summary>
-        private Vector3 ComputeCorner(int face, int lvl, uint cornerU, uint cornerV)
+        private SurfacePoint ComputeCorner(int face, int lvl, uint cornerU, uint cornerV)
         {
             int n = 1 << lvl;
             double uc = (double)cornerU / n * 2.0 - 1.0;
             double vc = (double)cornerV / n * 2.0 - 1.0;
-            return ToDisplacedVector3(face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters);
+            return ToDisplacedPoint(face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters);
         }
 
         /// <summary>ND-55: cache-tol fuggetlen, szalbiztos sarok-NORMAL szamitas - ld. PrecomputeCornersInParallel.</summary>
         private Vector3 ComputeCornerNormal(int face, int lvl, uint cornerU, uint cornerV)
         {
-            Vector3 center = ComputeCorner(face, lvl, cornerU, cornerV);
+            SurfacePoint center = ComputeCorner(face, lvl, cornerU, cornerV);
             return ComputeCornerNormal(face, lvl, cornerU, cornerV, center);
         }
 
@@ -5388,6 +5460,14 @@ namespace WorldGen.Viewer
         /// ezert a kimenet bitre valtozatlan, csak egy teljes elevation-kiertekeles
         /// marad el minden uj saroknal.
         /// </summary>
+        private Vector3 ComputeCornerNormal(int face, int lvl, uint cornerU, uint cornerV, in SurfacePoint center)
+        {
+            // A NORMAL IRANY, nem pozicio: float32-ben abrazolva is pontos
+            // (relativ hiba 1e-7), ezert a normal-lanc szandekosan Vector3
+            // marad - az ND-19 nyeresege kizarolag a POZICIOKON jelentkezik.
+            return ComputeCornerNormal(face, lvl, cornerU, cornerV, ToUnityPoint(center));
+        }
+
         private Vector3 ComputeCornerNormal(int face, int lvl, uint cornerU, uint cornerV, Vector3 center)
         {
             int n = 1 << lvl;
@@ -5439,7 +5519,9 @@ namespace WorldGen.Viewer
                 }
                 else
                 {
-                    p = ComputeCorner(face, adaptiveBaseLevel, cornerU, cornerV);
+                    // A STATIKUS suru tomb szandekosan Vector3 marad (bit-azonos
+                    // alap-reteg, ld. ND-19 A12/2) - itt tehat itt kerekitunk.
+                    p = ToUnityPoint(ComputeCorner(face, adaptiveBaseLevel, cornerU, cornerV));
                     normal = ComputeCornerNormal(face, adaptiveBaseLevel, cornerU, cornerV, p);
                 }
 
@@ -5521,7 +5603,7 @@ namespace WorldGen.Viewer
             if (missing.Count == 0)
                 return (needed.Count, 0);
 
-            var results = new Vector3[missing.Count];
+            var results = new SurfacePoint[missing.Count];
             var colorResults = new Color[missing.Count];
             var normalResults = new Vector3[missing.Count];
             System.Threading.Tasks.Parallel.For(0, missing.Count, i =>
@@ -5530,13 +5612,13 @@ namespace WorldGen.Viewer
                 // Részleges cache: egy fallback betölthette a POZÍCIÓT,
                 // illetve a szín-cache külön is invalidálódhat. A hiányzó
                 // attribútumokat ugyanitt, párhuzamosan kell kiegészíteni.
-                if (_persistentCornerCache.TryGetValue(k, out Vector3 existing))
+                if (_persistentCornerCache.TryGetValue(k, out SurfacePoint existing))
                 {
                     results[i] = existing;
                     colorResults[i] = _persistentCornerColorCache.TryGetValue(k, out Color color)
-                        ? color : ContinuousCornerColorAuto(existing);
+                        ? color : ContinuousCornerColorAuto(ToUnityPoint(existing));
                     normalResults[i] = _persistentCornerNormalCache.TryGetValue(k, out Vector3 normal)
-                        ? normal : ComputeCornerNormal(k.Face, k.Level, k.CornerU, k.CornerV, existing);
+                        ? normal : ComputeCornerNormal(k.Face, k.Level, k.CornerU, k.CornerV, in existing);
                     return;
                 }
                 if (TryGetStaticTerrainBasis(
@@ -5548,23 +5630,24 @@ namespace WorldGen.Viewer
                     int n = 1 << k.Level;
                     double uc = (double)k.CornerU / n * 2.0 - 1.0;
                     double vc = (double)k.CornerV / n * 2.0 - 1.0;
-                    Vector3 p = ToDisplacedVector3FromBasis(
+                    SurfacePoint p = ToDisplacedPointFromBasis(
                         k.Face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters, in centerBasis);
                     results[i] = p;
-                    colorResults[i] = ContinuousCornerColorAuto(p);
+                    Vector3 pv = ToUnityPoint(p);
+                    colorResults[i] = ContinuousCornerColorAuto(pv);
                     normalResults[i] = ComputeCornerNormalViaFiniteDifferenceFromBasis(
                         k.Face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters,
-                        p, in uBasis, in vBasis);
+                        pv, in uBasis, in vBasis);
                 }
                 else
                 {
-                    Vector3 p = ComputeCorner(k.Face, k.Level, k.CornerU, k.CornerV);
+                    SurfacePoint p = ComputeCorner(k.Face, k.Level, k.CornerU, k.CornerV);
                     results[i] = p;
-                    colorResults[i] = ContinuousCornerColorAuto(p);
+                    colorResults[i] = ContinuousCornerColorAuto(ToUnityPoint(p));
                     // A normal veges differenciajanak kozeppontja bitre ugyanaz a
                     // pont, amit fent mar kiszamoltunk. A regi kod ezt minden uj
                     // sarokra egy teljes elevation-lanccal ujra eloallitotta.
-                    normalResults[i] = ComputeCornerNormal(k.Face, k.Level, k.CornerU, k.CornerV, p);
+                    normalResults[i] = ComputeCornerNormal(k.Face, k.Level, k.CornerU, k.CornerV, in p);
                 }
             });
 
@@ -6008,6 +6091,9 @@ namespace WorldGen.Viewer
             return canSkip;
         }
 
+        /// <summary>ND-19 (A12/2): a sarok-pozicio mar double, a sugar-negyzet is abban keszul.</summary>
+        private static double SquaredRadius(in SurfacePoint p) => p.SqrMagnitude;
+
         private static double SquaredRadius(Vector3 p)
             => (double)p.x * p.x + (double)p.y * p.y + (double)p.z * p.z;
 
@@ -6205,7 +6291,7 @@ namespace WorldGen.Viewer
             // layout indexeit tilos az új világra visszamásolni.
             ResetIndependentWaterRendering(restoreStaticIndices: false);
             _drawnHiddenStaticWaterQuads = new HashSet<int>();
-            Transform legacyWater = transform.Find("DynamicWater");
+            Transform legacyWater = LayerRoot("DynamicWater").Find("DynamicWater");
             if (legacyWater != null) legacyWater.gameObject.SetActive(false);
             _waterLodSource = null;
             _waterEvaluationCache = null;
@@ -6876,9 +6962,31 @@ namespace WorldGen.Viewer
         /// <summary>Egyetlen szint minden sarkara (uniform quad-szin) - a River/Crater/SeaIce flat-color eseteknek.</summary>
         private static void AddQuad(
             List<Vector3> vertices, List<Vector3> normals, List<int> triangles, List<Color> colors, Color color,
-            Vector3 p00, Vector3 p10, Vector3 p11, Vector3 p01)
+            in RenderOrigin origin, in SurfacePoint p00, in SurfacePoint p10, in SurfacePoint p11, in SurfacePoint p01)
         {
-            AddQuad(vertices, normals, triangles, colors, color, color, color, color, p00, p10, p11, p01);
+            AddQuad(vertices, normals, triangles, colors, color, color, color, color, in origin, p00, p10, p11, p01);
+        }
+
+        /// <summary>
+        /// ND-19 (A12/2) - AZ EGYETLEN HELY, ahol az abszolut test-keretbeli
+        /// (double) pozicio origo-relativ float32-re valt. A kivonas DOUBLE-ban,
+        /// a cast UTANA (ez a floating origin egesze). Ket dolgot ad vissza:
+        ///
+        /// - local: ami a vertex-bufferbe kerul (origo-relativ, kicsi
+        ///   nagysagrend, tehat finom ULP);
+        /// - absolute: a RADIALIS IRANY es a SUGAR forrasa (normal-elojel,
+        ///   gomb-kozelites, viz-szin). Ezek float32-ben is pontosak, DE
+        ///   origo-relativ terben egyaltalan nem lennenek kiszamithatok.
+        ///
+        /// Bolygokozepu origonal (origin.IsPlanetCenter) local == absolute
+        /// BITRE, mert a kivonas pontos 0,0-t von ki.
+        /// </summary>
+        private static void SplitQuadPosition(
+            in RenderOrigin origin, in SurfacePoint p, out Vector3 local, out Vector3 absolute)
+        {
+            origin.ToLocalVertex(p, out float lx, out float ly, out float lz);
+            local = new Vector3(lx, ly, lz);
+            absolute = ToUnityPoint(p);
         }
 
         /// <summary>
@@ -6944,8 +7052,12 @@ namespace WorldGen.Viewer
         private static void AddQuad(
             List<Vector3> vertices, List<Vector3> normals, List<int> triangles, List<Color> colors,
             Color c00, Color c10, Color c11, Color c01,
-            Vector3 p00, Vector3 p10, Vector3 p11, Vector3 p01)
+            in RenderOrigin origin, in SurfacePoint a00, in SurfacePoint a10, in SurfacePoint a11, in SurfacePoint a01)
         {
+            SplitQuadPosition(in origin, in a00, out Vector3 p00, out Vector3 abs00);
+            SplitQuadPosition(in origin, in a10, out Vector3 p10, out Vector3 abs10);
+            SplitQuadPosition(in origin, in a11, out Vector3 p11, out Vector3 abs11);
+            SplitQuadPosition(in origin, in a01, out Vector3 p01, out Vector3 abs01);
             int baseIndex = vertices.Count;
             vertices.Add(p00); vertices.Add(p10); vertices.Add(p11); vertices.Add(p01);
 
@@ -6973,15 +7085,18 @@ namespace WorldGen.Viewer
                 // Degeneralt quad (vagy mar NaN a bemeneten) - a negy
                 // sarokpont sajat, STRUKTURALISAN sosem NaN gomb-iranyu
                 // normaljainak atlagara esunk vissza (ld. SafeSurfaceNormal).
-                Vector3 avgNormal = SafeSurfaceNormal(p00) + SafeSurfaceNormal(p10)
-                    + SafeSurfaceNormal(p11) + SafeSurfaceNormal(p01);
+                // ND-19: a gomb-iranyu tartalek normal az ABSZOLUT poziciobol
+                // jon - origo-relativ terben a p.normalized NEM a radialis
+                // irany (a lokalis origo nem a bolygo kozeppontja).
+                Vector3 avgNormal = SafeSurfaceNormal(abs00) + SafeSurfaceNormal(abs10)
+                    + SafeSurfaceNormal(abs11) + SafeSurfaceNormal(abs01);
                 normal = avgNormal.sqrMagnitude >= 1e-12f ? avgNormal.normalized : Vector3.up;
             }
             else
             {
                 normal = rawNormal.normalized;
             }
-            if (Vector3.Dot(normal, p00) < 0f) normal = -normal;
+            if (Vector3.Dot(normal, abs00) < 0f) normal = -normal;
             normals.Add(normal); normals.Add(normal); normals.Add(normal); normals.Add(normal);
 
             // 2026-09-05: a fix iranyu Lambert-BESUTES MEGSZUNT - a folytonos
@@ -7000,10 +7115,10 @@ namespace WorldGen.Viewer
             // beazonositasahoz) es MAGENTA-ra kicsereljuk, hogy a
             // felhasznaloi screenshot egyertelmuen mutassa: ha a feher folt
             // magentara valt, ez a forras.
-            c00 = SanitizeVertexColor(c00, p00);
-            c10 = SanitizeVertexColor(c10, p10);
-            c11 = SanitizeVertexColor(c11, p11);
-            c01 = SanitizeVertexColor(c01, p01);
+            c00 = SanitizeVertexColor(c00, abs00);
+            c10 = SanitizeVertexColor(c10, abs10);
+            c11 = SanitizeVertexColor(c11, abs11);
+            c01 = SanitizeVertexColor(c01, abs01);
             colors.Add(c00); colors.Add(c10); colors.Add(c11); colors.Add(c01);
 
             Vector3 impliedNormal1 = Vector3.Cross(p10 - p00, p11 - p00);
@@ -7035,21 +7150,25 @@ namespace WorldGen.Viewer
             List<Vector3> vertices, List<Vector3> normals, List<int> triangles, List<Color> colors,
             Color c00, Color c10, Color c11, Color c01,
             Vector3 n00, Vector3 n10, Vector3 n11, Vector3 n01,
-            Vector3 p00, Vector3 p10, Vector3 p11, Vector3 p01)
+            in RenderOrigin origin, in SurfacePoint a00, in SurfacePoint a10, in SurfacePoint a11, in SurfacePoint a01)
         {
+            SplitQuadPosition(in origin, in a00, out Vector3 p00, out Vector3 abs00);
+            SplitQuadPosition(in origin, in a10, out Vector3 p10, out Vector3 abs10);
+            SplitQuadPosition(in origin, in a11, out Vector3 p11, out Vector3 abs11);
+            SplitQuadPosition(in origin, in a01, out Vector3 p01, out Vector3 abs01);
             int baseIndex = vertices.Count;
             vertices.Add(p00); vertices.Add(p10); vertices.Add(p11); vertices.Add(p01);
 
-            n00 = SafeSurfaceNormal(n00.sqrMagnitude >= 1e-6f && n00.sqrMagnitude < float.PositiveInfinity ? n00 : p00);
-            n10 = SafeSurfaceNormal(n10.sqrMagnitude >= 1e-6f && n10.sqrMagnitude < float.PositiveInfinity ? n10 : p10);
-            n11 = SafeSurfaceNormal(n11.sqrMagnitude >= 1e-6f && n11.sqrMagnitude < float.PositiveInfinity ? n11 : p11);
-            n01 = SafeSurfaceNormal(n01.sqrMagnitude >= 1e-6f && n01.sqrMagnitude < float.PositiveInfinity ? n01 : p01);
+            n00 = SafeSurfaceNormal(n00.sqrMagnitude >= 1e-6f && n00.sqrMagnitude < float.PositiveInfinity ? n00 : abs00);
+            n10 = SafeSurfaceNormal(n10.sqrMagnitude >= 1e-6f && n10.sqrMagnitude < float.PositiveInfinity ? n10 : abs10);
+            n11 = SafeSurfaceNormal(n11.sqrMagnitude >= 1e-6f && n11.sqrMagnitude < float.PositiveInfinity ? n11 : abs11);
+            n01 = SafeSurfaceNormal(n01.sqrMagnitude >= 1e-6f && n01.sqrMagnitude < float.PositiveInfinity ? n01 : abs01);
             normals.Add(n00); normals.Add(n10); normals.Add(n11); normals.Add(n01);
 
-            c00 = SanitizeVertexColor(c00, p00);
-            c10 = SanitizeVertexColor(c10, p10);
-            c11 = SanitizeVertexColor(c11, p11);
-            c01 = SanitizeVertexColor(c01, p01);
+            c00 = SanitizeVertexColor(c00, abs00);
+            c10 = SanitizeVertexColor(c10, abs10);
+            c11 = SanitizeVertexColor(c11, abs11);
+            c01 = SanitizeVertexColor(c01, abs01);
             colors.Add(c00); colors.Add(c10); colors.Add(c11); colors.Add(c01);
 
             // Winding-dontes: a negy (mar biztonsagos) normal osszege eleg
@@ -7352,12 +7471,15 @@ namespace WorldGen.Viewer
         /// </summary>
         private GameObject GetOrCreateChildRenderTarget(string name)
         {
-            Transform child = transform.Find(name);
+            // ND-19 (A12/2): a FINOMITOTT reteg gyerekei az origo-relativ
+            // gyoker ala kerulnek, minden mas a Planet ala (abszolut ter).
+            Transform root = LayerRoot(name);
+            Transform child = root.Find(name);
             if (child != null)
                 return child.gameObject;
 
             var go = new GameObject(name);
-            go.transform.SetParent(transform, false);
+            go.transform.SetParent(root, false);
             go.AddComponent<MeshFilter>();
             go.AddComponent<MeshRenderer>();
             return go;
@@ -7374,7 +7496,7 @@ namespace WorldGen.Viewer
             if (_dynamicChunkGameObjects.TryGetValue(chunkRoot, out GameObject? go) && go != null)
                 return go;
 
-            go = CreateInactiveChunkRenderTarget(transform, chunkRoot);
+            go = CreateInactiveChunkRenderTarget(RefinedLayerRoot, chunkRoot);
             if (activateNew) go.SetActive(true);
             _dynamicChunkGameObjects[chunkRoot] = go;
             return go;
@@ -7382,7 +7504,7 @@ namespace WorldGen.Viewer
 
         private static GameObject CreateInactiveChunkRenderTarget(Transform parent, TileId chunkRoot)
         {
-            var target = new GameObject("Chunk_" + chunkRoot.Value);
+            var target = new GameObject(ChunkRenderTargetPrefix + chunkRoot.Value);
             target.SetActive(false);
             try
             {
@@ -7428,7 +7550,8 @@ namespace WorldGen.Viewer
 
         private void BuildBorders(List<Vector3> borderVerts, List<int> borderIndices, string childName)
         {
-            Transform borderChild = transform.Find(childName);
+            Transform borderRoot = LayerRoot(childName);
+            Transform borderChild = borderRoot.Find(childName);
 
             if (!showBorders)
             {
@@ -7440,7 +7563,7 @@ namespace WorldGen.Viewer
             if (borderChild == null)
             {
                 borderGo = new GameObject(childName);
-                borderGo.transform.SetParent(transform, false);
+                borderGo.transform.SetParent(borderRoot, false);
                 borderGo.AddComponent<MeshFilter>();
                 MeshRenderer mr = borderGo.AddComponent<MeshRenderer>();
                 mr.shadowCastingMode = ShadowCastingMode.Off;
@@ -7665,7 +7788,7 @@ namespace WorldGen.Viewer
         /// </summary>
         private Vector3 RiverPositionOnSurface(double x, double y, double z)
         {
-            float displacedRadius = ComputeDisplacedRadius(x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters);
+            var displacedRadius = (float)ComputeDisplacedRadius(x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters);
             Vector3 p = BodyFrameConversion.ToUnity(x, y, z) * displacedRadius;
             return p + p.normalized * riverLineRadialBias;
         }
@@ -7907,7 +8030,8 @@ namespace WorldGen.Viewer
                     Vector3 q10 = ToWaterVector3(t.Face, uMax, vMin, r);
                     Vector3 q11 = ToWaterVector3(t.Face, uMax, vMax, r);
                     Vector3 q01 = ToWaterVector3(t.Face, uMin, vMax, r);
-                    AddQuad(verts, normals, tris, colors, lakeColor, q00, q10, q11, q01);
+                    AddQuad(verts, normals, tris, colors, lakeColor,
+                        in AbsoluteEmitOrigin, ToSurfacePoint(q00), ToSurfacePoint(q10), ToSurfacePoint(q11), ToSurfacePoint(q01));
                     quadCount++;
                     continue;
                 }
@@ -7942,8 +8066,9 @@ namespace WorldGen.Viewer
                 {
                     for (int j = 0; j < n4; j++)
                     {
-                        AddQuad(verts, normals, tris, colors, lakeColor,
-                            grid[i, j], grid[i + 1, j], grid[i + 1, j + 1], grid[i, j + 1]);
+                        AddQuad(verts, normals, tris, colors, lakeColor, in AbsoluteEmitOrigin,
+                            ToSurfacePoint(grid[i, j]), ToSurfacePoint(grid[i + 1, j]),
+                            ToSurfacePoint(grid[i + 1, j + 1]), ToSurfacePoint(grid[i, j + 1]));
                         quadCount++;
                     }
                 }
@@ -8270,7 +8395,8 @@ namespace WorldGen.Viewer
                 Vector3 p10 = ToWaterVector3(t.Face, uMax, vMin, cloudRadius);
                 Vector3 p11 = ToWaterVector3(t.Face, uMax, vMax, cloudRadius);
                 Vector3 p01 = ToWaterVector3(t.Face, uMin, vMax, cloudRadius);
-                AddQuad(verts, normals, tris, colors, c00, c10, c11, c01, p00, p10, p11, p01);
+                AddQuad(verts, normals, tris, colors, c00, c10, c11, c01,
+                    in AbsoluteEmitOrigin, ToSurfacePoint(p00), ToSurfacePoint(p10), ToSurfacePoint(p11), ToSurfacePoint(p01));
             }
 
             return new CloudMeshData { Vertices = verts, Normals = normals, Triangles = tris, Colors = colors };
@@ -8368,6 +8494,20 @@ namespace WorldGen.Viewer
         }
 
         /// <summary>
+        /// ND-19 (A12/2): a <see cref="ToWaterVector3"/> VEGIG DOUBLE valtozata -
+        /// a finomitott (dinamikus) vizreteg ezt hasznalja, hogy a
+        /// floating-origin kivonas elott ne legyen float32-re kerekites. A
+        /// statikus alap-reteg SZANDEKOSAN a regi, Vector3-as alakon marad:
+        /// ott a kimenetnek BITRE valtozatlannak kell lennie (ld. ND-19 A12/2
+        /// "bit-azonossagi szerzodes").
+        /// </summary>
+        private SurfacePoint ToWaterPoint(int face, double uc, double vc, double waterSurfaceRadius)
+        {
+            TileGeometry.PositionFromFaceUV(face, uc, vc, out double x, out double y, out double z);
+            return new SurfacePoint(x * waterSurfaceRadius, z * waterSurfaceRadius, y * waterSurfaceRadius);
+        }
+
+        /// <summary>
         /// Melyseg (meter) -> bucket-index a WaterDepthBucketCount lepesu,
         /// de a szemnek sima hatasu telitodo gorbehez: t = 1 - exp(-melyseg/skala).
         /// A t=0-hoz (sekely) a shallowWaterColor, t~1-hez (mely) a
@@ -8437,12 +8577,13 @@ namespace WorldGen.Viewer
             Dictionary<int, List<Color>> colorsByBucket,
             string childName, StaticBuildAllocationProfile allocationProfile = null)
         {
-            Transform waterChild = transform.Find(childName);
+            Transform waterRoot = LayerRoot(childName);
+            Transform waterChild = waterRoot.Find(childName);
             GameObject waterGo;
             if (waterChild == null)
             {
                 waterGo = new GameObject(childName);
-                waterGo.transform.SetParent(transform, false);
+                waterGo.transform.SetParent(waterRoot, false);
                 waterGo.AddComponent<MeshFilter>();
                 waterGo.AddComponent<MeshRenderer>();
             }
@@ -8563,7 +8704,7 @@ namespace WorldGen.Viewer
                 // nem a nyers `radius`-nal - kulonben a szarazfoldnal/
                 // tengerszintnel magasabban/alacsonyabban lebegne, fuggetlenul
                 // a valos domborzattol (ezt a felhasznalo eszrevette).
-                float surfaceRadius = ComputeDisplacedRadius(crater.X, crater.Y, crater.Z, seed, seeds, craters);
+                var surfaceRadius = (float)ComputeDisplacedRadius(crater.X, crater.Y, crater.Z, seed, seeds, craters);
 
                 float sizeFraction = Mathf.Clamp01((float)(crater.DepthMeters / maxPossibleDepth));
                 float markerDiameter = Mathf.Lerp(1.0f, 6.0f, sizeFraction);
@@ -8637,12 +8778,46 @@ namespace WorldGen.Viewer
             return nrm;
         }
 
+        /// <summary>
+        /// ND-19 (A12/2): a sarok-pozicio TELJESEN DOUBLE-ban, a float32-re
+        /// valo kerekites NELKUL. Ez a lanc adja a floating origin nyeresegenek
+        /// elofeltetelet: a `p - origo` kivonasnak double-ban kell megtortennie,
+        /// tehat `p`-nek is double-ban kell megerkeznie. A tengelycsere
+        /// (Core -&gt; Unity, ld. BodyFrameConversion) itt kezzel van kiirva,
+        /// mert a `ToUnity` mar float32-re castol.
+        /// </summary>
+        private SurfacePoint ToDisplacedPoint(
+            int face, double uc, double vc, ulong seed, (double X, double Y, double Z)[] seeds,
+            List<ImpactCratering.CraterRecord> craters)
+        {
+            TileGeometry.PositionFromFaceUV(face, uc, vc, out double x, out double y, out double z);
+            double displacedRadius = ComputeDisplacedRadius(x, y, z, seed, seeds, craters);
+            return new SurfacePoint(x * displacedRadius, z * displacedRadius, y * displacedRadius);
+        }
+
+        private SurfacePoint ToDisplacedPointFromBasis(
+            int face, double uc, double vc, ulong seed, (double X, double Y, double Z)[] seeds,
+            List<ImpactCratering.CraterRecord> craters, in TerrainPointBasis basis)
+        {
+            TileGeometry.PositionFromFaceUV(face, uc, vc, out double x, out double y, out double z);
+            double elevation = ComputeElevationAtPointFromBasis(
+                x, y, z, seed, seeds, craters, _adaptiveDeepTime, in basis);
+            double displacedRadius = (double)radius + DisplayElevation(elevation) * elevationScale;
+            return new SurfacePoint(x * displacedRadius, z * displacedRadius, y * displacedRadius);
+        }
+
+        /// <summary>
+        /// A REGI, float32-re kerekito alak - a normal veges-differenciaja es a
+        /// masodlagos retegek (folyo-vonal, krater-markerek) hasznaljak, ahol a
+        /// float32 felbontas eleg (irany, illetve a bolygo-nezetben renderelt,
+        /// nem kozelithetheto reteg). NEM szabad a terep-emitre hasznalni.
+        /// </summary>
         private Vector3 ToDisplacedVector3(
             int face, double uc, double vc, ulong seed, (double X, double Y, double Z)[] seeds,
             List<ImpactCratering.CraterRecord> craters)
         {
             TileGeometry.PositionFromFaceUV(face, uc, vc, out double x, out double y, out double z);
-            float displacedRadius = ComputeDisplacedRadius(x, y, z, seed, seeds, craters);
+            var displacedRadius = (float)ComputeDisplacedRadius(x, y, z, seed, seeds, craters);
             return BodyFrameConversion.ToUnity(x, y, z) * displacedRadius;
         }
 
@@ -8650,11 +8825,7 @@ namespace WorldGen.Viewer
             int face, double uc, double vc, ulong seed, (double X, double Y, double Z)[] seeds,
             List<ImpactCratering.CraterRecord> craters, in TerrainPointBasis basis)
         {
-            TileGeometry.PositionFromFaceUV(face, uc, vc, out double x, out double y, out double z);
-            double elevation = ComputeElevationAtPointFromBasis(
-                x, y, z, seed, seeds, craters, _adaptiveDeepTime, in basis);
-            float displacedRadius = radius + (float)(DisplayElevation(elevation) * elevationScale);
-            return BodyFrameConversion.ToUnity(x, y, z) * displacedRadius;
+            return ToUnityPoint(ToDisplacedPointFromBasis(face, uc, vc, seed, seeds, craters, in basis));
         }
 
         // Kicsi, ROGZITETT (nem tile-merettol fuggo) UV-eltolas a lejto-erzekeny
@@ -8743,13 +8914,17 @@ namespace WorldGen.Viewer
         /// jóval alacsonyabb) domborzattól, ahogy azt a felhasználó
         /// vizuálisan észrevette.
         /// </summary>
-        private float ComputeDisplacedRadius(
+        private double ComputeDisplacedRadius(
             double x, double y, double z, ulong seed, (double X, double Y, double Z)[] seeds,
             List<ImpactCratering.CraterRecord> craters)
         {
             double elevation = ComputeElevationAtPoint(
                 x, y, z, seed, seeds, craters, _adaptiveDeepTime);
-            return radius + (float)(DisplayElevation(elevation) * elevationScale);
+            // ND-19 (A12/2): DOUBLE visszateres. Korabban `radius + (float)(...)`
+            // volt, tehat a sugar MAGA float32-re kerekitodott (100-as leptekben
+            // 0,57 m kvantalas) - vagyis a pozicio-lanc pontossaga MAR ITT
+            // elveszett, a kesobbi double-kivonasnak nem lett volna mit nyernie.
+            return (double)radius + DisplayElevation(elevation) * elevationScale;
         }
 
         /// <summary>
@@ -9667,6 +9842,10 @@ namespace WorldGen.Viewer
         private void LateUpdate()
         {
             long lateUpdateStarted = Stopwatch.GetTimestamp();
+            // ND-19 (A12/2) biztonsagi halo: ha barmi a SunControlleren KIVUL
+            // allitotta a Planet forgatasat/skalajat, a finomitott reteg
+            // gyokere itt is utana all. Idempotens, nehany float-iras.
+            SyncRefinedLayerTransform();
             // A folytonos felszin valos ideju vilagitasa a mozgo Napot koveti.
             // Olcso (egyetlen megosztott anyag nehany uniformja), minden frame.
             UpdateSurfaceLightingUniforms();

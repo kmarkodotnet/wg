@@ -78,7 +78,7 @@ ez nem hiba, hanem a választott vetítés natúr viselkedése. Jobb vetítés
 keresése (a korábban felmerült "C" opció) külön munkát igényelt volna
 ismeretlen nyereségért, ezért elutasítva.
 
-### ND-19 — Floating origin: technika ELDÖNTVE, a matematikai mag KÉSZ, a geometria-eltolás A12/2
+### ND-19 — Floating origin: LEZÁRVA (2026-09-27, A12/2) — a geometria-eltolás kész
 
 Az ND-01 (Unity 6 + HDRP) aktiválta, M2/M3-ra sürgősnek jelölve — újragondolva
 M3 (csillagászat + fény) tervezésekor.
@@ -198,6 +198,131 @@ A `default(RenderOrigin)` szándékosan **érvénytelen**, nem „bolygóközép
 ugyanaz a hibaosztály-védelem, mint az A22 `DeepTimeContext` NaN-os
 tengerszintjénél: egy elfelejtett inicializálás ne állíthassa vissza
 CSENDBEN az abszolút emittálást.
+
+---
+
+#### 2026-09-27 (A12/2, 2. kör): a geometria-eltolás KÉSZ — ND-19 LEZÁRVA
+
+**A 2. kör EGY SAJÁT ÁLLÍTÁSÁT is megdöntötte.** Az 1. kör lezárása azt írta,
+hogy az eltolás „a **test-keretben való renderelésre** váltást igényeli, mert
+origó-relatív csúcsok + identitás-transform mellett a bolygó tengelyforgása
+nem kifejezhető a transform-mal". **Ez téves volt.** Az origót a
+TEST-KERETBEN választjuk (tehát a bolygóval EGYÜTT forog), ezért
+
+    p  →  A + s·R·(p − O)
+
+maga is puszta forgatás + eltolás — pontosan egy Unity-transzform. A Planet
+`rotation`-ja VÁLTOZATLANUL a spin/dőlés hordozója marad (ND-153); csak a
+`localPosition`-ja kap eltolást. A kameramódok (Free / AxialRotation /
+OrbitalFollow) egyetlen sorral sem változtak.
+
+**A választott jelenet-konvenció: KÉT réteg-gyökér, KÉT precízió.**
+
+| réteg | lokális tér | transzform | hol kerekít a `float32` |
+|---|---|---|---|
+| **Planet** — statikus alap, víz, határvonal, folyó, tó, felhő, StarField, markerek | ABSZOLÚT `p` | `localPosition = A − s·R·O` | a csúcsban ÉS a mátrixban (`s·R·p − s·R·O`), ~0,57 m |
+| **PlanetRefinedLayer** — a finomított (dinamikus) réteg | ORIGÓ-RELATÍV `p − O` | `localPosition = A` | csak a KICSI `p − O`-ban, mm alatt |
+
+A nyereség ott jelentkezik, ahol kell: a kamera közelében renderelt,
+finomított rétegen. A durva rétegek megtartják a mai kvantálásukat — ez nem
+regresszió, mert a kamera közelében a finomított réteg TAKARJA őket
+(`ApplyTerrainCoverage` index-maszkja kivágja a statikus háromszögeket), a
+coverage szélén pedig a 0,57 m már jóval pixel alatti.
+
+**A második réteg-gyökér TESTVÉR, nem gyerek.** Gyerekként a világ-eltolása
+`s·R·O + (A − s·R·O)` lenne, amit a Unity `float32`-ben számol: a kioltás
+~0,57 m maradékot hagyna, ÉS `R`-rel változna, tehát forgás közben a
+finomított réteg remegne a durvához képest. Testvérként a pozíciója
+közvetlenül `A`, kioltás nélkül. Cserébe a forgatást szinkronban kell
+tartani — ezért hív a `SunController` `SyncRefinedLayerTransform()`-ot
+közvetlenül a `rotation` beállítása után (plusz egy idempotens biztonsági
+háló a `LateUpdate`-ben).
+
+**A Planet lokális tere SZÁNDÉKOSAN ABSZOLÚT maradt.** Ez szüntette meg a
+változás nagy részét: a LOD-kiválasztás, az overlay-ek, a diagnosztika és a
+léptékvonalzó mind `transform.InverseTransformPoint(...)` /
+`transform.localToWorldMatrix` úton kérdez — ha a Planet tere origó-relatívvá
+vált volna, MINDEGYIK csendben eltolódik. Így egyetlen ilyen hívás sem
+változott, és a finomított chunkok
+`worldToLocal(Planet) · localToWorld(chunk)` kompozíciója automatikusan
+visszaadja az abszolút Planet-lokális koordinátát (ND-72/ND-148 diagnosztika
+érintetlen).
+
+**Bit-azonossági szerződés.** Bolygóközepű origónál (`IsPlanetCenter`) a
+kivonás pontos 0,0-t von ki, tehát minden emittált csúcs bitre a korábbi —
+ezt teszt köti ki (`PlanetCentreOriginEmitsTheBarePlainCastBitForBit`,
+`PlanetCentreOriginIsBitIdenticalOnAWholeSampledSurfaceSweep`). A statikus
+alap-réteg és a másodlagos rétegek emit-útja ezért SZÁNDÉKOSAN a régi,
+`float32`-es alakon maradt (`ToWaterVector3`, `_staticCornerPositions`). A
+finomított réteg viszont mostantól végig double-ban számol
+(`ToDisplacedPoint`, `ComputeDisplacedRadius` → `double`, `SurfacePoint.Lerp`
+a geomorphnál), ezért bolygóközepű origónál is legfeljebb 1 `float32`
+ULP-pel — a mai kvantáláson belül — eltérhet a korábbitól, szigorúan
+pontosabb irányba.
+
+**Az origó három állapota.** `pending` (amit a kamera javasol) → `requested`
+(amivel az ÉPPEN FUTÓ emisszió számol, a többi `_requested*` snapshottal
+együtt) → `applied` (amihez a MÁR FELTÖLTÖTT geometria tartozik; EZ vezérli a
+jelenet-transzformot és a kamerát). A szétválasztás nem kozmetika: enélkül a
+világ-eltolás és a geometria KÜLÖN képkockában váltana, és a kép egy
+képkockára egész cellányit (a kamera magasságával összemérhető utat) ugrana.
+Mellékhatásként egy ELAVULT kérés alkalmazása is konzisztens: a jelenet
+egyszerűen visszaáll annak az origójára.
+
+**A kamera saját pozíciója is double-ban.** Eltolt origónál a mai
+`target.position + rot * (0,0,-distance)` alak HASZNÁLHATATLAN: mindkét tag
+~bolygósugár nagyságrendű, az eredmény kicsi, tehát a `float32` kivonás
+kioltással ~0,57 m hibát ad, ami képkockánként ugrik. Helyette a kamera
+test-keretbeli pozíciójából ELŐBB vonjuk ki az origót double-ban, és a
+maradékot a `RenderOriginFrame` (origó-relatív) terében adjuk át. A nézési
+irány sem a két világpozíció kivonásából jön, hanem a `-camBody`
+normalizálásából. `PlanetCenter` módban a régi, változatlan út fut.
+
+**MÉRVE, élő Play módban (2026-09-27, Unity 6000.0.77f1 + HDRP):**
+
+| mérés | érték |
+|---|---|
+| `applied` origó 28,1 km magasságon | `RenderOrigin(0, 34.25, -94.25, cell=0.25)` |
+| `planetLocalPosition` = `A − O` | `(-1.182, -32.052, 861.25)` — **bitre** a várt érték |
+| kamera az origó-relatív térben | `(0, 0.0888, -0.0952)`, azaz 0,13 egység (9,6 km) |
+| elért felbontás | `appliedResolutionMeters=0.002211` (**2,21 mm**), `appliedGainFactor=256.0` |
+| ugyanez 89 km magasságon | 8,845 mm, `gainFactor=64.0` |
+| finomított chunk mesh-bounds középpontja | 0,6–2,7 egység (korábban ~100) |
+| **A/B kép, fagyasztott idővel, 89 km** | átlagos abszolút eltérés **0,0037/255**, a pixelek **0,001%**-a tér el 8-nál többet |
+| **A/B kép, fagyasztott idővel, bolygó-nézet** | átlag 0,65/255, 3,0% a >8 eltérés (a finomított réteg ≤1 ULP-es újraemissziója a partvonalakon) |
+
+**Két valódi hibát fogott az élő mérés** (mindkettő olyan, amit teszt nem
+talált volna meg, mert Unity-jelenet-állapotról szólnak):
+
+1. **Visszamaradt réteg a Planet alatt.** A finomított réteg GameObject-jei
+   TÚLÉLIK a domain reloadot, a `_refinedLayerRoot` mező viszont nem. Az új
+   kód nem találta meg őket, MÁSODIK példányt hozott létre, a régi
+   (abszolút koordinátás) pedig aktívan ottmaradt a Planet alatt — mérve egy
+   aktív `IndependentWater1`. Javítás: `MigrateRefinedChildrenFromPlanet()`.
+2. **A független vízréteg nem épült újra rebase-nél.** A
+   `ComputeIndependentWater` szándékosan NEM emittál újra, ha a
+   víz-kiválasztás változatlan (a víz nem morphol). Az ORIGÓ viszont nem
+   része a kiválasztásnak, tehát rebase után a már feltöltött vízmesh csúcsai
+   a RÉGI origóhoz voltak relatívak → a teljes vízréteg elcsúszott. A tünet
+   alattomos volt, mert a TEREP helyesen újraépült mellette: mély óceán
+   fölött a kamera „vízfelszín helyett tengerfeneket" látott. Javítás:
+   `InvalidateIndependentWaterForRenderOrigin()`. A javítás ELŐTT a 89 km-es
+   A/B kép 65,2/255 átlagos eltérést adott, UTÁNA 0,0037/255.
+
+**A rebase MÉRT költsége.** Az origó-váltás a finomított réteg TELJES
+újraemisszióját kéri (`changedChunks=1138/1138`, `reusedLeaves=0`):
+bolygó-nézeti cut-méretnél (70 718 levél) `workerMs=2336`, viszont a FŐ SZÁL
+érintetlen — az ND-147 képkockákra bontott feltöltés `stageFrames=22`,
+`maxSlice=3,01 ms`, `commitMs=6,9`. A hiszterézis (`RebaseFactor = 1,5`) miatt
+rebase csak akkor kell, ha a kamera a saját magasságával összemérhető utat
+tett meg.
+
+**Ami NYITVA marad (nem blokkoló, külön tétel).** A durva rétegek
+(statikus alap, víz, folyó, tó, felhő, markerek) 0,57 m-es kvantálása
+megmarad; ha a zoom valaha 1 km alá megy, ott is kellhet a double-lánc. A
+`nearClip` (ma 0,3 egység ≈ 22 km) lejjebb vitele külön, logaritmikus-depth
+tétel — ld. fent az elvetett alternatívák közt. Napló:
+[A12/2 / ND-19](../history/2026-09-27-a12-2-nd19-floating-origin-geometry.md).
 
 **Ami NYITVA marad (A12/2. kör), és miért külön döntés.** A geometria
 tényleges eltolása nem egy cast átírása: ha a mesh csúcsai origó-relatívak és

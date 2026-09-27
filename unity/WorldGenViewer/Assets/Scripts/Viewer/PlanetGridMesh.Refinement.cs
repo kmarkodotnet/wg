@@ -72,10 +72,10 @@ namespace WorldGen.Viewer
 
         private sealed class CachedLodChunk
         {
-            public readonly List<Vector3> ResolvedPositions;
+            public readonly List<SurfacePoint> ResolvedPositions;
             public readonly ConcatenatedMesh Terrain;
             public readonly AdaptiveMeshBuffers Auxiliary;
-            public CachedLodChunk(List<Vector3> resolvedPositions, ConcatenatedMesh terrain, AdaptiveMeshBuffers auxiliary)
+            public CachedLodChunk(List<SurfacePoint> resolvedPositions, ConcatenatedMesh terrain, AdaptiveMeshBuffers auxiliary)
             { ResolvedPositions=resolvedPositions; Terrain=terrain; Auxiliary=auxiliary; }
         }
 
@@ -109,12 +109,16 @@ namespace WorldGen.Viewer
             BorderVerts = new List<Vector3>(), BorderIndices = new List<int>(), WaterSurfaceRadius = waterRadius,
         };
 
-        private List<Vector3> CaptureResolvedPositions(List<TileId> leaves)
+        private List<SurfacePoint> CaptureResolvedPositions(List<TileId> leaves)
         {
-            var positions = new List<Vector3>(leaves.Count*4);
+            // ND-19 (A12/2): ABSZOLUT, double pozicio - szandekosan NEM az
+            // origo-relativ, mar emittalt vertex. Igy a chunk-ujrahasznalas
+            // dontese origo-FUGGETLEN (a rebase-t kulon, explicit
+            // cache-urites kezeli, ld. AdoptRenderOrigin).
+            var positions = new List<SurfacePoint>(leaves.Count*4);
             foreach (TileId leaf in leaves)
             {
-                GetAdaptiveCorners(leaf, out Vector3 a, out Vector3 b, out Vector3 c, out Vector3 d);
+                GetAdaptiveCorners(leaf, out SurfacePoint a, out SurfacePoint b, out SurfacePoint c, out SurfacePoint d);
                 positions.Add(a); positions.Add(b); positions.Add(c); positions.Add(d);
             }
             return positions;

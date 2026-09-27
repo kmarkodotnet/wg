@@ -4,7 +4,7 @@ using WorldGen.Core.Grid;
 
 namespace WorldGen.Viewer.Lod
 {
-    public readonly struct SurfacePoint
+    public readonly struct SurfacePoint : IEquatable<SurfacePoint>
     {
         public readonly double X, Y, Z;
         public SurfacePoint(double x, double y, double z) { X = x; Y = y; Z = z; }
@@ -13,6 +13,48 @@ namespace WorldGen.Viewer.Lod
         public static SurfacePoint operator *(SurfacePoint a, double f)
             => new SurfacePoint(a.X * f, a.Y * f, a.Z * f);
         public static SurfacePoint Lerp(SurfacePoint a, SurfacePoint b, double t) => a * (1 - t) + b * t;
+
+        // ND-19 (A12/2): a floating origin kivonásához és a sugár/irány
+        // számításához kell - a viewer emit-lánca ezt a típust használja
+        // ABSZOLÚT test-keretbeli (Unity-tengelyű) pozícióként, és a
+        // `RenderOrigin.ToLocal` ebből képez origó-relatív float hármast.
+        public static SurfacePoint operator -(SurfacePoint a, SurfacePoint b)
+            => new SurfacePoint(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
+
+        public double SqrMagnitude => X * X + Y * Y + Z * Z;
+
+        public double Magnitude => Math.Sqrt(SqrMagnitude);
+
+        // ND-19 (A12/2): a chunk-cache pozicio-osszehasonlitasa
+        // (DynamicMeshChunking.SamePositions) IEquatable-t kivan. Szandekosan
+        // BITRE egyenloseg (==), nem toleranciaval: a kerdes az, hogy a MAR
+        // emittalt geometria ujrahasznalhato-e valtozatlanul.
+        public bool Equals(SurfacePoint other) => X == other.X && Y == other.Y && Z == other.Z;
+
+        public override bool Equals(object? obj) => obj is SurfacePoint other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            // netstandard2.1 / C# 9: nincs HashCode.Combine-garancia minden
+            // celplatformon, ezert kezi, determinisztikus kombinalas.
+            unchecked
+            {
+                int h = X.GetHashCode();
+                h = h * 397 ^ Y.GetHashCode();
+                h = h * 397 ^ Z.GetHashCode();
+                return h;
+            }
+        }
+
+        /// <summary>Egységvektor; NULLA hosszúságnál `default` (0,0,0) - a hívónak kell kezelnie.</summary>
+        public SurfacePoint Normalized
+        {
+            get
+            {
+                double m = Magnitude;
+                return m > 0.0 ? new SurfacePoint(X / m, Y / m, Z / m) : default;
+            }
+        }
     }
 
     public readonly struct SurfaceQuad

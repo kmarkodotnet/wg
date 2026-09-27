@@ -259,12 +259,19 @@ namespace WorldGen.Viewer
                     planetGridMesh.transform.rotation =
                         Quaternion.AngleAxis((float)axialTiltDegrees, Vector3.right) *
                         Quaternion.AngleAxis((float)(bodySpinAngle * Mathf.Rad2Deg), Vector3.up);
+                    // ND-19 (A12/2): aki a Planet forgatasat allitja, AZONNAL
+                    // hangolja ossze a finomitott reteg gyokeret is - kulonben
+                    // forgas kozben egy kepkockara elhasadna a ket reteg.
+                    planetGridMesh.SyncRefinedLayerTransform();
                 }
             }
             else
             {
                 if (planetGridMesh != null)
+                {
                     planetGridMesh.transform.rotation = Quaternion.identity;
+                    planetGridMesh.SyncRefinedLayerTransform();
+                }
 
                 OrbitalMechanics.SunDirectionBodyFrame(
                     currentTimeDays, orbitalPeriodDays, rotationPeriodDays, axialTiltRad,

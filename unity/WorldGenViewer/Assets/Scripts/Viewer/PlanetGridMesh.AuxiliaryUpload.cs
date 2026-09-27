@@ -127,7 +127,7 @@ namespace WorldGen.Viewer
         {
             if (staged.Mesh == null)
             {
-                Transform old = transform.Find(childName);
+                Transform old = LayerRoot(childName).Find(childName);
                 if (old != null) old.gameObject.SetActive(false);
                 return;
             }

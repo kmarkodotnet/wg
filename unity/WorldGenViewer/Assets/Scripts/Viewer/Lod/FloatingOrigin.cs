@@ -291,6 +291,24 @@ namespace WorldGen.Viewer.Lod
             lz = (float)(z - Z);
         }
 
+        /// <summary>
+        /// A <see cref="ToLocal(double,double,double,out float,out float,out float)"/>
+        /// alakja a viewer emit-láncának pozíció-típusához (A12/2). A bemenet
+        /// ABSZOLÚT test-keretbeli pont, a kimenet az origó-relatív,
+        /// `float32`-be MÁR átváltott hármas - pontosan az, ami a mesh
+        /// vertex-bufferébe kerül.
+        /// </summary>
+        public void ToLocalVertex(in SurfacePoint absolute, out float lx, out float ly, out float lz)
+        {
+            ToLocal(absolute.X, absolute.Y, absolute.Z, out lx, out ly, out lz);
+        }
+
+        /// <summary>Origó-relatív pont DOUBLE-ban (a köztes számításokhoz, pl. radiális bias).</summary>
+        public SurfacePoint ToLocalPoint(in SurfacePoint absolute)
+        {
+            return new SurfacePoint(absolute.X - X, absolute.Y - Y, absolute.Z - Z);
+        }
+
         /// <summary>Az origó-relatív koordináta visszaalakítása abszolút modell-térbe (double-ban).</summary>
         public void ToAbsolute(double lx, double ly, double lz, out double x, out double y, out double z)
         {

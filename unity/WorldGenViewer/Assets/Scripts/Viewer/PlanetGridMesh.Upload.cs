@@ -269,6 +269,7 @@ namespace WorldGen.Viewer
         private void OnDestroy()
         {
             CancelRiverRefinement();
+            DestroyRefinedLayerRoot();
             // A szülő megszűnése már törli a gyerekeket; csak saját mesh-einket takarítjuk.
             ClearAllDynamicChunkResources(destroyTargets: false);
             if (_uploadBorderMaterial != null) SafeDestroy(_uploadBorderMaterial);

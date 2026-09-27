@@ -91,6 +91,29 @@ namespace WorldGen.Viewer
                 $"leafBudget={WaterLeafBudget} splitLimit={WaterSplitsPerRequest}");
         }
 
+        /// <summary>
+        /// ND-19 (A12/2): a fuggetlen (finomitott) vizreteg UJRA-EMITTALASA
+        /// origo-valtaskor.
+        ///
+        /// ELO PLAY-BEN MERT HIBA (2026-09-27). A `ComputeIndependentWater`
+        /// szandekosan NEM emittal ujra, ha a viz-kivalasztas valtozatlan
+        /// (`ReusedSelection`, illetve azonos `Leaves`) - a viz nem morphol,
+        /// tehat azonos cut mellett azonos attributumok. Az ORIGO viszont NEM
+        /// a kivalasztas resze: rebase utan a MAR feltoltott vizmesh csucsai a
+        /// REGI origohoz relativak, tehat a teljes vizreteg elcsuszik (a mert
+        /// esetben ~100 egyseggel, azaz gyakorlatilag eltunik). A tunet
+        /// alattomos volt, mert a TEREP helyesen ujraepult mellette: mely
+        /// ocean folott a kamera "vizfelszin helyett tengerfeneket" latott.
+        ///
+        /// A `_appliedWaterSelection` nullazasa kenyszeriti a friss
+        /// kivalasztast ES az emittalast (a `Select` a `previous == null`
+        /// agon nem hasznal ujra).
+        /// </summary>
+        private void InvalidateIndependentWaterForRenderOrigin()
+        {
+            _appliedWaterSelection = null;
+        }
+
         private void PrepareIndependentWaterRequest()
         {
             bool enabled = _requestedProjectedView != null
@@ -129,9 +152,13 @@ namespace WorldGen.Viewer
                 {
                     cancellation.ThrowIfCancellationRequested();
                     SurfaceQuad p = ResolveWaterQuad(positions, leaf), c = ResolveWaterQuad(colors, leaf);
+                    // ND-19 (A12/2): a fuggetlen (finomitott) vizreteg a
+                    // RefinedLayerRoot alatt el, tehat origo-relativ - a
+                    // pozicio-quad ABSZOLUT SurfacePoint-jai kozvetlenul
+                    // mennek az AddQuad-nak, ami a kivonast double-ban vegzi.
                     AddQuad(verts, normals, triangles, rgba,
                         WaterColor(c.P00), WaterColor(c.P10), WaterColor(c.P11), WaterColor(c.P01),
-                        WaterPosition(p.P00), WaterPosition(p.P10), WaterPosition(p.P11), WaterPosition(p.P01));
+                        in _requestedRenderOrigin, p.P00, p.P10, p.P11, p.P01);
                 }
             }
             cancellation.ThrowIfCancellationRequested();
@@ -140,7 +167,6 @@ namespace WorldGen.Viewer
             target.WaterColorSamples = _waterColorSamples;
         }
 
-        private static Vector3 WaterPosition(SurfacePoint p) => new Vector3((float)p.X, (float)p.Y, (float)p.Z);
         private static Color WaterColor(SurfacePoint p) => new Color((float)p.X, (float)p.Y, (float)p.Z, 1);
 
         private static SurfaceQuad ResolveWaterQuad(LodCornerResolver resolver, TileId tile)
@@ -155,11 +181,11 @@ namespace WorldGen.Viewer
         private SurfaceQuad RawWaterPositionQuad(TileId tile)
         {
             TileGeometry.GetContinuousBounds(tile, out double u0, out double u1, out double v0, out double v1);
-            float r = (float)_waterLodSource!.SeaRadius;
-            return new SurfaceQuad(ToSurfacePoint(ToWaterVector3(tile.Face, u0, v0, r)),
-                ToSurfacePoint(ToWaterVector3(tile.Face, u1, v0, r)),
-                ToSurfacePoint(ToWaterVector3(tile.Face, u1, v1, r)),
-                ToSurfacePoint(ToWaterVector3(tile.Face, u0, v1, r)));
+            double r = _waterLodSource!.SeaRadius;
+            return new SurfaceQuad(ToWaterPoint(tile.Face, u0, v0, r),
+                ToWaterPoint(tile.Face, u1, v0, r),
+                ToWaterPoint(tile.Face, u1, v1, r),
+                ToWaterPoint(tile.Face, u0, v1, r));
         }
 
         private SurfaceQuad RawWaterColorQuad(TileId tile)
@@ -171,8 +197,8 @@ namespace WorldGen.Viewer
                 if (!_waterCornerColors.TryGetValue(key, out Color c))
                 {
                     // Nyers modellmagasság: nincs terrain-morph, normál vagy biome-emisszió.
-                    Vector3 land = GetOrComputePersistentCorner(tile.Face, tile.Level, cu, cv);
-                    c = ContinuousWaterCornerColor(land, _adaptiveSeaLevel);
+                    SurfacePoint land = GetOrComputePersistentCorner(tile.Face, tile.Level, cu, cv);
+                    c = ContinuousWaterCornerColor(ToUnityPoint(land), _adaptiveSeaLevel);
                     _waterColorSamples++;
                     if (_waterCornerColors.Count < WaterColorCacheLimit) _waterCornerColors.Add(key, c);
                 }
@@ -219,7 +245,8 @@ namespace WorldGen.Viewer
                 var maskTimer = Stopwatch.StartNew();
                 maskCount = ApplyWaterCoverage(b.WaterSelection.ReplacedRoots);
                 waterMaskMs = maskTimer.Elapsed.TotalMilliseconds;
-                Transform previous = transform.Find("IndependentWater" + _activeWaterBuffer);
+                string previousName = "IndependentWater" + _activeWaterBuffer;
+                Transform previous = LayerRoot(previousName).Find(previousName);
                 if (previous != null) previous.gameObject.SetActive(false);
                 _activeWaterBuffer = next;
             }
@@ -258,7 +285,8 @@ namespace WorldGen.Viewer
             if (restoreStaticIndices) _drawnHiddenStaticWaterQuads = new HashSet<int>();
             for (int i = 0; i < 2; i++)
             {
-                Transform child = transform.Find("IndependentWater" + i);
+                string name = "IndependentWater" + i;
+                Transform child = LayerRoot(name).Find(name);
                 if (child != null) child.gameObject.SetActive(false);
             }
         }

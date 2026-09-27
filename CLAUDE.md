@@ -168,7 +168,8 @@ határvonalak optikai aliasingot adnak, ami nem geometriai hiba). Az M2
 **Következő:** M3 — csillagászat + világítás (megvilágított gömb,
 terminátorral). Az ND-19 (floating origin) NEM blokkolja: a HDRP
 `Directional Light` csak irányt igényel, nem pozíciót, tehát M3-nak nem
-kell valós léptékű koordináta — ND-19 implementációja M9-re halasztva.
+kell valós léptékű koordináta. *(Utóirat: az ND-19 2026-09-27-én LEZÁRVA —
+a geometria-eltolás kész, ld. `docs/04-decisions.md` ND-19 A12/2.)*
 
 Részletek: `docs/05-milestones.md`.
 

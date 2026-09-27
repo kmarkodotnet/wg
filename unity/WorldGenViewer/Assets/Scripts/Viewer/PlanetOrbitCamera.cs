@@ -323,6 +323,12 @@ namespace WorldGen.Viewer
         {
             RefreshLocalSurface();
             ConstrainSurfaceDistance();
+            // ND-19 (A12/2): eltolt render-origonal a kamerapozicio NEM allithato
+            // elo a `target.position + rot * (0,0,-distance)` alakkal - mind a ket
+            // tag ~bolygosugar nagysagrendu, az eredmeny viszont kicsi, tehat a
+            // float32 kivonas KIOLTASSAL ~0,57 m hibat ad, ami kepkockankent
+            // ugrik. Ld. ApplyShiftedTransform.
+            if (TryApplyShiftedTransform()) return;
             Vector3 targetPos = target != null ? target.position : Vector3.zero;
             Quaternion rot = Quaternion.Euler(_pitch, _yaw, 0f);
             transform.position = targetPos + rot * new Vector3(0f, 0f, -distance);
