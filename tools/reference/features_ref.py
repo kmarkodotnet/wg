@@ -16,6 +16,7 @@ HATOKOR (tudatosan szukitve - ld. milestones "M8 hatokor"):
 
 NEM produkcios kod - csak orakulum, a python-reference skill szerint.
 """
+import math
 from collections import deque
 
 from plate_ref import generate_plate_seeds, assign_plate
@@ -299,19 +300,55 @@ def recommended_region_tile_target(total_land_tiles):
     return max(1, (total_land_tiles * REGION_TARGET_LAND_SHARE_PERCENT + 50) // 100)
 
 
-def merge_watersheds_into_regions(watersheds, level, target_region_tile_count):
-    """ND-127 - a vizgyujtok agglomerativ osszevonasa foldrajzilag
+# ND-152 (A10) - az ND-05 hibrid maradek ket tagja: a partner-valasztas
+# sulyozott hatarhosszon dol el, nem puszta hatar-darabszamon. Minden
+# erintkezo tile-el alapsulyt kap, a biome-egyezes bonuszt ad, a domborzati
+# TORES levon. Tiszta egesz aritmetika.
+REGION_MERGE_BASE_EDGE_WEIGHT = 4
+REGION_MERGE_SAME_BIOME_BONUS = 3
+REGION_MERGE_TERRAIN_BREAK_PENALTY = 3
+REGION_MERGE_TERRAIN_BREAK_PERCENTILE = 0.75
+
+
+def _elevation_meters(value):
+    """Egesz meter. A Math.floor(e + 0.5) IEEE-754 szerint bitpontos, tehat
+    a C# oldal ugyanezt az egeszet kapja."""
+    return int(math.floor(value + 0.5))
+
+
+def _terrain_break_threshold(gradients):
+    """A torest a |magassag-kulonbseg| eloszlas p75-e definialja - RELATIV
+    kuszob, nem fix meter, kulonben a torese szintfuggo lenne (level 5-on a
+    tile negyszer nagyobb, tehat nagyobb a tipikus el-menti ugras). A
+    percentilis-konvencio a projektbeli idx = int(q * count), clampelve
+    (ugyanaz, mint a biome_ref percentile-ja) - nincs interpolacio."""
+    if not gradients:
+        return None
+    ordered = sorted(gradients)
+    idx = int(REGION_MERGE_TERRAIN_BREAK_PERCENTILE * len(ordered))
+    idx = max(0, min(len(ordered) - 1, idx))
+    return ordered[idx]
+
+
+def merge_watersheds_into_regions(watersheds, level, target_region_tile_count,
+                                  biome_of=None, elevation=None):
+    """ND-127 + ND-152 - a vizgyujtok agglomerativ osszevonasa foldrajzilag
     osszetartozo regiokba. 1:1 megfeleles a C#
     FeatureSegmentation.MergeWatershedsIntoRegions-szal.
+
+    ND-152: ha biome_of ES elevation is meg van adva, a szomszedsagi el
+    sulya a SULYOZOTT hatarhossz (biome-klaszter + domborzati tores),
+    kulonben a puszta hatar-darabszam szorozva az alapsullyal - ami a
+    partner-valasztasban az ND-127-tel AZONOS dontes.
 
     1. Cellak: minden vizgyujto OSSZEFUGGO komponensei (igy egy regio
        sosem esik szet terben, es sosem lep at landmass-hataron).
     2. Szomszedsagi graf a cellak kozott, elsuly = a KOZOS HATAR hossza.
     3. Amig van cel alatti cella szomszeddal: a legkisebbet (dontetlen:
        kisebb kanonikus TileId) beolvasztjuk abba a szomszedjaba, amelyik
-       (a) maga is cel alatt van, ha van ilyen, (b) a leghosszabb kozos
-       hatart osztja vele, (c) dontetlennel kisebb, (d) dontetlennel
-       kisebb kanonikus TileId-ju.
+       (a) maga is cel alatt van, ha van ilyen, (b) a legnagyobb SULYOZOTT
+       kozos hatart osztja vele (ND-152), (c) dontetlennel kisebb,
+       (d) dontetlennel kisebb kanonikus TileId-ju.
 
     Minden dontes explicit osszehasonlitassal dol el - NINCS dict/set
     bejarasi sorrendtol valo fugges (I2)."""
@@ -335,13 +372,40 @@ def merge_watersheds_into_regions(watersheds, level, target_region_tile_count):
     min_tile = [min(key(t) for t in c) for c in cells]
     alive = [True] * n
     parent = list(range(n))
+    # ND-152, 1. pasztazas: a cella-kozi elek magassag-gradiensei, hogy a
+    # tores-kuszob (p75) a SAJAT vilag eloszlasabol jojjon.
+    hybrid = biome_of is not None and elevation is not None
+    break_threshold = None
+    if hybrid:
+        gradients = []
+        for i, cell in enumerate(cells):
+            for t in cell:
+                for nb in _all_neighbors(t, level):
+                    j = cell_of.get(nb)
+                    if j is not None and j != i:
+                        gradients.append(abs(_elevation_meters(elevation[t])
+                                             - _elevation_meters(elevation[nb])))
+        break_threshold = _terrain_break_threshold(gradients)
+
+    def edge_weight(t, nb):
+        w = REGION_MERGE_BASE_EDGE_WEIGHT
+        if not hybrid:
+            return w
+        if biome_of[t] == biome_of[nb]:
+            w += REGION_MERGE_SAME_BIOME_BONUS
+        if break_threshold is not None and abs(
+                _elevation_meters(elevation[t]) - _elevation_meters(elevation[nb])) >= break_threshold:
+            w -= REGION_MERGE_TERRAIN_BREAK_PENALTY
+        return w
+
+    # 2. pasztazas: szomszedsagi graf, elsuly = a SULYOZOTT kozos hatar.
     nbrs = [dict() for _ in range(n)]
     for i, cell in enumerate(cells):
         for t in cell:
             for nb in _all_neighbors(t, level):
                 j = cell_of.get(nb)
                 if j is not None and j != i:
-                    nbrs[i][j] = nbrs[i].get(j, 0) + 1
+                    nbrs[i][j] = nbrs[i].get(j, 0) + edge_weight(t, nb)
 
     def find(x):
         while parent[x] != x:
@@ -628,9 +692,16 @@ if __name__ == "__main__":
           f"({100.0*total_region_tiles/total_land_tiles:.1f}%)")
     print("OK - a szegmentalas plauzibilis")
 
-    print("\n--- Osszevont regiok (ND-127) ---")
+    print("\n--- Osszevont regiok (ND-127 + ND-152) ---")
     region_target = recommended_region_tile_target(total_land_tiles)
-    merged_regions = merge_watersheds_into_regions(regions, level, region_target)
+    # ND-152: a PRODUKCIOS ut a hibrid - biome-klaszter + domborzati tores
+    # az elsulyban. A tisztan geometriai ut (biome/elevacio nelkul) csak
+    # osszehasonlitasi alap, a tesztvektorok a hibridbol keszulnek.
+    merged_regions = merge_watersheds_into_regions(
+        regions, level, region_target, biome_of=biome_of, elevation=field)
+    geometric_regions = merge_watersheds_into_regions(regions, level, region_target)
+    print(f"  ND-127 (csak geometria): {len(geometric_regions)} regio, "
+          f"legnagyobbak {[len(r) for r in geometric_regions[:8]]}")
 
     # Invariansok: (1) PONTOSAN a szarazfold lefedese, atfedes nelkul;
     # (2) minden regio terben OSSZEFUGGO; (3) tiszta fuggveny.
@@ -649,7 +720,8 @@ if __name__ == "__main__":
                     reached.add(nb)
                     queue.append(nb)
         assert reached == r_set, "Egy osszevont regio NEM osszefuggo"
-    assert merged_regions == merge_watersheds_into_regions(regions, level, region_target),         "Az osszevonas nem tiszta fuggveny!"
+    assert merged_regions == merge_watersheds_into_regions(
+        regions, level, region_target, biome_of=biome_of, elevation=field),         "Az osszevonas nem tiszta fuggveny!"
     print(f"  cel-meret {region_target} tile, {len(merged_regions)} regio, "
           f"{len(covered_tiles)}/{len(land_tiles)} szarazfold-tile lefedve")
     print(f"  legnagyobbak: {[len(r) for r in merged_regions[:8]]}")

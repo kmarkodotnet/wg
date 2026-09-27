@@ -12,10 +12,12 @@ namespace WorldGen.Core.Features
     /// M7-ből újrahasznosítva) + régiók (vízgyűjtő-alapú, a
     /// <see cref="Hydrology.FlowNetwork"/> szülő-fájából).
     ///
-    /// HATÓKÖR: a régió EGYSZERŰEN a vízgyűjtő-csoport (minden szárazföld-
-    /// tile ahhoz az óceán-"kifolyáshoz" tartozik, amihez végül lefolyik)
-    /// — NEM a teljes vízgyűjtő ∪ biome-klaszter ∪ domborzati-törés
-    /// hibrid (ND-05).
+    /// HATÓKÖR: a régió atomja a vízgyűjtő-csoport (minden szárazföld-
+    /// tile ahhoz az óceán-"kifolyáshoz" tartozik, amihez végül lefolyik),
+    /// az ND-127 óta összefüggő komponensekre bontva és cél-méretig
+    /// ÖSSZEVONVA. Az ND-05 hibrid másik két tagja — biome-klaszter és
+    /// domborzati törés — az ND-152 (A10) óta az összevonás ÉLSÚLYÁBAN
+    /// van benne, ld. <see cref="MergeWatershedsIntoRegions"/>.
     /// </summary>
     public static class FeatureSegmentation
     {
@@ -263,14 +265,29 @@ namespace WorldGen.Core.Features
         ///    szomszédja, a legkisebbet (döntetlen: kisebb kanonikus
         ///    <see cref="TileId.Value"/>) beolvasztjuk abba a szomszédjába,
         ///    amelyik (a) maga is cél alatt van, ha van ilyen; (b) ezen belül
-        ///    a LEGHOSSZABB közös határt osztja vele; (c) döntetlennél a
-        ///    kisebb; (d) döntetlennél a kisebb <see cref="TileId.Value"/>-jú.
+        ///    a legnagyobb SÚLYOZOTT közös határt osztja vele; (c) döntetlennél
+        ///    a kisebb; (d) döntetlennél a kisebb <see cref="TileId.Value"/>-jú.
         ///
         /// A (b) szabály MÉRT különbség: a "legkisebb szomszédba olvad"
         /// változat a partvonal mentén elnyúló régiókat épít (a legnagyobb
         /// landmass régióinak átmérő/gyök-terület mutatója 2,5-3,5), a közös
         /// határ mentén 1,9-3,4 - egy kompakt folté ~2,0, magáé a
         /// landmassé 2,9.
+        ///
+        /// ND-152 (A10) - AZ ND-05 HIBRID MARADÉK KÉT TAGJA. A (b)-ben
+        /// szereplő "súlyozott közös határ" az érintkező tile-élek
+        /// élsúlyainak ÖSSZEGE, nem a darabszámuk: az azonos biome-ú él
+        /// bónuszt kap (biome-klaszter), a domborzati törésen átmenő él
+        /// levonást (a hegygerinc/peremlépcső mint természetes régióhatár).
+        /// Ha a hívó a <paramref name="biomeOf"/> vagy az
+        /// <paramref name="elevationM"/> szótárat nem adja meg, minden él az
+        /// alapsúlyt kapja, ami a darabszámmal ARÁNYOS, tehát a
+        /// partner-választás bitre az ND-127-beli.
+        ///
+        /// MÉRVE (seed 0xA7C944210000, 20 lemez, level 6, cél 258 tile, a
+        /// legnagyobb landmasson): a régióhatár-élek 21,0%-a ült domborzati
+        /// törésen, most 43,2%; biome-váltáson 25,4% helyett 41,2%. A
+        /// kompaktság nem romlik (átmérő/gyök-terület átlag 2,42 -> 2,39).
         ///
         /// GARANCIÁK (a Core-tesztek ezeket ellenőrzik): a kimenet a bemeneti
         /// vízgyűjtők tile-jainak PARTÍCIÓJA (minden tile pontosan egy
@@ -287,7 +304,8 @@ namespace WorldGen.Core.Features
         /// algoritmus.
         /// </summary>
         public static List<List<TileId>> MergeWatershedsIntoRegions(
-            Dictionary<TileId, List<TileId>> watersheds, int targetRegionTileCount)
+            Dictionary<TileId, List<TileId>> watersheds, int targetRegionTileCount,
+            Dictionary<TileId, Biome>? biomeOf = null, Dictionary<TileId, double>? elevationM = null)
         {
             var result = new List<List<TileId>>();
             if (watersheds == null || watersheds.Count == 0) return result;
@@ -321,8 +339,54 @@ namespace WorldGen.Core.Features
                 borders[i] = new Dictionary<int, int>();
             }
 
-            // 2. szomszedsagi graf, elsuly = kozos hatar hossza. Minden elt a
-            // SAJAT oldalarol szamoljuk, igy a suly szimmetrikus marad.
+            // ND-152, 1. pasztazas: a cella-kozi elek magassag-gradiensei. A
+            // tores-kuszob a SAJAT vilag eloszlasabol jon (p75), nem fix
+            // meter - kulonben szintfuggo lenne (level 5-on a tile negyszer
+            // nagyobb teruletu, tehat nagyobb a tipikus el-menti ugras).
+            // A ket szotar EGYUTT dont: reszleges bemenetre (csak biome vagy
+            // csak elevacio) az ND-127 tisztan geometriai utja fut, nem egy
+            // fel hibrid. A nem-nullable lokalisok azert vannak, hogy a
+            // nullable-elemzes vegig lassa: a hibrid agban egyik sem null.
+            bool hybrid;
+            Dictionary<TileId, Biome> biomeMap;
+            Dictionary<TileId, double> elevMap;
+            if (biomeOf != null && elevationM != null)
+            {
+                hybrid = true;
+                biomeMap = biomeOf;
+                elevMap = elevationM;
+            }
+            else
+            {
+                hybrid = false;
+                biomeMap = EmptyBiomeMap;
+                elevMap = EmptyElevationMap;
+            }
+
+            long breakThreshold = 0;
+            bool hasBreakThreshold = false;
+            if (hybrid)
+            {
+                var gradients = new List<long>();
+                for (int i = 0; i < n; i++)
+                {
+                    foreach (TileId t in cells[i])
+                    {
+                        for (int d = 0; d < 4; d++)
+                        {
+                            TileId nb = TileNeighbors.Neighbor(t, (TileDirection)d);
+                            if (cellOf.TryGetValue(nb, out int j) && j != i)
+                                gradients.Add(Math.Abs(
+                                    ElevationMeters(elevMap[t]) - ElevationMeters(elevMap[nb])));
+                        }
+                    }
+                }
+                hasBreakThreshold = TerrainBreakThreshold(gradients, out breakThreshold);
+            }
+
+            // 2. szomszedsagi graf, elsuly = a SULYOZOTT kozos hatar. Minden
+            // elt a SAJAT oldalarol szamoljuk, igy a suly szimmetrikus marad
+            // (az EdgeWeight is szimmetrikus a ket tile-ban).
             for (int i = 0; i < n; i++)
             {
                 foreach (TileId t in cells[i])
@@ -331,7 +395,12 @@ namespace WorldGen.Core.Features
                     {
                         TileId nb = TileNeighbors.Neighbor(t, (TileDirection)d);
                         if (cellOf.TryGetValue(nb, out int j) && j != i)
-                            borders[i][j] = borders[i].TryGetValue(j, out int w) ? w + 1 : 1;
+                        {
+                            int ew = hybrid
+                                ? EdgeWeight(t, nb, biomeMap, elevMap, hasBreakThreshold, breakThreshold)
+                                : RegionMergeBaseEdgeWeight;
+                            borders[i][j] = borders[i].TryGetValue(j, out int w) ? w + ew : ew;
+                        }
                     }
                 }
             }
@@ -410,6 +479,87 @@ namespace WorldGen.Core.Features
             });
             return result;
         }
+
+        /// <summary>
+        /// ND-152 alapsúly: minden érintkező tile-él ennyit ér, mielőtt a
+        /// biome-bónusz és a törés-levonás módosítaná. Azért 4 (nem 1), hogy
+        /// a levonás után is POZITÍV maradjon a súly - a nulla súlyú él
+        /// eltüntetné a szomszédságot, és ettől egy cella cél alatti méretben
+        /// "beragadhatna".
+        /// </summary>
+        public const int RegionMergeBaseEdgeWeight = 4;
+
+        /// <summary>
+        /// ND-152 biome-klaszter tag: az azonos biome-ú él bónusza. Azonos
+        /// nagyságú a törés-levonással, tehát egyik tag sem dominál a
+        /// másikon; és 2 tile hosszú, biome-egyező, töréstelen határ (14)
+        /// még mindig veszít egy 4 tile hosszú, biome-váltó törés-határral
+        /// (16) szemben - a geometria marad a vezető jel.
+        /// </summary>
+        public const int RegionMergeSameBiomeBonus = 3;
+
+        /// <summary>ND-152 domborzati törés tag: a törésen átmenő él levonása.</summary>
+        public const int RegionMergeTerrainBreakPenalty = 3;
+
+        /// <summary>
+        /// ND-152: a törés-küszöb a cella-közi élek magasságkülönbség-
+        /// eloszlásának ezen percentilise - RELATÍV küszöb, tehát a "törés"
+        /// fogalma szint- és bolygófüggetlen (a legmeredekebb negyed).
+        /// </summary>
+        public const double RegionMergeTerrainBreakPercentile = 0.75;
+
+        /// <summary>
+        /// Egész méter. A <c>Math.Floor(e + 0.5)</c> IEEE-754 szerint
+        /// bitpontos (összeadás + korrekt kerekítésű floor - ld. a
+        /// lebegőpont-táblázatot a CLAUDE.md-ben), tehát a Python orákulum
+        /// ugyanezt az egészet kapja.
+        /// </summary>
+        private static long ElevationMeters(double elevation)
+        {
+            return (long)Math.Floor(elevation + 0.5);
+        }
+
+        /// <summary>
+        /// A törés-küszöb: a gradiens-eloszlás
+        /// <see cref="RegionMergeTerrainBreakPercentile"/>-e, a projektben
+        /// máshol is használt <c>idx = (int)(q * count)</c> "nearest-rank"
+        /// konvencióval (nincs interpoláció, tehát nincs kerekítési
+        /// kétértelműség). Üres bemenetre <c>false</c>.
+        /// </summary>
+        private static bool TerrainBreakThreshold(List<long> gradients, out long threshold)
+        {
+            threshold = 0;
+            if (gradients == null || gradients.Count == 0) return false;
+            gradients.Sort();
+            int idx = (int)(RegionMergeTerrainBreakPercentile * gradients.Count);
+            if (idx < 0) idx = 0;
+            if (idx > gradients.Count - 1) idx = gradients.Count - 1;
+            threshold = gradients[idx];
+            return true;
+        }
+
+        /// <summary>
+        /// ND-152 élsúly egyetlen érintkező tile-élre. SZIMMETRIKUS a két
+        /// tile-ban (a biome-egyezés és a magasságkülönbség abszolút értéke
+        /// is az), ezért a gráf élsúlya független attól, melyik oldalról
+        /// számoljuk - ez tartja fenn az ND-127 szimmetria-feltevését.
+        /// </summary>
+        private static int EdgeWeight(
+            TileId a, TileId b,
+            Dictionary<TileId, Biome> biomeOf, Dictionary<TileId, double> elevationM,
+            bool hasBreakThreshold, long breakThreshold)
+        {
+            int w = RegionMergeBaseEdgeWeight;
+            if (biomeOf[a] == biomeOf[b]) w += RegionMergeSameBiomeBonus;
+            if (hasBreakThreshold
+                && Math.Abs(ElevationMeters(elevationM[a]) - ElevationMeters(elevationM[b])) >= breakThreshold)
+                w -= RegionMergeTerrainBreakPenalty;
+            return w;
+        }
+
+        /// <summary>A nem-hibrid ut helyorzoi - soha nem olvasunk beloluk, csak a nullable-elemzest elegitik ki allokacio nelkul.</summary>
+        private static readonly Dictionary<TileId, Biome> EmptyBiomeMap = new Dictionary<TileId, Biome>();
+        private static readonly Dictionary<TileId, double> EmptyElevationMap = new Dictionary<TileId, double>();
 
         private static int Find(int[] parent, int x)
         {
