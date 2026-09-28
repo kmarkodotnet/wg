@@ -8764,6 +8764,38 @@ a csillagok szaggatott csíkokká nyúlnak. BIZONYÍTVA, hogy nem a felhő okozz
 a `cloudVolumetric` kikapcsolásával is megmarad. Valószínű ok a HDRP
 temporális akkumulációja a teljes világ-csere után — önálló tétel.
 
+#### Ötödik kör: a HELYBEN MARADÓ apró foltok (2026-09-28)
+
+A visszajelzés: „a tenger fölött mintha foltokban fix maradna a felhőzet, de
+csak apró, viszont sok foltban".
+
+**A hiba.** Az advekciót a shaderbe költöztetve az ATLASZ mintavételi irányát
+forgattam el, a cellán BELÜLI részlet-zaj koordinátáját viszont nem:
+`q = u * frekvencia + fázis` a FORGATATLAN irányt használta. A sub-grid
+szétbontás (ND-154) a zaj és a lefedettség küszöb-összehasonlítása, tehát a
+felhőfoltok APRÓ mintázata a BOLYGÓHOZ volt szögezve, miközben a lefedettség
+elcsúszott fölötte — a foltok helyben maradtak, csak jöttek-mentek.
+
+A TENGEREN a legfeltűnőbb, és ezért: ott a klimatológiai lefedettség sima
+(nincs orografikus szerkezet), tehát a képet a rögzített zaj uralja.
+
+**Javítás:** az advektált irány egyszer számolódik (`ua = CloudAdvect(u)`), és
+MINDKETTŐ — az atlasz és a részlet-zaj — ezt használja.
+
+**MÉRVE** (azonos Nap-állás, 2 másodpercnyi advekció-különbség, egy tenger
+fölötti 220×220 pixeles folton, a legjobban illeszkedő eltolást keresve):
+
+| | legjobb illeszkedés | átlagos eltérés eltolás nélkül | eltolással |
+|---|---|---|---|
+| javítás ELŐTT | **(0, 0) px** | 11,57 | 11,57 (0,0% javulás) |
+| javítás UTÁN | **(+8, +8) px** | 17,35 | 5,44 (**68,7% javulás**) |
+
+Vagyis a mintázat korábban BIZONYÍTHATÓAN nem transzlálódott (a nulla eltolás
+volt a legjobb illeszkedés), most viszont a várt nagyságrendű eltolásnál
+illeszkedik. A felhő-pixelek közül a változatlanok aránya 55,7% → 38,9%
+(a maradék túlnyomórészt a foltok EGYSZÍNŰ BELSEJE, ami eltolás után is
+azonos — ezért is kellett a fenti, eltolás-kereső mérés).
+
 **ISMERT KORLÁT, dokumentálva.** Űrből nézve a burkoló KÖZELI lapja van elöl,
 ezért ott a mélységteszt nem segít: egy a felhődekkbe emelkedő HEGY nem takarja
 el a mögötte lévő felhőt. A domináns takaró (a bolygó túloldala) analitikusan

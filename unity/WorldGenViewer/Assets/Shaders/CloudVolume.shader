@@ -251,7 +251,17 @@ Shader "WorldGen/CloudVolume"
                 // MERT fordito-figyelmeztetes). Az atlasznak nincs mip-lanca
                 // (EnsureCloudSkyTexture: mipChain=false), tehat a LOD 0 nem
                 // kozelites, hanem az EGYETLEN helyes szint.
-                float4 atlas = tex2Dlod(_CloudSkyTex, float4(PlanetAtlasUv(CloudAdvect(u)), 0, 0));
+                // AZ ADVEKTALT IRANY egyszer, es MINDENHEZ ezt hasznaljuk:
+                // az atlaszhoz ES a cellan beluli reszlet-zajhoz is. Ha csak az
+                // atlasz kapja meg (ez volt a hiba), a reszlet-mintazat a
+                // BOLYGOHOZ van szogezve, mikozben a lefedettseg elcsuszik
+                // folotte - a felho apro foltokban HELYBEN MARAD. Felhasznaloi
+                // eszleles (2026-09-28): "a tenger folott mintha foltokban fix
+                // maradna a felhozet, de csak apro, viszont sok foltban" - a
+                // tengeren a legfeltunobb, mert ott a lefedettseg sima, tehat a
+                // rogzitett zaj dominalja a kepet.
+                float3 ua = CloudAdvect(u);
+                float4 atlas = tex2Dlod(_CloudSkyTex, float4(PlanetAtlasUv(ua), 0, 0));
                 float cov = atlas.r;
                 if (cov <= 0.0) return 0.0;
 
@@ -272,7 +282,7 @@ Shader "WorldGen/CloudVolume"
                 // A reszlet-koordinata: a gombi irany a sav-frekvencian, plusz
                 // a RADIALIS elhangolas (a felho vizszintesen nagyobb lepteku,
                 // mint fuggolegesen - CloudVolume.DetailVerticalStretch).
-                float3 q = u * (_CloudDetail.x + hf * _CloudProfile.w) + _CloudDetailPhase.xyz;
+                float3 q = ua * (_CloudDetail.x + hf * _CloudProfile.w) + _CloudDetailPhase.xyz;
                 // SUB-GRID SZETBONTAS (Core: CloudVolume.SubGridCoverage). NEM
                 // szorzo: egy 364 km-es cella 0,1-es lefedettsege azt jelenti,
                 // hogy a terulet 10%-an VAN felho, nem azt, hogy az egeszet egy

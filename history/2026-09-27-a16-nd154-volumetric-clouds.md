@@ -177,6 +177,20 @@ Melléklelet (NEM a felhőréteg): deep-time újraépítés után a kép elmosó
 csillagok csíkká nyúlnak; a felhő kikapcsolásával is megmarad, tehát nem ez
 okozza — valószínű ok a HDRP temporális akkumulációja.
 
+## Ötödik kör (2026-09-28): a helyben maradó apró foltok
+
+„A tenger fölött mintha foltokban fix maradna a felhőzet." Valódi hiba: az
+advekció shaderbe költöztetésekor csak az ATLASZ mintavételi irányát
+forgattam el, a cellán beluli részlet-zajét nem — a felhőfoltok apró
+mintázata a bolygóhoz volt szögezve, miközben a lefedettség elcsúszott
+fölötte. A tengeren a legfeltűnőbb, mert ott a lefedettség sima, tehát a
+rögzített zaj uralja a képet.
+
+MÉRVE (azonos Nap-állás, 2 másodpercnyi advekció, tenger fölötti folt,
+a legjobban illeszkedő eltolást keresve): előtte a legjobb illeszkedés
+**(0,0) px** — a mintázat bizonyíthatóan nem transzlálódott; utána
+**(+8,+8) px**, 68,7%-os hibacsökkenéssel.
+
 ## Ami nyitva maradt
 
 - **B17** — a vizuális átvétel második köre. A limbnél a mély konvektív cellák a 111-szeres nyújtás miatt kiugró dudorokat adnak (9,5 km × 111 = 14 egység); ez a nyújtás következménye, nem hiba, de eldöntendő, hogy így maradjon-e.
