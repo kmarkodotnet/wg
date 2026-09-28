@@ -9378,6 +9378,79 @@ a rövid kanonikus előtag lenyomata. A fájlkezelés és a kvóta a
 `TerrainBasisDiskCache` viewer-oldali mintáját követi; minden I/O hiba
 nyelve: a cache kényelem, nem adat — hibánál számolunk.
 
+#### 4b. A MÉRT EDITOR-KÖLTSÉG (2026-09-28, élő ellenőrzés)
+
+Az ND-158/159 időadatai **.NET 8 Release CLI**-ből származnak. Az élő
+ellenőrzés kimutatta, hogy az **Editor (Mono) lényegesen lassabb**, és ezt
+a különbséget a döntésnek tartalmaznia kell:
+
+| | ms/tick | 1 menet (14 880 tick) | 2 menet |
+|---|---:|---:|---:|
+| .NET 8 Release (CLI), level 5 | 1,34 | 17,0 s | 39,8 s |
+| **Unity Editor (Mono), level 5** | **3,54** | **52,7 s** | **~105 s** |
+
+A mérés level 5-ön, 6144 cellán, Play nélkül készült. A napi statisztika
+rétege NEM szűk keresztmetszet: nyers léptetés 3,50 ms/tick, a napi
+statisztikán keresztül 3,56 ms/tick (1,1×).
+
+**A párhuzamos lokális lépés Monóban NEM gyorsít.** Mérve: 200 tick
+szekvenciálisan 3,56 ms/tick, párhuzamosan 3,55 ms/tick — a `Parallel.For`
+tickenkénti particionálási költsége felemészti a nyereséget ekkora
+munkacsomagnál (tickenként egyetlen, 6144 elemű ciklus). Play közben
+ráadásul ugyanazon a ThreadPoolon versenyez az Editor saját munkáival.
+Ezért a viewer-oldali worker **szekvenciálisan** lép; a CLI (ahol a
+párhuzamosítás használ) ettől függetlenül megtartja.
+
+**Play közbeni első mérés:** a háttérmunka 15 percnél tovább futott anélkül,
+hogy befejeződött volna — vagyis Play alatt a versenghelyzet további,
+NEM MÉRT lassulást ad a fenti ~105 s-hoz képest. A párhuzamos lépés
+kikapcsolása utáni újramérés hátravan; a pontos Play-beli számot NEM
+állítjuk addig, amíg nincs tisztán mérve.
+
+**Következmény a tervre:** az előnézet + háttérszál + cache felépítés
+ettől nem rossz — sőt, ez pont az az eset, amiért kell. De a felhasználó
+egy ÚJ világnál PERCEKIG az előnézetet látja, nem másodpercekig. Ha ez
+soknak bizonyul, a következő mérhető lépés a mintanapok számának
+csökkentése (12 → pl. 4, ami közel harmadára viszi a tickeket) — ára a
+durvább évszakos mintavétel, tehát külön A/B kell hozzá.
+
+**MÉRÉSI TANULSÁG, kimondva:** az első két Editor-benchmarkom eredménye
+sosem érkezett meg, mert `EditorPrefs`-be írtam őket egy HÁTTÉRSZÁLRÓL —
+az Unity API főszálat követel, tehát a kimenet (és a catch-ág is) kivételt
+dobott, a mérés pedig végtelen „running”-nak látszott. A mérőeszköz
+hibája majdnem a mért rendszer hibájának látszott; a fenti számok már
+fájlba írt, ismételt mérésből valók.
+
+#### 4c. ÉLŐ IGAZOLÁS és egy CSENDES HIBA, amit csak ez fogott meg
+
+**A hiba.** A `ThermalClimateCacheDirectory` az
+`Application.persistentDataPath`-ból készült — az viszont **Unity API, amit
+kizárólag a főszálról szabad olvasni**. A háttérszálon mindhárom
+cache-művelet (takarítás, olvasás, írás) `UnityException`-nel szállt el.
+A következmény NEM összeomlás volt — a hibákat lenyeljük, ahogy a terv
+előírja —, hanem az, hogy **a cache soha nem íródott és soha nem talált**:
+a funkció „működött", csak épp sosem gyorsított, és minden Build újra
+számolt. Offline fordítással és tesztekkel ez NEM látszik; csak élő Play
+mutatta meg. Javítva: a könyvtárat a főszál rögzíti a worker indítása
+előtt (`EnsureThermalClimateCacheDirectory`).
+
+**Igazolás (level 3, 384 cella — a mechanizmus szintfüggetlen):**
+
+| lépés | mért eredmény |
+|---|---|
+| Build, cache-tévesztés | ELŐNÉZET aktív: 135 jég-tile, küszöb **258,150 K** (abszolút, ND-43) |
+| háttérszál | `RanToCompletion`, **6,8 s**, cache-fájl **38 249 bájt** |
+| újabb Build után | **`ThermalClimateIceActive = true`**, küszöb **281,445 K** (ND-159 percentilis vágópont) |
+| új Play, cache-találat | `fromCache=true`, **65 ms** (6,8 s helyett), azonnal a hőmodell jege |
+
+**A verifikáció korlátja, kimondva:** MCP-vel vezérelt, nem fókuszált
+Editorban a Play-hurok nem lép tovább (`Time.frameCount` 1-en állt), ezért
+az `Update()` — és vele a csere — magától sosem futott le. A fenti
+eredmény `EditorApplication.Step()` frame-léptetéssel készült. Emiatt a
+KORÁBBI, level-5 Play-megfigyelésünk („15 percig futott") sem értékelhető
+teljesítmény-adatként. A tényleges vizuális átvétel továbbra is a
+felhasználó fókuszált Editorában tartozik megtörténni.
+
 #### 5. Amit ez NEM változtat
 
 A `WorldGeneratorVersion` és a hőmodell verziója változatlan: a jégmaszk

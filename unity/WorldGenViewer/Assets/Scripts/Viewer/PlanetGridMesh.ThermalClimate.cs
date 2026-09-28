@@ -71,8 +71,28 @@ namespace WorldGen.Viewer
         /// </summary>
         private const long ThermalClimateCacheQuotaBytes = 128L * 1024 * 1024;
 
-        private static string ThermalClimateCacheDirectory =>
-            Path.Combine(Application.persistentDataPath, "thermalClimateCache");
+        /// <summary>
+        /// A gyorsitotar konyvtara. AZERT MEZO, es azert a FOSZALON toltjuk fel:
+        /// az `Application.persistentDataPath` UNITY API, amit KIZAROLAG a
+        /// foszalrol szabad olvasni - hatterszalrol `UnityException`-t dob.
+        ///
+        /// ELO PLAY-BEN MERVE (2026-09-28): amikor ezt tulajdonsagkent, a
+        /// workerbol olvastuk, MINDHAROM cache-muvelet (takaritas, olvasas,
+        /// iras) kivetellel elszallt. A kovetkezmeny nem osszeomlas volt -
+        /// a hibakat lenyeljuk -, hanem az, hogy a cache SOHA nem irodott es
+        /// SOHA nem talalt, tehat minden Build ujraszamolt. Csendes, draga
+        /// hiba: a funkcio "mukodott", csak epp sosem gyorsitott.
+        /// </summary>
+        private static string _thermalClimateCacheDirectory;
+
+        /// <summary>A foszalrol hivando: rogziti a konyvtarat a hatterszal szamara.</summary>
+        private static void EnsureThermalClimateCacheDirectory()
+        {
+            if (_thermalClimateCacheDirectory == null)
+                _thermalClimateCacheDirectory = Path.Combine(Application.persistentDataPath, "thermalClimateCache");
+        }
+
+        private static string ThermalClimateCacheDirectory => _thermalClimateCacheDirectory;
 
         /// <summary>A hatterszalnak atadott, IMMUTABILIS vilag-pillanatkep.</summary>
         private sealed class ThermalClimateInputs
@@ -270,6 +290,9 @@ namespace WorldGen.Viewer
             if (inputs == null || inputs.Revision != _climateRevision) return;
             if (_climateApplied != null && _climateApplied.Revision == _climateRevision) return;
 
+            // A Unity API-t IGENYLO reszeket MEG a foszalon intezzuk el.
+            EnsureThermalClimateCacheDirectory();
+
             _climateCancel?.Dispose();
             _climateCancel = new CancellationTokenSource();
             CancellationToken token = _climateCancel.Token;
@@ -293,8 +316,16 @@ namespace WorldGen.Viewer
 
             // A lenyomathoz es a szamitashoz UGYANAZ a mezo kell, kulonben a
             // cache nem azt validalna, amit futtatunk.
+            // MERVE az Editorban (Mono, level 5, 6144 cella): a parhuzamos
+            // lokalis lepes NEM gyorsit - 200 tick szekvencialisan 3,56 ms/tick,
+            // parhuzamosan 3,55 ms/tick. A Parallel.For tickenkenti particionalasi
+            // koltsege Monoban felemeszti a nyereseget ekkora munkacsomagnal
+            // (tickenkent egyetlen, 6144 elemu ciklus). Play kozben ez ROSSZABB
+            // is: a TPL ugyanazon a ThreadPoolon versenyez az Editor sajat
+            // munkaival. Ezert a viewer-oldali worker SZEKVENCIALISAN lep;
+            // a .NET 8 CLI-mérés (ahol a parhuzamositas segit) ettol fuggetlen.
             var field = new SurfaceTemperatureField(grid, inputs.IceFreeKinds, inputs.ElevationM,
-                inputs.SeaLevelM, inputs.Seed, inputs.TYears, inputs.Orbit) { UseParallelLocalStep = true };
+                inputs.SeaLevelM, inputs.Seed, inputs.TYears, inputs.Orbit);
             long[] sampleDays = ThermalAnnualStatisticsCalculator.SampleDayIndices(
                 inputs.Orbit.OrbitalPeriodDays, ThermalAnnualStatisticsCalculator.DefaultSampleDays);
             ulong fingerprint = ThermalClimateDiskCache.ComputeSolverFingerprint(field, 0);
@@ -310,7 +341,7 @@ namespace WorldGen.Viewer
             {
                 ThermalClimate climate = ThermalClimateCalculator.Compute(grid, inputs.IceFreeKinds,
                     inputs.ElevationM, inputs.SeaLevelM, inputs.Seed, inputs.TYears, inputs.Orbit,
-                    useParallelLocalStep: true);
+                    useParallelLocalStep: false);
                 token.ThrowIfCancellationRequested();
                 payload = ThermalClimateDiskCache.Payload.From(climate);
                 SaveThermalClimateToDisk(key, payload);
@@ -346,7 +377,7 @@ namespace WorldGen.Viewer
 
         private ThermalClimateDiskCache.Payload TryLoadThermalClimateFromDisk(in ThermalClimateDiskCache.Key key)
         {
-            if (!useThermalClimateDiskCache) return null;
+            if (!useThermalClimateDiskCache || ThermalClimateCacheDirectory == null) return null;
             PurgeStaleThermalClimateCacheFilesOnce();
             try
             {
@@ -368,7 +399,7 @@ namespace WorldGen.Viewer
 
         private void SaveThermalClimateToDisk(in ThermalClimateDiskCache.Key key, ThermalClimateDiskCache.Payload payload)
         {
-            if (!useThermalClimateDiskCache) return;
+            if (!useThermalClimateDiskCache || ThermalClimateCacheDirectory == null) return;
             try
             {
                 Directory.CreateDirectory(ThermalClimateCacheDirectory);
@@ -389,7 +420,7 @@ namespace WorldGen.Viewer
         /// <summary>A korabbi FORMATUMU fajlok egyszeri takaritasa (soha nem olvassuk oket ujra).</summary>
         private void PurgeStaleThermalClimateCacheFilesOnce()
         {
-            if (_climateCachePurged) return;
+            if (_climateCachePurged || ThermalClimateCacheDirectory == null) return;
             _climateCachePurged = true;
             try
             {
@@ -406,6 +437,7 @@ namespace WorldGen.Viewer
 
         private void EnforceThermalClimateCacheQuota()
         {
+            if (ThermalClimateCacheDirectory == null) return;
             try
             {
                 if (!Directory.Exists(ThermalClimateCacheDirectory)) return;
