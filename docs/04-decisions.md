@@ -9458,6 +9458,57 @@ RENDER- és panel-kimenet, nem a generátor numerikus lánca. A
 `WorldStateHash` (eleváció-összeg) jelentése sem változik.
 
 
+### ND-163 — A csapadék szél-tagja: a cellaközéppontii szélvektor kivezetése (A7 7. fázis, ELFOGADVA a Core-részre; FOGYASZTÓI KAPU ZÁRVA)
+
+**Dátum:** 2026-09-28. **Előzmény:** ND-142 (hő–szél csatolás),
+ND-158 (párolgás hőmérséklet-bemenete), ND-162 (a jég átállása).
+
+**A tétel.** Az A7 7. fázisából ez maradt: a `MoisturePrecipitation` még
+mindig a RÉGI, analitikus `WindPrecipitation.WindVector`-ból veszi a szelet —
+tehát a csapadék-mező nem látja az ND-142 csatolt szelét.
+
+**A fő felismerés: itt NINCS ÚJ NUMERIKA.** A csatolt szél belső `Wind(...)`
+függvénye MÁR kiszámolja a cellaközéppontbeli teljes 3D szélvektort
+(`wx, wy, wz`) és a kelet/észak komponenseket — a `SampleCoupled` viszont a
+celláknál eldobja őket (`out _, out _, out _`), és csak a NAGYSÁGOT
+(`cellSpeed`) tartja meg. Vagyis a hiányzó mennyiség már ott van a
+memóriában; csak kivezetni kell.
+
+Ezért ez a lépés **nem igényel új Python-orákulumot**: a számolás
+bitre ugyanaz, amit az ND-142 vektorai már lefednek. Amit bizonyítani kell,
+az az, hogy (a) a meglévő kimenetek BITRE változatlanok, és (b) az új
+vektor-kimenet és a régi `cellSpeed` KONZISZTENS (a vektor hossza a
+tangenciális síkban pontosan a sebesség).
+
+**Megvalósítás (Core):**
+1. `ThermalWind.SampleCoupled` új túlírása, ami a cellaközéppontbeli
+   szélvektort is kitölti. A régi alák változatlanul delegál, tehát minden
+   meglévő hívó bitre azonos eredményt kap.
+2. `SurfaceWindSample` értéktípus (3D irány + sebesség) — ez az a alak,
+   amit a nedvesség-transzport vár.
+3. `MoisturePrecipitation.ComputeFromElevationField` új túlterhelése, ami a
+   szelet KÍVÜLRŐL kapja — pontosan úgy, ahogy az ND-158-ban a
+   hőmérséklet-mezőt. `null` esetén a régi, analitikus út fut, BITRE
+   azonosan.
+
+**A FOGYASZTÓI KAPU ZÁRVA MARAD.** A viewer egyelőre nem áll át. Indok az
+ND-162 3. pontjával azonos: a csapadék-mező hat a FELHŐRE, a
+folyó-forrásokra és a biome csapadék-tengelyére is — három látható
+következmény egyszerre. A jég átállásának vizuális átvétele még nem
+történt meg; két változást egy ítéletbe keverni pontosan az a hiba, ami az
+ND-142 kalibrációs köréhez vezetett.
+
+**Egy nyitott modellezési különbség, kimondva:** a csapadék-mező EGYETLEN
+`dayT` pillanatra készül, a csatolt szél viszont a hőmodell állapotától
+függő (tick-szintű) mennyiség. Az átálláskor el kell dönteni, melyik
+időpont (vagy milyen átlag) a csapadék szél-bemenete — a legvalószínűbb
+válasz az ÉVES adatúton belüli átlag, az ND-158 mintájára, de ezt mérni
+kell. Ez a következő lépés, nem ezé.
+
+**Nem seed-törő:** csak új API-k; a `WorldGeneratorVersion` marad `"5"`, a
+hőmodell verziója 3.
+
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

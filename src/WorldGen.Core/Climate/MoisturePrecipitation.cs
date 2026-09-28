@@ -116,6 +116,35 @@ namespace WorldGen.Core.Climate
             double axialTiltDegrees = 23.44, int iterations = DefaultIterations,
             double precipBaseFraction = DefaultPrecipBaseFraction,
             double orographicCoeff = DefaultOrographicCoeff, double orographicElevScale = DefaultOrographicElevScale)
+            => ComputeFromFields(field, seaLevel, worldSeed, level, temperatureK, null, dayT, orbitalPeriodDays,
+                rotationPeriodDays, axialTiltDegrees, iterations, precipBaseFraction, orographicCoeff,
+                orographicElevScale);
+
+        /// <summary>
+        /// Ugyanaz a nedvesség-transzport, de a HŐMÉRSÉKLET ÉS A SZÉL is
+        /// kívülről jöhet (ND-158 / ND-163).
+        ///
+        /// MIÉRT VAN. A szél eddig az analitikus
+        /// <see cref="WindPrecipitation.WindVector"/>-ból jött, tehát a
+        /// csapadék-mező nem látta az ND-142 CSATOLT szelét (a levegőanomália
+        /// visszahatását). Ez a túlterhelés beengedi a hőmodell szélmezőjét —
+        /// ugyanabban az alakban, ahogy a hőmérsékletet is.
+        ///
+        /// Mindkét mező <c>null</c> esetén a RÉGI, analitikus út fut, tehát
+        /// minden korábbi hívó BITRE azonos eredményt kap. Ha meg van adva,
+        /// MINDEN tile-jára tartalmaznia kell értéket; hiányzó kulcsnál explicit
+        /// hiba, mert a csendes visszaesés két különböző modellt keverne egy
+        /// mezőben.
+        /// </summary>
+        public static PrecipitationField ComputeFromFields(
+            Dictionary<TileId, double> field, double seaLevel,
+            ulong worldSeed, int level,
+            IReadOnlyDictionary<TileId, double>? temperatureK,
+            IReadOnlyDictionary<TileId, SurfaceWindSample>? wind,
+            double dayT = 0.0, double orbitalPeriodDays = 365.25, double rotationPeriodDays = 1.0,
+            double axialTiltDegrees = 23.44, int iterations = DefaultIterations,
+            double precipBaseFraction = DefaultPrecipBaseFraction,
+            double orographicCoeff = DefaultOrographicCoeff, double orographicElevScale = DefaultOrographicElevScale)
         {
             if (field == null) throw new ArgumentNullException(nameof(field));
             Dictionary<TileId, bool> isOcean = FlowNetwork.ComputeOceanField(field, seaLevel);
@@ -150,10 +179,25 @@ namespace WorldGen.Core.Climate
                     throw new ArgumentException(
                         $"A megadott hőmérséklet-mezőből hiányzik a(z) {k} tile.", nameof(temperatureK));
                 }
-                WindPrecipitation.WindVector(
-                    x, y, z, dayT, orbitalPeriodDays, rotationPeriodDays, axialTilt, oc, elev, seaLevel, 0.0, 0.0,
-                    out double we, out double wn, out double w3x, out double w3y, out double w3z);
-                double speed = Math.Sqrt(we * we + wn * wn);
+                double w3x, w3y, w3z, speed;
+                if (wind == null)
+                {
+                    WindPrecipitation.WindVector(
+                        x, y, z, dayT, orbitalPeriodDays, rotationPeriodDays, axialTilt, oc, elev, seaLevel, 0.0, 0.0,
+                        out double we, out double wn, out w3x, out w3y, out w3z);
+                    speed = Math.Sqrt(we * we + wn * wn);
+                }
+                else if (wind.TryGetValue(k, out SurfaceWindSample sample))
+                {
+                    w3x = sample.X;
+                    w3y = sample.Y;
+                    w3z = sample.Z;
+                    speed = sample.SpeedMs;
+                }
+                else
+                {
+                    throw new ArgumentException($"A megadott szélmezőből hiányzik a(z) {k} tile.", nameof(wind));
+                }
                 evapSourceOf[k] = WindPrecipitation.Evaporation(temp, speed, oc ? 1.0 : 0.0);
 
                 var nbs = new TileId[4];

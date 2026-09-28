@@ -12,18 +12,43 @@ namespace WorldGen.Core.Climate
         /// A bemenetet nem módosítja; az összes cella ugyanazt az állapotot olvassa.
         /// </summary>
         public void SampleCoupled(long seconds, double[] airAnomaly, double[] edgeVelocity, double[] cellSpeed)
+            => SampleCoupled(seconds, airAnomaly, edgeVelocity, cellSpeed, null, null, null);
+
+        /// <summary>
+        /// ND-163: ugyanaz, mint a fenti, de a CELLAKÖZÉPPONTBELI szélvektort is
+        /// kitölti (egységgömbi 3D irány × sebesség, m/s).
+        ///
+        /// MIÉRT NINCS ITT ÚJ SZÁMÍTÁS. A belső <c>Wind(...)</c> a vektort
+        /// eddig is előállította — a celláknál csak eldobtuk, és a
+        /// <paramref name="cellSpeed"/> nagyságot tartottuk meg. Ez a túlterhelés
+        /// kivezeti; a többi kimenet BITRE változatlan, mert ugyanaz a kód fut.
+        ///
+        /// A három vektortömb együtt adható meg vagy együtt hagyható el.
+        /// A vektor a cellaközéppont ÉRINTŐSÍKJÁBAN fekszik, tehát a hossza
+        /// pontosan <paramref name="cellSpeed"/>.
+        /// </summary>
+        public void SampleCoupled(long seconds, double[] airAnomaly, double[] edgeVelocity, double[] cellSpeed,
+            double[]? cellWindX, double[]? cellWindY, double[]? cellWindZ)
         {
             if (airAnomaly == null || airAnomaly.Length != _grid.CellCount
                 || edgeVelocity == null || edgeVelocity.Length != _grid.EdgeCount
                 || cellSpeed == null || cellSpeed.Length != _grid.CellCount)
                 throw new ArgumentException("A hő- és széltömbök mérete nem egyezik a ráccsal.");
-            if (ReferenceEquals(airAnomaly, cellSpeed))
+            bool wantVector = cellWindX != null || cellWindY != null || cellWindZ != null;
+            if (wantVector && (cellWindX == null || cellWindY == null || cellWindZ == null))
+                throw new ArgumentException("A szélvektor három tömbjét együtt kell megadni.", nameof(cellWindX));
+            if (wantVector && (cellWindX!.Length != _grid.CellCount || cellWindY!.Length != _grid.CellCount
+                || cellWindZ!.Length != _grid.CellCount))
+                throw new ArgumentException("A szélvektor-tömbök mérete nem egyezik a cellaszámmal.", nameof(cellWindX));
+            if (ReferenceEquals(airAnomaly, cellSpeed)
+                || (wantVector && (ReferenceEquals(airAnomaly, cellWindX) || ReferenceEquals(airAnomaly, cellWindY)
+                    || ReferenceEquals(airAnomaly, cellWindZ))))
                 throw new ArgumentException("A bemenet és kimenet nem lehet ugyanaz a tömb.");
             for (int c = 0; c < airAnomaly.Length; c++)
                 if (double.IsNaN(airAnomaly[c]) || double.IsInfinity(airAnomaly[c]))
                     throw new ArgumentException("Nem véges levegőanomália.", nameof(airAnomaly));
             if (_feedback == null) _feedback = new FeedbackData(this);
-            _feedback.Sample(seconds, airAnomaly, edgeVelocity, cellSpeed);
+            _feedback.Sample(seconds, airAnomaly, edgeVelocity, cellSpeed, cellWindX, cellWindY, cellWindZ);
         }
 
         private sealed class FeedbackData
@@ -138,7 +163,8 @@ namespace WorldGen.Core.Climate
                 _dayB = day + 1;
             }
 
-            public void Sample(long seconds, double[] theta, double[] edgeVelocity, double[] cellSpeed)
+            public void Sample(long seconds, double[] theta, double[] edgeVelocity, double[] cellSpeed,
+                double[]? cellWindX = null, double[]? cellWindY = null, double[]? cellWindZ = null)
             {
                 long day = SimulationTime.FloorDiv(seconds, SimulationTime.SecondsPerDay);
                 double w = (seconds - day * SimulationTime.SecondsPerDay) / (double)SimulationTime.SecondsPerDay;
@@ -154,8 +180,15 @@ namespace WorldGen.Core.Climate
                     edgeVelocity[e] = wx * grid.EdgeNormalX[e] + wy * grid.EdgeNormalY[e] + wz * grid.EdgeNormalZ[e];
                 }
                 for (int c = 0; c < grid.CellCount; c++)
+                {
                     Wind(_owner._cellGeometry, c * GeometryStride, grid.EdgeCount + c, w,
-                        _gx[c], _gy[c], _gz[c], out cellSpeed[c], out _, out _, out _);
+                        _gx[c], _gy[c], _gz[c], out cellSpeed[c],
+                        out double wx, out double wy, out double wz);
+                    if (cellWindX == null) continue;
+                    cellWindX[c] = wx;
+                    cellWindY![c] = wy;
+                    cellWindZ![c] = wz;
+                }
             }
 
             private void Wind(double[] g, int o, int k, double w, double gx, double gy, double gz,
