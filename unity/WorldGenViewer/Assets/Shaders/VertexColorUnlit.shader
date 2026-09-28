@@ -184,6 +184,20 @@ Shader "WorldGen/VertexColorUnlit"
             //
             // Ha a C# nem allitotta be az atlaszt, a mintavetel 0-t adna -
             // ezert a _CloudShadow.x kapu itt is dont (0 = nincs adat).
+            // A felhoarnyeknak UGYANAZT az advekciot kell latnia, mint a
+            // felhonek, kulonben az arnyek a mozgo felho alol kicsuszna.
+            float4 _CloudAdvection;
+
+            float3 CloudShadowAdvect(float3 v)
+            {
+                float angle = _CloudAdvection.w;
+                if (abs(angle) < 1e-7)
+                    return v;
+                float3 k = _CloudAdvection.xyz;
+                float c = cos(angle), s = sin(angle);
+                return v * c + cross(k, v) * s + k * dot(k, v) * (1.0 - c);
+            }
+
             float SkyOpennessAt(float3 planetPos)
             {
                 if (_CloudShadow.x <= 0.0)
@@ -195,7 +209,7 @@ Shader "WorldGen/VertexColorUnlit"
             {
                 if (_CloudShadow.x <= 0.0)
                     return 1.0;
-                float4 atlas = tex2D(_CloudSkyTex, PlanetAtlasUv(planetPos));
+                float4 atlas = tex2D(_CloudSkyTex, PlanetAtlasUv(CloudShadowAdvect(planetPos)));
                 float coverage = atlas.r;
                 if (coverage <= 0.0)
                     return 1.0;

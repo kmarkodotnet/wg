@@ -692,6 +692,24 @@ namespace WorldGen.Core.Climate
         public const double WeatherAdvectionRadiansPerDay = 0.3;
 
         /// <summary>
+        /// A PREZENTÁCIÓS vonulási sebesség (radián/bolygó-nap).
+        ///
+        /// MIÉRT NEM A FIZIKAI ÉRTÉK AZ ALAPÉRTELMEZÉS. A nézőben egy
+        /// bolygó-nap 100 másodperc (a Nap ennyi alatt fordul körbe), a bolygó
+        /// pedig ~300 pixel sugarú. A fizikai
+        /// <see cref="WeatherAdvectionRadiansPerDay"/> (0,3) ezen a léptéken
+        /// **0,9 pixel/másodperc** — MÉRVE nem észrevehető, és a felhasználói
+        /// visszajelzés pontosan ez volt („a felhők érdemben továbbra se
+        /// mozognak”). 1,5 rad/nap = 4,5 pixel/másodperc, a mintázat ~4 nap
+        /// (≈420 s) alatt ér körbe.
+        ///
+        /// Ez UGYANOLYAN tudatos, dokumentált prezentációs torzítás, mint a
+        /// domborzat függőleges nagyítása (a jelenetben 111×) — a csúszka
+        /// lefelé a fizikai értékig megy.
+        /// </summary>
+        public const double PresentationAdvectionRadiansPerDay = 1.5;
+
+        /// <summary>
         /// Az advekció tengelye — a modell saját időjárás-sodródási tengelye
         /// (<c>WindPrecipitation.WeatherDriftAxis*</c>), ami már egységvektor
         /// (0,6² + 0,8² = 1).

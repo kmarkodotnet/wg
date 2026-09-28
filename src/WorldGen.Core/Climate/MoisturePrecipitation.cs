@@ -54,6 +54,36 @@ namespace WorldGen.Core.Climate
         {
             Dictionary<TileId, double> field = SeaLevelCalibration.ComputeElevationField(worldSeed, plateCount, level);
             double seaLevel = SeaLevelCalibration.CalibrateSeaLevel(field.Values, targetWaterFraction);
+            return ComputeFromElevationField(
+                field, seaLevel, worldSeed, level, dayT, orbitalPeriodDays, rotationPeriodDays,
+                axialTiltDegrees, iterations, precipBaseFraction, orographicCoeff, orographicElevScale);
+        }
+
+        /// <summary>
+        /// Ugyanaz a nedvesség-transzport, de MEGADOTT eleváció-mezővel és
+        /// tengerszinttel.
+        ///
+        /// MIÉRT VAN (ND-157). A paraméteres <see cref="Compute"/> a saját,
+        /// <c>t = 0</c>-ás eleváció-mezőjét számolja ki
+        /// (<see cref="SeaLevelCalibration.ComputeElevationField"/>), tehát a
+        /// deep time értékét MEG SEM KAPJA — a csapadék-mező emiatt
+        /// deep-time-INVARIÁNS. Ez az overload beengedi a hívó saját mezőjét,
+        /// így a csapadék (és a belőle származó felhő) követni tudja a
+        /// lemezmozgást, a hegységek felemelkedését és az eróziót.
+        ///
+        /// A PARAMÉTERES ÚT VÁLTOZATLAN: a <see cref="Compute"/> pontosan
+        /// ugyanazt a két sort futtatja le, mint eddig, majd ide delegál —
+        /// tehát minden korábbi hívó BITRE azonos eredményt kap.
+        /// </summary>
+        public static PrecipitationField ComputeFromElevationField(
+            Dictionary<TileId, double> field, double seaLevel,
+            ulong worldSeed, int level,
+            double dayT = 0.0, double orbitalPeriodDays = 365.25, double rotationPeriodDays = 1.0,
+            double axialTiltDegrees = 23.44, int iterations = DefaultIterations,
+            double precipBaseFraction = DefaultPrecipBaseFraction,
+            double orographicCoeff = DefaultOrographicCoeff, double orographicElevScale = DefaultOrographicElevScale)
+        {
+            if (field == null) throw new ArgumentNullException(nameof(field));
             Dictionary<TileId, bool> isOcean = FlowNetwork.ComputeOceanField(field, seaLevel);
             double axialTilt = axialTiltDegrees * Math.PI / 180.0;
 

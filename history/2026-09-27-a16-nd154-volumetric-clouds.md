@@ -152,6 +152,31 @@ Három további kifogás, mind valódi hiba; a negyedik nem a felhőrétegben vo
    Új tétel: todo2 B19, saját ND-t igényel (a klíma-mező numerikáját
    változtatná, és a hidrológiát is érinti).
 
+## Negyedik kör (2026-09-28): észrevehető mozgás + deep-time bemenet
+
+„A felhők érdemben továbbra se mozognak, deep time pedig egyenesen fixek."
+Mindkettő jogos; a mozgás-mérésem félrevezető volt, mert egy TELJES nap
+ugrásával mértem, a nézőben viszont egy nap 100 másodperc.
+
+1. **Az advekció a shaderbe került.** Addig az atlasz 1,5 másodperces
+   újraépítése hajtotta: 1,35 pixeles ugrások, 0,9 px/s. Most a shader
+   forgatja az atlasz mintavételi irányát — folytonos és nulla CPU-költségű;
+   az atlasz csak világ-változáskor épül újra. Az arnyek ugyanazt a
+   forgatást kapja.
+2. **Prezentációs alapsebesség** (1,5 rad/nap) a fizikai 0,3 helyett —
+   ugyanolyan dokumentált torzítás, mint a domborzat 111-szeres nagyítása.
+   MÉRVE azonos Nap-álláson, 8 másodpercnyi advekció-különbséggel: a korong
+   **77,6%-a** változik.
+3. **Deep time = valódi bemenet (ND-157).** Új, additív
+   `MoisturePrecipitation.ComputeFromElevationField` overload; a felhő-atlasz
+   a VIEWER deep-time eleváció-mezőjéből építi a saját csapadék-mezőjét. A
+   megosztott mező érintetlen. MÉRVE: lefedettség-átlag 0,081 (t=0) → 0,088
+   (600 Myr), és a mintázat láthatóan más.
+
+Melléklelet (NEM a felhőréteg): deep-time újraépítés után a kép elmosódik és a
+csillagok csíkká nyúlnak; a felhő kikapcsolásával is megmarad, tehát nem ez
+okozza — valószínű ok a HDRP temporális akkumulációja.
+
 ## Ami nyitva maradt
 
 - **B17** — a vizuális átvétel második köre. A limbnél a mély konvektív cellák a 111-szeres nyújtás miatt kiugró dudorokat adnak (9,5 km × 111 = 14 egység); ez a nyújtás következménye, nem hiba, de eldöntendő, hogy így maradjon-e.

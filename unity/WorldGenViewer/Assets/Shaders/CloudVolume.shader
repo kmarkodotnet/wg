@@ -99,6 +99,13 @@ Shader "WorldGen/CloudVolume"
             float _CloudDiagnostic;
             // CloudVolume.TwilightBandCos
             float _CloudTwilight;
+            // IDOJARAS-ADVEKCIO: (tengely.xyz, elfordulas radianban).
+            // A mintazat vandorlasat a SHADER vegzi, nem az atlasz
+            // ujraepitese - igy a mozgas FOLYAMATOS (kepkockankent) es nulla
+            // CPU-koltsegu. A korabbi, 1,5 masodperces ujraepitesi utem 1,35
+            // pixeles ugrasokban mozgatta a felhot, ami se nem folyamatos, se
+            // nem elég (MERT, felhasznaloi visszajelzes).
+            float4 _CloudAdvection;
             // (LogisticNormalSlope, DetailNoiseStdDev, -, -)
             float4 _CloudNoise;
 
@@ -216,6 +223,19 @@ Shader "WorldGen/CloudVolume"
             // A hejon beluli suruseg egy pontban. Visszaadja a mar
             // reszlettel modositott lefedettseget es a magassag-tortet is,
             // mert a Nap-iranyu optikai melyseghez kellenek.
+            // Forgatas az advekcios tengely korul (Rodrigues) - a Core
+            // CloudVolume.Advect parja. A forgatas IZOMETRIA: tetszoleges
+            // szogre ertelmes, torzulas es telitodes nelkul.
+            float3 CloudAdvect(float3 v)
+            {
+                float angle = _CloudAdvection.w;
+                if (abs(angle) < 1e-7)
+                    return v;
+                float3 k = _CloudAdvection.xyz;
+                float c = cos(angle), s = sin(angle);
+                return v * c + cross(k, v) * s + k * dot(k, v) * (1.0 - c);
+            }
+
             float CloudDensity(float3 planetPos, out float coverage, out float heightFraction, out float thicknessMeters)
             {
                 coverage = 0.0;
@@ -231,7 +251,7 @@ Shader "WorldGen/CloudVolume"
                 // MERT fordito-figyelmeztetes). Az atlasznak nincs mip-lanca
                 // (EnsureCloudSkyTexture: mipChain=false), tehat a LOD 0 nem
                 // kozelites, hanem az EGYETLEN helyes szint.
-                float4 atlas = tex2Dlod(_CloudSkyTex, float4(PlanetAtlasUv(u), 0, 0));
+                float4 atlas = tex2Dlod(_CloudSkyTex, float4(PlanetAtlasUv(CloudAdvect(u)), 0, 0));
                 float cov = atlas.r;
                 if (cov <= 0.0) return 0.0;
 
@@ -350,7 +370,7 @@ Shader "WorldGen/CloudVolume"
                 for (int w = 0; w < 3; w++)
                 {
                     float3 dir = normalize(camPlanet + rd * lerp(t0, t1, 0.25 + 0.25 * w));
-                    float4 atl = tex2Dlod(_CloudSkyTex, float4(PlanetAtlasUv(dir), 0, 0));
+                    float4 atl = tex2Dlod(_CloudSkyTex, float4(PlanetAtlasUv(CloudAdvect(dir)), 0, 0));
                     float bm = atl.g * _CloudScale.y;
                     float tm = max(atl.b * _CloudScale.z, 1.0);
                     minBase = min(minBase, bm);

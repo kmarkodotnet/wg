@@ -8722,6 +8722,48 @@ a felhőn sem. Ez MODELL-szintű hiány, nem render-hiba, és a javítása a
 csapadék-lánc deep-time-osítása lenne — önálló tétel, saját ND-vel, mert a
 klíma-mező numerikus viselkedését változtatja. Felvéve a todo2 B19 sorába.
 
+#### Negyedik kör: a mozgás ÉSZREVEHETŐVÉ tétele és a deep-time bemenet (2026-09-28)
+
+A visszajelzés: „a felhők érdemben továbbra se mozognak, deep time pedig
+egyenesen fixek". Mindkettő jogos volt, és a mérésem volt félrevezető: egy
+TELJES nap ugrásával mértem (25,9% változás), a nézőben viszont egy nap
+**100 másodperc**, tehát a valós észlelet ennek a század része.
+
+**(1) A mozgás átköltözött a shaderbe.** Az advekciót addig az atlasz
+ÚJRAÉPÍTÉSE hajtotta, 1,5 másodperces ütemben — MÉRVE **1,35 pixeles
+ugrásokban**, összesen 0,9 pixel/másodperc sebességgel. Most a shader forgatja
+el az atlasz mintavételi irányát (`CloudAdvect`, ugyanaz a Rodrigues-forgatás,
+mint a Core-ban), tehát a vándorlás KEPKOCKÁNKÉNT folytonos és **nulla
+CPU-költségű**; az atlasz csak világ-változáskor épül újra. A felszíni
+felhőárnyék ugyanazt a forgatást kapja, különben kicsúszna a felhő alól.
+
+**(2) Az alapértelmezett sebesség prezentációs érték lett.** A fizikai
+0,3 rad/nap a néző léptékén (100 s/nap, ~300 pixel sugarú bolygó) 0,9
+pixel/másodperc — mérve nem észrevehető. Az alapértelmezés ezért
+`PresentationAdvectionRadiansPerDay = 1,5` (4,5 pixel/másodperc, a mintázat
+~4 nap alatt ér körbe). Ez UGYANOLYAN tudatos, dokumentált torzítás, mint a
+domborzat 111-szeres függőleges nagyítása; a csúszka lefelé a fizikai
+értékig megy. **MÉRVE** (AZONOS Nap-állás, csak 8 másodpercnyi advekciós
+szögkülönbség): a korong **77,6%-a** változik, 23,5%-a erősen — a korábbi,
+pixel alatti elmozdulás helyett.
+
+**(3) A deep time mostantól VALÓDI bemenet (ND-157).** A megosztott
+csapadék-mező a paraméteres `MoisturePrecipitation.Compute` eredménye, ami a
+deep time értékét meg sem kapja. Az új, ADDITÍV `ComputeFromElevationField`
+overload beengedi a hívó saját eleváció-mezőjét; a felhő-atlasz ezzel a
+VIEWER deep-time mezőjéből (`_lastField` + kalibrált tengerszint) építi a saját
+csapadék-mezőjét. A megosztott mező ÉRINTETLEN, tehát a csapadék-overlay és a
+lapos réteg bitre a korábbi, és a paraméteres út minden régi hívója is.
+**MÉRVE** (seed A7C944210000, azonos nézet): a felhő-lefedettség átlaga
+t = 0-nál 0,081 / 21160 cella, **600 Myr-nál 0,088 / 20203 cella**, és a
+mintázat láthatóan más — a felhő követi a lemezmozgást és a hegységek
+felemelkedését.
+
+**MELLÉKLELET, NEM A FELHŐRÉTEG:** deep-time újraépítés után a kép elmosódott,
+a csillagok szaggatott csíkokká nyúlnak. BIZONYÍTVA, hogy nem a felhő okozza:
+a `cloudVolumetric` kikapcsolásával is megmarad. Valószínű ok a HDRP
+temporális akkumulációja a teljes világ-csere után — önálló tétel.
+
 **ISMERT KORLÁT, dokumentálva.** Űrből nézve a burkoló KÖZELI lapja van elöl,
 ezért ott a mélységteszt nem segít: egy a felhődekkbe emelkedő HEGY nem takarja
 el a mögötte lévő felhőt. A domináns takaró (a bolygó túloldala) analitikusan

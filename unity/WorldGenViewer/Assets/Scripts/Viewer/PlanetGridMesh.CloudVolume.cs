@@ -97,9 +97,10 @@ namespace WorldGen.Viewer
 
         [SerializeField]
         [Range(0f, 2f)]
-        [Tooltip("A felhőrendszerek VONULÁSI sebessége radián/bolygó-nap. A mintázat a gömbön FORGATÁSSAL vándorol (torzulás és telítődés nélkül, tetszőlegesen sokáig). " +
-                 "0,3 = 2225 km/nap = 25,8 m/s, futóáramlás-szintű sebesség, ami a középszintű dekkhez illik. 0 = álló felhők; 1,0 már látványosan gyors.")]
-        private float cloudAdvectionRadiansPerDay = (float)CloudVolume.WeatherAdvectionRadiansPerDay;
+        [Tooltip("A felhőrendszerek VONULÁSI sebessége radián/bolygó-nap. A mintázat a gömbön FORGATÁSSAL vándorol, a shaderben, minden képkockán - tehát folyamatosan. " +
+                 "0,3 = a FIZIKAI érték (2225 km/nap = 25,8 m/s, futóáramlás-szint), de a nézőben egy nap 100 másodperc, ezért az csak 0,9 pixel/másodperc: MÉRVE nem észrevehető. " +
+                 "1,5 = 4,5 pixel/másodperc, a mintázat ~4 nap alatt körbeér - ez a PREZENTÁCIÓS alapérték, ugyanaz a fajta tudatos torzítás, mint a domborzat nagyítása. 0 = álló felhők.")]
+        private float cloudAdvectionRadiansPerDay = (float)CloudVolume.PresentationAdvectionRadiansPerDay;
 
         [SerializeField]
         [Range(0f, 1f)]
@@ -143,6 +144,7 @@ namespace WorldGen.Viewer
         private static readonly int CloudScatterId = Shader.PropertyToID("_CloudScatter");
         private static readonly int CloudTwilightId = Shader.PropertyToID("_CloudTwilight");
         private static readonly int CloudThicknessScaleId = Shader.PropertyToID("_CloudThicknessScale");
+        private static readonly int CloudAdvectionId = Shader.PropertyToID("_CloudAdvection");
         private static readonly int CloudNoiseId = Shader.PropertyToID("_CloudNoise");
 
         private static readonly Lazy<DenseGridMetrics> CloudGrid =
@@ -161,6 +163,7 @@ namespace WorldGen.Viewer
             public double OpennessMean;
             public double OpennessMin;
             public double BuildMs;
+            public double PrecipMs;
         }
 
         private Material _cloudVolumeMaterial;
@@ -237,15 +240,32 @@ namespace WorldGen.Viewer
             // statikus, ahogy a nap forog körbe, úgy bőségesen kellene ezeknek
             // is mozogni". A korábbi út a valós időt integrálta, ÉS
             // alapértelmezésben ki volt kapcsolva - a felhő ezért állt.
-            double weatherTime = CloudWeatherTime();
-            bool weatherMoved = !_cloudAtlasWeatherTime.Equals(weatherTime)
-                && Time.unscaledTime - _cloudAtlasLastBuildRealtime >= Mathf.Max(0.5f, cloudVolumeRebuildSeconds);
-            if (!worldChanged && !weatherMoved && !deckMoved)
+            // AZ IDŐJÁRÁS MOZGÁSÁHOZ NEM KELL ÚJRAÉPÍTÉS. A mintázat
+            // vándorlását a shader végzi (az atlasz mintavételi irányát
+            // forgatja el), ezért az atlasz csak akkor épül újra, ha a VILÁG
+            // vagy egy csúszka változott. Az újraépítés ütemezett, 1,5 s-os
+            // léptékű volt - abból a felhő 1,35 pixeles ugrásokban mozgott,
+            // ami se nem folyamatos, se nem elég (felhasználói visszajelzés,
+            // 2026-09-28: „a felhők érdemben továbbra se mozognak").
+            if (!worldChanged && !deckMoved)
                 return;
 
             MoisturePrecipitation.PrecipitationField precipField = _lastPrecipField;
             if (precipField == null)
                 return;
+
+            // DEEP-TIME BEMENET (ND-157). A megosztott `_lastPrecipField` a
+            // paraméteres MoisturePrecipitation.Compute eredménye, ami a deep
+            // time értékét MEG SEM KAPJA - saját, t=0-ás eleváció-mezőt
+            // számol. FELHASZNÁLÓI ÉSZLELÉS (2026-09-28): „deep time pedig
+            // egyenesen fixek". A felhő ezért a VIEWER deep-time
+            // eleváció-mezőjéből (`_lastField`) építi a SAJÁT csapadék-mezőjét
+            // az új ComputeFromElevationField overloaddal - a megosztott mező
+            // érintetlen marad, tehát az overlay és a lapos réteg bitre a
+            // korábbi.
+            Dictionary<TileId, double> deepTimeElevation = _lastField;
+            double deepTimeSeaLevel = _adaptiveSeaLevel;
+            int precipIterations = MoisturePrecipitation.DefaultIterations;
 
             _cloudAtlasCancel?.Dispose();
             _cloudAtlasCancel = new CancellationTokenSource();
@@ -253,19 +273,19 @@ namespace WorldGen.Viewer
             int revision = _cloudAtlasRevision;
             ulong seed = _adaptiveSeed;
             double seaLevel = _adaptiveSeaLevel;
-            double driftTime = weatherTime;
+            double driftTime = 0.0;
             double threshold = cloudDensityThreshold;
             double gamma = cloudDensityGamma;
             double deckBase = cloudDeckBaseMeters;
             double weatherStrength = cloudWeatherStrength;
             double exaggeration = terrainReliefExaggeration;
 
-            _cloudAtlasWeatherTime = weatherTime;
             _cloudAtlasLastBuildRealtime = Time.unscaledTime;
             _cloudAtlasDeckBase = deckBase;
             _cloudAtlasWeatherStrength = weatherStrength;
             _cloudAtlasTask = Task.Run(
-                () => BuildCloudAtlas(precipField, revision, seed, seaLevel, driftTime, threshold, gamma, exaggeration, deckBase, weatherStrength, token),
+                () => BuildCloudAtlas(precipField, deepTimeElevation, deepTimeSeaLevel, precipIterations,
+                    revision, seed, seaLevel, driftTime, threshold, gamma, exaggeration, deckBase, weatherStrength, token),
                 token);
         }
 
@@ -275,11 +295,30 @@ namespace WorldGen.Viewer
         /// közben elmozduló Inspector-csúszka nem okoz versenyhelyzetet).
         /// </summary>
         private static CloudAtlasResult BuildCloudAtlas(
-            MoisturePrecipitation.PrecipitationField precipField, int revision, ulong seed,
+            MoisturePrecipitation.PrecipitationField sharedPrecipField,
+            Dictionary<TileId, double> deepTimeElevation, double deepTimeSeaLevel, int precipIterations,
+            int revision, ulong seed,
             double seaLevelMeters, double driftTime, double thresholdPercentile, double gamma,
             double reliefExaggeration, double deckBaseMeters, double weatherStrength, CancellationToken token)
         {
             var sw = Stopwatch.StartNew();
+
+            // A DEEP-TIME csapadék-mező. Ha bármiért nem áll elő, a megosztott
+            // (t=0-ás) mezőre esünk vissza - a felhő ilyenkor is megjelenik,
+            // csak nem követi a deep time-ot.
+            MoisturePrecipitation.PrecipitationField precipField = sharedPrecipField;
+            double precipMs = 0.0;
+            if (deepTimeElevation != null && deepTimeElevation.Count > 0)
+            {
+                int deepLevel = CloudSkyAtlas.Level;
+                foreach (TileId k in deepTimeElevation.Keys) { deepLevel = k.Level; break; }
+                var deepSw = Stopwatch.StartNew();
+                precipField = MoisturePrecipitation.ComputeFromElevationField(
+                    deepTimeElevation, deepTimeSeaLevel, seed, deepLevel, iterations: precipIterations);
+                precipMs = deepSw.Elapsed.TotalMilliseconds;
+            }
+            token.ThrowIfCancellationRequested();
+
             DenseGridMetrics grid = CloudGrid.Value;
             int cells = grid.CellCount;
 
@@ -409,6 +448,7 @@ namespace WorldGen.Viewer
                 OpennessMean = openSum / cells,
                 OpennessMin = openMin,
                 BuildMs = sw.Elapsed.TotalMilliseconds,
+                PrecipMs = precipMs,
             };
         }
 
@@ -537,10 +577,10 @@ namespace WorldGen.Viewer
                 "térfogati felhő: lefedettség átlag {0:F3}, max {1:F3}, cellák {2}",
                 result.CoverageMean, result.CoverageMax, result.CoveredCells);
             PerfLog(string.Format(CultureInfo.InvariantCulture,
-                "[ND-154 cloudVolume] buildMs={0:F1} uploadMs={1:F2} covMean={2:F4} covMax={3:F4} covered={4} " +
+                "[ND-154 cloudVolume] buildMs={0:F1} precipMs={8:F1} uploadMs={1:F2} covMean={2:F4} covMax={3:F4} covered={4} " +
                 "openMean={5:F6} openMin={6:F6} status={7}",
                 result.BuildMs, uploadMs, result.CoverageMean, result.CoverageMax, result.CoveredCells,
-                result.OpennessMean, result.OpennessMin, _cloudVolumeStatus));
+                result.OpennessMean, result.OpennessMin, _cloudVolumeStatus, result.PrecipMs));
         }
 
         private Texture2D EnsureCloudSkyTexture(Texture2D existing)
@@ -635,6 +675,13 @@ namespace WorldGen.Viewer
                 (float)CloudVolume.DetailVerticalStretch));
             Shader.SetGlobalFloat(CloudTwilightId, (float)CloudVolume.TwilightBandCos);
             Shader.SetGlobalFloat(CloudThicknessScaleId, (float)thicknessScale);
+            // AZ ADVEKCIO SZOGE MINDEN KEPKOCKAN frissul - ez adja a folyamatos
+            // vandorlast, atlasz-ujraepites nelkul.
+            Shader.SetGlobalVector(CloudAdvectionId, new Vector4(
+                (float)CloudVolume.AdvectionAxisX,
+                (float)CloudVolume.AdvectionAxisY,
+                (float)CloudVolume.AdvectionAxisZ,
+                (float)CloudWeatherTime()));
             Shader.SetGlobalVector(CloudNoiseId, new Vector4(
                 (float)CloudVolume.LogisticNormalSlope, (float)CloudVolume.DetailNoiseStdDev, 0f, 0f));
             Shader.SetGlobalVector(CloudScatterId, new Vector4(

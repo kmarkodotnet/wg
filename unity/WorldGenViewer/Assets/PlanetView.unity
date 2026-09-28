@@ -150,7 +150,37 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b14c8331baecc8e4e8601993755feebe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  inactiveTerrainChunkLimit: 128
+  cloudVolumetric: 1
+  cloudVolumeOpacity: 1.27
+  cloudVolumeAmbient: 0.08
+  cloudShadowStrength: 1
+  cloudVolumeRebuildSeconds: 1.5
+  cloudDeckBaseMeters: 2500
+  cloudThicknessExaggeration: 20
+  cloudAdvectionRadiansPerDay: 1.276
+  cloudWeatherStrength: 0.7
+  cloudEdgeSoftness: 0.51
+  cloudVolumeDiagnostic: 0
+  surfaceMicroDetail: 1
+  microDetailStrength: 1
   logDrawnTileSizes: 1
+  logUniformTileSamples: 1
+  verifyParallelStaticEmit: 0
+  surfaceOverlayMode: 0
+  surfaceOverlaySerializationVersion: 1
+  legacyWindSpeedOverlay: 0
+  legacyPrecipitationOverlay: 0
+  legacyTectonicPlateOverlay: 0
+  legacyThermalOverlayMode: 0
+  useTerrainBasisDiskCache: 1
+  thermalScaleMinCelsius: -60
+  thermalScaleMaxCelsius: 50
+  thermalSnapshotHz: 5
+  thermalMaxTicksPerJob: 96
+  thermalSolverAlwaysOn: 1
+  thermalShowDetails: 0
+  thermalClockSource: {fileID: 0}
   useStagedTerrainUpload: 1
   level: 5
   radius: 100
@@ -185,9 +215,7 @@ MonoBehaviour:
   minLakeTiles: 6
   minLakeDepthMeters: 40
   hydrologyLevel: 8
-  windSpeedOverlay: 0
   windSpeedColorMaxMs: 15
-  precipitationOverlay: 0
   precipitationColorMax: 5
   showClouds: 0
   cloudAltitudeMeters: 8000
@@ -227,6 +255,8 @@ MonoBehaviour:
   Built:
     m_PersistentCalls:
       m_Calls: []
+  profileDeepTimeAllocations: 0
+  coastalWaterRing: 1
   waterSpecularStrength: 0.02
   waterShininess: 8
   diagForceZeroLighting: 0
@@ -425,6 +455,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _Ambient: 0.35
+    - _MicroDetailEnable: 1
     - _Shininess: 24
     - _SpecStrength: 0.3
     m_Colors:
@@ -2284,10 +2315,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1be25aba010fcf429d15ee3d471c799, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  originMode: 0
+  logRenderOrigin: 1
   showPhysicalScaleBar: 1
   scaleBarTargetWidthPixels: 180
   scaleBarBottomMarginPixels: 36
   scaleBarRefreshIntervalSeconds: 0.15
+  scaleBarSettleSeconds: 0.12
+  scaleBarMaxWaitSeconds: 1
   followLocalSurface: 1
   target: {fileID: 0}
   distance: 300
@@ -3098,6 +3133,8 @@ MonoBehaviour:
   currentTimeDays: 200
   autoAdvance: 1
   daysPerSecond: 0.01
+  orbitalFollowSecondsPerYear: 60
+  orbitalFollowFreezeSpin: 1
   planetTransform: {fileID: 283293249}
   sunVisual: {fileID: 776070787}
   sunVisualDistance: 4800
