@@ -815,6 +815,15 @@ namespace WorldGen.Viewer
         // tenyleges PermanentIce-dontes leaf-szinten, zajjal perturbalva
         // tortenik (IsAdaptiveIceTile), hogy a partvonal ne legyen blokkos.
         private Dictionary<TileId, double> _adaptiveIceMeanK;
+
+        /// <summary>
+        /// ND-162: a tartos-jeg kuszob, amit a MOSTANI jegmezohoz hasznalni
+        /// kell. Az analitikus elonezetnel a regi, abszolut ND-43 kuszob; a
+        /// homodell utjan az ND-159 PERCENTILIS vagopontja (plusz az ND-44
+        /// deep-time eltolas). Azert mezo, mert a ketto NEM cserelheto fel:
+        /// a percentilis vagopont vilagfuggo ertek, nem konstans.
+        /// </summary>
+        private double _adaptiveIceThresholdK = LakesIceErosion.PermanentIceMeanThresholdK;
         // Szurt tavak: tile -> lapos to-felszin (feltoltesi) elevacio, a
         // BuildLakeSurface lapos vizfelszin-rajzaehoz.
         private Dictionary<TileId, double> _adaptiveLakeSurface;
@@ -1273,6 +1282,9 @@ namespace WorldGen.Viewer
             // ND-104: a hőmező háttérmunkája és snapshot-átvétele független a
             // LOD-ág korai visszatéréseitől.
             UpdateThermalOverlay();
+            // ND-162: az eves eghajlat hatterszala - fuggetlen a LOD-ag korai
+            // visszatereseitol, ugyanugy, mint a homezoe.
+            UpdateThermalClimate();
             // ND-154/ND-155: a térfogati felhő atlaszának háttérmunkája és a
             // héj-uniformok - szintén független a LOD-ág korai visszatéréseitől.
             UpdateCloudVolume();
@@ -1338,7 +1350,7 @@ namespace WorldGen.Viewer
             // folyamatos csuszka-huzas kozben ne inditson masodpercenkent tobb
             // (a nagy alapreteg miatt draga) teljes ujraepitest - a valtozas nem
             // vesz el, csak a kovetkezo, fek-utani Update-ben hajtodik vegre.
-            if (_fullBuildRequestedAfterCut || WorldConfigChangedSinceBuild())
+            if (_fullBuildRequestedAfterCut || WorldConfigChangedSinceBuild() || ConsumeThermalClimateRebuildRequest())
             {
                 if (Time.unscaledTime - _lastAdaptiveRebuildRealtime < minSecondsBetweenAdaptiveRebuilds)
                     return;
@@ -2859,7 +2871,30 @@ namespace WorldGen.Viewer
             // minosulhetnek a referencia-szintu atlag KORUL.
             Dictionary<TileId, double> iceMeanK = new Dictionary<TileId, double>();
             var landMeanTemperatureK = new Dictionary<TileId, double>();
-            if (showLakesIce)
+
+            // ND-162: ha van ERVENYES homodell-eghajlat ehhez a vilaghoz (a
+            // lemez-gyorsitotarbol vagy egy korabbi hatterszalas futasbol),
+            // AZ az autoritativ jegforras, es az analitikus lanc ki sem fut.
+            // Kulonben az analitikus ut rajzol ELONEZETET, es a hatterszal
+            // (UpdateThermalClimate) keszulte utan ker egy ujabb Buildet.
+            Dictionary<TileId, double> climateMeanK = null;
+            double climateThresholdK = LakesIceErosion.PermanentIceMeanThresholdK;
+            bool climateIce = showLakesIce && TryGetThermalClimateIce(out climateMeanK, out climateThresholdK);
+            _adaptiveIceThresholdK = climateIce ? climateThresholdK : LakesIceErosion.PermanentIceMeanThresholdK;
+
+            if (showLakesIce && climateIce)
+            {
+                foreach (KeyValuePair<TileId, double> kv in climateMeanK)
+                {
+                    iceMeanK[kv.Key] = kv.Value;
+                    // ND-117: a regolit-modell a NYERS evi kozephomersekletet
+                    // varja (eltolas nelkul) - a homodell utjan a deep-time
+                    // eltolas a kuszobbel egyutt mar bent van, ezert itt
+                    // levonjuk, hogy a talaj-lanc bemenete ugyanaz maradjon.
+                    landMeanTemperatureK[kv.Key] = kv.Value - glaciationOffsetK;
+                }
+            }
+            else if (showLakesIce)
             {
                 foreach (KeyValuePair<TileId, bool> kv in isOceanField)
                 {
@@ -2881,7 +2916,8 @@ namespace WorldGen.Viewer
                 }
             }
             _lastLandMeanTemperatureK = landMeanTemperatureK;
-            PerfLog($"Build() ice(iceTiles={iceMeanK.Count})={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
+            PerfLog($"Build() ice(iceTiles={iceMeanK.Count}, source={(climateIce ? "thermal" : "analytic-preview")})"
+                + $"={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
             buildPhaseStopwatch.Restart();
 
             // Kulcs = (RenderCategory, bucket). A legtobb kategorianal bucket
@@ -3138,6 +3174,10 @@ namespace WorldGen.Viewer
             _adaptiveLakeSurface = lakeSurface;
             _adaptiveIceMeanK = iceMeanK;
             _adaptiveAxialTiltRad = axialTiltRad;
+
+            // ND-162: a hatterszal vilag-pillanatkepe. Ha mar van ervenyes
+            // eghajlat ehhez a reviziohoz, ez nem csinal semmit.
+            CaptureThermalClimateInputs(field, isOceanField, lakeTiles, seaLevel, seed, axialTiltRad);
 
             // M5 csapadek-mezo (MoisturePrecipitation nedvesseg-advekcio) - a
             // csapadek-overlayhez, a dendritikus folyo-halozat forras-
@@ -5138,7 +5178,7 @@ namespace WorldGen.Viewer
             TileGeometry.ToPosition(id, out double x, out double y, out double z);
             double jitterK = IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
                 _adaptiveSeed, x, y, z, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves);
-            return referenceMeanK + jitterK < LakesIceErosion.PermanentIceMeanThresholdK;
+            return referenceMeanK + jitterK < _adaptiveIceThresholdK;
         }
 
         /// <summary>

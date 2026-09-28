@@ -9309,6 +9309,82 @@ mérésen bukott meg, és a mérés marad a repóban
 (`worldgen thermal-climate --climate-level`), hogy újrafuttatható legyen.
 
 
+### ND-162 — A jégmaszk átállása a hőmodellre: előnézet + háttérszál + cache (A7 6. fázis, ELFOGADVA)
+
+**Dátum:** 2026-09-28. **Előzmény:** ND-158 (éves adatút), ND-159
+(percentilis küszöb), ND-161 (a durva rács elutasítva), ND-145
+(előnézet-minta a folyóknál), ND-122/131 (lemez-cache minta).
+
+**A tétel.** Az ND-158/159 után a Core adatút kész és a küszöb-kérdés
+eldőlt, de a viewer jégmaszkja még mindig az analitikus
+`LakesIceErosion.AnnualTemperatureStats`-ból jön. Ez a döntés az átkötés
+MÓDJÁRÓL szól.
+
+#### 1. Előnézet + autoritatív csere (az ND-145 mintája)
+
+A Build nem várhat 117 s-ot. Ezért:
+
+- a Build változatlanul lefuttatja az OLCSÓ analitikus utat (MÉRVE 684 ms
+  level 6-on) és azonnal rajzol — ez az **ELŐNÉZET**;
+- egy háttérszál közben előállítja a hő-éghajlatot (lemez-cache-ből vagy
+  számolva), és amikor kész, kicseréli a jégmezőt és újraszínez;
+- új Build vagy világváltás a függőben lévő munkát ÉRVÉNYTELENÍTI
+  (revizió-szám), tehát korábbi világ eredménye SOHA nem kerülhet a képre.
+
+A panel kiírja, melyik forrás aktív (előnézet vagy hőmodell) — az I4 szerint
+a számnak forrása van, és itt a forrás menet közben változik.
+
+#### 2. A CSAPDA, amit a bekötés előtt találtam: KÉT deep-time hőforcing
+
+A két út KÜLÖNBÖZŐ deep-time hőmérséklet-eltolást használ, és ez eddig
+nem volt kimondva:
+
+| | forcing | periódus | amplitúdó | hol |
+|---|---|---|---|---|
+| analitikus jégút | `DeepTimeErosionGlaciation.GlobalTempOffset` (ND-44) | **150 Myr** | ±6 K | a viewer adja hozzá |
+| hőmodell | `Temperature.ClimateCycleTemperatureK` (Milanković) | **10–500 kyr** | ±(2+3+1) K | a bázisban (`ThermalBaseline.CycleK`) |
+
+Ha az átállás csendben elhagyná az ND-44 eltolást, a deep-time viselkedés
+LÁTHATÓAN elromlana: a Milanković-ciklusok periódusa 10–500 ezer év, az
+időcsúszka viszont **millió években** lép — egyetlen csúszka-lépés alatt
+2–20 teljes ciklus futna le, tehát a jégsapka ugrálna, ahelyett hogy a
+150 Myr-es lassú lengést mutatná. Ugyanaz az alias-osztály, mint az
+ND-153-ban a napi forgásé.
+
+**Döntés:** az ND-44 eltolás EGYELŐRE MEGMARAD, a hőmodell éves átlagára
+hozzáadva. Indok: ebben a körben PONTOSAN EGY dolog változik — a
+hőmérséklet TÉRBELI forrása —, hogy a vizuális átvétel egy változást
+ítéljen meg. A két forcing összevonása (az ND-44 sinus beemelése a
+hőmodell bázisába a Milanković-tag helyére vagy mellé) külön, SEED-TÖRŐ
+döntés — ld. a B14 (a) konstans-megerősítést, ami az ND-44
+„illusztratív” 150 Myr / 6 K értékeit úgyis nyitva tartja.
+
+Kimondva: így ÁTMENETILEG két deep-time forcing összeadódik a jégmaszkon.
+Ez nem elegáns, de MÉRHETŐ és visszafordítható, és nem kever két
+változást egy ítéletbe.
+
+#### 3. Hatókör: ELŐSZÖR CSAK A JÉG
+
+A biome és a párolgás ebben a körben a régi úton marad. Indok ugyanaz: a
+jégnek van mért A/B-je (72,6% egyezés, 1720 vs 1727 cella) és tiszta
+vizuális ítélete; a biome átállása az éves LEVEGŐ-átlagra egy másik,
+önállóan megítélendő változás.
+
+#### 4. A cache és a lenyomat
+
+A lemez-gyorsítótár a `ThermalClimateDiskCache` (ND-158 kör, már kész és
+tesztelt): kulcsa az ND-143 `ModelIdentity` + mintanapok + jégküszöb-mód +
+a rövid kanonikus előtag lenyomata. A fájlkezelés és a kvóta a
+`TerrainBasisDiskCache` viewer-oldali mintáját követi; minden I/O hiba
+nyelve: a cache kényelem, nem adat — hibánál számolunk.
+
+#### 5. Amit ez NEM változtat
+
+A `WorldGeneratorVersion` és a hőmodell verziója változatlan: a jégmaszk
+RENDER- és panel-kimenet, nem a generátor numerikus lánca. A
+`WorldStateHash` (eleváció-összeg) jelentése sem változik.
+
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |
