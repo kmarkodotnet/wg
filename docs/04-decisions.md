@@ -9256,6 +9256,59 @@ kezelik, mert nem abszolút szintre támaszkodnak.
 pontosan ez a hiba vezetett az ND-142 kalibrációs köréhez.
 
 
+### ND-161 — Durvább rácson számolt éves éghajlat: ELUTASÍTVA, mérés alapján (A7 6. fázis)
+
+**Dátum:** 2026-09-28. **Előzmény:** ND-158/159 (a kétmenetes éves éghajlat
+level 6-on **117,1 s**), ND-100 18. pont (magasságkorrekció).
+
+**A kérdés.** A 117 s a Buildbe szinkron módon nem fér bele. Mielőtt
+gyorsítótárat és háttérszálat építenénk rá, meg kellett mérni az olcsóbb
+választ: az éghajlat látszólag SIMA mező, tehát hátha durvább rácson
+számolva és felnagyítva is ugyanazt a jégmaszkot adja.
+
+**Három változatot mértem**, hogy a hatások szétváljanak:
+(a) a durva szint SAJÁT világa (saját eleváció-lánc és tengerszint);
+(b) UGYANAZ a világ lemintavételezve (blokk-átlag eleváció, a teljes
+szintű tengerszinttel) — ez izolálja a rácsfelbontást a világdefiníciótól;
+(c) (b) + PER-FINOM-CELLA magasságkorrekció
+(`SurfaceTemperatureField.AltitudeCorrectedK`, ND-100 18. pont).
+
+Seed 0xA7C944210000, level 6 referencia (1720 tartós jégcella), q = 0,07.
+A „Jaccard" a tartós-jég halmazok metszete/uniója — ez a lányeges szám,
+mert a jégsapka HELYE látszik, nem a darabszáma.
+
+| éghajlat szintje | idő | (a) saját világ | (b) lemintavételezve | (c) + magasságkorrekció |
+|---|---:|---:|---:|---:|
+| 5 (4× kevesebb cella) | 28,1 s | 73,0% | 76,4% | **85,5%** |
+| 4 (16×) | 7,6 s | 61,7% | 65,0% | 75,5% |
+| 3 (64×) | 2,3 s | 47,1% | 56,8% | 66,5% |
+
+Maradék maximális éves-átlag eltérés a legjobb változatban (level 5, (c)):
+**20,9 K**.
+
+**ÍTÉLET: ELUTASÍTVA.** A legjobb eset is minden hetedik jégcellát rossz
+helyre tenne, és ezért cserébe mindössze 4× gyorsulást ad (117 → 28 s),
+ami a Build szinkron költségként továbbra sem vállalható. A 16× és 64×
+változatok, amik már érdemi gyorsulást adnának, használhatatlanok.
+
+**Miért nem működik.** A lemintavételezés alig javít (73,0% → 76,4%),
+tehát nem a világdefiníció az ok, hanem MAGA A FELBONTÁS. A magasság-
+korrekció sokat javít (76,4% → 85,5%), tehát a hiba nagy része valóban a
+lapse rate — de a megmaradó 20,9 K több annál: egy durva cella
+szárazföldet és óceánt is tartalmaz, és a felszíntípus a solverben nem
+simítható utólag — más albedó, más hőkapacitás, más szél. Az éghajlat
+tehát nem azon a rácson sima, amin a világ nem az.
+
+**Következmény.** A 117 s-ot ARCHITEKTÚRÁVAL kell kezelni, nem
+közelítéssel: lemez-gyorsítótár az ND-143 `ModelIdentity` kulcsával
+(az ND-122/131 mintájára) és háttérszál előnézettel (az ND-145 mintájára).
+Ez a viewer oldalán élő Unity-t igényel, tehát külön lépés.
+
+Ugyanaz a hibaosztály, mint az ND-128/ND-151-nél: a kézenfekvő olcsóbb út
+mérésen bukott meg, és a mérés marad a repóban
+(`worldgen thermal-climate --climate-level`), hogy újrafuttatható legyen.
+
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

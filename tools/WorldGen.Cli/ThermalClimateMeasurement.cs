@@ -48,6 +48,12 @@ namespace WorldGen.Cli
 
             /// <summary>ND-159: a bázis-hőmérséklet tagonkénti felbontása (mi teszi a modellt meleggé).</summary>
             public bool Decompose;
+
+            /// <summary>
+            /// ND-161: durvább rácson számolt éghajlat, a teljes szintűvel
+            /// összevetve. 0 = nincs összehasonlítás.
+            /// </summary>
+            public int[] ClimateLevels = Array.Empty<int>();
         }
 
         public static int Run(Options options)
@@ -204,11 +210,191 @@ namespace WorldGen.Cli
 
                 if (options.Decompose)
                     Decompose(grid, kinds, elevation, seaLevel, options, orbit, parameters, climate);
+                foreach (int coarseLevel in options.ClimateLevels)
+                {
+                    CompareCoarseClimate(coarseLevel, grid, options, orbit, parameters, climate, sw,
+                        ownWorld: true, fineElevation: elevation, fineSeaLevel: seaLevel);
+                    CompareCoarseClimate(coarseLevel, grid, options, orbit, parameters, climate, sw,
+                        ownWorld: false, fineElevation: elevation, fineSeaLevel: seaLevel);
+                }
                 Console.WriteLine();
             }
 
             Console.WriteLine($"Teljes futás: {total.Elapsed.TotalSeconds:F1} s");
             return 0;
+        }
+
+        /// <summary>
+        /// ND-161: ugyanaz az éves éghajlat DURVÁBB rácson, majd a durva
+        /// jégosztály felnagyítva a teljes szintre és összevetve.
+        ///
+        /// A KÉRDÉS. A level-6 kétmenetes futás 117 s; ez a Buildbe szinkron
+        /// módon nem fér bele. Mielőtt gyorsítótárat és háttérszálat
+        /// építenénk rá, meg kell mérni az olcsóbb választ: az éghajlat SIMA
+        /// mező (a hőmérséklet lényegében a szélesség és a magasság
+        /// függvénye), tehát lehet, hogy durvább rácson számolva is ugyanazt a
+        /// jégmaszkot adja — negyedáron.
+        ///
+        /// A durva cella indexe: u >> d, v >> d ugyanazon a lapon (a sűrű
+        /// index definíció szerint face·n² + u·n + v, tehát a szülő index
+        /// egyszerű bitléptetés).
+        ///
+        /// FIGYELEM: a durva szint SAJÁT eleváció-mezőt és tengerszintet kap
+        /// (a világ minden szinten a saját láncából származik), tehát ez nem
+        /// puszta átlagolás — a mérés pont azt mondja meg, hogy ez a
+        /// különbség számít-e a jégosztályon.
+        /// </summary>
+        private static void CompareCoarseClimate(int coarseLevel, DenseGridMetrics fineGrid, Options options,
+            ThermalOrbit orbit, ThermalModelParameters parameters, ThermalClimate fine, Stopwatch sw,
+            bool ownWorld, double[] fineElevation, double fineSeaLevel)
+        {
+            if (coarseLevel < 1 || coarseLevel >= options.Level)
+            {
+                Console.WriteLine($"  [durva éghajlat] a {coarseLevel}. szint érvénytelen (1 ≤ L < {options.Level})");
+                return;
+            }
+
+            DenseGridMetrics coarseGrid = DenseGridMetrics.Build(coarseLevel);
+            int coarseSide = coarseGrid.Side;
+            int downShift = options.Level - coarseLevel;
+            var coarseKinds = new SurfaceThermalKind[coarseGrid.CellCount];
+            var coarseElevation = new double[coarseGrid.CellCount];
+            double coarseSeaLevel;
+
+            if (ownWorld)
+            {
+                // A durva szint SAJÁT világa: saját eleváció-lánc és saját
+                // kalibrált tengerszint - ahogy a projekt a világot minden
+                // szinten definiálja.
+                Dictionary<TileId, double> coarseField = SeaLevelCalibration.ComputeElevationField(
+                    options.Seed, options.Plates, coarseLevel);
+                coarseSeaLevel = SeaLevelCalibration.CalibrateSeaLevel(
+                    coarseField.Values, options.TargetWaterFraction);
+                for (int face = 0; face < 6; face++)
+                    for (int u = 0; u < coarseSide; u++)
+                        for (int v = 0; v < coarseSide; v++)
+                        {
+                            int index = DenseGridMetrics.Index(face, u, v, coarseSide);
+                            double h = coarseField[TileId.FromFaceLevelUV(face, coarseLevel, (uint)u, (uint)v)];
+                            coarseElevation[index] = h;
+                            coarseKinds[index] = h < coarseSeaLevel ? SurfaceThermalKind.Ocean : SurfaceThermalKind.Land;
+                        }
+            }
+            else
+            {
+                // UGYANAZ a világ, csak durvább rácson: a teljes szintű
+                // eleváció blokk-átlaga és a teljes szintű tengerszint. Ez
+                // választja SZÉT a rácsfelbontás hatását a világdefiníció hatásától.
+                coarseSeaLevel = fineSeaLevel;
+                int per = 1 << downShift;
+                var counts = new int[coarseGrid.CellCount];
+                int fineSideLocal = fineGrid.Side;
+                for (int face = 0; face < 6; face++)
+                    for (int u = 0; u < fineSideLocal; u++)
+                        for (int v = 0; v < fineSideLocal; v++)
+                        {
+                            int coarseIndex = DenseGridMetrics.Index(face, u >> downShift, v >> downShift, coarseSide);
+                            coarseElevation[coarseIndex] += fineElevation[
+                                DenseGridMetrics.Index(face, u, v, fineSideLocal)];
+                            counts[coarseIndex]++;
+                        }
+                for (int index = 0; index < coarseGrid.CellCount; index++)
+                {
+                    coarseElevation[index] /= counts[index] > 0 ? counts[index] : per * per;
+                    coarseKinds[index] = coarseElevation[index] < coarseSeaLevel
+                        ? SurfaceThermalKind.Ocean : SurfaceThermalKind.Land;
+                }
+            }
+
+            sw.Restart();
+            ThermalClimate coarse = ThermalClimateCalculator.Compute(coarseGrid, coarseKinds, coarseElevation,
+                coarseSeaLevel, options.Seed, options.TimeMyr * 1.0e6, orbit, parameters, options.SampleDays,
+                useParallelLocalStep: options.Parallel,
+                permanentIcePercentile: options.PermanentIcePercentile);
+            double coarseMs = sw.Elapsed.TotalMilliseconds;
+
+            int shift = options.Level - coarseLevel;
+            int fineSide = fineGrid.Side;
+            int agree = 0, permanentAgree = 0, finePermanent = 0, coarsePermanent = 0;
+            double meanAbsDelta = 0.0, maxAbsDelta = 0.0;
+
+            // ND-161 harmadik változat: a durva éves mező + PER-FINOM-CELLA
+            // magasságkorrekció. Az ND-100 18. pontja szerint a magasságtag
+            // tiszta lokális függvény (−lapse · max(0, h − tengerszint)), tehát
+            // a drága solver-rész (advekció, szél, sugárzás) durván számolható,
+            // és a finom relief utólag rátehető. A korrekció a MIN-re is
+            // ugyanaz az eltolás, mert a teljes profilt mozgatja.
+            var correctedMean = new double[fineGrid.CellCount];
+            var correctedMin = new double[fineGrid.CellCount];
+            for (int face = 0; face < 6; face++)
+                for (int u = 0; u < fineSide; u++)
+                    for (int v = 0; v < fineSide; v++)
+                    {
+                        int fineIndex = DenseGridMetrics.Index(face, u, v, fineSide);
+                        int coarseIndex = DenseGridMetrics.Index(face, u >> shift, v >> shift, coarseSide);
+
+                        LakesIceErosion.IceClass a = fine.RefinedClass[fineIndex];
+                        LakesIceErosion.IceClass b = coarse.RefinedClass[coarseIndex];
+                        if (a == b) agree++;
+                        if (a == LakesIceErosion.IceClass.PermanentIce) finePermanent++;
+                        if (b == LakesIceErosion.IceClass.PermanentIce)
+                        {
+                            coarsePermanent++;
+                            if (a == LakesIceErosion.IceClass.PermanentIce) permanentAgree++;
+                        }
+
+                        double delta = Math.Abs(fine.Refined.MeanSurfaceK[fineIndex]
+                                                - coarse.Refined.MeanSurfaceK[coarseIndex]);
+                        meanAbsDelta += delta;
+                        if (delta > maxAbsDelta) maxAbsDelta = delta;
+
+                        correctedMean[fineIndex] = SurfaceTemperatureField.AltitudeCorrectedK(
+                            coarse.Refined.MeanSurfaceK[coarseIndex], coarseElevation[coarseIndex],
+                            fineElevation[fineIndex], coarseSeaLevel);
+                        correctedMin[fineIndex] = SurfaceTemperatureField.AltitudeCorrectedK(
+                            coarse.Refined.MinSurfaceK[coarseIndex], coarseElevation[coarseIndex],
+                            fineElevation[fineIndex], coarseSeaLevel);
+                    }
+
+            int total = fineGrid.CellCount;
+            int unionPermanent = finePermanent + coarsePermanent - permanentAgree;
+            Console.WriteLine($"  [durva éghajlat, level {coarseLevel}, " +
+                              (ownWorld ? "SAJÁT világ" : "LEMINTAVETELEZETT világ") + $"] {coarseMs / 1000.0:F1} s " +
+                              $"({coarseGrid.CellCount} cella, {(double)fineGrid.CellCount / coarseGrid.CellCount:F0}× kevesebb)");
+            Console.WriteLine($"    jégosztály-egyezés a teljes szinttel: {agree}/{total} " +
+                              $"({100.0 * agree / total:F2}%)");
+            Console.WriteLine($"    tartós jég: teljes={finePermanent}, durva(felnagyítva)={coarsePermanent}, " +
+                              $"metszet={permanentAgree} (Jaccard {(unionPermanent > 0 ? 100.0 * permanentAgree / unionPermanent : 100.0):F1}%)");
+            Console.WriteLine($"    éves átlag eltérés: átlag {meanAbsDelta / total:F2} K, max {maxAbsDelta:F2} K");
+
+            // A korrigált változat SAJÁT percentilis-küszöböt kap, a finom
+            // eloszlásából - különben a durva küszöböt mérnénk össze egy
+            // másik eloszlással, és nem a módszert, hanem az eltolódást.
+            ThermalIceClassification.IceThresholds correctedThresholds = options.PermanentIcePercentile.HasValue
+                ? ThermalIceClassification.ComputeThresholds(correctedMean, options.PermanentIcePercentile.Value)
+                : ThermalIceClassification.IceThresholds.Absolute;
+
+            int cAgree = 0, cPermanent = 0, cPermanentAgree = 0;
+            double cMeanDelta = 0.0, cMaxDelta = 0.0;
+            for (int c = 0; c < total; c++)
+            {
+                LakesIceErosion.IceClass corrected = ThermalIceClassification.Classify(
+                    correctedMean[c], correctedMin[c], correctedThresholds);
+                if (corrected == fine.RefinedClass[c]) cAgree++;
+                if (corrected == LakesIceErosion.IceClass.PermanentIce)
+                {
+                    cPermanent++;
+                    if (fine.RefinedClass[c] == LakesIceErosion.IceClass.PermanentIce) cPermanentAgree++;
+                }
+                double d = Math.Abs(fine.Refined.MeanSurfaceK[c] - correctedMean[c]);
+                cMeanDelta += d;
+                if (d > cMaxDelta) cMaxDelta = d;
+            }
+            int cUnion = finePermanent + cPermanent - cPermanentAgree;
+            Console.WriteLine($"    + MAGASSÁGKORREKCIÓVAL: egyezés {cAgree}/{total} ({100.0 * cAgree / total:F2}%), " +
+                              $"tartós jég={cPermanent}, metszet={cPermanentAgree} " +
+                              $"(Jaccard {(cUnion > 0 ? 100.0 * cPermanentAgree / cUnion : 100.0):F1}%), " +
+                              $"eltérés átlag {cMeanDelta / total:F2} K, max {cMaxDelta:F2} K");
         }
 
         /// <summary>

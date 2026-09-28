@@ -180,6 +180,13 @@ namespace WorldGen.Cli
             if (opts.TryGetValue("tilt", out string? tl)) options.AxialTiltDegrees = double.Parse(tl);
             if (opts.TryGetValue("parallel", out string? pl)) options.Parallel = bool.Parse(pl);
             if (opts.TryGetValue("decompose", out string? dc)) options.Decompose = bool.Parse(dc);
+            if (opts.TryGetValue("climate-level", out string? cl))
+            {
+                string[] parts = cl.Split(',');
+                var levels = new int[parts.Length];
+                for (int i = 0; i < parts.Length; i++) levels[i] = int.Parse(parts[i].Trim());
+                options.ClimateLevels = levels;
+            }
             if (opts.TryGetValue("ice-percentile", out string? ip))
                 options.PermanentIcePercentile = ip == "absolute" ? (double?)null : double.Parse(ip);
             if (opts.TryGetValue("beta", out string? b))
@@ -260,6 +267,7 @@ namespace WorldGen.Cli
                 "                           [--days <n>] [--water <0..1>] [--orbital <nap>] [--tilt <fok>]\n" +
                 "                           [--parallel <true|false>] [--beta <b1,b2,...>]\n" +
                 "                           [--ice-percentile <q|absolute>] [--decompose true]\n" +
+                "                           [--climate-level <L1,L2,...>]\n" +
                 "                           (ND-158 koltsegmeres es ND-159 beta-sopres, nem CI-lepes)\n");
         }
     }
