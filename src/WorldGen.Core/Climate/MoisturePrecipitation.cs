@@ -51,19 +51,44 @@ namespace WorldGen.Core.Climate
             double precipBaseFraction = DefaultPrecipBaseFraction,
             double orographicCoeff = DefaultOrographicCoeff, double orographicElevScale = DefaultOrographicElevScale,
             double targetWaterFraction = DefaultTargetWaterFraction)
+            => Compute(worldSeed, plateCount, level, null, dayT, orbitalPeriodDays, rotationPeriodDays,
+                axialTiltDegrees, iterations, precipBaseFraction, orographicCoeff, orographicElevScale,
+                targetWaterFraction);
+
+        /// <summary>
+        /// A paraméteres út a PÁROLGÁS hőmérséklet-bemenetével (ND-164).
+        ///
+        /// MIÉRT VAN. A hőmodell éves felszíni átlagát a viewer a paraméteres
+        /// úton használná, de az eddig csak a saját, analitikus hőmérsékletét
+        /// ismerte; a <see cref="ComputeFromElevationField(Dictionary{TileId, double}, double, ulong, int, IReadOnlyDictionary{TileId, double}, double, double, double, double, int, double, double, double)"/>
+        /// viszont a hívótól várja az eleváció-mezőt is. Ez a túlterhelés a
+        /// kettőt köti össze: a mező továbbra is a <see cref="SeaLevelCalibration"/>
+        /// t = 0-ás lánca, a hőmérséklet viszont kívülről jöhet.
+        ///
+        /// <paramref name="temperatureK"/> <c>null</c> esetén BITRE a régi út.
+        /// </summary>
+        public static PrecipitationField Compute(
+            ulong worldSeed, int plateCount, int level,
+            IReadOnlyDictionary<TileId, double>? temperatureK,
+            double dayT = 0.0, double orbitalPeriodDays = 365.25, double rotationPeriodDays = 1.0,
+            double axialTiltDegrees = 23.44, int iterations = DefaultIterations,
+            double precipBaseFraction = DefaultPrecipBaseFraction,
+            double orographicCoeff = DefaultOrographicCoeff, double orographicElevScale = DefaultOrographicElevScale,
+            double targetWaterFraction = DefaultTargetWaterFraction)
         {
             Dictionary<TileId, double> field = SeaLevelCalibration.ComputeElevationField(worldSeed, plateCount, level);
             double seaLevel = SeaLevelCalibration.CalibrateSeaLevel(field.Values, targetWaterFraction);
-            return ComputeFromElevationField(
-                field, seaLevel, worldSeed, level, dayT, orbitalPeriodDays, rotationPeriodDays,
-                axialTiltDegrees, iterations, precipBaseFraction, orographicCoeff, orographicElevScale);
+            return ComputeFromFields(
+                field, seaLevel, worldSeed, level, temperatureK, null, dayT, orbitalPeriodDays,
+                rotationPeriodDays, axialTiltDegrees, iterations, precipBaseFraction, orographicCoeff,
+                orographicElevScale);
         }
 
         /// <summary>
         /// Ugyanaz a nedvesség-transzport, de MEGADOTT eleváció-mezővel és
         /// tengerszinttel.
         ///
-        /// MIÉRT VAN (ND-157). A paraméteres <see cref="Compute"/> a saját,
+        /// MIÉRT VAN (ND-157). A paraméteres <c>Compute</c> a saját,
         /// <c>t = 0</c>-ás eleváció-mezőjét számolja ki
         /// (<see cref="SeaLevelCalibration.ComputeElevationField"/>), tehát a
         /// deep time értékét MEG SEM KAPJA — a csapadék-mező emiatt
@@ -71,7 +96,7 @@ namespace WorldGen.Core.Climate
         /// így a csapadék (és a belőle származó felhő) követni tudja a
         /// lemezmozgást, a hegységek felemelkedését és az eróziót.
         ///
-        /// A PARAMÉTERES ÚT VÁLTOZATLAN: a <see cref="Compute"/> pontosan
+        /// A PARAMÉTERES ÚT VÁLTOZATLAN: a <c>Compute</c> pontosan
         /// ugyanazt a két sort futtatja le, mint eddig, majd ide delegál —
         /// tehát minden korábbi hívó BITRE azonos eredményt kap.
         /// </summary>

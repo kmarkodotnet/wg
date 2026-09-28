@@ -908,6 +908,143 @@ namespace WorldGen.Viewer
             return (c00 * (1.0 - s) + c10 * s) * (1.0 - t) + (c01 * (1.0 - s) + c11 * s) * t;
         }
 
+        // ====================================================================
+        // ND-164: a BIOME homerseklet-tengelye a homodell eves LEVEGO-atlaga.
+        //
+        // MIERT SAROK-TABLA, ES NEM NYERS TILE-LOOKUP. Ugyanaz az ok, mint az
+        // ND-130-nal a csapadeknal: a referencia-szintu (level 5-6, 90-800 km)
+        // cellankenti ertek tile-elekent latszana a kepen. A mar bevalt,
+        // lap-hatarra is helyes sarok-atlagolas + bilinearis interpolacio C0
+        // folytonos mezot ad. NEM talal ki adatot: a MEGLEVO mezot interpolalja.
+        //
+        // MIERT TENGERSZINTRE REDUKALVA. A homodell eves atlaga MAR tartalmazza
+        // a cella sajat magassag-korrekciojat (a bazis tAlt tagja). Ha a nyers
+        // erteket interpolalnank, egy 4000 m-es hegy hideg erteke szetkenodne a
+        // szomszedos volgyekre is. Ezert a tabla a TENGERSZINTRE REDUKALT
+        // homersekletet (T + lapse*max(0, h_cella - tengerszint)) hordozza, es a
+        // kiertekeles a PONT SAJAT elevaciojaval huzza vissza - pontosan a
+        // SurfaceTemperatureField.AltitudeCorrectedK szabalya, folytonosan.
+        // Igy a domborzat reszletei is latszanak a biome-hataron, nem csak a
+        // referencia-cella atlaga.
+        // ====================================================================
+        private double[] _adaptiveClimateAirCorners;
+        private int _adaptiveClimateAirCornerLevel = -1;
+        private double _adaptiveClimateSeaLevelM;
+
+        /// <summary>
+        /// A tengerszintre redukalt eves levego-homerseklet sarok-tablaja.
+        /// <c>null</c> mezo eseten a tabla eldobodik, es az adapter az
+        /// analitikus utra esik vissza.
+        /// </summary>
+        private void BuildClimateAirCornerTable(
+            Dictionary<TileId, double> meanAirK, Dictionary<TileId, double> elevationM, double climateSeaLevelM)
+        {
+            if (meanAirK == null || elevationM == null || level < 0 || level > 12)
+            {
+                _adaptiveClimateAirCorners = null;
+                _adaptiveClimateAirCornerLevel = -1;
+                return;
+            }
+
+            var reduced = new Dictionary<TileId, double>(meanAirK.Count);
+            foreach (KeyValuePair<TileId, double> kv in meanAirK)
+            {
+                double cellElevation = elevationM.TryGetValue(kv.Key, out double h) ? h : climateSeaLevelM;
+                reduced[kv.Key] = kv.Value
+                    + Temperature.LapseRateKPerM * Math.Max(0.0, cellElevation - climateSeaLevelM);
+            }
+
+            int n = 1 << level;
+            int side = n + 1;
+            var corners = new double[6 * side * side];
+            for (int face = 0; face < 6; face++)
+            {
+                int baseIndex = face * side * side;
+                for (int cu = 0; cu <= n; cu++)
+                {
+                    for (int cv = 0; cv <= n; cv++)
+                    {
+                        uint tu = (uint)(cu == n ? n - 1 : cu);
+                        uint tv = (uint)(cv == n ? n - 1 : cv);
+                        TileDirection hDir = cu == n ? TileDirection.Right : TileDirection.Left;
+                        TileDirection vDir = cv == n ? TileDirection.Up : TileDirection.Down;
+                        TileId tile = TileId.FromFaceLevelUV(face, level, tu, tv);
+                        corners[baseIndex + cu * side + cv] = ScalarAtCorner(reduced, tile, hDir, vDir);
+                    }
+                }
+            }
+
+            _adaptiveClimateAirCorners = corners;
+            _adaptiveClimateAirCornerLevel = level;
+            _adaptiveClimateSeaLevelM = climateSeaLevelM;
+        }
+
+        /// <summary>
+        /// Egy skalar mezo sarok-erteke - ugyanaz a szabaly, mint a
+        /// <see cref="PrecipAndOceanFractionAtCorner"/>-ben (TileNeighbors,
+        /// tehat a kockale-elek menten sincs varrat), csak egy mezore.
+        /// </summary>
+        private static double ScalarAtCorner(
+            Dictionary<TileId, double> values, TileId tile, TileDirection horizontalDir, TileDirection verticalDir)
+        {
+            TileId hNb = TileNeighbors.Neighbor(tile, horizontalDir);
+            TileId vNb = TileNeighbors.Neighbor(tile, verticalDir);
+            bool crossedFace = hNb.Face != tile.Face || vNb.Face != tile.Face;
+
+            double sum = 0.0;
+            int count = 0;
+            void Add(TileId t)
+            {
+                if (values.TryGetValue(t, out double value)) { sum += value; count++; }
+            }
+            Add(tile); Add(hNb); Add(vNb);
+            if (!crossedFace) Add(TileNeighbors.Neighbor(hNb, verticalDir));
+            return count > 0 ? sum / count : 0.0;
+        }
+
+        /// <summary>
+        /// A BIOME homerseklet-tengelye (ND-164). Ha van ervenyes homodell-
+        /// eghajlat ehhez a vilaghoz, az eves LEVEGO-kozephomerseklet
+        /// (sarok-interpolalva, a PONT sajat elevaciojara visszahuzva);
+        /// kulonben a regi, analitikus <see cref="TemperatureKelvinAt"/>.
+        ///
+        /// A visszaeses NEM csendes hiba: cache-teveszteskor a Build
+        /// SZANDEKOSAN az analitikus ELONEZETET rajzolja, amig a hatterszal
+        /// dolgozik (ND-162) - a jeg es a biome ugyanabban a pillanatban valt at.
+        /// </summary>
+        private double BiomeTemperatureKelvinAt(
+            double cx, double cy, double cz, double axialTiltRad, bool isOceanic,
+            double elevation, double seaLevel)
+        {
+            if (_adaptiveClimateAirCorners == null || _adaptiveClimateAirCornerLevel != level)
+                return TemperatureKelvinAt(cx, cy, cz, axialTiltRad, isOceanic, elevation, seaLevel);
+
+            TileGeometry.ToFaceUV(cx, cy, cz, out int face, out double uc, out double vc);
+            int n = 1 << level;
+            int side = n + 1;
+            double fu = (uc + 1.0) * 0.5 * n;
+            double fv = (vc + 1.0) * 0.5 * n;
+            int u = (int)fu;
+            int v = (int)fv;
+            if (u < 0) u = 0; else if (u > n - 1) u = n - 1;
+            if (v < 0) v = 0; else if (v > n - 1) v = n - 1;
+            double sFrac = fu - u;
+            double tFrac = fv - v;
+            if (sFrac < 0.0) sFrac = 0.0; else if (sFrac > 1.0) sFrac = 1.0;
+            if (tFrac < 0.0) tFrac = 0.0; else if (tFrac > 1.0) tFrac = 1.0;
+
+            int baseIndex = face * side * side;
+            double c00 = _adaptiveClimateAirCorners[baseIndex + u * side + v];
+            double c10 = _adaptiveClimateAirCorners[baseIndex + (u + 1) * side + v];
+            double c11 = _adaptiveClimateAirCorners[baseIndex + (u + 1) * side + (v + 1)];
+            double c01 = _adaptiveClimateAirCorners[baseIndex + u * side + (v + 1)];
+            double reducedK = (c00 * (1.0 - sFrac) + c10 * sFrac) * (1.0 - tFrac)
+                + (c01 * (1.0 - sFrac) + c11 * sFrac) * tFrac;
+
+            // Vissza a PONT sajat magassagara (a tabla tengerszintre redukalt).
+            return reducedK - Temperature.LapseRateKPerM * Math.Max(0.0, elevation - _adaptiveClimateSeaLevelM);
+        }
+
         /// <summary>
         /// ND-130: a sarok-tabla felepitese a referencia-szintu csapadek-mezobol.
         /// Minden lap-lokalis (cu,cv) racspontra a sarkot oszto (legfeljebb 4)
@@ -1188,6 +1325,14 @@ namespace WorldGen.Viewer
         // epul ujra CSAK a felho-reteg, teljes Build() nelkul, ha kizarolag
         // a felho-parameterek valtoztak.
         private MoisturePrecipitation.PrecipitationField _lastPrecipField;
+
+        /// <summary>
+        /// ND-164: a PAROLGAS homerseklet-bemenete (eves FELSZINI atlag, az
+        /// oceanokat is beleertve), vagy <c>null</c>, ha az analitikus ut fut.
+        /// Azert a felszini es nem a levego, mert a parolgas felszini folyamat
+        /// (ld. MoisturePrecipitation.ComputeFromElevationField doksi).
+        /// </summary>
+        private Dictionary<TileId, double> _adaptiveEvaporationTemperatureK;
 
         /// <summary>
         /// ND-117: a szarazfold-tile-ok NYERS evi kozephomerseklete (jegesedesi
@@ -2916,7 +3061,18 @@ namespace WorldGen.Viewer
                 }
             }
             _lastLandMeanTemperatureK = landMeanTemperatureK;
-            PerfLog($"Build() ice(iceTiles={iceMeanK.Count}, source={(climateIce ? "thermal" : "analytic-preview")})"
+
+            // ND-164: a biome homerseklet-tengelye ES a parolgas bemenete. A
+            // KAPU UGYANAZ, mint a jege: cache-teveszteskor mindharom fogyaszto
+            // az analitikus elonezetet hasznalja, es egyszerre valt at.
+            bool climateBiome = TryGetThermalClimateBiomeFields(
+                out Dictionary<TileId, double> climateAirK, out Dictionary<TileId, double> climateSurfaceAllK,
+                out Dictionary<TileId, double> climateElevationM, out double climateSeaLevelM);
+            BuildClimateAirCornerTable(climateBiome ? climateAirK : null,
+                climateBiome ? climateElevationM : null, climateSeaLevelM);
+            _adaptiveEvaporationTemperatureK = climateBiome ? climateSurfaceAllK : null;
+            PerfLog($"Build() ice(iceTiles={iceMeanK.Count}, source={(climateIce ? "thermal" : "analytic-preview")}, "
+                + $"biomeAxis={(climateBiome ? "thermal" : "analytic")})"
                 + $"={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
             buildPhaseStopwatch.Restart();
 
@@ -2979,9 +3135,25 @@ namespace WorldGen.Viewer
 
                         double elevation = field[id];
                         bool isOceanic = isOceanField[id];
-                        double temperatureK = TemperatureKelvinAt(cx, cy, cz, axialTiltRad, isOceanic, elevation, seaLevel);
+                        double temperatureK = BiomeTemperatureKelvinAt(
+                            cx, cy, cz, axialTiltRad, isOceanic, elevation, seaLevel);
                         Biome biome = BiomeClassification.Classify(
                             temperatureK, isOceanic, PrecipitationAtCore(cx, cy, cz), _adaptiveBiomeThresholds);
+                        // ND-164: a HIDEG VEGET a jegmaszk dontse el, ne a
+                        // BiomeClassification abszolut kuszobei. MERVE (level 5):
+                        // a homodell eves LEVEGO-atlaga -1,7 °C-nal nem megy
+                        // lejjebb, tehat a -10 °C-os IceSheet es a -2 °C-os SeaIce
+                        // kuszob ALA EGYETLEN cella sem esik - a jeg-biome nemán
+                        // kiurulne. Ugyanaz a hibaosztaly, amit az ND-159 a
+                        // jegMASZKRA mar eldontott (abszolut helyett percentilis).
+                        //
+                        // A KEPBOL EZ NEM VESZ EL SEMMIT: merve, a "tundranak"
+                        // minosulo 254 cella MINDEGYIKE (100%) a jegmaszkon BELUL
+                        // van, tehat ma is jegnek van festve. Amit ad: a panel
+                        // (biomeOf) VEGRE azt mondja, ami a kepen latszik (I4) -
+                        // es megszunik az ND-59 ota elo KET fuggetlen jegreteg.
+                        if (climateBiome && !isOceanic && IsIceMaskTile(id, cx, cy, cz, iceMeanK, seed))
+                            biome = Biome.IceSheet;
                         biomeOf[id] = biome;
 
                         // TELJESITMENY (2026-09-10, felhasznaloi keres, cel <1s
@@ -3020,10 +3192,7 @@ namespace WorldGen.Viewer
                         // hasznalhatjuk magat a metodust, mert az a MAR
                         // BEALLITOTT _adaptiveIceMeanK/_adaptiveSeed mezokre
                         // tamaszkodik, amik csak a Build() VEGEN allnak be.
-                        bool isIce = iceMeanK.TryGetValue(id, out double iceRefMeanK)
-                            && iceRefMeanK + IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
-                                seed, cx, cy, cz, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves)
-                                < LakesIceErosion.PermanentIceMeanThresholdK;
+                        bool isIce = IsIceMaskTile(id, cx, cy, cz, iceMeanK, seed);
                         // ND-57: ugyanaz a jitter-minta, mint a fenti isIce-nal,
                         // a tengeri jeg (Ocean/SeaIce) hataranak - ld. IsAdaptiveSeaIce doksija.
                         bool isSeaIceRendered = isOceanic && (temperatureK
@@ -3195,7 +3364,8 @@ namespace WorldGen.Viewer
             // enelkul a szarazfoldi biome-ok nem szamolhatok ki.
             const bool needsPrecipField = true;
             MoisturePrecipitation.PrecipitationField precipField = needsPrecipField
-                ? GetOrComputePrecipitationField(seed, plateCount, level, targetWaterFraction)
+                ? GetOrComputePrecipitationField(seed, plateCount, level, targetWaterFraction,
+                    _adaptiveEvaporationTemperatureK)
                 : null;
             _adaptivePrecip = precipField?.Precipitation;
             // ND-130: a sarok-tabla MEG a vagopontok elott - a kuszoboket
@@ -3217,7 +3387,7 @@ namespace WorldGen.Viewer
                 {
                     if (precipField.IsOcean[pkv.Key]) continue;
                     TileGeometry.ToPosition(pkv.Key, out double px, out double py, out double pz);
-                    double pt = TemperatureKelvinAt(px, py, pz, axialTiltRad, false,
+                    double pt = BiomeTemperatureKelvinAt(px, py, pz, axialTiltRad, false,
                         precipField.Elevation[pkv.Key], precipField.SeaLevel);
                     // ND-130: a NYERS `pkv.Value` helyett az INTERPOLALT ertek a
                     // tile kozepen - ez az, amit a biome-osztalyozas is latni fog.
@@ -5170,6 +5340,27 @@ namespace WorldGen.Viewer
         /// kompatibilis, mert a zaj maga is a worldSeedbol determinisztikusan
         /// szarmazo mezo (nincs uj hash-fuggveny, nincs uj RandomProperty).
         /// </summary>
+        /// <summary>
+        /// A jegmaszk dontese egy REFERENCIA-SZINTU tile-ra: ugyanaz a
+        /// jitterelt kuszob-osszevetes, amit az <see cref="IsAdaptiveIceTile"/>
+        /// a finomabb szinteken hasznal, csak a mar kezben levo ertekekkel.
+        ///
+        /// ND-164: azert kulon metodus, mert MOSTANTOL KETTEN hasznaljak - a
+        /// statikus alapreteg render-kategoriaja ES a biome hideg vege -, es
+        /// ket masolat elobb-utobb szetcsuszna. A kuszob a
+        /// <c>_adaptiveIceThresholdK</c> (a homodell percentilis vagopontja, ha
+        /// az aktiv); a statikus ag korabban meg a bedrotozott abszolut
+        /// konstanst hasznalta, ami az ND-162 ota mar nem az ervenyes kuszob.
+        /// </summary>
+        private bool IsIceMaskTile(TileId id, double cx, double cy, double cz,
+            Dictionary<TileId, double> iceMeanK, ulong seed)
+        {
+            if (iceMeanK == null || !iceMeanK.TryGetValue(id, out double referenceMeanK)) return false;
+            double jitterK = IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
+                seed, cx, cy, cz, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves);
+            return referenceMeanK + jitterK < _adaptiveIceThresholdK;
+        }
+
         private bool IsAdaptiveIceTile(TileId id)
         {
             if (!TryGetReferenceAncestorValue(id, _adaptiveIceMeanK, out double referenceMeanK))
@@ -6204,7 +6395,8 @@ namespace WorldGen.Viewer
             // level-re altalanositva.
             bool isOceanic = elevation < _adaptiveSeaLevel;
 
-            double temperatureK = TemperatureKelvinAt(cx, cy, cz, _adaptiveAxialTiltRad, isOceanic, elevation, _adaptiveSeaLevel);
+            double temperatureK = BiomeTemperatureKelvinAt(
+                cx, cy, cz, _adaptiveAxialTiltRad, isOceanic, elevation, _adaptiveSeaLevel);
             Biome biome = BiomeClassification.Classify(
                 temperatureK, isOceanic, PrecipitationAtCore(cx, cy, cz), _adaptiveBiomeThresholds);
 
@@ -6220,6 +6412,10 @@ namespace WorldGen.Viewer
             // csak render-kategoria dontesnel, a Core `biome`-ot (es az abbol
             // szamolt statisztikakat) NEM erinti.
             bool isSeaIceRendered = showLakesIce && isOceanic && IsAdaptiveSeaIce(cx, cy, cz, temperatureK);
+            // ND-164: ugyanaz a hidegveg-szabaly, mint a statikus alapretegben -
+            // a panel-statisztikakba kerulo `biome` is a jegmaszkot kovesse, ne a
+            // BiomeClassification elerhetetlen abszolut kuszobet.
+            if (isIce && !isOceanic && _adaptiveClimateAirCorners != null) biome = Biome.IceSheet;
             // ND-59: ld. JitteredRenderBiome doksi - a nyers biome-fallback
             // jitter nelkul szabalyos kort adna a polusi jeg/tundra hataran.
             RenderCategory category = isCratered ? RenderCategory.Crater
@@ -6456,14 +6652,31 @@ namespace WorldGen.Viewer
         private double _pcDayT, _pcOrbital, _pcRotation, _pcAxialTilt, _pcTargetWater;
         private MoisturePrecipitation.PrecipitationField _pcField;
 
+        /// <summary>
+        /// ND-164: a PAROLGAS homerseklet-mezoje, amivel a gyorsitotarban levo
+        /// csapadek keszult. A kulcs KILENCEDIK eleme, es szandekosan
+        /// REFERENCIA-azonossag, nem tartalom-osszehasonlitas: a mezot a
+        /// ThermalClimateResult publikalja, es a kesz eredmeny SOSEM valtozik
+        /// (uj vilag = uj objektum), tehat az azonossag pontosan azt mondja meg,
+        /// amit kell - es nem kerul cellankenti osszevetesbe minden Build-ben.
+        ///
+        /// ENELKUL a cache CSENDBEN elavult mezot adna: a fenti tetelas leltar
+        /// meg azt rogziti, hogy a Core-fuggveny a deepTime-ot "meg sem kapja",
+        /// de a homodell eves atlaga MAR deep-time-fuggo (tYears), tehat a
+        /// csapadek is az lett.
+        /// </summary>
+        private Dictionary<TileId, double> _pcEvaporationTemperatureK;
+
         private MoisturePrecipitation.PrecipitationField GetOrComputePrecipitationField(
-            ulong precipSeed, int precipPlateCount, int precipLevel, double precipTargetWater)
+            ulong precipSeed, int precipPlateCount, int precipLevel, double precipTargetWater,
+            Dictionary<TileId, double> evaporationTemperatureK)
         {
             if (_hasPrecipCache && _pcField != null
                 && _pcSeed == precipSeed && _pcPlateCount == precipPlateCount && _pcLevel == precipLevel
                 && _pcDayT == climateDayT && _pcOrbital == climateOrbitalPeriodDays
                 && _pcRotation == climateRotationPeriodDays && _pcAxialTilt == climateAxialTiltDegrees
-                && _pcTargetWater == precipTargetWater)
+                && _pcTargetWater == precipTargetWater
+                && ReferenceEquals(_pcEvaporationTemperatureK, evaporationTemperatureK))
             {
                 _precipCacheHit = true;
                 return _pcField;
@@ -6471,12 +6684,14 @@ namespace WorldGen.Viewer
 
             _precipCacheHit = false;
             _pcField = MoisturePrecipitation.Compute(precipSeed, precipPlateCount, precipLevel,
+                evaporationTemperatureK,
                 climateDayT, climateOrbitalPeriodDays, climateRotationPeriodDays,
                 climateAxialTiltDegrees, targetWaterFraction: precipTargetWater);
             _pcSeed = precipSeed; _pcPlateCount = precipPlateCount; _pcLevel = precipLevel;
             _pcDayT = climateDayT; _pcOrbital = climateOrbitalPeriodDays;
             _pcRotation = climateRotationPeriodDays; _pcAxialTilt = climateAxialTiltDegrees;
             _pcTargetWater = precipTargetWater;
+            _pcEvaporationTemperatureK = evaporationTemperatureK;
             _hasPrecipCache = true;
             return _pcField;
         }
@@ -6546,7 +6761,8 @@ namespace WorldGen.Viewer
             {
                 TileGeometry.ToPosition(kv.Key, out double tx, out double ty, out double tz);
                 bool tOceanic = _lastIsOcean[kv.Key];
-                temperatureK[kv.Key] = TemperatureKelvinAt(tx, ty, tz, _adaptiveAxialTiltRad, tOceanic, kv.Value, _lastSeaLevel);
+                temperatureK[kv.Key] = BiomeTemperatureKelvinAt(
+                    tx, ty, tz, _adaptiveAxialTiltRad, tOceanic, kv.Value, _lastSeaLevel);
             }
             double habitability = FeatureMetrics.HabitabilityFraction(_lastField.Keys, temperatureK, _lastIsOcean);
 
@@ -9338,7 +9554,8 @@ namespace WorldGen.Viewer
 
             Vector3 dir = displacedCornerPos.normalized;
             BodyFrameConversion.ToCore(dir, out double cx, out double cy, out double cz);
-            double temperatureK = TemperatureKelvinAt(cx, cy, cz, axialTiltRadForColor, isOceanic, elevation, seaLevelForColor);
+            double temperatureK = BiomeTemperatureKelvinAt(
+                cx, cy, cz, axialTiltRadForColor, isOceanic, elevation, seaLevelForColor);
             return ContinuousLandBiomeColor(
                 temperatureK, PrecipitationAtCore(cx, cy, cz), _adaptiveBiomeThresholds);
         }
@@ -9505,7 +9722,7 @@ namespace WorldGen.Viewer
         {
             double len = Math.Sqrt(px * px + py * py + pz * pz);
             if (len < 1e-12) { px = 0; py = 0; pz = 0; } else { px /= len; py /= len; pz /= len; }
-            return TemperatureKelvinAt(px, py, pz, _adaptiveAxialTiltRad, isOceanic, elevation, seaLevel);
+            return BiomeTemperatureKelvinAt(px, py, pz, _adaptiveAxialTiltRad, isOceanic, elevation, seaLevel);
         }
 
         private double ElevationAtDir(double px, double py, double pz)

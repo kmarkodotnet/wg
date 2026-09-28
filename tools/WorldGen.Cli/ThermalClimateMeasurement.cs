@@ -487,6 +487,9 @@ namespace WorldGen.Cli
             ReportBiome("    (2) a (1)-hez képest", b1, b2, isOceanic);
             ReportBiome("(3) + a hideg vég a jégosztályból", b0, b3, isOceanic);
             ReportBiome("(4) (3) + tundra a szezonális hóból", b0, b4, isOceanic);
+            ReportSeaIce("(0) mai", b0, isOceanic);
+            ReportSeaIce("(2) hőmodell tengely", b2, isOceanic);
+            ReportSeaIce("(3) jégosztályos hidegvég", b3, isOceanic);
             ReportBiomeHistogram("(0) mai", b0, isOceanic);
             ReportBiomeHistogram("(2) abszolút hidegvég", b2, isOceanic);
             ReportBiomeHistogram("(3) jégosztályos hidegvég", b3, isOceanic);
@@ -536,6 +539,20 @@ namespace WorldGen.Cli
             Console.WriteLine($"    {label}: egyezés {allSame}/{all} ({100.0 * allSame / all:F1}%), " +
                               $"szárazföldön {landSame}/{land} " +
                               $"({(land > 0 ? 100.0 * landSame / land : 0.0):F1}%)");
+        }
+
+        /// <summary>Az ÓCEÁNI tengeri jég aránya — a sarki jéggyűrű a képen is látszik.</summary>
+        private static void ReportSeaIce(string label, Biome[] biomes, bool[] isOceanic)
+        {
+            int ocean = 0, seaIce = 0;
+            for (int c = 0; c < biomes.Length; c++)
+            {
+                if (!isOceanic[c]) continue;
+                ocean++;
+                if (biomes[c] == Biome.SeaIce) seaIce++;
+            }
+            Console.WriteLine($"    tengeri jég {label}: {seaIce}/{ocean} " +
+                              $"({(ocean > 0 ? 100.0 * seaIce / ocean : 0.0):F1}%)");
         }
 
         /// <summary>A szárazföldi biome-megoszlás — ez mutatja meg, MERRE tolódik a kép.</summary>

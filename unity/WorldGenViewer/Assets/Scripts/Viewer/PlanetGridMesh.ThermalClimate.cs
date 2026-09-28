@@ -58,6 +58,14 @@ namespace WorldGen.Viewer
         private bool useThermalClimateIce = true;
 
         [SerializeField]
+        [Tooltip("A BIOME hőmérséklet-tengelye és a csapadék PÁROLGÁSA is a hőmodell éves " +
+                 "éghajlatából jöjjön-e (ND-164), az analitikus pillanatnyi hőmérséklet helyett. " +
+                 "A biome az éves LEVEGŐ-, a párolgás az éves FELSZÍNI átlagot kapja. " +
+                 "Kikapcsolva a korábbi, analitikus viselkedés fut. Csak akkor hat, ha a " +
+                 "hőmodell jege is be van kapcsolva - egy világban egy hőmérséklet-forrás legyen.")]
+        private bool useThermalClimateBiome = true;
+
+        [SerializeField]
         [Tooltip("Az éves éghajlat lemez-gyorsítótára (ND-162). A betöltött adatot MINDIG " +
                  "ellenőrizzük (modellazonosító + mintanapok + jégküszöb-mód + rövid " +
                  "kanonikus előtag lenyomata + ellenőrzőösszeg); bármilyen eltérésnél " +
@@ -115,7 +123,31 @@ namespace WorldGen.Viewer
             public bool FromCache;
             public double ComputeMs;
             public double PermanentIceThresholdK;
+
+            /// <summary>A SZARAZFOLDI eves felszini atlag - a jegmaszk bemenete (ND-162).</summary>
             public Dictionary<TileId, double> MeanSurfaceK = new Dictionary<TileId, double>();
+
+            /// <summary>
+            /// ND-164: az eves LEVEGO-kozephomerseklet MINDEN cellara - a biome
+            /// homerseklet-tengelye. Azert a levego es nem a felszin, mert a
+            /// Whittaker-jellegu tabla (ND-126) arra van kalibralva, es a
+            /// vegetacio is a levegot "erzi" (ld. ThermalClimateCalculator.ClassifyBiomes).
+            /// </summary>
+            public Dictionary<TileId, double> MeanAirK = new Dictionary<TileId, double>();
+
+            /// <summary>
+            /// ND-164: az eves FELSZINI atlag MINDEN cellara (az oceanokat is
+            /// beleertve) - a PAROLGAS bemenete. Azert kulon a MeanSurfaceK-tol,
+            /// mert az szandekosan csak a szarazfoldet tartja (a jegmaszkhoz), a
+            /// parolgas viszont EPP az ocean folott tortenik.
+            /// </summary>
+            public Dictionary<TileId, double> SurfaceAllK = new Dictionary<TileId, double>();
+
+            /// <summary>A cella eleavacioja - a homerseklet magassag-korrekciojahoz (ND-164).</summary>
+            public Dictionary<TileId, double> ElevationM = new Dictionary<TileId, double>();
+
+            /// <summary>Az a tengerszint, amivel az eghajlat keszult (a magassag-korrekcio nullapontja).</summary>
+            public double SeaLevelM;
         }
 
         private int _climateRevision;
@@ -300,6 +332,31 @@ namespace WorldGen.Viewer
             _climateTask = Task.Run(() => RunThermalClimateJob(inputs, token), token);
         }
 
+        /// <summary>
+        /// ND-164: a BIOME es a PAROLGAS homerseklet-mezoi, ha van ervenyes
+        /// eghajlat ehhez a vilaghoz. Ugyanaz a kapu, mint a jegnel: a
+        /// TryGetThermalClimateIce mar atvette a kesz eredmenyt, ez csak
+        /// kiolvassa - igy a harom fogyaszto SOSEM lathat kulonbozo evet.
+        /// </summary>
+        private bool TryGetThermalClimateBiomeFields(
+            out Dictionary<TileId, double> meanAirK, out Dictionary<TileId, double> surfaceAllK,
+            out Dictionary<TileId, double> elevationM, out double climateSeaLevelM)
+        {
+            meanAirK = null;
+            surfaceAllK = null;
+            elevationM = null;
+            climateSeaLevelM = 0.0;
+            if (!useThermalClimateIce || !useThermalClimateBiome) return false;
+            if (_climateApplied == null || _climateApplied.Revision != _climateRevision) return false;
+            if (_climateApplied.MeanAirK.Count == 0) return false;
+
+            meanAirK = _climateApplied.MeanAirK;
+            surfaceAllK = _climateApplied.SurfaceAllK;
+            elevationM = _climateApplied.ElevationM;
+            climateSeaLevelM = _climateApplied.SeaLevelM;
+            return true;
+        }
+
         /// <summary>Igaz, ha a kesz eghajlat miatt UJ Build kell (es a kerest el is fogyasztja).</summary>
         private bool ConsumeThermalClimateRebuildRequest()
         {
@@ -359,6 +416,7 @@ namespace WorldGen.Viewer
                 FromCache = fromCache,
                 ComputeMs = timer.Elapsed.TotalMilliseconds,
                 PermanentIceThresholdK = payload.RefinedThresholdK + glaciationOffsetK,
+                SeaLevelM = inputs.SeaLevelM,
             };
             int side = grid.Side;
             for (int face = 0; face < 6; face++)
@@ -366,9 +424,19 @@ namespace WorldGen.Viewer
                     for (int v = 0; v < side; v++)
                     {
                         int index = DenseGridMetrics.Index(face, u, v, side);
+                        TileId id = TileId.FromFaceLevelUV(face, inputs.Level, (uint)u, (uint)v);
+                        // ND-164: a deep-time glaciacios eltolas (ND-44) ITT MAR a
+                        // biome tengelyere IS ramegy, nem csak a jegre. A korabbi,
+                        // analitikus uton ez szandekosan szuk hatokoru volt ("kulon
+                        // munka lenne a Temperature minden hivasi helyere athuzni"),
+                        // de most EGY mezo taplalja a jeget ES a biome-ot: ha csak a
+                        // jeg mozdulna a deep-time csuszkaval, a ket reteg ugyanazon
+                        // a kepen mondana mast.
+                        result.MeanAirK[id] = payload.Refined.MeanAirK[index] + glaciationOffsetK;
+                        result.SurfaceAllK[id] = payload.Refined.MeanSurfaceK[index] + glaciationOffsetK;
+                        result.ElevationM[id] = inputs.ElevationM[index];
                         if (inputs.IceFreeKinds[index] == SurfaceThermalKind.Ocean) continue; // SeaIce a biome-bol
-                        result.MeanSurfaceK[TileId.FromFaceLevelUV(face, inputs.Level, (uint)u, (uint)v)] =
-                            payload.Refined.MeanSurfaceK[index] + glaciationOffsetK;
+                        result.MeanSurfaceK[id] = payload.Refined.MeanSurfaceK[index] + glaciationOffsetK;
                     }
 
             token.ThrowIfCancellationRequested();

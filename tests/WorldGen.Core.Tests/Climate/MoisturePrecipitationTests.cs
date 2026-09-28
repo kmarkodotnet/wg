@@ -87,4 +87,54 @@ public class MoisturePrecipitationVectorFileTests
         foreach (KeyValuePair<TileId, double> kv in a.Precipitation)
             Assert.Equal(kv.Value, b.Precipitation[kv.Key]);
     }
+
+    /// <summary>
+    /// ND-164: a paraméteres út hőmérséklet-bemenettel. <c>null</c> esetén
+    /// BITRE a régi eredmény — ez az, ami minden korábbi hívót megvéd.
+    /// </summary>
+    [Fact]
+    public void ParametricOverloadWithNullTemperatureIsBitIdentical()
+    {
+        MoisturePrecipitation.PrecipitationField legacy =
+            MoisturePrecipitation.Compute(0xA7C944210000UL, 20, 3);
+        MoisturePrecipitation.PrecipitationField withNull =
+            MoisturePrecipitation.Compute(0xA7C944210000UL, 20, 3, null);
+
+        Assert.Equal(legacy.SeaLevel, withNull.SeaLevel);
+        Assert.Equal(legacy.Precipitation.Count, withNull.Precipitation.Count);
+        foreach (KeyValuePair<TileId, double> kv in legacy.Precipitation)
+            Assert.Equal(kv.Value, withNull.Precipitation[kv.Key]);
+    }
+
+    /// <summary>A hőmérséklet-bemenet ÉRDEMBEN hat, és hiányzó tile explicit hiba.</summary>
+    [Fact]
+    public void ParametricOverloadReadsTheGivenTemperature()
+    {
+        MoisturePrecipitation.PrecipitationField legacy =
+            MoisturePrecipitation.Compute(0xA7C944210000UL, 20, 3);
+
+        // Egyenletes, meleg mező: a párolgás mindenhol azonos, tehát a
+        // csapadék-mintázatnak meg KELL változnia a szélességfüggőhöz képest.
+        var uniform = new Dictionary<TileId, double>(legacy.Precipitation.Count);
+        foreach (TileId id in legacy.Precipitation.Keys) uniform[id] = 300.0;
+        MoisturePrecipitation.PrecipitationField warm =
+            MoisturePrecipitation.Compute(0xA7C944210000UL, 20, 3, uniform);
+
+        bool anyDifferent = false;
+        foreach (KeyValuePair<TileId, double> kv in legacy.Precipitation)
+            if (kv.Value != warm.Precipitation[kv.Key]) { anyDifferent = true; break; }
+        Assert.True(anyDifferent, "A megadott hőmérsékletnek hatnia kell a csapadékra.");
+
+        // Ismételt hívás bitre azonos (tisztaság).
+        MoisturePrecipitation.PrecipitationField again =
+            MoisturePrecipitation.Compute(0xA7C944210000UL, 20, 3, uniform);
+        foreach (KeyValuePair<TileId, double> kv in warm.Precipitation)
+            Assert.Equal(kv.Value, again.Precipitation[kv.Key]);
+
+        // Hiányzó tile: explicit hiba, nem csendes visszaesés az analitikusra.
+        var incomplete = new Dictionary<TileId, double>(uniform);
+        foreach (TileId id in legacy.Precipitation.Keys) { incomplete.Remove(id); break; }
+        Assert.Throws<ArgumentException>(() =>
+            MoisturePrecipitation.Compute(0xA7C944210000UL, 20, 3, incomplete));
+    }
 }

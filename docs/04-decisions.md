@@ -9552,6 +9552,173 @@ mérőeszköz mindháromhoz készen áll.
 hőmodell verziója 3.
 
 
+### ND-164 — A biome hőmérséklet-tengelye és a párolgás átállása a hőmodellre; a hideg vég a jégosztályból (A7 6. fázis, ELFOGADVA, implementálva)
+
+**Dátum:** 2026-09-28. **Előzmény:** ND-126 (kétdimenziós biome-tábla),
+ND-158 (éves adatút, párolgás-overload), ND-159 (percentilis jégküszöb),
+ND-160 (bázis-albedó, NYITOTT), ND-162 (a jégmaszk átállása), ND-163
+(szélvektor, a fogyasztói kapu ZÁRVA maradt).
+
+**A tétel.** Az ND-163 három külön ítéletre bontotta a fogyasztói átállást.
+Ez a döntés a MÁSODIKAT zárja le: a **biome hőmérséklet-tengelye** és a
+**csapadék párolgás-tagja** átáll a hőmodell éves éghajlatára. A csapadék
+SZELE változatlanul az analitikus úton marad (ND-163, nyitva).
+
+#### 1. A mérés, amiért ez nem puszta átkötés lett
+
+`worldgen thermal-climate --biome true`, seed `0xA7C944210000`, level 5,
+2151 szárazföldi tile. A hőmérséklet-tengely tartománya:
+
+| forrás | tartomány |
+|---|---|
+| mai, analitikus (egyetlen `dayT` 24 mintás napi átlaga) | −92,7 … +51,3 °C |
+| hőmodell, éves LEVEGŐ-középhőmérséklet | **−1,7 … +45,9 °C** |
+
+**Ez a lelet állítja meg a naiv átkötést.** A `BiomeClassification` hideg
+vége ABSZOLÚT: `IceSheetThresholdK` = −10 °C, `OceanFreezingK` = −2 °C. A
+hőmodell éves levegő-átlaga sehol nem megy −1,7 °C alá, tehát **egyetlen
+cella sem esik e két küszöb alá**: a jégtakaró-biome és a tengeri jég
+NÉMÁN kiürülne.
+
+Ez pontosan az a hibaosztály, amit az ND-159 a jégMASZKRA már eldöntött
+(abszolút küszöb helyett percentilis), és a gyökéroka is ugyanaz: az
+ND-160 szerinti ~10 K globális melegtöbblet plusz a radiatív simítás
+(ND-100 M13), ami a sarki éves átlagot felhúzza.
+
+#### 2. A mért változatok
+
+| változat | szárazföldi egyezés a maival | szárazföldi IceSheet | Tundra |
+|---|---:|---:|---:|
+| (0) mai: analitikus tengely + analitikus csapadék | — | 7,6% | 9,3% |
+| (1) hőmodell tengely, csapadék változatlan | 78,1% | 0,0% | 11,8% |
+| (2) + a párolgás hőmérséklete is | 78,4% | 0,0% | 11,9% |
+| **(3) + a hideg vég a JÉGOSZTÁLYBÓL** | **78,3%** | **20,0%** | **0,0%** |
+| (4) (3) + tundra a szezonális hóból | 36,4% | 20,0% | 48,4% |
+
+**A (4) ELUTASÍTVA, mérés alapján:** a szezonális hó (a napi minimum
+fagypontja) túl tág sáv — a szárazföld felét tundrává tenné.
+
+**A DÖNTŐ szám, ami a (3)-at választotta:** a (2) változat 254 szárazföldi
+tundra-cellájából **254 (100%)** a jégmaszkon BELÜL van. A viewer
+render-kategóriája ott amúgy is `IceSheet` (ND-162 óta a hőmodell
+percentilis maszkjából), tehát a (3) a KÉPBŐL NEM VESZ EL SEMMIT —
+egyedül a panelt (`biomeOf`) hozza összhangba azzal, ami látszik (I4).
+
+**Mellékhatás, ami valójában javítás:** az ND-59 óta KÉT független
+jégréteg élt egymás mellett (a jitterelt maszk és a biome saját, jitter
+nélküli `IceSheet`-je), és a nyers, kör alakú biome-jég „átsejlett" ott,
+ahol a maszk épp hamis volt. Ezzel egyetlen forrás marad.
+
+#### 3. Ami VESZTESÉG, kimondva: a tengeri jég
+
+| | tengeri jég az óceáni cellák arányában |
+|---|---:|
+| mai, analitikus | 32/3993 = **0,8%** |
+| a hőmodell tengelyével | **0,0%** |
+
+A hőmodellnek — a mai kalibrációval — NINCS fagypont alatti óceánja. Az
+analitikus úton csak azért van tengeri jég, mert az a mező −92 °C-ig megy.
+**Ezt a bázis-albedó döntése (ND-160) hozza vissza:** a mérés szerint
+a=0,30 bolygó-albedóval **64 óceáni cella** lesz tartós jég (1,6%, tehát
+kétszerese a mainak). Ez a legerősebb új érv az ND-160 (1) opciója mellett.
+
+#### 4. Amit az ND-160 mérőkampó mutatott
+
+A `ThermalModelParameters.baselineAlbedo` (alapértelmezés `null` = a mai,
+bedrótozott felszíni albedó, BITRE változatlan) most mérhetővé teszi az
+ND-160 javaslatát. `--baseline-albedo 0.30` mellett:
+
+| | mai bázis | bolygó-albedó |
+|---|---:|---:|
+| globális medián éves átlag | +33,7 °C | **+18,1 °C** |
+| egyezés a régi jégosztállyal | 72,7% | **86,4%** |
+| óceáni tartós jég | 0 cella | **64 cella** |
+| éves LEVEGŐ-minimum | −1,7 °C | **−1,7 °C** |
+
+**A hideg vég NEM tér vissza** — a minimum bitre ugyanott marad. Az ND-160
+tehát a globális SZINTET javítja (és a tengeri jeget visszahozza), de a
+biome abszolút hidegvégét NEM: az a (3) úton marad. Ez fontos, mert az
+ND-160 javaslata eddig implicit módon azt sugallta, hogy a skála
+helyreállításával minden downstream küszöb újra használható lesz.
+
+#### 5. Megvalósítás
+
+**Core** (motorfüggetlen, seed-semleges — csak új API-k):
+- `ThermalClimateCalculator.ClassifyBiomes(..., iceClass)` túlterhelés: a
+  tartós jég felülír (`IceSheet` / `SeaIce`), minden melegebb cella BITRE a
+  jégosztály nélküli eredmény.
+- `MoisturePrecipitation.Compute(..., temperatureK, ...)` túlterhelés: a
+  paraméteres út is átveheti a párolgás hőmérséklet-mezőjét. `null` esetén
+  bitre a régi út (tesztben kikötve).
+- `ThermalModelParameters.BaselineAlbedo` mérőkampó (fent).
+
+**Viewer:**
+- `useThermalClimateBiome` kapcsoló (alapértelmezés: BE), a jég kapujához
+  kötve — egy világban EGY hőmérséklet-forrás legyen.
+- `BiomeTemperatureKelvinAt(...)`: SAROK-INTERPOLÁLT éves levegő-átlag. A
+  sarok-tábla a TENGERSZINTRE REDUKÁLT hőmérsékletet hordozza
+  (`T + lapse·max(0, h_cella − tengerszint)`), a kiértékelés pedig a PONT
+  saját elevációjával húzza vissza — ez a `SurfaceTemperatureField.
+  AltitudeCorrectedK` szabálya, folytonosan. Nyers tile-lookup helyett
+  azért, mert az a referencia-szintű (90–800 km) cellahatárokat tenné
+  láthatóvá; a redukció nélküli interpoláció pedig a hegyek hidegét
+  szétkenné a völgyekre.
+- A párolgás a `ThermalClimate.Refined` éves FELSZÍNI átlagát kapja (a
+  párolgás felszíni folyamat), MINDEN cellára — az óceániakra is, mert a
+  nedvesség épp ott keletkezik.
+- A csapadék-gyorsítótár kulcsa kiegészült a párolgási mezővel
+  (referencia-azonosság). **Enélkül csendben elavult mezőt adna:** a
+  kulcs eddigi tételes leltára arra épült, hogy a `Compute` a deep time-ot
+  „meg sem kapja" — a hőmodell éves átlaga viszont `tYears`-függő.
+- A deep-time glaciációs eltolás (ND-44) mostantól a biome tengelyére IS
+  rámegy, nem csak a jégre: egy mező táplálja mindkettőt, és ha csak a jég
+  mozdulna a csúszkával, a két réteg ugyanazon a képen mondana mást.
+- `IsIceMaskTile(...)`: a jégmaszk döntése egyetlen helyen. Ez javított egy
+  meglévő eltérést is — a statikus alapréteg még a bedrótozott abszolút
+  küszöböt használta, miközben az ND-162 óta a percentilis vágópont az
+  érvényes.
+
+#### 6. Élő igazolás (Unity 6, Play mód, level 5)
+
+| mérték | érték |
+|---|---|
+| éghajlat háttérszálon | **117,9 s** (cache-tévesztés), utána Build **2367 ms** |
+| `_adaptiveClimateAirCornerLevel` | **5** (a tengely aktív) |
+| jégküszöb | **280,168 K = 7,02 °C** — bitre a CLI percentilis vágópontja |
+| párolgási mező | **6144 tile, [−1,7; +45,9] °C** — bitre a CLI tartománya |
+| szárazföldi biome-megoszlás | IceSheet 438, Desert 427, Rainforest 414, Grassland 398, TemperateForest 251, Savanna 223, Tundra 0 |
+| tengeri jég | 0 (korábban 35) |
+| Console-hiba a viewerből | nincs |
+
+A 438 jég-tile a mért 430 percentilis-cella + a határ-jitter — tehát a
+kép és a panel ugyanazt mondja.
+
+**Amit az élő futás ELKAPOTT (meglévő hiba, nem ez a változás okozta):** a
+`biomeOf` a Build-ben a csapadék-vágópontok KISZÁMÍTÁSA ELŐTT készül
+(a geometria-ciklus a 3157. sorban, a vágópontok a 3396.-ban), tehát
+minden Build az ELŐZŐ Build vágópontjaival osztályoz — az ELSŐ Build után
+pedig `(0, 0, 0)` vágóponttal és 0 csapadékkal, ami a szárazföld 100%-át
+`Desert`-nek mutatta a panelen. A második Build után magától helyreáll.
+Külön tétel, nem ennek a döntésnek a hatóköre.
+
+#### 7. Amit ez NEM változtat
+
+`WorldGeneratorVersion` és a hőmodell verziója változatlan: a biome
+RENDER- és panel-kimenet, nem a generátor numerikus lánca, és a Core
+oldalon csak új API-k keletkeztek. A csapadék-mező viszont mostantól
+deep-time-függő lett (a hőmérséklet-bemeneten keresztül) — ezt a
+gyorsítótár kulcsa követi.
+
+#### 8. Ami NYITVA marad
+
+1. A **vizuális átvétel** — felhasználói ítélet (a tengeri jég eltűnése és
+   a jégsapka 7,6% → 20,4% növekedése a szárazföldön a két látható tétel).
+2. **ND-160** — most már erősebb érvekkel: visszahozza a tengeri jeget és
+   a globális szintet a Földéhez viszi. Seed-törő.
+3. **ND-163** — a csapadék szele (nagy változás, 67,7%) és a kioltódó éves
+   szél modellkérdése.
+
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

@@ -11,7 +11,7 @@ namespace WorldGen.Core.Tests.Climate;
 /// A viewer csapadék-mező CACHE-ÉNEK alapja (todo.md 1. tábla 5. sor).
 ///
 /// A gyorsítótár akkor és csak akkor helyes, ha
-/// <see cref="MoisturePrecipitation.Compute"/> TISZTA függvény, és a
+/// <c>MoisturePrecipitation.Compute</c> TISZTA függvény, és a
 /// cache-kulcs PONTOSAN az átadott argumentumok halmaza. Ez a fájl mindkettőt
 /// igazolja — a CLAUDE.md tesztelési mátrixának két sora szerint
 /// („Tisztaság: ismételt hívás azonos", „Minden paraméter érdemben hat a
@@ -149,18 +149,33 @@ public class PrecipitationCacheKeyTests
     [Fact]
     public void ComputeHasNoDeepTimeParameter()
     {
-        System.Reflection.ParameterInfo[] parameters = typeof(MoisturePrecipitation)
-            .GetMethod(nameof(MoisturePrecipitation.Compute))!.GetParameters();
+        // ND-164 óta KÉT paraméteres túlterhelés van (a második a párolgás
+        // hőmérséklet-mezőjét is átveszi), ezért nem lehet névre keresni.
+        System.Reflection.MethodInfo[] overloads = Array.FindAll(
+            typeof(MoisturePrecipitation).GetMethods(),
+            m => m.Name == nameof(MoisturePrecipitation.Compute));
+        Assert.Equal(2, overloads.Length);
 
-        foreach (System.Reflection.ParameterInfo p in parameters)
+        foreach (System.Reflection.MethodInfo overload in overloads)
         {
-            string lower = p.Name!.ToLowerInvariant();
-            Assert.False(lower.Contains("deeptime") || lower.Contains("myr") || lower.Contains("timemyr"),
-                $"A Compute kapott egy deep-time paramétert ('{p.Name}') - a viewer "
-                + "csapadék-cache kulcsát ki kell egészíteni vele, különben elavult mezőt ad.");
+            System.Reflection.ParameterInfo[] parameters = overload.GetParameters();
+            foreach (System.Reflection.ParameterInfo p in parameters)
+            {
+                string lower = p.Name!.ToLowerInvariant();
+                Assert.False(lower.Contains("deeptime") || lower.Contains("myr") || lower.Contains("timemyr"),
+                    $"A Compute kapott egy deep-time paramétert ('{p.Name}') - a viewer "
+                    + "csapadék-cache kulcsát ki kell egészíteni vele, különben elavult mezőt ad.");
+            }
+            _out.WriteLine("Compute paraméterei: " + string.Join(", ", Array.ConvertAll(parameters, p => p.Name)));
         }
 
-        _out.WriteLine("Compute paraméterei: " + string.Join(", ", Array.ConvertAll(parameters, p => p.Name)));
-        Assert.Equal(12, parameters.Length);
+        // A RÖVID alak változatlanul 12 paraméteres; a hosszú 13. eleme a
+        // `temperatureK`. FIGYELEM: ez a mező NEM deep-time-mentes - a hőmodell
+        // éves átlaga tYears-függő -, ezért a viewer cache-kulcsa ND-164 óta
+        // TARTALMAZZA (referencia-azonossággal, ld. _pcEvaporationTemperatureK).
+        var lengths = new List<int>();
+        foreach (System.Reflection.MethodInfo overload in overloads) lengths.Add(overload.GetParameters().Length);
+        lengths.Sort();
+        Assert.Equal(new List<int> { 12, 13 }, lengths);
     }
 }

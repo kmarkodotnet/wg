@@ -173,6 +173,21 @@ a geometria-eltolás kész, ld. `docs/04-decisions.md` ND-19 A12/2.)*
 
 Részletek: `docs/05-milestones.md`.
 
+**A7 hőmodell (2026-09-28, ND-158…164):** a viewer jégmaszkja, a biome
+hőmérséklet-tengelye és a csapadék párolgás-tagja MIND a hőmodell éves
+éghajlatából jön (háttérszál + lemez-cache; level 5-on ~118 s hidegen,
+cache-találatnál ms). Két kalibrációs lecke, mindkettő MÉRÉSSEL eldöntve:
+(1) a tartós jég küszöbe PERCENTILIS, nem abszolút (ND-159), mert a régi
+jégtérkép egy −218,8 °C-os sarki éjszakájú mezőből készült; (2) a biome
+HIDEG VÉGE is a percentilis jégosztályból jön (ND-164), mert a hőmodell
+éves levegő-átlaga −1,7 °C-nál nem megy lejjebb, tehát a −10 °C-os
+IceSheet és a −2 °C-os SeaIce küszöb elérhetetlen. **Ha bármilyen
+ABSZOLÚT hőmérséklet-küszöböt írsz a hőmodell mezőjére, előbb mérd meg a
+mező tényleges tartományát** — ez a hibaosztály kétszer is átcsúszott.
+Nyitva: ND-160 (bázis-albedó, seed-törő; a mérőkampó kész, bolygó-albedó
+mellett a globális medián 33,7 → 18,1 °C és a tengeri jég visszatér) és
+ND-163 (a csapadék szele).
+
 **M13 (2026-09-27, A16):** a Planet nézet felhője mostantól TÉRFOGATI —
 saját, gömbi raymarch a csapadék-mezőből (ND-154), felszíni felhőárnyékkal.
 Az AO helyét MÉRÉS döntötte el (ND-155): a szárazföldi égbolt-nyitottság level

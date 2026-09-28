@@ -1159,8 +1159,8 @@ namespace WorldGen.Core.Hydrology
         /// A teljes lánc: forrás-kiválasztás -> nyomvonal-követés minden
         /// forrásra, dendritikus egyesüléssel (a `claimed` térkép megosztott
         /// az összes forrás között). A hívó (pl. a viewer) az elevációt/
-        /// csapadékot/óceán-mezőt/tengerszintet a MÁR meglévő <see
-        /// cref="Climate.MoisturePrecipitation.Compute"/>-ból adja (nincs
+        /// csapadékot/óceán-mezőt/tengerszintet a MÁR meglévő
+        /// <c>Climate.MoisturePrecipitation.Compute</c>-ból adja (nincs
         /// duplikált számítás).
         /// </summary>
         public static List<RiverPath> BuildRiverNetwork(
