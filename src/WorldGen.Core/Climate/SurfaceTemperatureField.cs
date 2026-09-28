@@ -110,6 +110,7 @@ namespace WorldGen.Core.Climate
         private readonly double[] _edgeVelocity, _cellSpeed, _factor, _baseK;
         private readonly double[] _inflow, _divergence, _flux, _advectScratch;
         private readonly double[] _cellAlbedoTerm, _cellEmissivity, _cellHeatCapacity;
+        private double[]? _cellWindX, _cellWindY, _cellWindZ;
 
         public SurfaceTemperatureField(DenseGridMetrics grid, SurfaceThermalKind[] kinds, double[] elevationM,
             double seaLevelM, ulong worldSeed, double tYears, ThermalOrbit orbit,
@@ -176,6 +177,45 @@ namespace WorldGen.Core.Climate
 
         public bool UseParallelLocalStep { get; set; }
 
+        /// <summary>
+        /// ND-163: a <see cref="Step"/> a cellaközéppontbeli SZÉLVEKTORT is
+        /// eltegye-e. INGYEN van: a csatolt szél amúgy is kiszámolja, csak
+        /// eddig eldobtuk — a bekapcsolás nem futtat újra semmit, és a többi
+        /// kimenetet BITRE nem érinti.
+        ///
+        /// A csapadék-mezőnek (<see cref="MoisturePrecipitation"/>) kell, mert
+        /// az a szelet IRÁNYOSTUL használja (a nedvesség kifolyás-súlyaihoz),
+        /// nem csak a nagyságát.
+        /// </summary>
+        public bool CaptureCellWind
+        {
+            get => _cellWindX != null;
+            set
+            {
+                if (value == (_cellWindX != null)) return;
+                if (value)
+                {
+                    _cellWindX = new double[_grid.CellCount];
+                    _cellWindY = new double[_grid.CellCount];
+                    _cellWindZ = new double[_grid.CellCount];
+                }
+                else
+                {
+                    _cellWindX = null;
+                    _cellWindY = null;
+                    _cellWindZ = null;
+                }
+            }
+        }
+
+        /// <summary>A legutolsó <see cref="Step"/> cellaközéppontbeli szele (csak <see cref="CaptureCellWind"/> mellett).</summary>
+        public double[] CellWindX => _cellWindX ?? throw new InvalidOperationException("A CaptureCellWind nincs bekapcsolva.");
+        public double[] CellWindY => _cellWindY ?? throw new InvalidOperationException("A CaptureCellWind nincs bekapcsolva.");
+        public double[] CellWindZ => _cellWindZ ?? throw new InvalidOperationException("A CaptureCellWind nincs bekapcsolva.");
+
+        /// <summary>A legutolsó <see cref="Step"/> cella-szélsebessége (m/s).</summary>
+        public double[] CellSpeed => _cellSpeed;
+
         /// <summary>Egy tick: <paramref name="state"/> helyben <c>Tick + 1</c>-re lép.</summary>
         public void Step(ThermalSnapshot state)
         {
@@ -189,7 +229,7 @@ namespace WorldGen.Core.Climate
             double dt = SimulationTime.TickSeconds;
             long tm = tick * SimulationTime.TickSeconds + SimulationTime.TickSeconds / 2;
 
-            _wind.SampleCoupled(tm, state.ThetaA, _edgeVelocity, _cellSpeed);
+            _wind.SampleCoupled(tm, state.ThetaA, _edgeVelocity, _cellSpeed, _cellWindX, _cellWindY, _cellWindZ);
             LastSubsteps = AdvectCompensatedUpwind(_grid, _edgeVelocity, state.ThetaA, dt,
                 _inflow, _divergence, _flux, _advectScratch);
 

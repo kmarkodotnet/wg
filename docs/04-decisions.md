@@ -9498,12 +9498,55 @@ következmény egyszerre. A jég átállásának vizuális átvétele még nem
 történt meg; két változást egy ítéletbe keverni pontosan az a hiba, ami az
 ND-142 kalibrációs köréhez vezetett.
 
-**Egy nyitott modellezési különbség, kimondva:** a csapadék-mező EGYETLEN
-`dayT` pillanatra készül, a csatolt szél viszont a hőmodell állapotától
-függő (tick-szintű) mennyiség. Az átálláskor el kell dönteni, melyik
-időpont (vagy milyen átlag) a csapadék szél-bemenete — a legvalószínűbb
-válasz az ÉVES adatúton belüli átlag, az ND-158 mintájára, de ezt mérni
-kell. Ez a következő lépés, nem ezé.
+#### A mintavétel kérdése — MEGMÉRVE (2026-09-28)
+
+A csapadék-mező EGYETLEN `dayT` pillanatra készül, a csatolt szél viszont
+tick-szintű mennyiség. Választott bemenet: az **ÉVES adatúton belüli
+átlag** — a mintanapok MINDEN tickjén vett cellaközépponti szélvektor és
+sebesség átlaga. Ez INGYEN jön az éghajlat-futással (a `Step` amúgy is
+kiszámolja a szelet), és illeszkedik ahhoz, hogy a csapadék klíma-jellegű
+mennyiség, nem pillanatkép.
+
+**A vektorátlag és a sebességátlag KÜLÖN mennyiség**, és ez nem pongyolaság:
+a vektorátlag hossza kisebb az átlagsebességnél, ha a szélirány az év
+során forog. MÉRVE (level 5, seed 0xA7C944210000): a „szél-állandóság"
+(|átlagvektor| / átlagsebesség) **0,746**, tehát átlagosan ~25% kioltás —
+valódi fizikai tartalom (monszun-jelleg), nem numerikus hiba. A csapadék
+mindkettőt használja: az IRÁNYT a nedvesség kifolyásához, a SEBESSÉGET a
+párolgáshoz.
+
+#### A FOGYASZTÓI A/B — ez dönti el, miért marad zárva a kapu
+
+`worldgen thermal-climate --precip true`, level 5, 2151 szárazföldi tile.
+A mérőszám nem a nyers csapadék-különbség, hanem a **NEGYED-besorolás**
+változása: az ND-126 szerint a biome-ot a csapadék PERCENTILISEI döntik el,
+tehát egy egyenletes skálázódás SEMMIT nem változtatna a képen — ami
+számít, az az átrendeződés.
+
+| változat | átlagos \|eltérés\| | negyed-besorolás egyezés |
+|---|---:|---:|
+| (1) csak a HŐMÉRSÉKLET a hőmodellből | 6,8% | **86,2%** |
+| (2) + a SZÉL is a hőmodellből | 42,7% | **67,7%** |
+| (2) a (1)-hez képest (= a szél önmagában) | 41,0% | 70,5% |
+
+**Az eredmény: a két átállás NEM egyenrangú.** A hőmérséklet-csere
+mérsékelt (a szárazföld 86%-a ugyanabban a csapadék-negyedben marad); a
+SZÉL-csere viszont a szárazföld csaknem harmadát átsorolja, és átlagosan
+41%-kal más csapadékot ad. Ez átrajzolná a biome-térképet, a felhőket és a
+folyó-forrásokat is.
+
+**Egy figyelmeztető szám:** a maximális eltérés **38,94**, miközben az átlag
+1,06 — vagyis egyes tile-okon 37-szeres az eltérés. Ez ott várható, ahol az
+éves átlagos szél majdnem kioltódik: a nettó szállítás eltűnik, és a
+nedvesség helyben halmozódik. Ez modellezési kérdés (a kioltódó szélű
+helyeken talán a SEBESSÉG-átlag irányával kellene számolni), nem
+implementációs hiba — de a fogyasztói átállás előtt tisztázni kell.
+
+**Ezért a három fogyasztó ÁTÁLLÍTÁSA HÁROM KÜLÖN ÍTÉLET**, nem egy:
+a jég (ND-162, kész és aktív), a biome/párolgás hőmérséklete (mérsékelt
+változás), és a csapadék szele (nagy változás + nyitott modellkérdés).
+Mindhárom a felhasználó vizuális ítéletét igényli; a Core adatút és a
+mérőeszköz mindháromhoz készen áll.
 
 **Nem seed-törő:** csak új API-k; a `WorldGeneratorVersion` marad `"5"`, a
 hőmodell verziója 3.

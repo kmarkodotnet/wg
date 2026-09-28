@@ -68,17 +68,69 @@ tengelyére is — három látható következmény egyszerre. A jég átállás�
 vizuális átvétele még nem történt meg; két változást egy ítéletbe keverni
 pontosan az a hiba, ami az ND-142 kalibrációs köréhez vezetett.
 
-## Egy nyitott modellezési kérdés, kimondva
+## A mintavétel kérdése — megmérve
 
-A csapadék-mező EGYETLEN `dayT` pillanatra készül, a csatolt szél viszont a
-hőmodell állapotától függő, tick-szintű mennyiség. Az átálláskor el kell
-dönteni, melyik időpont (vagy milyen átlag) a csapadék szél-bemenete. A
-legvalószínűbb válasz az ÉVES adatúton belüli átlag (az ND-158 mintájára),
-de ezt mérni kell. Ez a következő lépés, nem ezé.
+A csapadék-mező egyetlen `dayT` pillanatra készül, a csatolt szél viszont
+tick-szintű. Választott bemenet: az **éves adatúton belüli átlag** — a
+mintanapok minden tickjén vett cellaközépponti vektor és sebesség átlaga.
+Ez INGYEN jön: a `Step` amúgy is kiszámolja a szelet, csak eddig eldobtuk
+(`CaptureCellWind`). A hőmérséklet-kimenetek bitazonossága tesztben
+bizonyítva a szél bekapcsolása mellett is.
+
+**Szél-állandóság (|átlagvektor| / átlagsebesség): 0,746** — tehát
+átlagosan ~25% kioltás, mert a szélirány az év során forog. Valódi fizikai
+tartalom (monszun-jelleg), ezért a vektorátlagot és a sebességátlagot
+külön tartjuk: az irány a nedvesség kifolyásához, a sebesség a
+párolgáshoz kell.
+
+## A fogyasztói A/B — ez dönti el, miért marad zárva a kapu
+
+`worldgen thermal-climate --precip true`, level 5, 2151 szárazföldi tile.
+A mérőszám a NEGYED-besorolás változása, nem a nyers különbség: az ND-126
+szerint a biome-ot a csapadék percentilisei döntik el, tehát egy egyenletes
+skálázódás semmit nem változtatna a képen.
+
+| változat | átlagos \|eltérés\| | negyed-besorolás egyezés |
+|---|---:|---:|
+| (1) csak a HŐMÉRSÉKLET a hőmodellből | 6,8% | **86,2%** |
+| (2) + a SZÉL is | 42,7% | **67,7%** |
+| (2) a (1)-hez képest (a szél önmagában) | 41,0% | 70,5% |
+
+**A két átállás nem egyenrangú.** A hőmérséklet-csere mérsékelt; a
+szél-csere a szárazföld csaknem harmadát átsorolja és átlagosan 41%-kal más
+csapadékot ad — átrajzolná a biome-térképet, a felhőket és a
+folyó-forrásokat is.
+
+**Figyelmeztető szám:** a maximális eltérés **38,94**, miközben az átlag
+1,06 — egyes tile-okon 37-szeres. Ott várható, ahol az éves átlagos szél
+majdnem kioltódik: a nettó szállítás eltűnik, és a nedvesség helyben
+halmozódik. Modellezési kérdés, nem implementációs hiba — de az átállás
+előtt tisztázni kell.
+
+**Következtetés:** a három fogyasztó átállítása HÁROM KÜLÖN ÍTÉLET — a jég
+(kész és aktív), a biome/párolgás hőmérséklete (mérsékelt változás), és a
+csapadék szele (nagy változás + nyitott modellkérdés).
+
+## Az A7 ÁLLAPOTA ezzel
+
+Az A7 **implementációs és mérési része lezárult.** Ami hátravan, az
+kizárólag FELHASZNÁLÓI ÍTÉLET, nem kód:
+
+1. A jég átállásának vizuális átvétele (ND-162 — kész, aktív, élőben
+   igazolt).
+2. A biome/párolgás hőmérséklet-cseréjének elfogadása (mérve: mérsékelt,
+   86,2% negyed-egyezés).
+3. A csapadék szél-cseréjének elfogadása (mérve: nagy, 67,7%), és a
+   kioltódó éves szél modellkérdése.
+4. ND-160 (bázis-albedó) — seed-törő kalibrációs döntés.
+
+A Core adatút, a lemez-cache, a háttérszál, a mérőeszközök és a
+fogyasztói felületek mindhárom átálláshoz készen állnak.
 
 ## Becslés
 
-A7 funkcionális súlyozással kb. **90%**. Erre a körre durván **1 munkaóra**
-ment rá (a vártnál lényegesen kevesebb, mert nem kellett új numerika), a
-maradék durván **3–6 munkaóra** — becslések, nincs valós idő-naplózás a
-projektben.
+A7 funkcionális súlyozással kb. **92%** — a maradék 8% a három vizuális
+átvétel és az ND-160 döntés, ami nem kód. Erre a körre durván **2 munkaóra**
+ment rá; a maradék kód-jellegű munka (a három kapcsoló átfordítása és a
+viewer-oldali bekötés) durván **2–4 munkaóra**, az ítéletek után —
+becslések, nincs valós idő-naplózás a projektben.

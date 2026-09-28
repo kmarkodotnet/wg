@@ -49,6 +49,9 @@ namespace WorldGen.Cli
             /// <summary>ND-159: a bázis-hőmérséklet tagonkénti felbontása (mi teszi a modellt meleggé).</summary>
             public bool Decompose;
 
+            /// <summary>ND-163: a csapadék-mező A/B-je a háromféle hőmérséklet-/szélforrással.</summary>
+            public bool Precipitation;
+
             /// <summary>
             /// ND-161: durvább rácson számolt éghajlat, a teljes szintűvel
             /// összevetve. 0 = nincs összehasonlítás.
@@ -210,6 +213,8 @@ namespace WorldGen.Cli
 
                 if (options.Decompose)
                     Decompose(grid, kinds, elevation, seaLevel, options, orbit, parameters, climate);
+                if (options.Precipitation)
+                    ComparePrecipitation(grid, kinds, elevation, seaLevel, options, orbit, parameters, sw);
                 foreach (int coarseLevel in options.ClimateLevels)
                 {
                     CompareCoarseClimate(coarseLevel, grid, options, orbit, parameters, climate, sw,
@@ -222,6 +227,138 @@ namespace WorldGen.Cli
 
             Console.WriteLine($"Teljes futás: {total.Elapsed.TotalSeconds:F1} s");
             return 0;
+        }
+
+        /// <summary>
+        /// ND-163: a csapadék-mező A/B-je. A kérdés, amit eldönt: mennyivel más
+        /// a csapadék, ha a hőmérséklet és/vagy a SZÉL a hőmodellből jön, nem az
+        /// analitikus utból — és hogy a szél HOZZÁAD-e a hőmérséklethez képest.
+        ///
+        /// Három változat, hogy a hatások szétváljanak:
+        ///   (0) MAI: analitikus hőmérséklet + analitikus szél
+        ///   (1) hőmodell hőmérséklet + analitikus szél
+        ///   (2) hőmodell hőmérséklet + hőmodell (éves átlagos) szél
+        ///
+        /// A mérőszám nem a nyers csapadék-különbség, hanem a SZÁRAZFÖLDI
+        /// PERCENTILIS-BESOROLÁS változása is: a biome-ot az ND-126 szerint a
+        /// csapadék percentilisei döntik el, tehát egy egyenletes skálázódás
+        /// SEMMIT nem változtatna a képen. Ami számít: átrendeződik-e a sorrend.
+        /// </summary>
+        private static void ComparePrecipitation(DenseGridMetrics grid, SurfaceThermalKind[] kinds,
+            double[] elevation, double seaLevel, Options options, ThermalOrbit orbit,
+            ThermalModelParameters parameters, Stopwatch sw)
+        {
+            int level = options.Level;
+            var field = new Dictionary<TileId, double>(grid.CellCount);
+            var tileOf = new TileId[grid.CellCount];
+            int side = grid.Side;
+            for (int face = 0; face < 6; face++)
+                for (int u = 0; u < side; u++)
+                    for (int v = 0; v < side; v++)
+                    {
+                        int index = DenseGridMetrics.Index(face, u, v, side);
+                        TileId id = TileId.FromFaceLevelUV(face, level, (uint)u, (uint)v);
+                        tileOf[index] = id;
+                        field[id] = elevation[index];
+                    }
+
+            // A hőmodell éves mezője, SZÉLLEL együtt (a szél ingyen jön).
+            sw.Restart();
+            var thermal = new SurfaceTemperatureField(grid, kinds, elevation, seaLevel,
+                options.Seed, options.TimeMyr * 1.0e6, orbit, parameters);
+            ThermalAnnualStatistics annual = ThermalAnnualStatisticsCalculator.Compute(
+                thermal, new ThermalSnapshot(grid.CellCount), options.SampleDays, 0, includeWind: true);
+            double annualMs = sw.Elapsed.TotalMilliseconds;
+
+            var temperature = new Dictionary<TileId, double>(grid.CellCount);
+            var wind = new Dictionary<TileId, SurfaceWindSample>(grid.CellCount);
+            double rotationSum = 0.0;
+            for (int c = 0; c < grid.CellCount; c++)
+            {
+                TileId id = tileOf[c];
+                temperature[id] = annual.MeanSurfaceK[c];
+                double wx = annual.MeanWindX![c], wy = annual.MeanWindY![c], wz = annual.MeanWindZ![c];
+                double speed = annual.MeanWindSpeedMs![c];
+                wind[id] = new SurfaceWindSample(wx, wy, wz, speed);
+                double netto = Math.Sqrt(wx * wx + wy * wy + wz * wz);
+                if (speed > 1e-12) rotationSum += netto / speed;
+            }
+            double meanSteadiness = rotationSum / grid.CellCount;
+
+            double axialTilt = options.AxialTiltDegrees;
+            MoisturePrecipitation.PrecipitationField p0 = MoisturePrecipitation.ComputeFromFields(
+                field, seaLevel, options.Seed, level, null, null, 0.0,
+                options.OrbitalPeriodDays, options.RotationPeriodDays, axialTilt);
+            MoisturePrecipitation.PrecipitationField p1 = MoisturePrecipitation.ComputeFromFields(
+                field, seaLevel, options.Seed, level, temperature, null, 0.0,
+                options.OrbitalPeriodDays, options.RotationPeriodDays, axialTilt);
+            MoisturePrecipitation.PrecipitationField p2 = MoisturePrecipitation.ComputeFromFields(
+                field, seaLevel, options.Seed, level, temperature, wind, 0.0,
+                options.OrbitalPeriodDays, options.RotationPeriodDays, axialTilt);
+
+            Console.WriteLine($"  [CSAPADÉK A/B] éves mező széllel: {annualMs / 1000.0:F1} s; " +
+                              $"szél-állandóság (|átlagvektor| / átlagsebesség): {meanSteadiness:F3}");
+            ReportPrecipitation("(1) hőmérséklet a hőmodellből", p0, p1, field, seaLevel);
+            ReportPrecipitation("(2) + szél is a hőmodellből", p0, p2, field, seaLevel);
+            ReportPrecipitation("    (2) a (1)-hez képest", p1, p2, field, seaLevel);
+        }
+
+        /// <summary>Két csapadék-mező összevetése a SZÁRAZFÖLDÖN, percentilis-besorolással.</summary>
+        private static void ReportPrecipitation(string label,
+            MoisturePrecipitation.PrecipitationField baseline, MoisturePrecipitation.PrecipitationField other,
+            Dictionary<TileId, double> field, double seaLevel)
+        {
+            var landBase = new List<double>();
+            var landOther = new List<double>();
+            var tiles = new List<TileId>();
+            foreach (KeyValuePair<TileId, double> kv in field)
+            {
+                if (kv.Value < seaLevel) continue;
+                tiles.Add(kv.Key);
+                landBase.Add(baseline.Precipitation[kv.Key]);
+                landOther.Add(other.Precipitation[kv.Key]);
+            }
+            if (tiles.Count == 0) { Console.WriteLine($"    {label}: nincs szárazföld"); return; }
+
+            double sumBase = 0.0, sumOther = 0.0, sumAbs = 0.0, maxAbs = 0.0;
+            for (int i = 0; i < tiles.Count; i++)
+            {
+                sumBase += landBase[i];
+                sumOther += landOther[i];
+                double d = Math.Abs(landOther[i] - landBase[i]);
+                sumAbs += d;
+                if (d > maxAbs) maxAbs = d;
+            }
+            double meanBase = sumBase / tiles.Count;
+
+            // Percentilis-besorolás: a két mező szerinti NEGYED-be sorolás egyezése.
+            int[] rankBase = QuartileRanks(landBase);
+            int[] rankOther = QuartileRanks(landOther);
+            int same = 0;
+            for (int i = 0; i < tiles.Count; i++) if (rankBase[i] == rankOther[i]) same++;
+
+            Console.WriteLine($"    {label}: átlag {meanBase:F4} → {sumOther / tiles.Count:F4}, " +
+                              $"átlagos |eltérés| {sumAbs / tiles.Count:F4} " +
+                              $"({(meanBase > 0.0 ? 100.0 * (sumAbs / tiles.Count) / meanBase : 0.0):F1}% az átlaghoz), " +
+                              $"max {maxAbs:F4}; NEGYED-besorolás egyezés {same}/{tiles.Count} " +
+                              $"({100.0 * same / tiles.Count:F1}%)");
+        }
+
+        private static int[] QuartileRanks(List<double> values)
+        {
+            var sorted = new double[values.Count];
+            values.CopyTo(sorted);
+            Array.Sort(sorted);
+            double q1 = sorted[(int)(0.25 * sorted.Length)];
+            double q2 = sorted[(int)(0.50 * sorted.Length)];
+            double q3 = sorted[(int)(0.75 * sorted.Length)];
+            var ranks = new int[values.Count];
+            for (int i = 0; i < values.Count; i++)
+            {
+                double v = values[i];
+                ranks[i] = v <= q1 ? 0 : v <= q2 ? 1 : v <= q3 ? 2 : 3;
+            }
+            return ranks;
         }
 
         /// <summary>

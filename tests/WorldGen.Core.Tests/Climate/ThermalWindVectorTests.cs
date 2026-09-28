@@ -153,6 +153,109 @@ public class ThermalWindVectorTests
     }
 }
 
+/// <summary>Az ÉVES átlagos szél az éghajlat-adatúton belül (ND-163).</summary>
+public class ThermalAnnualWindTests
+{
+    private const ulong Seed = 184482873278464UL;
+    private static readonly ThermalOrbit Orbit = new ThermalOrbit(8.0, 1.0, 23.44 * Math.PI / 180.0);
+
+    private static SurfaceTemperatureField Field()
+    {
+        DenseGridMetrics grid = DenseGridMetrics.Build(1);
+        var kinds = new SurfaceThermalKind[grid.CellCount];
+        var elevation = new double[grid.CellCount];
+        for (int c = 0; c < grid.CellCount; c++)
+        {
+            bool ocean = grid.CenterX[c] < 0.1;
+            kinds[c] = ocean ? SurfaceThermalKind.Ocean : SurfaceThermalKind.Land;
+            elevation[c] = ocean ? -3000.0 : 500.0 + 2000.0 * Math.Abs(grid.CenterZ[c]);
+        }
+        return new SurfaceTemperatureField(grid, kinds, elevation, 0.0, Seed, 0.0, Orbit);
+    }
+
+    [Fact]
+    public void AskingForTheWindLeavesEveryTemperatureOutputBitIdentical()
+    {
+        SurfaceTemperatureField a = Field();
+        ThermalAnnualStatistics without = ThermalAnnualStatisticsCalculator.Compute(
+            a, new ThermalSnapshot(a.Grid.CellCount), 4);
+
+        SurfaceTemperatureField b = Field();
+        ThermalAnnualStatistics with = ThermalAnnualStatisticsCalculator.Compute(
+            b, new ThermalSnapshot(b.Grid.CellCount), 4, 0, includeWind: true);
+
+        Assert.Null(without.MeanWindX);
+        Assert.NotNull(with.MeanWindX);
+        for (int c = 0; c < a.Grid.CellCount; c++)
+        {
+            Assert.Equal(without.MeanSurfaceK[c], with.MeanSurfaceK[c]);   // BITRE
+            Assert.Equal(without.MeanAirK[c], with.MeanAirK[c]);
+            Assert.Equal(without.MinSurfaceK[c], with.MinSurfaceK[c]);
+            Assert.Equal(without.MaxAirK[c], with.MaxAirK[c]);
+        }
+    }
+
+    [Fact]
+    public void TheMeanVectorIsNeverLongerThanTheMeanSpeed()
+    {
+        SurfaceTemperatureField field = Field();
+        ThermalAnnualStatistics annual = ThermalAnnualStatisticsCalculator.Compute(
+            field, new ThermalSnapshot(field.Grid.CellCount), 4, 0, includeWind: true);
+
+        for (int c = 0; c < field.Grid.CellCount; c++)
+        {
+            double length = Math.Sqrt(
+                annual.MeanWindX![c] * annual.MeanWindX[c]
+                + annual.MeanWindY![c] * annual.MeanWindY[c]
+                + annual.MeanWindZ![c] * annual.MeanWindZ[c]);
+            // Haromszog-egyenlotlenseg: a vektorok atlaganak hossza <= a
+            // hosszak atlaga. A kulonbseg a szelirany EVES FORGASA - valodi
+            // fizikai tartalom, nem hiba.
+            Assert.True(length <= annual.MeanWindSpeedMs![c] + 1e-9,
+                $"A(z) {c}. cellán a vektorátlag hossza ({length}) meghaladja az átlagsebességet.");
+            Assert.True(annual.MeanWindSpeedMs[c] >= 0.0);
+        }
+    }
+
+    [Fact]
+    public void TheAnnualWindIsReproducible()
+    {
+        ThermalAnnualStatistics first = ThermalAnnualStatisticsCalculator.Compute(
+            Field(), new ThermalSnapshot(Field().Grid.CellCount), 4, 0, includeWind: true);
+        ThermalAnnualStatistics second = ThermalAnnualStatisticsCalculator.Compute(
+            Field(), new ThermalSnapshot(Field().Grid.CellCount), 4, 0, includeWind: true);
+        for (int c = 0; c < first.MeanWindX!.Count; c++)
+        {
+            Assert.Equal(first.MeanWindX[c], second.MeanWindX![c]);
+            Assert.Equal(first.MeanWindSpeedMs![c], second.MeanWindSpeedMs![c]);
+        }
+    }
+
+    [Fact]
+    public void TheDailyWindSumRequiresCaptureAndMatchingArrays()
+    {
+        SurfaceTemperatureField field = Field();
+        int n = field.Grid.CellCount;
+        var state = new ThermalSnapshot(n);
+        var a = new double[n];
+
+        // CaptureCellWind nélkül nem összegezhető.
+        Assert.False(field.CaptureCellWind);
+        Assert.Throws<ArgumentException>(
+            () => ThermalDailyStatisticsCalculator.Compute(field, state, 0, a, a, a, a));
+
+        field.CaptureCellWind = true;
+        Assert.Throws<ArgumentException>(
+            () => ThermalDailyStatisticsCalculator.Compute(field, state, 0, a, null, a, a));
+        Assert.Throws<ArgumentException>(
+            () => ThermalDailyStatisticsCalculator.Compute(field, state, 0, new double[1], a, a, a));
+
+        // Kikapcsolva a hozzáférés explicit hiba, nem csendes null.
+        field.CaptureCellWind = false;
+        Assert.Throws<InvalidOperationException>(() => _ = field.CellWindX);
+    }
+}
+
 /// <summary>A nedvesség-transzport szél- és hőmérséklet-bemenete (ND-158/ND-163).</summary>
 public class MoisturePrecipitationFieldInputTests
 {

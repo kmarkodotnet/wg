@@ -23,10 +23,32 @@ namespace WorldGen.Core.Climate
         public ReadOnlyCollection<double> MinAirK { get; }
         public ReadOnlyCollection<double> MaxAirK { get; }
 
+        /// <summary>
+        /// ND-163: az év mintavételezett tickjein vett ÁTLAGOS cellaközépponti
+        /// szélvektor és átlagsebesség. <c>null</c>, ha a hívó nem kérte.
+        ///
+        /// A VEKTOR átlaga és a SEBESSÉG átlaga KÜLÖN mennyiség, és ez nem
+        /// pongyolaság: a vektorátlag hossza KISEBB az átlagsebességnél, ha a
+        /// szélirány az év során forog (a kioltás valódi fizikai tartalom —
+        /// a monszun-jellegű helyeken kicsi a nettó szállítás). A csapadék
+        /// mindkettőt használja: az IRÁNYT a nedvesség kifolyásához, a
+        /// SEBESSÉGET a párolgáshoz.
+        /// </summary>
+        public ReadOnlyCollection<double>? MeanWindX { get; }
+        public ReadOnlyCollection<double>? MeanWindY { get; }
+        public ReadOnlyCollection<double>? MeanWindZ { get; }
+        public ReadOnlyCollection<double>? MeanWindSpeedMs { get; }
+
         internal ThermalAnnualStatistics(long[] sampleDays, string modelIdentity,
             double[] meanSurfaceK, double[] meanAirK, double[] minSurfaceK, double[] maxSurfaceK,
-            double[] minAirK, double[] maxAirK)
+            double[] minAirK, double[] maxAirK,
+            double[]? meanWindX = null, double[]? meanWindY = null, double[]? meanWindZ = null,
+            double[]? meanWindSpeedMs = null)
         {
+            MeanWindX = meanWindX == null ? null : Array.AsReadOnly(meanWindX);
+            MeanWindY = meanWindY == null ? null : Array.AsReadOnly(meanWindY);
+            MeanWindZ = meanWindZ == null ? null : Array.AsReadOnly(meanWindZ);
+            MeanWindSpeedMs = meanWindSpeedMs == null ? null : Array.AsReadOnly(meanWindSpeedMs);
             SampleDays = Array.AsReadOnly(sampleDays);
             ModelIdentity = modelIdentity;
             MeanSurfaceK = Array.AsReadOnly(meanSurfaceK);
@@ -108,10 +130,11 @@ namespace WorldGen.Core.Climate
         }
 
         public static ThermalAnnualStatistics Compute(SurfaceTemperatureField field, ThermalSnapshot state,
-            int sampleDays = DefaultSampleDays, long firstDay = 0)
+            int sampleDays = DefaultSampleDays, long firstDay = 0, bool includeWind = false)
         {
             if (field == null) throw new ArgumentNullException(nameof(field));
             if (state == null) throw new ArgumentNullException(nameof(state));
+            if (includeWind) field.CaptureCellWind = true;
 
             long[] days = SampleDayIndices(field.Orbit.OrbitalPeriodDays, sampleDays, firstDay);
 
@@ -127,9 +150,19 @@ namespace WorldGen.Core.Climate
             Array.Fill(maxSurface, double.NegativeInfinity);
             Array.Fill(maxAir, double.NegativeInfinity);
 
+            double[]? windX = null, windY = null, windZ = null, windSpeed = null;
+            if (includeWind)
+            {
+                windX = new double[count];
+                windY = new double[count];
+                windZ = new double[count];
+                windSpeed = new double[count];
+            }
+
             for (int j = 0; j < days.Length; j++)
             {
-                ThermalDailyStatistics day = ThermalDailyStatisticsCalculator.Compute(field, state, days[j]);
+                ThermalDailyStatistics day = ThermalDailyStatisticsCalculator.Compute(
+                    field, state, days[j], windX, windY, windZ, windSpeed);
                 for (int cell = 0; cell < count; cell++)
                 {
                     meanSurface[cell] += day.MeanSurfaceK[cell];
@@ -141,13 +174,21 @@ namespace WorldGen.Core.Climate
                 }
             }
 
+            // A SZÉL a napok MINDEN tickjén összegződött, a hőmérséklet viszont
+            // napi átlagokból áll össze - ezért más az osztó.
+            long windSamples = (long)days.Length * SimulationTime.TicksPerDay;
             for (int cell = 0; cell < count; cell++)
             {
                 meanSurface[cell] /= days.Length;
                 meanAir[cell] /= days.Length;
+                if (windX == null) continue;
+                windX[cell] /= windSamples;
+                windY![cell] /= windSamples;
+                windZ![cell] /= windSamples;
+                windSpeed![cell] /= windSamples;
             }
             return new ThermalAnnualStatistics(days, field.ModelIdentity, meanSurface, meanAir,
-                minSurface, maxSurface, minAir, maxAir);
+                minSurface, maxSurface, minAir, maxAir, windX, windY, windZ, windSpeed);
         }
     }
 }

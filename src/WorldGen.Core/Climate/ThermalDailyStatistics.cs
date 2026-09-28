@@ -40,6 +40,23 @@ namespace WorldGen.Core.Climate
     {
         public static ThermalDailyStatistics Compute(SurfaceTemperatureField field,
             ThermalSnapshot state, long dayIndex)
+            => Compute(field, state, dayIndex, null, null, null, null);
+
+        /// <summary>
+        /// Ugyanaz, de a nap 96 mintáján a CELLAKÖZÉPPONTBELI SZÉLVEKTORT és a
+        /// sebességet is összegzi a megadott tömbökbe (ND-163).
+        ///
+        /// MIÉRT ÖSSZEGZÉS ÉS NEM ÁTLAG. A hívó több napot fűz egymás után
+        /// (éves átlag), ezért az osztást EGYSZER, a végén kell elvégezni —
+        /// különben a részátlagok újraátlagolása lebegőpontos hibát vinne be.
+        ///
+        /// A szél INGYEN jön: a <see cref="SurfaceTemperatureField.Step"/> amúgy
+        /// is kiszámolja (<see cref="SurfaceTemperatureField.CaptureCellWind"/>),
+        /// tehát a többi kimenet BITRE változatlan.
+        /// </summary>
+        public static ThermalDailyStatistics Compute(SurfaceTemperatureField field,
+            ThermalSnapshot state, long dayIndex,
+            double[]? windSumX, double[]? windSumY, double[]? windSumZ, double[]? speedSum)
         {
             if (field == null) throw new ArgumentNullException(nameof(field));
             if (state == null) throw new ArgumentNullException(nameof(state));
@@ -61,6 +78,19 @@ namespace WorldGen.Core.Climate
             Array.Fill(maxSurface, double.NegativeInfinity);
             Array.Fill(maxAir, double.NegativeInfinity);
 
+            bool wantWind = windSumX != null;
+            if (wantWind)
+            {
+                if (windSumY == null || windSumZ == null || speedSum == null)
+                    throw new ArgumentException("A szél-összegző tömböket együtt kell megadni.", nameof(windSumX));
+                if (windSumX!.Length != count || windSumY.Length != count
+                    || windSumZ.Length != count || speedSum.Length != count)
+                    throw new ArgumentException("A szél-összegző tömbök mérete a cellaszámmal egyezzen.", nameof(windSumX));
+                if (!field.CaptureCellWind)
+                    throw new ArgumentException(
+                        "A szél összegzéséhez a mezőn be kell kapcsolni a CaptureCellWind-et.", nameof(field));
+            }
+
             for (int sample = 0; sample < SimulationTime.TicksPerDay; sample++)
             {
                 field.BaselineAt(state.Tick, baseline);
@@ -76,6 +106,18 @@ namespace WorldGen.Core.Climate
                     if (air > maxAir[cell]) maxAir[cell] = air;
                 }
                 field.Step(state);
+                if (!wantWind) continue;
+                // A Step UTÁN olvassuk: a mező ekkor tartalmazza az ADOTT tick
+                // középidejéhez tartozó szelet, ugyanazt, amivel a lépés számolt.
+                double[] wx = field.CellWindX, wy = field.CellWindY, wz = field.CellWindZ;
+                double[] speed = field.CellSpeed;
+                for (int cell = 0; cell < count; cell++)
+                {
+                    windSumX![cell] += wx[cell];
+                    windSumY![cell] += wy[cell];
+                    windSumZ![cell] += wz[cell];
+                    speedSum![cell] += speed[cell];
+                }
             }
 
             for (int cell = 0; cell < count; cell++)
