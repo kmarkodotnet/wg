@@ -8650,6 +8650,18 @@ Három új, élő Inspector-csúszka a látvány-ítélethez (B17):
 `cloudVolumeOpacity` (optikai mélység). Az elsőnek az atlaszt is újra kell
 csomagolnia, ezt a munka-indító kapu kezeli.
 
+**A második kör MÉRÉSE** (ugyanaz a nézet, befagyasztott Nap): korong-luminancia
+75,55 (felhő nélkül) → 96,89 (a review utáni, még fizikai optikai mélységgel)
+→ **90,12** (a 0,45-ös optikai-mélység-skalával); fényes pixelek 14,01% → 25,13%
+→ **20,32%**. A felhő tehát továbbra is ott van, de a felszín átolvasható rajta.
+
+**MEGMARADT LÁTVÁNY-KÉRDÉS (B17).** A 111-szeres függőleges nyújtás a mély
+konvektív cellákat is felnagyítja: egy 9,5 km-es zivatarfelhő 1054 km-nek
+(14 egység) rajzolódik, ami a limbnél kiugró dudorokat ad. Ez a nyújtás
+KÖVETKEZMÉNYE és KONZISZTENS a tereppél (egy 2,3 km-es hegy 255 km-nek látszik),
+nem hiba — de eldöntendő, hogy így maradjon-e, vagy a felhő VASTAGSÁGA kapjon
+kisebb nyújtást, mint az ALAPJA.
+
 **ISMERT KORLÁT, dokumentálva.** Űrből nézve a burkoló KÖZELI lapja van elöl,
 ezért ott a mélységteszt nem segít: egy a felhődekkbe emelkedő HEGY nem takarja
 el a mögötte lévő felhőt. A domináns takaró (a bolygó túloldala) analitikusan
