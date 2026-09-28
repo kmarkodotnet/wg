@@ -151,3 +151,78 @@ pont a panel-számokat rontja, amiket most tettünk igazzá.
 A7 funkcionális súlyozással kb. **95%** — a maradék a csapadék szele
 (ND-163), az ND-160 döntés és a vizuális átvétel. Erre a körre durván
 **3 munkaóra** ment rá; durva becslés, nincs valós idő-naplózás.
+
+---
+
+## Utóirat (ugyanaznap): „nem működik, hiába kapcsolgatom"
+
+A felhasználó jelezte, hogy a kapcsoló nem csinál semmit. **Három külön ok
+volt, és a második a súlyos.**
+
+### 1. A kapcsolók nem szerepeltek a konfiguráció-pillanatképben
+
+A `WorldConfigChangedSinceBuild()` nem figyelte sem az új
+`useThermalClimateBiome`-ot, sem az ND-162 `useThermalClimateIce`-át —
+tehát az Inspector-beli átkapcsolás **egyáltalán nem indított Buildet**,
+amíg valami más nem változott. Az ND-162 kapcsolója így SOHA nem működött.
+Javítás: mindkettő bekerült a `SnapshotWorldConfig`/összehasonlítás párba.
+Élőben igazolva: `configChanged` mindkét irányban `True`.
+
+### 2. A domain reload VÉGLEG megölte az éghajlatot
+
+Ez a súlyos. Unity a Play közbeni script-újrafordításkor (és a reload-dal
+járó Play-be lépéskor) az **értéktípusú** mezőket átmenti, a
+**referenciákat** nem. Következmény:
+
+| mező | típus | domain reload után |
+|---|---|---|
+| `_climateInputsIdentity` | `ulong` | **túléli** |
+| `_hasClimateInputsIdentity` | `bool` | **túléli** |
+| `_climateRevision` | `int` | **túléli** |
+| `_climatePendingInputs` | referencia | `null` |
+| `_climateApplied` / `_climateCompleted` | referencia | `null` |
+| `_climateTask` | referencia | `null` |
+
+Ezután a `CaptureThermalClimateInputs` az „ugyanaz a világ" ágra futott
+(az azonosító ugyanaz!), és **soha nem fegyverezte újra** a bemenetet; az
+`UpdateThermalClimate` pedig `inputs == null` miatt sosem indult el. Az
+éghajlat a session végéig HALOTT maradt — a jég, a biome és a párolgás
+némán az analitikus előnézeten ragadt, hibaüzenet nélkül.
+
+Élőben megfigyelve: `rev=5`, `hasId=True`, `pending/applied/completed`
+mind `null`, változatlan azonosító mellett; három egymás utáni Build sem
+mozdított rajta semmit.
+
+Javítás: az „ugyanaz a világ" ág mostantól megkérdezi, van-e **bármi élő**
+(pending / futó task / kész / átvett eredmény). Ha nincs, újrafegyverzi a
+bemenetet **revízió-emelés NÉLKÜL** — a világ nem változott, tehát a
+lemez-cache találni fog. Élőben igazolva: reload után
+`status = "éghajlat: újrafegyverezve (domain reload után)"`, majd
+**gyorsítótárból 497 ms**, és a hőmodell útja újra aktív.
+
+Ez a hibaosztály általános tanulság: **Unity-ben egy értéktípusú
+„cache-kulcs" és a hozzá tartozó referencia-állapot külön sorsú.** A
+kulcsra épülő „nincs dolgom" rövidzár mindig kérdezze meg azt is, hogy
+egyáltalán VAN-e még mit rövidre zárni.
+
+### 3. Mérési csapda, ami engem vezetett félre
+
+A `Build()` az elején kilép, ha LOD-vágás fut (`_cutTask != null`), és csak
+a `_fullBuildRequestedAfterCut` jelzőt állítja. Emiatt az egyetlen
+eval-ban futtatott „ON → OFF → ON" sorozatban a 2. és 3. Build **no-op**
+volt, és úgy tűnt, mintha a kapcsoló nem váltana. Ez NEM felhasználói hiba
+(a halasztott kérést az `Update()` teljesíti) — de a verifikációt
+egyenként, egy Build / egy állítás ritmusban kell végezni.
+
+### Az egyenkénti, tiszta igazolás
+
+| kapcsoló | `configChanged` | sarok-tábla | párolgási mező | szárazföldi biome |
+|---|---|---:|---|---|
+| **OFF** | True | **−1** | `null` | IceSheet 175, Tundra 155, SeaIce 45 (analitikus) |
+| **ON** | True | **5** | `SET` | IceSheet **430**, Tundra 0, SeaIce 0 (hőmodell) |
+
+A 430 pontosan a CLI-ben mért percentilis jégcella-szám.
+
+Kapuk a javítások után: solution 0 hiba / 0 warning, LodChunking
+**662/662**, ND-20 kapu OK, mindkét offline Unity-kapu tiszta, Unity
+újrafordítás 0 hibával.

@@ -9709,6 +9709,58 @@ oldalon csak új API-k keletkeztek. A csapadék-mező viszont mostantól
 deep-time-függő lett (a hőmérséklet-bemeneten keresztül) — ezt a
 gyorsítótár kulcsa követi.
 
+#### 7b. Három hiba, amit a felhasználói visszajelzés hozott elő
+
+A „nem működik, hiába kapcsolgatom" jelzés után három külön ok derült ki.
+
+**(1) A kapcsolók nem szerepeltek a konfiguráció-pillanatképben.** A
+`WorldConfigChangedSinceBuild()` sem az új `useThermalClimateBiome`-ot,
+sem az ND-162 `useThermalClimateIce`-át nem figyelte, tehát az
+Inspector-beli átkapcsolás egyáltalán nem indított Buildet. Az ND-162
+kapcsolója emiatt SOHA nem működött. Mindkettő bekerült.
+
+**(2) A domain reload VÉGLEG megölte az éghajlatot — ez a súlyos.** Unity
+a Play közbeni script-újrafordításkor az ÉRTÉKTÍPUSÚ mezőket átmenti, a
+REFERENCIÁKAT nem. Így az `_climateInputsIdentity` (ulong), a
+`_hasClimateInputsIdentity` (bool) és a `_climateRevision` (int) TÚLÉLI, a
+`_climatePendingInputs` / `_climateApplied` / `_climateCompleted` /
+`_climateTask` viszont `null` lesz. A `CaptureThermalClimateInputs` ezután
+az „ugyanaz a világ" ágra futott — hiszen az azonosító tényleg ugyanaz —,
+és soha nem fegyverezte újra a bemenetet; az `UpdateThermalClimate` pedig
+`inputs == null` miatt sosem indult el. **Az éghajlat a session végéig
+halott maradt, hibaüzenet nélkül:** a jég, a biome és a párolgás némán az
+analitikus előnézeten ragadt. Élőben megfigyelve: `rev = 5`, változatlan
+azonosító, `pending`/`applied`/`completed` mind `null`, és három egymást
+követő Build sem mozdított rajta.
+
+Javítás: az „ugyanaz a világ" rövidzár mostantól megkérdezi, van-e BÁRMI
+élő (pending bemenet, futó task, kész vagy már átvett eredmény). Ha nincs,
+újrafegyverzi a bemenetet REVÍZIÓ-EMELÉS NÉLKÜL — a világ nem változott,
+tehát a lemez-cache talál. Élőben: `"éghajlat: újrafegyverezve (domain
+reload után)"` → **gyorsítótárból 497 ms** → a hőmodell útja újra aktív.
+
+Az általánosítható tanulság: **Unityben egy értéktípusú „cache-kulcs" és a
+hozzá tartozó referencia-állapot külön sorsú a domain reloadon.** A
+kulcsra épülő „nincs dolgom" rövidzár mindig kérdezze meg azt is, hogy
+egyáltalán VAN-e még mit rövidre zárni.
+
+**(3) Mérési csapda (nem felhasználói hiba).** A `Build()` az elején kilép,
+ha LOD-vágás fut (`_cutTask != null`), és csak a
+`_fullBuildRequestedAfterCut` jelzőt állítja. Egyetlen evalban futtatott
+„ON → OFF → ON" sorozatban ezért a 2. és 3. Build no-op volt, és úgy tűnt,
+mintha a kapcsoló nem váltana. A halasztott kérést az `Update()`
+teljesíti; a verifikációt viszont egy Build / egy állítás ritmusban kell
+végezni.
+
+**Az egyenkénti igazolás:**
+
+| kapcsoló | `configChanged` | sarok-tábla | párolgási mező | szárazföldi biome |
+|---|---|---:|---|---|
+| OFF | True | **−1** | `null` | IceSheet 175, Tundra 155, SeaIce 45 (analitikus) |
+| ON | True | **5** | `SET` | IceSheet **430**, Tundra 0, SeaIce 0 (hőmodell) |
+
+A 430 pontosan a CLI-ben mért percentilis jégcella-szám.
+
 #### 8. Ami NYITVA marad
 
 1. A **vizuális átvétel** — felhasználói ítélet (a tengeri jég eltűnése és

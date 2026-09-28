@@ -237,10 +237,42 @@ namespace WorldGen.Viewer
                 ElevationM = elevation,
             };
             ulong identity = ComputeInputsIdentity(inputs);
-            if (_hasClimateInputsIdentity && identity == _climateInputsIdentity)
+            bool sameWorld = _hasClimateInputsIdentity && identity == _climateInputsIdentity;
+
+            // Van-e BARMI, ami ebbol az eghajlatbol meg elo? A pending bemenet,
+            // egy futo munka, egy kesz eredmeny vagy egy mar atvett eredmeny.
+            bool anyLiveWork = _climatePendingInputs != null || _climateTask != null
+                || _climateCompleted != null || _climateApplied != null;
+
+            if (sameWorld && anyLiveWork)
             {
                 // Ugyanaz a vilag: a mar kesz vagy epp futo munka ervenyes marad.
                 if (_climatePendingInputs != null) _climatePendingInputs.Revision = _climateRevision;
+                return;
+            }
+
+            if (sameWorld)
+            {
+                // UGYANAZ a vilag, de MINDEN allapot eltunt. Ez a DOMAIN RELOAD
+                // (script-ujraforditas Play kozben, vagy Play-be lepes reload-dal):
+                // a Unity az ERTEKTIPUSU mezoket atmenti, a REFERENCIAKAT nem -
+                // tehat a `_climateInputsIdentity` es a `_hasClimateInputsIdentity`
+                // TULELI, a `_climatePendingInputs` / `_climateApplied` /
+                // `_climateCompleted` / `_climateTask` viszont null lesz.
+                //
+                // A regi kod ilyenkor a fenti "ugyanaz a vilag" agon ment ki, es
+                // SOHA nem fegyverezte ujra a bemenetet: az UpdateThermalClimate
+                // `inputs == null` miatt sosem indult el, tehat az eghajlat a
+                // session vegeig HALOTT maradt - a jeg, a biome es a parolgas
+                // nemán az analitikus elonezeten ragadt. Elo Play-ben megfigyelve
+                // (2026-09-28): rev=5, pending/applied/completed mind null,
+                // valtozatlan azonosito mellett.
+                //
+                // Ujrafegyverzes REVIZIO-EMELES NELKUL: a vilag nem valtozott,
+                // tehat a lemez-cache talalni fog, es ez ms-ba kerul.
+                inputs.Revision = _climateRevision;
+                _climatePendingInputs = inputs;
+                _climateStatus = "éghajlat: újrafegyverezve (domain reload után)";
                 return;
             }
 

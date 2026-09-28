@@ -1940,6 +1940,11 @@ namespace WorldGen.Viewer
         private double _wcDeepTime, _wcTargetWater, _wcRiverFrac;
         private double _wcDayT, _wcOrbital, _wcRotation, _wcAxialTilt, _wcRelief, _wcElevScale;
         private bool _wcCraters, _wcRivers, _wcLakesIce, _wcErosion;
+        // ND-164: a homodell-kapcsolok is IDE tartoznak. Korabban nem voltak
+        // benne, ezert az Inspector-beli atkapcsolasuk SEMMIT nem csinalt, amig
+        // valami MAS nem inditott Build-et - a kapcsolo "nem mukodott".
+        // Ugyanez allt az ND-162 useThermalClimateIce-ara is.
+        private bool _wcThermalIce, _wcThermalBiome;
         private int _wcHydroLevel, _wcMinLakeTiles;
         private double _wcMinLakeDepth;
 
@@ -1957,6 +1962,7 @@ namespace WorldGen.Viewer
             _wcErosion = showDeepTimeErosion;
             _wcHydroLevel = hydrologyLevel; _wcMinLakeTiles = minLakeTiles;
             _wcMinLakeDepth = minLakeDepthMeters;
+            _wcThermalIce = useThermalClimateIce; _wcThermalBiome = useThermalClimateBiome;
         }
 
         // FELHASZNALOI IGENY (2026-09-06, code-review-ban feltarva): a
@@ -2001,7 +2007,8 @@ namespace WorldGen.Viewer
                 || _wcCraters != showCraters || _wcRivers != showRivers || _wcLakesIce != showLakesIce
                 || _wcErosion != showDeepTimeErosion
                 || _wcHydroLevel != hydrologyLevel || _wcMinLakeTiles != minLakeTiles
-                || _wcMinLakeDepth != minLakeDepthMeters;
+                || _wcMinLakeDepth != minLakeDepthMeters
+                || _wcThermalIce != useThermalClimateIce || _wcThermalBiome != useThermalClimateBiome;
         }
 
         // ND-50 LEZARASA (2026-09-20). Az overlay-mezok KORABBAN a teljes
