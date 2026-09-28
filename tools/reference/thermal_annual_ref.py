@@ -31,13 +31,21 @@ MIT ROGZIT
    Nincs tolerancia-fuggo megallas: a menetszam konstans, tehat az
    eredmeny bitre reprodukalhato (I1).
 
-   A jegosztalyozas a FELSZINI (Ts) eves atlagra es minimumra megy, a
-   LakesIceErosion.ClassifyIce valtozatlan kuszobeivel:
-       mean < 258,15 K -> PermanentIce
-       min  < 273,15 K -> SeasonalSnow
-       kulonben None
+   A jegosztalyozas a FELSZINI (Ts) eves atlagra es minimumra megy.
 
-A kimenet kis racson (level 1) es rovid even keszul, hogy pure Pythonban
+4. Ketfele kuszob (ND-159). Az orakulum MINDKETTOT kiszamolja, mert a
+   ketmenetes klima FUGG a kuszobtol (az A menet jege adja a B menet
+   felszintipusait), tehat a ket mod ket kulonbozo vilagot ad:
+
+   "absolute" - a regi szabaly, LakesIceErosion.ClassifyIce:
+       mean < 258,15 K -> PermanentIce;  min < 273,15 K -> SeasonalSnow
+
+   "percentile" - ND-159: a tartos jeg vagopontja az adott menet SAJAT
+       eloszlasabol, a rendezett eves felszini atlagok q-indexu eleme
+       (idx = int(q * n), a projekt egyseges percentilis-konvencioja);
+       a szezonalis ho kuszobe valtozatlanul az abszolut fagypont.
+
+A kimenet kis racson (level 2) es rovid even keszul, hogy pure Pythonban
 percek helyett masodpercek alatt lefusson; az aggregacios szabaly
 racsfuggetlen.
 
@@ -61,6 +69,7 @@ SEA_LEVEL_M = 0.0
 
 PERMANENT_ICE_MEAN_K = 258.15
 SEASONAL_SNOW_MIN_K = 273.15
+PERMANENT_ICE_PERCENTILE = 0.07  # ND-159, a mert 6,85% / 7,03% kerek megfeleloje
 ICE_NONE, ICE_SEASONAL, ICE_PERMANENT = 0, 1, 2
 ICE_NAMES = ["None", "SeasonalSnow", "PermanentIce"]
 
@@ -204,13 +213,34 @@ def annual_statistics(field, state, sample_days=SAMPLE_DAYS, first_day=FIRST_DAY
             "minSurfaceK": min_s, "maxSurfaceK": max_s, "minAirK": min_a, "maxAirK": max_a}
 
 
-def classify_ice(mean_annual_k, min_annual_k):
-    """LakesIceErosion.ClassifyIce, valtozatlan kuszobokkel."""
-    if mean_annual_k < PERMANENT_ICE_MEAN_K:
+def classify_ice(mean_annual_k, min_annual_k, permanent_threshold_k=PERMANENT_ICE_MEAN_K):
+    """A C# ThermalIceClassification.Classify: ket kuszob, tiszta osszehasonlitas."""
+    if mean_annual_k < permanent_threshold_k:
         return ICE_PERMANENT
     if min_annual_k < SEASONAL_SNOW_MIN_K:
         return ICE_SEASONAL
     return ICE_NONE
+
+
+def permanent_ice_threshold(mean_surface_k, q=PERMANENT_ICE_PERCENTILE):
+    """ND-159: a tartos jeg vagopontja az eloszlasbol. Ures bemenetnel -inf."""
+    n = len(mean_surface_k)
+    if n == 0:
+        return -math.inf
+    ordered = sorted(mean_surface_k)
+    idx = int(q * n)
+    if idx < 0:
+        idx = 0
+    if idx > n - 1:
+        idx = n - 1
+    return ordered[idx]
+
+
+def thresholds_for(stats, mode):
+    """A menet tartos-jeg vagopontja: abszolut vagy az eloszlasbol vett percentilis."""
+    if mode == "absolute":
+        return PERMANENT_ICE_MEAN_K
+    return permanent_ice_threshold(stats["meanSurfaceK"])
 
 
 def ice_free_kinds(kinds):
@@ -218,22 +248,33 @@ def ice_free_kinds(kinds):
     return [tf.LAND if k == tf.ICE else k for k in kinds]
 
 
-def two_pass_climate(grid, base_kinds, elevation):
+def two_pass_climate(grid, base_kinds, elevation, mode="absolute"):
     assert tf.ICE not in base_kinds, "Az A menet bemenete nem tartalmazhat Ice tipust."
     count = len(base_kinds)
 
     field_a = make_field(grid, base_kinds, elevation)
     stats_a = annual_statistics(field_a, State(count))
-    ice_a = [classify_ice(stats_a["meanSurfaceK"][c], stats_a["minSurfaceK"][c]) for c in range(count)]
+    thr_a = thresholds_for(stats_a, mode)
+    ice_a = [classify_ice(stats_a["meanSurfaceK"][c], stats_a["minSurfaceK"][c], thr_a) for c in range(count)]
 
     refined = [tf.ICE if ice_a[c] == ICE_PERMANENT else base_kinds[c] for c in range(count)]
-    field_b = make_field(grid, refined, elevation)
-    stats_b = annual_statistics(field_b, State(count))
-    ice_b = [classify_ice(stats_b["meanSurfaceK"][c], stats_b["minSurfaceK"][c]) for c in range(count)]
+
+    # ND-158 bitazonos rovidzar: ha nincs tartos jeg, a B menet bemenete
+    # azonos, tehat a masodik futas elhagyhato. Percentilis modban ez
+    # konstrukcio szerint sosem all fenn.
+    if any(k == tf.ICE for k in refined):
+        field_b = make_field(grid, refined, elevation)
+        stats_b = annual_statistics(field_b, State(count))
+        thr_b = thresholds_for(stats_b, mode)
+        ice_b = [classify_ice(stats_b["meanSurfaceK"][c], stats_b["minSurfaceK"][c], thr_b) for c in range(count)]
+        skipped = False
+    else:
+        stats_b, thr_b, ice_b, skipped = stats_a, thr_a, list(ice_a), True
 
     reclassified = sum(1 for c in range(count) if ice_a[c] != ice_b[c])
     return {"iceFree": stats_a, "refined": stats_b, "iceFreeClass": ice_a, "refinedClass": ice_b,
-            "refinedKinds": refined, "reclassifiedCells": reclassified}
+            "refinedKinds": refined, "reclassifiedCells": reclassified,
+            "iceFreeThresholdK": thr_a, "refinedThresholdK": thr_b, "secondPassSkipped": skipped}
 
 
 def main():
@@ -246,17 +287,22 @@ def main():
     print("Jegmentes bazis-tipusok: " + ", ".join(
         f"{tf.KIND_NAMES[k]}={base_kinds.count(k)}" for k in range(4)), flush=True)
 
-    climate = two_pass_climate(grid, base_kinds, elevation)
-
-    for name in ("iceFree", "refined"):
-        s = climate[name]
-        print(f"{name}: napok {s['days']}, Ts atlag [{min(s['meanSurfaceK']):.3f}, "
-              f"{max(s['meanSurfaceK']):.3f}] K, Ta atlag [{min(s['meanAirK']):.3f}, "
-              f"{max(s['meanAirK']):.3f}] K", flush=True)
-    for name, key in (("A menet", "iceFreeClass"), ("B menet", "refinedClass")):
-        counts = [climate[key].count(i) for i in range(3)]
-        print(f"{name} jeg: " + ", ".join(f"{ICE_NAMES[i]}={counts[i]}" for i in range(3)), flush=True)
-    print(f"Atsorolt cellak a ket menet kozott: {climate['reclassifiedCells']}", flush=True)
+    modes = {}
+    for mode in ("absolute", "percentile"):
+        print(f"--- {mode} kuszob ---", flush=True)
+        climate = two_pass_climate(grid, base_kinds, elevation, mode)
+        modes[mode] = climate
+        for name in ("iceFree", "refined"):
+            st = climate[name]
+            print(f"  {name}: napok {st['days']}, Ts atlag [{min(st['meanSurfaceK']):.3f}, "
+                  f"{max(st['meanSurfaceK']):.3f}] K, Ta atlag [{min(st['meanAirK']):.3f}, "
+                  f"{max(st['meanAirK']):.3f}] K", flush=True)
+        for name, key in (("A menet", "iceFreeClass"), ("B menet", "refinedClass")):
+            counts = [climate[key].count(i) for i in range(3)]
+            print(f"  {name} jeg: " + ", ".join(f"{ICE_NAMES[i]}={counts[i]}" for i in range(3)), flush=True)
+        print(f"  kuszob: A={climate['iceFreeThresholdK']:.4f} K, B={climate['refinedThresholdK']:.4f} K; "
+              f"atsorolt={climate['reclassifiedCells']}, masodik menet kihagyva="
+              f"{climate['secondPassSkipped']}", flush=True)
 
     vectors = {
         "modelVersion": tf.MODEL_VERSION,
@@ -270,15 +316,12 @@ def main():
         "worldSeed": WORLD_SEED,
         "tYears": T_YEARS,
         "seaLevelM": SEA_LEVEL_M,
-        "sampleDayIndices": climate["refined"]["days"],
+        "permanentIcePercentile": PERMANENT_ICE_PERCENTILE,
+        "sampleDayIndices": modes["absolute"]["refined"]["days"],
         "baseKinds": base_kinds,
-        "refinedKinds": climate["refinedKinds"],
         "elevationM": elevation,
-        "iceFree": climate["iceFree"],
-        "refined": climate["refined"],
-        "iceFreeClass": climate["iceFreeClass"],
-        "refinedClass": climate["refinedClass"],
-        "reclassifiedCells": climate["reclassifiedCells"],
+        "absolute": modes["absolute"],
+        "percentile": modes["percentile"],
     }
     with open("thermal_annual_vectors.json", "w", newline="\n") as f:
         json.dump(vectors, f, indent=1)

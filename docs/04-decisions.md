@@ -8924,7 +8924,7 @@ hanem a felhasználói ítélet arról, hogy a felhővel együtt milyen összké
 színkalibrációs lába a todo2 B18 sora (a B17 vizuális átvétel UTÁN).
 
 
-### ND-158 — Éves hőstatisztika és a jégmaszk körkörös függésének feloldása (A7 6. fázis, ELFOGADVA, Core implementálva; a fogyasztói átállás MÉRÉSSEL BLOKKOLVA)
+### ND-158 — Éves hőstatisztika és a jégmaszk körkörös függésének feloldása (A7 6. fázis, ELFOGADVA, Core implementálva; a küszöb-kérdést az ND-159 zárta le)
 
 **Dátum:** 2026-09-28. **Előzmény:** ND-100–104 (hőmodell), ND-142 (hő–szél
 csatolás), ND-143 (állapot-azonosság + a 6. fázis fogyasztói kapuja),
@@ -9063,7 +9063,7 @@ A `WorldGeneratorVersion` marad `"5"`, a `ThermalModelParameters.ModelVersion`
 marad 3.
 
 
-### ND-159 — A jégküszöb és a radiatív simítás ütközése (A7 6. fázis, MÉRVE, DÖNTÉS NYITOTT)
+### ND-159 — A jégküszöb és a radiatív simítás ütközése (A7 6. fázis, ELFOGADVA: (C) percentilis küszöb, implementálva)
 
 **Dátum:** 2026-09-28. **Előzmény:** ND-158 (éves hőstatisztika),
 ND-100 (M13 radiatív simítás), ND-43 (`LakesIceErosion` jégküszöbei).
@@ -9148,9 +9148,112 @@ amelyről ugyanez a mérés mutatta ki, hogy nem hiteles. Az (A) akkor
 választható, ha a „−15 °C = tartós jég" fizikai jelentés megőrzése
 fontosabb, mint a hőoverlay — de akkor az ND-100 döntését is újra kell nyitni.
 
-**A döntésig a fogyasztói kapu zárva marad** (ND-143). A mérőeszköz
-(`worldgen thermal-climate --beta`) a repóban van, tehát bármelyik opció
-újramérhető más seedeken is.
+#### DÖNTÉS (2026-09-28): **(C) — percentilis tartós-jég küszöb**
+
+A felhasználó a (C)-t választotta. Implementálva:
+`ThermalIceClassification` — a tartós jég vágópontja az adott MENET SAJÁT
+éves felszíni középhőmérséklet-eloszlásának q-percentilise
+(`idx = (int)(q·n)` a rendezett mintán — a projekt egységes percentilis-
+konvenciója), a szezonális hóé marad az ABSZOLÚT fagypont.
+
+**q = 0,07**, mért alapon: a ma látható jégtakaró a cellák 6,85%-a level
+5-ön és 7,03%-a level 6-on — a 0,07 ennek kerek megfelelője.
+
+**Miért nincs metszet abszolút plafonnal.** Kézenfekvő volna a percentilist
+megvágni egy „de csak fagypont alatt" feltétellel. MÉRVE ez majdnem üres
+halmaz: β = 0,5 mellett a leghidegebb cella éves átlaga −1,7 °C, a 7.
+percentilis már +7,02 °C — egy 0 °C-os plafon néhány cellát hagyna meg.
+Pontosan az ND-124 hibaáosztálya, ezért tudatosan NINCS metszet.
+
+**Eredmény**, ugyanazon a világon:
+
+| | cél (régi út) | percentilis küszöb | egyezés | pillanatnyi min |
+|---|---:|---:|---:|---:|
+| level 5 | 421 (6,85%) | **430 (7,00%)** | 69,8% → **72,7%** | −33,1 °C |
+| level 6 | 1727 (7,03%) | **1720 (7,00%)** | 69,9% → **72,6%** | −34,2 °C |
+
+A pillanatnyi mező ÉRINTETLEN, tehát a hőoverlay nem romlik. A level-6
+futásban a két menet **2 cellát** sorolt át egymáshoz képest — vagyis a
+második menet nem formalitás, a jég-albedó tényleg visszahat.
+
+**KÖLTSÉG-KÖVETKEZMÉNY.** Percentilis módban az A menet KONSTRUKCIÓ SZERINT
+talál tartós jeget, ezért az ND-158 bitazonos rövidzára (a második menet
+kihagyása) gyakorlatilag sosem lép be: a költség a teljes kétmenetes érték.
+Mérve: level 5-ön **39,8 s** (a rövidzáras 17,0 s helyett), level 6-on
+**117,1 s** (3,94 ms/tick, Release, párhuzamos lokális lépés). Ez a Buildbe
+szinkron módon nem fér bele — háttérszál és/vagy lemez-gyorsítótár kell hozzá
+(az ND-122/131 mintájára), ez az átkötés külön lépése.
+
+**VÁLLALT ÁR, explicit:** a tartós jég aránya így minden világon ugyanaz —
+egy forró bolygón is lesz „jégsapka". A modell abszolút szintjének
+hitelességét az ND-160 tárgyalja.
+
+**A fogyasztói kapu (ND-143) ezzel a jég oldaláról feloldható**; a viewer
+tényleges átkötése és annak vizuális átvétele külön lépés. A mérőeszköz
+(`worldgen thermal-climate --beta --ice-percentile --decompose`) a repóban
+van, tehát bármelyik opció újramérhető más seedeken is.
+
+
+### ND-160 — A bázis radiatív tagja FELSZÍNI albedót használ BOLYGÓ-energiamérlegben (MÉRVE, DÖNTÉS NYITOTT)
+
+**Dátum:** 2026-09-28. **Előzmény:** ND-42 (üvegház-konstansok), ND-100
+(bázis), ND-159 (β-söprés), todo2 B14 (b) konstans-megerősítés.
+
+**A lelet.** Az ND-159 söprése mellékesen kimutatta, hogy a modell nem csak
+a póluson, hanem GLOBÁLISAN meleg: a medián éves felszíni átlag
+**+33,7 °C**. A `worldgen thermal-climate --decompose` a bázist tagonként
+bontja fel (területtel súlyozott globális átlag, level 5, seed
+0xA7C944210000):
+
+| tag | érték (K) |
+|---|---:|
+| **T_rad(f_eff)** | **264,86** |
+| T_üvegház | +33,00 |
+| T_meridionális | +8,00 |
+| T_óceán | −0,00 |
+| T_magasság | −0,92 |
+| T_ciklus | −2,05 |
+| = bázis átlag | **302,89 K = +29,74 °C** |
+
+**A gyökérok.** A radiatív tag a cella FELSZÍNI albedójával számol
+(`Temperature.AlbedoOcean = 0,06`, `AlbedoLand = 0,30`), de a képlet maga
+BOLYGÓ-energiamérleg, és a hozzáadott +33 K üvegház-eltolás a 255 K-es
+bolygó-egyensúlyhoz van kalibrálva — ami viszont a≈0,30-as BOLYGÓ-albedót
+feltételez (felhők + légkör). Ellenőrző számítás f = 0,25 mellett:
+
+| albedó | T_rad |
+|---|---:|
+| 0,30 (bolygó-albedó) | 254,58 K |
+| 0,06 (óceán-felszín) | 274,05 K |
+| 0,144 (a világ 65% óceánának kevert FELSZÍNI albedója) | 267,71 K |
+
+A mért 264,86 K pont itt van (a ^0,25 konkavitása húzza kicsit lejjebb),
+tehát **+10,3 K-nel a 255 K fölött**. Ez a többlet, plusz a +8 K
+meridionális tag viszi a bázist +29,7 °C-ra a várt ~+15 °C helyett.
+
+**Fontos: a SOLVER nem hibás.** A tickenkénti anomália-tag
+(`_cellAlbedoTerm = SolarConstant · (1 − Albedo(kind))`) helyesen használ
+felszíni albedót — ott az a fizikailag helyes mennyiség. A keverés
+kizárólag a BÁZIS radiatív tagjában van.
+
+**Opciók (egyik sincs implementálva):**
+
+**(1) Bolygó-albedó a bázisban.** A bázis radiatív tagja egységes
+a≈0,30-cal számol; a felszíni albedó-különbség marad ott, ahová való —
+az anomália-tagban. Fizikailag ez a konzisztens válasz, és a globális átlag
+közel ~+15 °C-ra kerülne. Seed-törő.
+
+**(2) Az üvegház-konstans csökkentése.** Ugyanazt az átlagot adja, de
+elfedi az okot, és más világokon (más szárazföld-aránnyal) más hibát hagy
+hátra, mert a felszíni albedó keveréke világfüggő. Seed-törő.
+
+**(3) Marad így.** A homérséklet-panel és a biome-sávok tudatosan meleg
+bolygót mutatnak. A percentilis-küszöbök (ND-126, ND-159) ezt már
+kezelik, mert nem abszolút szintre támaszkodnak.
+
+**Javaslat: (1)**, de csak a 6. fázis fogyasztói átállása ÉS annak vizuális
+átvétele UTÁN — különben egy mérésben két változás keveredne, és
+pontosan ez a hiba vezetett az ND-142 kalibrációs köréhez.
 
 
 ### A többi nyitott döntés

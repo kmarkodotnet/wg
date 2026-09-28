@@ -179,6 +179,9 @@ namespace WorldGen.Cli
             if (opts.TryGetValue("orbital", out string? o)) options.OrbitalPeriodDays = double.Parse(o);
             if (opts.TryGetValue("tilt", out string? tl)) options.AxialTiltDegrees = double.Parse(tl);
             if (opts.TryGetValue("parallel", out string? pl)) options.Parallel = bool.Parse(pl);
+            if (opts.TryGetValue("decompose", out string? dc)) options.Decompose = bool.Parse(dc);
+            if (opts.TryGetValue("ice-percentile", out string? ip))
+                options.PermanentIcePercentile = ip == "absolute" ? (double?)null : double.Parse(ip);
             if (opts.TryGetValue("beta", out string? b))
             {
                 string[] parts = b.Split(',');
@@ -256,6 +259,7 @@ namespace WorldGen.Cli
                 "  worldgen thermal-climate --seed <hex> --plates <n> --level <n> [--time <myr>]\n" +
                 "                           [--days <n>] [--water <0..1>] [--orbital <nap>] [--tilt <fok>]\n" +
                 "                           [--parallel <true|false>] [--beta <b1,b2,...>]\n" +
+                "                           [--ice-percentile <q|absolute>] [--decompose true]\n" +
                 "                           (ND-158 koltsegmeres es ND-159 beta-sopres, nem CI-lepes)\n");
         }
     }

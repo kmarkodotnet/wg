@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Diagnostics;
 using WorldGen.Core.Climate;
 using WorldGen.Core.Grid;
@@ -41,6 +42,12 @@ namespace WorldGen.Cli
             /// lista eseten csak az alapertelmezett modell fut le.
             /// </summary>
             public double[] BetaSweep = Array.Empty<double>();
+
+            /// <summary>ND-159: a tartós-jég percentilis; <c>null</c> = a régi, abszolút küszöb.</summary>
+            public double? PermanentIcePercentile = ThermalIceClassification.DefaultPermanentIcePercentile;
+
+            /// <summary>ND-159: a bázis-hőmérséklet tagonkénti felbontása (mi teszi a modellt meleggé).</summary>
+            public bool Decompose;
         }
 
         public static int Run(Options options)
@@ -139,7 +146,8 @@ namespace WorldGen.Cli
                 sw.Restart();
                 ThermalClimate climate = ThermalClimateCalculator.Compute(grid, kinds, elevation, seaLevel,
                     options.Seed, options.TimeMyr * 1.0e6, orbit, parameters, options.SampleDays,
-                    useParallelLocalStep: options.Parallel);
+                    useParallelLocalStep: options.Parallel,
+                    permanentIcePercentile: options.PermanentIcePercentile);
                 double climateMs = sw.Elapsed.TotalMilliseconds;
 
                 int permanent = climate.CountRefined(LakesIceErosion.IceClass.PermanentIce);
@@ -188,11 +196,98 @@ namespace WorldGen.Cli
                     if (legacyClass[c] == climate.RefinedClass[c]) agreeBeta++;
                 Console.WriteLine($"  egyezés a régi jégosztállyal: {agreeBeta}/{grid.CellCount} " +
                                   $"({100.0 * agreeBeta / grid.CellCount:F1}%)");
+                Console.WriteLine($"  HASZNÁLT tartós-jég küszöb: " +
+                                  $"{climate.RefinedThresholds.PermanentIceMeanK - 273.15:F2} °C " +
+                                  (options.PermanentIcePercentile.HasValue
+                                      ? $"(percentilis, q = {options.PermanentIcePercentile.Value:0.###})"
+                                      : "(abszolút, ND-43)"));
+
+                if (options.Decompose)
+                    Decompose(grid, kinds, elevation, seaLevel, options, orbit, parameters, climate);
                 Console.WriteLine();
             }
 
             Console.WriteLine($"Teljes futás: {total.Elapsed.TotalSeconds:F1} s");
             return 0;
+        }
+
+        /// <summary>
+        /// ND-159: a bázis-hőmérséklet TAGONKÉNTI, területtel súlyozott globális átlaga.
+        ///
+        /// A β-söprés megmutatta, hogy a modell globálisan meleg (medián éves
+        /// felszíni átlag +33,7 °C), de nem azt, hogy MELYIK tagtól. A bázis
+        /// szerkezete (ND-100):
+        ///
+        ///   Bs = T_rad(f_eff) + T_üvegház + T_óceán + T_meridionális − T_magasság + T_ciklus
+        ///
+        /// Minden tag a NYILVÁNOS felületből származtatható, ezért itt nincs új
+        /// modellezés: a T_rad-ot a többi tag kivonásával kapjuk vissza (óceánon
+        /// a 0,3-as pufferelés miatt egy lineáris egyenletet megoldva).
+        /// </summary>
+        private static void Decompose(DenseGridMetrics grid, SurfaceThermalKind[] kinds, double[] elevation,
+            double seaLevel, Options options, ThermalOrbit orbit, ThermalModelParameters parameters,
+            ThermalClimate climate)
+        {
+            var field = new SurfaceTemperatureField(grid, climate.RefinedKinds.ToArray(), elevation, seaLevel,
+                options.Seed, options.TimeMyr * 1.0e6, orbit, parameters);
+            ThermalBaseline baseline = field.Baseline;
+
+            // A bázis időfüggő (napi faktor), ezért a mintanapok déli
+            // időpontjaira átlagolunk - ugyanazokra a napokra, amiket az éves
+            // statisztika is használ.
+            long[] days = ThermalAnnualStatisticsCalculator.SampleDayIndices(
+                options.OrbitalPeriodDays, options.SampleDays);
+            var dailyFactor = new double[grid.CellCount];
+            var baseK = new double[grid.CellCount];
+            var baseSum = new double[grid.CellCount];
+            foreach (long day in days)
+            {
+                baseline.Sample(day * SimulationTime.SecondsPerDay, dailyFactor, baseK);
+                for (int c = 0; c < grid.CellCount; c++) baseSum[c] += baseK[c];
+            }
+
+            double totalArea = 0.0;
+            double wRad = 0.0, wOcean = 0.0, wMerid = 0.0, wAlt = 0.0, wBase = 0.0;
+            for (int c = 0; c < grid.CellCount; c++)
+            {
+                double area = grid.Area[c];
+                double bs = baseSum[c] / days.Length;
+                double merid = Temperature.MeridionalHeatTransportK(grid.CenterZ[c]);
+                double alt = Temperature.LapseRateKPerM * Math.Max(0.0, elevation[c] - seaLevel);
+                double rest = bs - baseline.GreenhouseK - merid + alt - baseline.CycleK;
+
+                double rad, ocean;
+                if (climate.RefinedKinds[c] == SurfaceThermalKind.Ocean)
+                {
+                    // rest = T_rad + 0,3*(annualMeanRad - T_rad) = 0,7*T_rad + 0,3*annualMeanRad
+                    double annualMeanRad = baseline.AnnualMeanRadiativeK[c];
+                    rad = (rest - Temperature.OceanBufferingStrength * annualMeanRad)
+                          / (1.0 - Temperature.OceanBufferingStrength);
+                    ocean = Temperature.OceanBufferingStrength * (annualMeanRad - rad);
+                }
+                else
+                {
+                    rad = rest;
+                    ocean = 0.0;
+                }
+
+                totalArea += area;
+                wRad += area * rad;
+                wOcean += area * ocean;
+                wMerid += area * merid;
+                wAlt += area * alt;
+                wBase += area * bs;
+            }
+
+            Console.WriteLine("  BÁZIS-FELBONTÁS (területtel súlyozott globális átlag, K):");
+            Console.WriteLine($"    T_rad(f_eff)     {wRad / totalArea,8:F2}");
+            Console.WriteLine($"    T_üvegház        {baseline.GreenhouseK,8:F2}");
+            Console.WriteLine($"    T_meridionális    {wMerid / totalArea,8:F2}");
+            Console.WriteLine($"    T_óceán          {wOcean / totalArea,8:F2}");
+            Console.WriteLine($"    T_magasság       {-wAlt / totalArea,8:F2}");
+            Console.WriteLine($"    T_ciklus         {baseline.CycleK,8:F2}");
+            Console.WriteLine($"    = bázis átlag     {wBase / totalArea,8:F2} K " +
+                              $"({wBase / totalArea - 273.15:F2} °C)");
         }
 
         /// <summary>

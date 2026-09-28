@@ -34,6 +34,12 @@ namespace WorldGen.Core.Climate
         /// </summary>
         public int ReclassifiedCells { get; }
 
+        /// <summary>Az A menet jég-vágópontjai (percentilis módban az A menet saját eloszlásából).</summary>
+        public ThermalIceClassification.IceThresholds IceFreeThresholds { get; }
+
+        /// <summary>A B menet jég-vágópontjai — EZEK az autoritáns küszöbök.</summary>
+        public ThermalIceClassification.IceThresholds RefinedThresholds { get; }
+
         /// <summary>
         /// Igaz, ha a B menet SZÁMÍTÁSA elmaradt, mert az A menet egyetlen
         /// tartós jeget sem talált. Ilyenkor a B menet felszíntípus-térképe
@@ -45,9 +51,13 @@ namespace WorldGen.Core.Climate
 
         internal ThermalClimate(ThermalAnnualStatistics iceFree, ThermalAnnualStatistics refined,
             LakesIceErosion.IceClass[] iceFreeClass, LakesIceErosion.IceClass[] refinedClass,
-            SurfaceThermalKind[] refinedKinds, int reclassifiedCells, bool secondPassSkipped)
+            SurfaceThermalKind[] refinedKinds, int reclassifiedCells, bool secondPassSkipped,
+            ThermalIceClassification.IceThresholds iceFreeThresholds,
+            ThermalIceClassification.IceThresholds refinedThresholds)
         {
             SecondPassSkipped = secondPassSkipped;
+            IceFreeThresholds = iceFreeThresholds;
+            RefinedThresholds = refinedThresholds;
             IceFree = iceFree;
             Refined = refined;
             IceFreeClass = Array.AsReadOnly(iceFreeClass);
@@ -95,10 +105,17 @@ namespace WorldGen.Core.Climate
     /// ezért KONSTANS kettő, és az eltérés MÉRVE van
     /// (<see cref="ThermalClimate.ReclassifiedCells"/>), nem elrejtve.
     ///
-    /// A JÉG FELSZÍNI (Ts) éves átlagra és minimumra osztályozódik, a
-    /// <see cref="LakesIceErosion"/> változatlan küszöbeivel — a jégtakaró
-    /// felszíni jelenség, a küszöbök pedig ugyanazok maradnak, hogy az
-    /// átállás ne keverjen össze két változtatást egy méréssel.
+    /// A JÉG FELSZÍNI (Ts) éves átlagra és minimumra osztályozódik — a
+    /// jégtakaró felszíni jelenség. A küszöböket az ND-159 óta a
+    /// <see cref="ThermalIceClassification"/> adja: a tartós jég vágópontja az
+    /// adott MENET SAJÁT eloszlásából vett percentilis, a szezonális hóé
+    /// továbbra is az abszolút fagypont. A <c>permanentIcePercentile: null</c>
+    /// a régi, abszolút (−15 °C) szabályra vált vissza — összehasonlításhoz.
+    ///
+    /// KÖVETKEZMÉNY a menetszámra: percentilis módban az A menet KONSTRUKCIÓ
+    /// SZERINT talál tartós jeget, ezért az ND-158 bitazonos rövidzára
+    /// (a második menet kihagyása) gyakorlatilag sosem lép be — a költség a
+    /// teljes kétmenetes érték. Ez mérve van, lásd ND-159.
     /// </summary>
     public static class ThermalClimateCalculator
     {
@@ -120,7 +137,8 @@ namespace WorldGen.Core.Climate
         public static ThermalClimate Compute(DenseGridMetrics grid, SurfaceThermalKind[] iceFreeKinds,
             double[] elevationM, double seaLevelM, ulong worldSeed, double tYears, ThermalOrbit orbit,
             ThermalModelParameters? parameters = null, int sampleDays = ThermalAnnualStatisticsCalculator.DefaultSampleDays,
-            long firstDay = 0, bool useParallelLocalStep = false)
+            long firstDay = 0, bool useParallelLocalStep = false,
+            double? permanentIcePercentile = ThermalIceClassification.DefaultPermanentIcePercentile)
         {
             if (grid == null) throw new ArgumentNullException(nameof(grid));
             if (iceFreeKinds == null) throw new ArgumentNullException(nameof(iceFreeKinds));
@@ -132,7 +150,10 @@ namespace WorldGen.Core.Climate
 
             ThermalAnnualStatistics iceFreeStats = RunPass(grid, iceFreeKinds, elevationM, seaLevelM,
                 worldSeed, tYears, orbit, parameters, sampleDays, firstDay, useParallelLocalStep);
-            LakesIceErosion.IceClass[] iceFreeClass = ClassifyIce(iceFreeStats);
+            ThermalIceClassification.IceThresholds iceFreeThresholds =
+                ThresholdsFor(iceFreeStats, permanentIcePercentile);
+            LakesIceErosion.IceClass[] iceFreeClass =
+                ThermalIceClassification.ClassifyAll(iceFreeStats, iceFreeThresholds);
 
             int count = grid.CellCount;
             var refinedKinds = new SurfaceThermalKind[count];
@@ -153,8 +174,11 @@ namespace WorldGen.Core.Climate
                 ? RunPass(grid, refinedKinds, elevationM, seaLevelM, worldSeed, tYears, orbit,
                     parameters, sampleDays, firstDay, useParallelLocalStep)
                 : iceFreeStats;
+            ThermalIceClassification.IceThresholds refinedThresholds = anyPermanentIce
+                ? ThresholdsFor(refinedStats, permanentIcePercentile)
+                : iceFreeThresholds;
             LakesIceErosion.IceClass[] refinedClass = anyPermanentIce
-                ? ClassifyIce(refinedStats)
+                ? ThermalIceClassification.ClassifyAll(refinedStats, refinedThresholds)
                 : (LakesIceErosion.IceClass[])iceFreeClass.Clone();
 
             int reclassified = 0;
@@ -162,7 +186,7 @@ namespace WorldGen.Core.Climate
                 if (iceFreeClass[c] != refinedClass[c]) reclassified++;
 
             return new ThermalClimate(iceFreeStats, refinedStats, iceFreeClass, refinedClass,
-                refinedKinds, reclassified, !anyPermanentIce);
+                refinedKinds, reclassified, !anyPermanentIce, iceFreeThresholds, refinedThresholds);
         }
 
         private static ThermalAnnualStatistics RunPass(DenseGridMetrics grid, SurfaceThermalKind[] kinds,
@@ -176,14 +200,23 @@ namespace WorldGen.Core.Climate
             return ThermalAnnualStatisticsCalculator.Compute(field, state, sampleDays, firstDay);
         }
 
-        /// <summary>Jégosztály cellánként az éves FELSZÍNI átlagból és minimumból.</summary>
+        /// <summary>
+        /// A menet jég-vágópontjai. <c>null</c> percentilis esetén a RÉGI,
+        /// abszolút szabály (−15 °C éves átlag) — összehasonlításhoz és a
+        /// korábbi viselkedés reprodukálásához; különben az adott menet SAJÁT
+        /// eloszlásából vett percentilis (ND-159).
+        /// </summary>
+        private static ThermalIceClassification.IceThresholds ThresholdsFor(
+            ThermalAnnualStatistics annual, double? permanentIcePercentile)
+            => permanentIcePercentile.HasValue
+                ? ThermalIceClassification.ComputeThresholds(annual.MeanSurfaceK, permanentIcePercentile.Value)
+                : ThermalIceClassification.IceThresholds.Absolute;
+
+        /// <summary>Jégosztály cellánként a RÉGI, abszolút küszöbbel (összehasonlításhoz).</summary>
         public static LakesIceErosion.IceClass[] ClassifyIce(ThermalAnnualStatistics annual)
         {
             if (annual == null) throw new ArgumentNullException(nameof(annual));
-            var result = new LakesIceErosion.IceClass[annual.MeanSurfaceK.Count];
-            for (int c = 0; c < result.Length; c++)
-                result[c] = LakesIceErosion.ClassifyIce(annual.MeanSurfaceK[c], annual.MinSurfaceK[c]);
-            return result;
+            return ThermalIceClassification.ClassifyAll(annual, ThermalIceClassification.IceThresholds.Absolute);
         }
 
         /// <summary>

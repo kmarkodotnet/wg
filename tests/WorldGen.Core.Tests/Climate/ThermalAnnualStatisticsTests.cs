@@ -57,9 +57,17 @@ public sealed class ThermalAnnualFixture
     public SurfaceTemperatureField CreateField(SurfaceThermalKind[] kinds)
         => new SurfaceTemperatureField(Grid, kinds, Elevation, 0.0, Seed, 0.0, Orbit);
 
+    /// <summary>A RÉGI, abszolút küszöbű klíma (a `permanentIcePercentile: null` út).</summary>
     public ThermalClimate ComputeClimate()
         => ThermalClimateCalculator.Compute(Grid, IceFreeKinds, Elevation, 0.0, Seed, 0.0, Orbit,
+            sampleDays: SampleDays, permanentIcePercentile: null);
+
+    /// <summary>Az ND-159 PERCENTILIS küszöbű klíma — ez az alapértelmezett út.</summary>
+    public ThermalClimate ComputePercentileClimate()
+        => ThermalClimateCalculator.Compute(Grid, IceFreeKinds, Elevation, 0.0, Seed, 0.0, Orbit,
             sampleDays: SampleDays);
+
+    public double Percentile => Vectors.GetProperty("permanentIcePercentile").GetDouble();
 }
 
 /// <summary>Éves statisztika (ND-158) — ismert-válasz, tisztaság, élesetek.</summary>
@@ -122,7 +130,7 @@ public class ThermalAnnualStatisticsTests : IClassFixture<ThermalAnnualFixture>
         SurfaceTemperatureField field = _fx.CreateField(_fx.IceFreeKinds);
         ThermalAnnualStatistics annual = ThermalAnnualStatisticsCalculator.Compute(
             field, new ThermalSnapshot(_fx.Grid.CellCount), _fx.SampleDays);
-        AssertMatches(_fx.Vectors.GetProperty("iceFree"), annual);
+        AssertMatches(_fx.Vectors.GetProperty("absolute").GetProperty("iceFree"), annual);
     }
 
     [Fact]
@@ -250,24 +258,109 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
 
     public ThermalClimateTests(ThermalAnnualFixture fixture) => _fx = fixture;
 
-    [Fact]
-    public void TwoPassClimateMatchesThePythonOracle()
+    [Theory]
+    [InlineData("absolute")]
+    [InlineData("percentile")]
+    public void TwoPassClimateMatchesThePythonOracle(string mode)
     {
-        ThermalClimate climate = _fx.ComputeClimate();
+        bool percentile = mode == "percentile";
+        ThermalClimate climate = percentile ? _fx.ComputePercentileClimate() : _fx.ComputeClimate();
+        JsonElement expected = _fx.Vectors.GetProperty(mode);
 
-        ThermalAnnualStatisticsTests.AssertMatches(_fx.Vectors.GetProperty("iceFree"), climate.IceFree);
-        ThermalAnnualStatisticsTests.AssertMatches(_fx.Vectors.GetProperty("refined"), climate.Refined);
+        ThermalAnnualStatisticsTests.AssertMatches(expected.GetProperty("iceFree"), climate.IceFree);
+        ThermalAnnualStatisticsTests.AssertMatches(expected.GetProperty("refined"), climate.Refined);
 
-        JsonElement iceFreeClass = _fx.Vectors.GetProperty("iceFreeClass");
-        JsonElement refinedClass = _fx.Vectors.GetProperty("refinedClass");
-        JsonElement refinedKinds = _fx.Vectors.GetProperty("refinedKinds");
+        JsonElement iceFreeClass = expected.GetProperty("iceFreeClass");
+        JsonElement refinedClass = expected.GetProperty("refinedClass");
+        JsonElement refinedKinds = expected.GetProperty("refinedKinds");
         for (int c = 0; c < _fx.Grid.CellCount; c++)
         {
             Assert.Equal(iceFreeClass[c].GetInt32(), (int)climate.IceFreeClass[c]);
             Assert.Equal(refinedClass[c].GetInt32(), (int)climate.RefinedClass[c]);
             Assert.Equal(refinedKinds[c].GetInt32(), (int)climate.RefinedKinds[c]);
         }
-        Assert.Equal(_fx.Vectors.GetProperty("reclassifiedCells").GetInt32(), climate.ReclassifiedCells);
+        Assert.Equal(expected.GetProperty("reclassifiedCells").GetInt32(), climate.ReclassifiedCells);
+        Assert.Equal(expected.GetProperty("secondPassSkipped").GetBoolean(), climate.SecondPassSkipped);
+        Assert.InRange(climate.IceFreeThresholds.PermanentIceMeanK
+            - expected.GetProperty("iceFreeThresholdK").GetDouble(), -1e-9, 1e-9);
+        Assert.InRange(climate.RefinedThresholds.PermanentIceMeanK
+            - expected.GetProperty("refinedThresholdK").GetDouble(), -1e-9, 1e-9);
+    }
+
+    [Fact]
+    public void ThePercentileThresholdSelectsTheColdestFraction()
+    {
+        ThermalClimate climate = _fx.ComputePercentileClimate();
+        int count = _fx.Grid.CellCount;
+
+        // A vágópont a rendezett minta q-indexű eleme, és a „kisebb mint”
+        // összehasonlítás pontosan a nála hidegebb cellákat választja ki.
+        var sorted = new double[count];
+        for (int c = 0; c < count; c++) sorted[c] = climate.Refined.MeanSurfaceK[c];
+        Array.Sort(sorted);
+        int idx = (int)(_fx.Percentile * count);
+        Assert.Equal(sorted[idx], climate.RefinedThresholds.PermanentIceMeanK);
+
+        int colder = 0;
+        for (int c = 0; c < count; c++)
+            if (climate.Refined.MeanSurfaceK[c] < climate.RefinedThresholds.PermanentIceMeanK) colder++;
+        Assert.Equal(colder, climate.CountRefined(LakesIceErosion.IceClass.PermanentIce));
+        Assert.True(colder <= idx, "A vágópontnál hidegebb cellák száma nem haladhatja meg a percentilis-indexet.");
+
+        // A szezonális hó küszöbe ABSZOLÚT marad (ND-159).
+        Assert.Equal(LakesIceErosion.SeasonalSnowMinThresholdK, climate.RefinedThresholds.SeasonalSnowMinK);
+    }
+
+    [Fact]
+    public void ThePercentileAndAbsoluteModesGiveDifferentWorlds()
+    {
+        ThermalClimate absolute = _fx.ComputeClimate();
+        ThermalClimate percentile = _fx.ComputePercentileClimate();
+
+        Assert.NotEqual(absolute.CountRefined(LakesIceErosion.IceClass.PermanentIce),
+            percentile.CountRefined(LakesIceErosion.IceClass.PermanentIce));
+        Assert.NotEqual(absolute.RefinedThresholds.PermanentIceMeanK,
+            percentile.RefinedThresholds.PermanentIceMeanK);
+
+        // A küszöb a B menet felszínítípusait is megváltoztatja, tehát
+        // a két mód két különböző hőmezőt ad — nem csak más címkéket.
+        bool anyDifferentTemperature = false;
+        for (int c = 0; c < _fx.Grid.CellCount; c++)
+            if (absolute.Refined.MeanSurfaceK[c] != percentile.Refined.MeanSurfaceK[c])
+                anyDifferentTemperature = true;
+        Assert.True(anyDifferentTemperature);
+
+        Assert.Equal(LakesIceErosion.PermanentIceMeanThresholdK, absolute.RefinedThresholds.PermanentIceMeanK);
+    }
+
+    [Fact]
+    public void PercentileThresholdIsPureAndHandlesEdges()
+    {
+        var values = new double[] { 5.0, 1.0, 4.0, 2.0, 3.0 };
+        ThermalIceClassification.IceThresholds a =
+            ThermalIceClassification.ComputeThresholds(values, 0.4);
+        ThermalIceClassification.IceThresholds b =
+            ThermalIceClassification.ComputeThresholds(new double[] { 3.0, 2.0, 1.0, 5.0, 4.0 }, 0.4);
+        Assert.Equal(a.PermanentIceMeanK, b.PermanentIceMeanK);   // sorrendfüggetlen
+        Assert.Equal(3.0, a.PermanentIceMeanK);                   // idx = (int)(0,4*5) = 2
+
+        // Üres eloszlás: nincs mihez viszonyítani, tehát nincs tartós jég.
+        ThermalIceClassification.IceThresholds empty =
+            ThermalIceClassification.ComputeThresholds(Array.Empty<double>());
+        Assert.Equal(double.NegativeInfinity, empty.PermanentIceMeanK);
+        Assert.Equal(LakesIceErosion.IceClass.None,
+            ThermalIceClassification.Classify(1.0, 1000.0, empty));
+
+        // Szélső percentilisek.
+        Assert.Equal(1.0, ThermalIceClassification.ComputeThresholds(values, 0.0).PermanentIceMeanK);
+        Assert.Equal(5.0, ThermalIceClassification.ComputeThresholds(values, 1.0).PermanentIceMeanK);
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => ThermalIceClassification.ComputeThresholds(values, 1.5));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => ThermalIceClassification.ComputeThresholds(values, -0.1));
+        Assert.Throws<ArgumentNullException>(
+            () => ThermalIceClassification.ComputeThresholds(null!));
     }
 
     [Fact]
@@ -300,7 +393,8 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
         for (int c = 0; c < kinds.Length; c++) { kinds[c] = SurfaceThermalKind.Ocean; elevation[c] = -3000.0; }
 
         ThermalClimate climate = ThermalClimateCalculator.Compute(_fx.Grid, kinds, elevation, 0.0,
-            ThermalAnnualFixture.Seed, 0.0, _fx.Orbit, sampleDays: _fx.SampleDays);
+            ThermalAnnualFixture.Seed, 0.0, _fx.Orbit, sampleDays: _fx.SampleDays,
+            permanentIcePercentile: null);
 
         Assert.Equal(0, climate.CountRefined(LakesIceErosion.IceClass.PermanentIce));
         Assert.True(climate.SecondPassSkipped);
@@ -313,6 +407,14 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
 
         // A jeges orákulum-világon viszont TÉNYLEG lefut a második menet.
         Assert.False(_fx.ComputeClimate().SecondPassSkipped);
+
+        // ÉS: percentilis módban még EZEN a forró világon sem marad el a
+        // második menet, mert a küszöb konstrukció szerint talál jeget.
+        // Ez az ND-159 vállalt ára — a rövidzár gyakorlatilag kiesik.
+        ThermalClimate pct = ThermalClimateCalculator.Compute(_fx.Grid, kinds, elevation, 0.0,
+            ThermalAnnualFixture.Seed, 0.0, _fx.Orbit, sampleDays: _fx.SampleDays);
+        Assert.False(pct.SecondPassSkipped);
+        Assert.True(pct.CountRefined(LakesIceErosion.IceClass.PermanentIce) > 0);
     }
 
     [Fact]
@@ -348,7 +450,7 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
     }
 
     [Fact]
-    public void IceClassificationUsesTheUnchangedLakesIceThresholds()
+    public void AbsoluteModeStillMatchesTheUnchangedLakesIceThresholds()
     {
         ThermalClimate climate = _fx.ComputeClimate();
         for (int c = 0; c < _fx.Grid.CellCount; c++)
