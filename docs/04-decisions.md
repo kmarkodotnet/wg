@@ -8924,6 +8924,145 @@ hanem a felhasználói ítélet arról, hogy a felhővel együtt milyen összké
 színkalibrációs lába a todo2 B18 sora (a B17 vizuális átvétel UTÁN).
 
 
+### ND-158 — Éves hőstatisztika és a jégmaszk körkörös függésének feloldása (A7 6. fázis, ELFOGADVA, Core implementálva; a fogyasztói átállás MÉRÉSSEL BLOKKOLVA)
+
+**Dátum:** 2026-09-28. **Előzmény:** ND-100–104 (hőmodell), ND-142 (hő–szél
+csatolás), ND-143 (állapot-azonosság + a 6. fázis fogyasztói kapuja),
+ND-144 (kanonikus napi statisztika).
+
+**A tétel.** Az ND-143/144 után két adatút készen állt (checkpoint, napi
+`Ts/Ta` statisztika), de EGYETLEN fogyasztó sem állt át: a biome-osztályozás,
+a jégmaszk és a párolgás változatlanul az analitikus
+`Temperature.TemperatureKelvin`-t olvasta. Három nyitott kérdés maradt:
+(1) éves statisztika, (2) a jégmaszk körfüggése, (3) a költség.
+
+#### 1. Éves statisztika — a mintavétel szabálya
+
+A napi átlag nem klímakritérium: a tartós jég küszöbe ÉVES átlag és ÉVES
+minimum, a Whittaker-tábla pedig éves középhőmérsékletre van kalibrálva.
+Az évet `sampleDays` darab EGÉSZ modellnap képviseli:
+
+```
+nap_j = firstDay + floor(j · keringési_periódus_nap / sampleDays),  j = 0 … n−1
+mean[c] = (Σ_j napi_átlag_j[c]) / sampleDays
+min[c]  = min_j napi_min_j[c];   max[c] = max_j napi_max_j[c]
+```
+
+Csak szorzás, osztás és `Math.Floor` — mind bitpontos IEEE-754, tehát a
+mintanapok platformfüggetlenül azonosak (a transzcendens tiltás nem sérül).
+Az alapértelmezett mintaszám **12**, szándékosan azonos a
+`LakesIceErosion.NumAnnualSamples` és a `ThermalBaseline` éves ablakszámával
+— egyféle éves mintavételi konvenció legyen a projektben. Föld-szerű évnél
+ez a 0, 30, 60, 91, 121, 152, 182, 213, 243, 273, 304, 334. napot jelenti.
+
+A napokat NÖVEKVŐ sorrendben dolgozzuk fel. Ez nem az eredmény, hanem a
+KÖLTSÉG miatt fontos: a solver így a 30 napos bucketen belül folytatható, és
+csak bucket-váltáskor indul kanonikusan újra. Az eredmény a sorrendtől
+független, mert minden nap kanonikus állapotból indul — erre külön teszt van
+(bepiszkolt, KÉSŐBBI napra állított állapottal).
+
+**Ismétlődő nap = explicit hiba.** Ha a keringési periódus rövidebb, mint a
+kért mintaszám, a floor-képlet kétszer adná ugyanazt a napot, és az átlag
+CSENDBEN kétszer súlyozná. Ezért `ArgumentException`, nem hallgatólagos
+deduplikálás.
+
+#### 2. A jégmaszk körfüggése — KÉT RÖGZÍTETT MENET, nem fixpont-iteráció
+
+A `SurfaceTemperatureField` bemenete a felszíntípus-térkép (abból jön az
+albedó, az emisszivitás, a hőkapacitás). A jég viszont a hőmérséklet
+KIMENETE. Eddig a viewer úgy vágta el a kört, hogy a solver a Build során
+már kész, RÉGI (analitikus) jégmezőt kapott bemenetnek — a hőmodell jege
+tehát sosem a hőmodellből jött.
+
+A feloldás: a hívó **jégmentes** felszíntípus-térképet ad (Land / Ocean /
+Freshwater — ez tisztán eleváció- és tó-kérdés, hőmérséklet nincs benne).
+
+1. **A menet:** éves statisztika → jégosztály;
+2. **B menet:** ahol az A tartós jeget adott, a típus `Ice` → új mező → éves
+   statisztika → VÉGLEGES jégosztály.
+
+A jégmentesség KIKÉNYSZERÍTETT: `Ice` a bemenetben `ArgumentException`.
+
+**Miért nem „amíg nem változik" ciklus.** Egy fixpont-iteráció leállása
+tolerancia- és sorrendfüggő lenne, oszcilláló cellák mellett pedig akár
+végtelen — az I1 (bitre azonos világ) így nem tartható. A menetszám ezért
+KONSTANS kettő, és a két menet közötti átsorolás MÉRVE van
+(`ThermalClimate.ReclassifiedCells`), nem elrejtve.
+
+**Bitazonos rövidzár.** Ha az A menet SEHOL nem talált tartós jeget, a B
+menet felszíntípus-térképe definíció szerint azonos az A-éval, tehát ugyanaz
+a mező ugyanabból az állapotból ugyanazt adná. A második futás elhagyása így
+nem közelítés. MÉRVE: level 6-on **117,0 s → 56,6 s**. A `SecondPassSkipped`
+jelzi, hogy ez történt-e.
+
+A jég a FELSZÍNI (Ts) éves átlagra és minimumra osztályozódik, a
+`LakesIceErosion.ClassifyIce` VÁLTOZATLAN küszöbeivel (−15 °C éves átlag,
+273,15 K éves minimum) — hogy az átállás ne keverjen össze két változtatást
+egy méréssel.
+
+#### 3. A költség — MÉRVE
+
+Seed `0xA7C944210000`, plates 20, t = 0, 12 mintanap, Release, párhuzamos
+lokális lépés, ezen a gépen (nem CI-referencia):
+
+| Szint | Cella | Tick / menet | Idő (2 menet) | Idő (rövidzárral) |
+|---|---:|---:|---:|---:|
+| 4 | 1 536 | 14 880 | 8,0 s | — |
+| 6 | 24 576 | 14 880 | **117,0 s** | **56,6 s** |
+
+Összehasonlításul a RÉGI analitikus jégút ugyanezen a level-6 világon:
+**482 ms**. A nagyságrendi különbség (~120×) nem meglepő: az analitikus út
+cellánként 12 × 24 inszoláció-mintát vesz, az új út 2 × 14 880 tickes teljes
+solver-futás a teljes rácson.
+
+#### 4. A MÉRÉS, AMI A FOGYASZTÓI ÁTÁLLÁST BLOKKOLJA
+
+Ugyanaz a level-6 világ, ugyanaz a küszöb, két hőmérséklet-forrás:
+
+| | tartós jég | szezonális hó | nincs | éves átlag tartomány |
+|---|---:|---:|---:|---|
+| RÉGI analitikus út | **1 727** | 10 491 | 12 358 | −81,0 … +47,9 °C |
+| ÚJ hőmodell-út | **0** | 6 180 | 18 396 | −4,5 … +45,9 °C |
+
+Egyezés a két jégosztály között: **17 181 / 24 576 = 69,9%**.
+
+**Az átállás tehát ELTÜNTETNÉ a teljes állandó jégtakarót.** A gyökérok nem
+hiba, hanem az M13 modellválasztás: a hőmodell bázisa SIMÍTOTT radiatív
+faktort használ (`f_eff = 0,5·f_napi + 0,5·f_éves`), épp azért, mert a nyers
+napi faktor a sarki éjszakán ~29 K-t adott. Ez viszont a sarki évi átlagot
+−81 °C-ról −4,5 °C-ra emeli, és a −15 °C-os jégküszöb fölé viszi az EGÉSZ
+bolygót.
+
+Ez nem átkötési, hanem KALIBRÁCIÓS kérdés, és a két lehetséges válasz
+(a β radiatív simítás csökkentése, vagy a jégküszöb újrahangolása a hőmodell
+eloszlásához) **mindkettő seed-törő**. Ezért a biome/jég/párolgás
+fogyasztói kapuja az ND-143 szerint **NYITVA MARAD**, most már mért indokkal;
+a Core adatút és az átkötési felület kész. A kalibrációt külön ND-nek kell
+eldöntenie, a felhasználó vizuális ítéletével együtt (a jégtakaró látható
+bolygó-jellemző).
+
+#### 5. Mi készült el most
+
+- `ThermalAnnualStatistics` + `ThermalAnnualStatisticsCalculator` (Core);
+- `ThermalClimate` + `ThermalClimateCalculator`: kétmenetes jég, biome-adapter
+  (a hőmérsékleti tengely az éves LEVEGŐ-átlag), `IceFreeKinds()`;
+- `MoisturePrecipitation.ComputeFromElevationField` overload explicit
+  hőmérséklet-mezővel (`null` → a régi út, BITRE azonos minden korábbi hívóra);
+- `worldgen thermal-climate` költségmérő parancs (nem CI-lépés);
+- Python-orákulum: `tools/reference/thermal_annual_ref.py` →
+  `thermal_annual_vectors.json`. A hőmodell nem új kernel, ezért az orákulum a
+  már verifikált `thermal_field_ref.py` solverére épül, és kizárólag az
+  aggregációt és a kétmenetes utat rögzíti — kis rácson (level 2, 96 cella) és
+  rövid éven (8 nap, 4 minta), hogy pure Pythonban másodpercek alatt lefusson.
+  Az orákulum-világ sarki fennsíkja (7000 m) SZÁNDÉKOS: enélkül nem keletkezne
+  tartós jég, és a kétmenetes út nem lenne kipróbálva.
+
+**Nem seed-törő:** új API-k, és a meglévő utak bitre változatlanok
+(a `MoisturePrecipitation` régi overloadja delegál, `temperatureK = null`).
+A `WorldGeneratorVersion` marad `"5"`, a `ThermalModelParameters.ModelVersion`
+marad 3.
+
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

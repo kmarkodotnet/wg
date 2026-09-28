@@ -85,3 +85,8 @@ jobs:
           python verify_thermal_feedback.py --check ../../tests/WorldGen.Core.Tests/testdata/thermal_feedback_vectors.json
           python thermal_checkpoint_ref.py
           diff thermal_checkpoint_vectors.json ../../tests/WorldGen.Core.Tests/testdata/thermal_checkpoint_vectors.json
+      - name: Eves hostatisztika es ketmenetes jegmaszk oracle (ND-158)
+        working-directory: tools/reference
+        run: |
+          python thermal_annual_ref.py
+          diff thermal_annual_vectors.json ../../tests/WorldGen.Core.Tests/testdata/thermal_annual_vectors.json

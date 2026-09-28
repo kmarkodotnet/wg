@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using WorldGen.Core.Persistence;
 using WorldGen.Core.Tectonics;
@@ -41,6 +41,8 @@ namespace WorldGen.Cli
                         return RunCheckpoint(args);
                     case "calibrate-ordinals":
                         return RunCalibrateOrdinals(ParseOptions(args, 1));
+                    case "thermal-climate":
+                        return RunThermalClimate(ParseOptions(args, 1));
                     default:
                         Console.Error.WriteLine($"Ismeretlen parancs: {args[0]}");
                         PrintUsage();
@@ -162,6 +164,24 @@ namespace WorldGen.Cli
             return 0;
         }
 
+        /// <summary>ND-158: a kétmenetes éves éghajlat költségmérése (nem CI-lépés).</summary>
+        private static int RunThermalClimate(Dictionary<string, string> opts)
+        {
+            var options = new ThermalClimateMeasurement.Options
+            {
+                Seed = ParseSeed(RequireOption(opts, "seed")),
+                Plates = int.Parse(RequireOption(opts, "plates")),
+                Level = int.Parse(RequireOption(opts, "level")),
+                TimeMyr = opts.TryGetValue("time", out string? t) ? double.Parse(t) : 0.0,
+            };
+            if (opts.TryGetValue("days", out string? d)) options.SampleDays = int.Parse(d);
+            if (opts.TryGetValue("water", out string? w)) options.TargetWaterFraction = double.Parse(w);
+            if (opts.TryGetValue("orbital", out string? o)) options.OrbitalPeriodDays = double.Parse(o);
+            if (opts.TryGetValue("tilt", out string? tl)) options.AxialTiltDegrees = double.Parse(tl);
+            if (opts.TryGetValue("parallel", out string? pl)) options.Parallel = bool.Parse(pl);
+            return ThermalClimateMeasurement.Run(options);
+        }
+
         private static string ComputeHashHex(ulong seed, int plates, int level, double time)
         {
             // ND-137 (A20): a `--time t` a vilagot t-nel jelenti, tehat az
@@ -225,7 +245,10 @@ namespace WorldGen.Cli
                 "  worldgen verify --seed <hex> --plates <n> --level <n> [--time <myr>] --expect <hex>\n" +
                 "  worldgen checkpoint save --seed <hex> --plates <n> --level <n> [--time <myr>] --out <path>\n" +
                 "  worldgen checkpoint verify --in <path>\n" +
-                "  worldgen calibrate-ordinals [--count <n>] [--plates <n>] [--level <n>] [--water <0..1>]\n");
+                "  worldgen calibrate-ordinals [--count <n>] [--plates <n>] [--level <n>] [--water <0..1>]\n" +
+                "  worldgen thermal-climate --seed <hex> --plates <n> --level <n> [--time <myr>]\n" +
+                "                           [--days <n>] [--water <0..1>] [--orbital <nap>] [--tilt <fok>]\n" +
+                "                           [--parallel <true|false>]   (ND-158 koltsegmeres, nem CI-lepes)\n");
         }
     }
 }

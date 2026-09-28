@@ -82,6 +82,40 @@ namespace WorldGen.Core.Climate
             double axialTiltDegrees = 23.44, int iterations = DefaultIterations,
             double precipBaseFraction = DefaultPrecipBaseFraction,
             double orographicCoeff = DefaultOrographicCoeff, double orographicElevScale = DefaultOrographicElevScale)
+            => ComputeFromElevationField(field, seaLevel, worldSeed, level, null, dayT, orbitalPeriodDays,
+                rotationPeriodDays, axialTiltDegrees, iterations, precipBaseFraction, orographicCoeff,
+                orographicElevScale);
+
+        /// <summary>
+        /// Ugyanaz a nedvesség-transzport, de a PÁROLGÁS hőmérséklet-bemenete
+        /// kívülről jön (ND-158).
+        ///
+        /// MIÉRT VAN. A párolgás
+        /// (<see cref="WindPrecipitation.Evaporation(double, double, double, double)"/>)
+        /// eddig az analitikus <see cref="Temperature.TemperatureKelvin"/>-t
+        /// olvasta: egyetlen <c>dayT</c> pillanat inszoláció-átlagából, a
+        /// hőmodell szele, advekciója és óceáni tehetetlensége NÉLKÜL. Ez az
+        /// overload beengedi a hőmodell autoritatív mezőjét — a gyakorlatban
+        /// a <see cref="ThermalClimate.Refined"/> éves FELSZÍNI átlagát
+        /// (a párolgás felszíni folyamat, ezért Ts és nem Ta).
+        ///
+        /// A <paramref name="temperatureK"/> <c>null</c> esetén a régi,
+        /// analitikus út fut — minden korábbi hívó BITRE azonos eredményt kap.
+        /// Ha meg van adva, MINDEN tile-jára tartalmaznia kell értéket;
+        /// hiányzó kulcsnál explicit hiba, mert a csendes visszaesés az
+        /// analitikus értékre két különböző modellt keverne egy mezőben.
+        /// A szél (és így a párolgás szél-tagja) egyelőre a régi
+        /// <see cref="WindPrecipitation.WindVector"/> úton marad — az a
+        /// 7. fázis külön átállítása, lásd ND-158.
+        /// </summary>
+        public static PrecipitationField ComputeFromElevationField(
+            Dictionary<TileId, double> field, double seaLevel,
+            ulong worldSeed, int level,
+            IReadOnlyDictionary<TileId, double>? temperatureK,
+            double dayT = 0.0, double orbitalPeriodDays = 365.25, double rotationPeriodDays = 1.0,
+            double axialTiltDegrees = 23.44, int iterations = DefaultIterations,
+            double precipBaseFraction = DefaultPrecipBaseFraction,
+            double orographicCoeff = DefaultOrographicCoeff, double orographicElevScale = DefaultOrographicElevScale)
         {
             if (field == null) throw new ArgumentNullException(nameof(field));
             Dictionary<TileId, bool> isOcean = FlowNetwork.ComputeOceanField(field, seaLevel);
@@ -105,8 +139,17 @@ namespace WorldGen.Core.Climate
                 double elev = field[k];
                 bool oc = isOcean[k];
 
-                double temp = Temperature.TemperatureKelvin(
-                    x, y, z, dayT, orbitalPeriodDays, rotationPeriodDays, axialTilt, oc, elev, seaLevel);
+                double temp;
+                if (temperatureK == null)
+                {
+                    temp = Temperature.TemperatureKelvin(
+                        x, y, z, dayT, orbitalPeriodDays, rotationPeriodDays, axialTilt, oc, elev, seaLevel);
+                }
+                else if (!temperatureK.TryGetValue(k, out temp))
+                {
+                    throw new ArgumentException(
+                        $"A megadott hőmérséklet-mezőből hiányzik a(z) {k} tile.", nameof(temperatureK));
+                }
                 WindPrecipitation.WindVector(
                     x, y, z, dayT, orbitalPeriodDays, rotationPeriodDays, axialTilt, oc, elev, seaLevel, 0.0, 0.0,
                     out double we, out double wn, out double w3x, out double w3y, out double w3z);
