@@ -35,6 +35,12 @@ namespace WorldGen.Cli
             public double RotationPeriodDays = 1.0;
             public double AxialTiltDegrees = 23.44;
             public bool Parallel = true;
+
+            /// <summary>
+            /// ND-159: a vizsgalando radiativ simitasi (beta) ertekek. Ures
+            /// lista eseten csak az alapertelmezett modell fut le.
+            /// </summary>
+            public double[] BetaSweep = Array.Empty<double>();
         }
 
         public static int Run(Options options)
@@ -85,56 +91,106 @@ namespace WorldGen.Cli
             Console.WriteLine($"Mintanapok ({days.Length}): {string.Join(", ", days)}");
             Console.WriteLine($"Becsült solver-tick menetenként: {ticks} (kanonikus spin-uppal együtt)");
             Console.WriteLine($"Bemenet: eleváció {elevationMs:F0} ms, rács {gridMs:F0} ms, típusok {inputMs:F0} ms");
-            Console.WriteLine("Éves éghajlat számítása (2 menet)...");
-
-            sw.Restart();
-            ThermalClimate climate = ThermalClimateCalculator.Compute(grid, kinds, elevation, seaLevel,
-                options.Seed, options.TimeMyr * 1.0e6, orbit, sampleDays: options.SampleDays,
-                useParallelLocalStep: options.Parallel);
-            double climateMs = sw.Elapsed.TotalMilliseconds;
-
-            int permanent = climate.CountRefined(LakesIceErosion.IceClass.PermanentIce);
-            int seasonal = climate.CountRefined(LakesIceErosion.IceClass.SeasonalSnow);
-            int none = climate.CountRefined(LakesIceErosion.IceClass.None);
-            Console.WriteLine($"Éves éghajlat: {climateMs:F0} ms ({climateMs / 1000.0:F1} s), " +
-                              $"{climateMs / (2.0 * ticks):F2} ms/tick, párhuzamos lokális lépés={options.Parallel}");
-            Console.WriteLine($"Jég (B menet): tartós={permanent}, szezonális hó={seasonal}, nincs={none}");
-            Console.WriteLine($"A menet tartós jég: {CountIce(climate.IceFreeClass)}, " +
-                              $"átsorolt cella a két menet között: {climate.ReclassifiedCells}");
-            Console.WriteLine($"Éves felszíni átlag: [{Min(climate.Refined.MeanSurfaceK) - 273.15:F1}, " +
-                              $"{Max(climate.Refined.MeanSurfaceK) - 273.15:F1}] °C; " +
-                              $"levegő: [{Min(climate.Refined.MeanAirK) - 273.15:F1}, " +
-                              $"{Max(climate.Refined.MeanAirK) - 273.15:F1}] °C");
-            Console.WriteLine($"Második menet kihagyva (nem volt tartós jég): {climate.SecondPassSkipped}");
-
-            // A/B: a RÉGI, analitikus jégút ugyanezen a világon. Az átállás
-            // döntéséhez nem elég tudni, mit ad az ÚJ út - azt kell látni,
-            // MENNYIVEL más, mint amit a viewer ma megjelenít.
+            // A/B: a RÉGI, analitikus jégút ugyanezen a világon. ELŐRE fut, mert
+            // az átállás döntéséhez nem elég tudni, mit ad az ÚJ út - azt kell
+            // látni, MENNYIVEL más, mint amit a viewer ma megjelenít; és mert a
+            // béta-söprés cél-darabszáma is innen jön (ND-159).
             sw.Restart();
             int legacyPermanent = 0, legacySeasonal = 0, legacyNone = 0;
             double legacyMinMean = double.PositiveInfinity, legacyMaxMean = double.NegativeInfinity;
-            int agree = 0;
+            double legacyMinDaily = double.PositiveInfinity, legacyMaxDaily = double.NegativeInfinity;
+            var legacyClass = new LakesIceErosion.IceClass[grid.CellCount];
             for (int c = 0; c < grid.CellCount; c++)
             {
                 LakesIceErosion.AnnualTemperatureStats(grid.CenterX[c], grid.CenterY[c], grid.CenterZ[c],
                     options.OrbitalPeriodDays, options.RotationPeriodDays, orbit.AxialTiltRad,
                     kinds[c] == SurfaceThermalKind.Ocean, elevation[c], seaLevel,
                     out double mean, out double min, out double max);
-                _ = max;
                 if (mean < legacyMinMean) legacyMinMean = mean;
                 if (mean > legacyMaxMean) legacyMaxMean = mean;
+                if (min < legacyMinDaily) legacyMinDaily = min;
+                if (max > legacyMaxDaily) legacyMaxDaily = max;
                 LakesIceErosion.IceClass legacy = LakesIceErosion.ClassifyIce(mean, min);
+                legacyClass[c] = legacy;
                 if (legacy == LakesIceErosion.IceClass.PermanentIce) legacyPermanent++;
                 else if (legacy == LakesIceErosion.IceClass.SeasonalSnow) legacySeasonal++;
                 else legacyNone++;
-                if (legacy == climate.RefinedClass[c]) agree++;
             }
             double legacyMs = sw.Elapsed.TotalMilliseconds;
-            Console.WriteLine($"RÉGI analitikus út ({legacyMs:F0} ms): tartós={legacyPermanent}, " +
+            Console.WriteLine($"RÉGI analitikus út ({legacyMs:F0} ms): tartós={legacyPermanent} " +
+                              $"({100.0 * legacyPermanent / grid.CellCount:F2}%), " +
                               $"szezonális hó={legacySeasonal}, nincs={legacyNone}; " +
                               $"éves átlag [{legacyMinMean - 273.15:F1}, {legacyMaxMean - 273.15:F1}] °C");
-            Console.WriteLine($"Egyezés a régi és az új jégosztály között: {agree}/{grid.CellCount} " +
-                              $"({100.0 * agree / grid.CellCount:F1}%)");
+            Console.WriteLine($"  PILLANATNYI (napi átlag) szélsőértékek: min " +
+                              $"{legacyMinDaily - 273.15:F1} °C, max {legacyMaxDaily - 273.15:F1} °C");
+            Console.WriteLine("  (ez a CÉL-darabszám: ezt a jégtakarót mutatja ma a viewer)");
+            Console.WriteLine();
+
+            var betas = new List<double>();
+            if (options.BetaSweep.Length == 0) betas.Add(ThermalModelParameters.Default.RadiativeSmoothing);
+            else betas.AddRange(options.BetaSweep);
+
+            foreach (double beta in betas)
+            {
+                var parameters = new ThermalModelParameters(radiativeSmoothing: beta);
+                bool isDefault = beta == ThermalModelParameters.Default.RadiativeSmoothing;
+                Console.WriteLine($"--- beta = {beta:0.###}{(isDefault ? "  (a mai alapérték)" : "")} ---");
+
+                sw.Restart();
+                ThermalClimate climate = ThermalClimateCalculator.Compute(grid, kinds, elevation, seaLevel,
+                    options.Seed, options.TimeMyr * 1.0e6, orbit, parameters, options.SampleDays,
+                    useParallelLocalStep: options.Parallel);
+                double climateMs = sw.Elapsed.TotalMilliseconds;
+
+                int permanent = climate.CountRefined(LakesIceErosion.IceClass.PermanentIce);
+                int seasonal = climate.CountRefined(LakesIceErosion.IceClass.SeasonalSnow);
+                int none = climate.CountRefined(LakesIceErosion.IceClass.None);
+                int passes = climate.SecondPassSkipped ? 1 : 2;
+                Console.WriteLine($"  idő: {climateMs / 1000.0:F1} s ({passes} menet, " +
+                                  $"{climateMs / (passes * ticks):F2} ms/tick)");
+                Console.WriteLine($"  jég: tartós={permanent} ({100.0 * permanent / grid.CellCount:F2}%), " +
+                                  $"szezonális hó={seasonal}, nincs={none}; " +
+                                  $"átsorolt a két menet között: {climate.ReclassifiedCells}");
+                Console.WriteLine($"  éves felszíni átlag: [{Min(climate.Refined.MeanSurfaceK) - 273.15:F1}, " +
+                                  $"{Max(climate.Refined.MeanSurfaceK) - 273.15:F1}] °C; " +
+                                  $"levegő: [{Min(climate.Refined.MeanAirK) - 273.15:F1}, " +
+                                  $"{Max(climate.Refined.MeanAirK) - 273.15:F1}] °C");
+
+                // A PILLANATNYI szélsőértékek. Ez az ND-100 döntő száma: a
+                // radiatív simítás pont azért került be, mert simítás nélkül a
+                // sarki éjszaka abszurd mélyre ment. Az éves átlag ÖNMAGÁBAN
+                // nem dönti el a bétát - a hideg véget EGYÜTT kell nézni.
+                Console.WriteLine($"  PILLANATNYI szélsőértékek: felszín min " +
+                                  $"{Min(climate.Refined.MinSurfaceK) - 273.15:F1} °C, max " +
+                                  $"{Max(climate.Refined.MaxSurfaceK) - 273.15:F1} °C; levegő min " +
+                                  $"{Min(climate.Refined.MinAirK) - 273.15:F1} °C, max " +
+                                  $"{Max(climate.Refined.MaxAirK) - 273.15:F1} °C");
+
+                // A hideg vég eloszlása: ebből látszik, hogy a jégküszöb
+                // átállítása MEDDIG tudna eljutni ennél a bétánál.
+                var sorted = new double[grid.CellCount];
+                for (int c = 0; c < sorted.Length; c++) sorted[c] = climate.Refined.MeanSurfaceK[c];
+                Array.Sort(sorted);
+                Console.WriteLine($"  éves átlag percentilisek (°C): P0={sorted[0] - 273.15:F1}, " +
+                                  $"P1={Percentile(sorted, 0.01) - 273.15:F1}, " +
+                                  $"P5={Percentile(sorted, 0.05) - 273.15:F1}, " +
+                                  $"P10={Percentile(sorted, 0.10) - 273.15:F1}, " +
+                                  $"P50={Percentile(sorted, 0.50) - 273.15:F1}");
+
+                // Az a küszöb, ami PONTOSAN a mai jégtakarót adná vissza ennél a bétánál.
+                if (legacyPermanent > 0 && legacyPermanent <= sorted.Length)
+                    Console.WriteLine($"  a mai {legacyPermanent} jégcellát adó küszöb: " +
+                                      $"{sorted[legacyPermanent - 1] - 273.15:F2} °C (a mai küszöb: " +
+                                      $"{LakesIceErosion.PermanentIceMeanThresholdK - 273.15:F2} °C)");
+
+                int agreeBeta = 0;
+                for (int c = 0; c < grid.CellCount; c++)
+                    if (legacyClass[c] == climate.RefinedClass[c]) agreeBeta++;
+                Console.WriteLine($"  egyezés a régi jégosztállyal: {agreeBeta}/{grid.CellCount} " +
+                                  $"({100.0 * agreeBeta / grid.CellCount:F1}%)");
+                Console.WriteLine();
+            }
+
             Console.WriteLine($"Teljes futás: {total.Elapsed.TotalSeconds:F1} s");
             return 0;
         }
@@ -162,6 +218,15 @@ namespace WorldGen.Cli
                 at = first + SimulationTime.TicksPerDay;
             }
             return ticks;
+        }
+
+        /// <summary>A rendezett minta q-percentilise - ugyanaz az index-keplet, mint a BiomeClassification-ben.</summary>
+        private static double Percentile(double[] sorted, double q)
+        {
+            int idx = (int)(q * sorted.Length);
+            if (idx < 0) idx = 0;
+            if (idx > sorted.Length - 1) idx = sorted.Length - 1;
+            return sorted[idx];
         }
 
         private static int CountIce(System.Collections.Generic.IReadOnlyList<LakesIceErosion.IceClass> classes)

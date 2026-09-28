@@ -9063,6 +9063,96 @@ A `WorldGeneratorVersion` marad `"5"`, a `ThermalModelParameters.ModelVersion`
 marad 3.
 
 
+### ND-159 — A jégküszöb és a radiatív simítás ütközése (A7 6. fázis, MÉRVE, DÖNTÉS NYITOTT)
+
+**Dátum:** 2026-09-28. **Előzmény:** ND-158 (éves hőstatisztika),
+ND-100 (M13 radiatív simítás), ND-43 (`LakesIceErosion` jégküszöbei).
+
+**A tétel.** Az ND-158 mérése szerint a hőmodellre átállított
+jégosztályozás NULLA tartós jeget ad, szemben a ma látható 1727 cellával.
+Ez a döntés arról szól, hogy ezt melyik irányban oldjuk fel. A döntés
+**seed-törő** és **látható** (a jégsapka bolygó-jellemző), ezért nem
+implementációs részletkérdés.
+
+#### A mérés
+
+`worldgen thermal-climate --seed 0xA7C944210000 --plates 20 --level 5 --beta 0,0.05,0.1,0.25,0.5`
+(6144 cella, 12 mintanap, Release; a szintválasztás a futásidő miatt level 5,
+az arányok level 6-on is ugyanezek).
+
+| β | tartós jég | éves átlag min | **pillanatnyi min** | a mai takarót adó küszöb | egyezés a régivel |
+|---|---:|---:|---:|---:|---:|
+| 0 | **444 (7,23%)** | −79,0 °C | **−220,8 °C** | −19,12 °C | **91,8%** |
+| 0,05 | 254 (4,13%) | −35,6 °C | −115,2 °C | −5,03 °C | 88,6% |
+| 0,1 | 133 (2,16%) | −26,8 °C | −95,3 °C | −1,70 °C | 85,4% |
+| 0,25 | 0 | −12,9 °C | −63,1 °C | +2,87 °C | 80,0% |
+| **0,5 (mai)** | **0** | −1,7 °C | −33,1 °C | +6,91 °C | 69,8% |
+| *cél: régi analitikus út* | *421 (6,85%)* | *−77,3 °C* | *−218,8 °C* | — | — |
+
+A „pillanatnyi min" a mintavételezett év legalacsonyabb napi felszíni
+értéke — ez az, amit a hőoverlay kirajzol.
+
+#### Amit a mérés MEGFOGOTT, és ami átírja a kérdést
+
+**A mai, látható jégtérkép egy FIZIKAILAG TARTHATATLAN hőmérséklet-mezőből
+készül.** A régi analitikus út sarki éjszakai minimuma **−218,8 °C**
+(= 54,3 K), maximuma **+107,5 °C**. A jégsapka tehát nem azért van a helyén,
+mert a modell jól számol, hanem mert olyan hidegre megy, hogy bármilyen
+küszöb alatt marad. Az ND-100 pont ezt a hibát javította ki a
+hőmodellben a β = 0,5 simítással (`f_eff = 0,5·f_napi + 0,5·f_éves`).
+
+Ebből következik, hogy **a β = 0 nem „visszaállítja a helyes állapotot",
+hanem átviszi a régi út hibáját a hőmodellbe is** — és a hőoverlay-en
+(amit az ND-141 óta látunk) a sarki éjszaka 52 K-re esne. A β = 0 tehát a
+jégsapkát visszahozza, de a már elfogadott hőtérképet rontja el.
+
+**Második, független észrevétel:** a β = 0,5 medián éves felszíni átlaga
+**+33,7 °C**. A modell tehát nem csak a póluson meleg, hanem GLOBÁLISAN — ez
+az üvegház-állandó, a meridionális szállítás és az óceáni pufferelés
+együttes energia-mérlege, nem a β. Ez az ND-42 / B14 (b) nyitott
+konstans-megerősítéséhez tartozik, nem ehhez a döntéshez, de a jég
+hiányának ez is oka — és önállóan is mérendő.
+
+#### Az opciók
+
+**(A) β = 0, változatlan −15 °C küszöb.** A mai jégtakaró ~visszaáll
+(444 vs 421 cella, 91,8% egyezés). ÁRA: a hőoverlay sarki éjszakája
+−220 °C, azaz az ND-100 által már egyszer elvetett állapot tér vissza.
+Seed-törő (a teljes hőmodell változik).
+
+**(B) Köztes β (0,05–0,1).** Jég 4,1% / 2,2%, pillanatnyi min −115 / −95 °C.
+Mindkét végen rosszabb, mint a szélő választások; nincs mért indoka, hogy
+épp hol álljon meg. Seed-törő.
+
+**(C) β = 0,5 marad, a jégküszöb PERCENTILIS lesz.** A „tartós jég" nem
+abszolút −15 °C, hanem a leghidegebb N% (pl. a mai aránynak megfelelő
+~6,85%). Ugyanaz a minta, mint az ND-126 csapadék-percentiliseinél és a
+folyó-forrás kiválasztásnál: **abszolút küszöb világfüggő lenne**, és a
+hőmodell abszolút szintje (lásd a +33,7 °C mediánt) úgysem hiteles.
+Előny: a fizikailag ép pillanatnyi mező MEGMARAD, a hőoverlay nem romlik,
+és a hőmodell maga NEM változik (nem seed-törő a hőmezőre, csak a
+jégosztályozásra). Hátrány: a „−15 °C = tartós jég" fizikai jelentés
+elvész, és minden világon lesz ugyanannyi jég (egy forró bolygón is).
+
+**(D) Halasztás.** A jég marad a régi analitikus úton; csak a biome és a
+párolgás áll át a hőmodellre. Ekkor egy világban két különböző
+hőmérséklet-modell dönt (I4 szempontjából gyenge), viszont semmi nem romlik
+el, és nem seed-törő.
+
+#### Javaslat
+
+**(C)**, az alábbi indoklással: ez az egyetlen opció, amelyik nem áldozza fel
+a már elfogadott hőtérképet, a projektben már bevett mintát követi
+(ND-126), és nem köti a jégtakarót egy olyan abszolút hőmérséklet-szinthez,
+amelyről ugyanez a mérés mutatta ki, hogy nem hiteles. Az (A) akkor
+választható, ha a „−15 °C = tartós jég" fizikai jelentés megőrzése
+fontosabb, mint a hőoverlay — de akkor az ND-100 döntését is újra kell nyitni.
+
+**A döntésig a fogyasztói kapu zárva marad** (ND-143). A mérőeszköz
+(`worldgen thermal-climate --beta`) a repóban van, tehát bármelyik opció
+újramérhető más seedeken is.
+
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

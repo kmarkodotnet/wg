@@ -179,6 +179,13 @@ namespace WorldGen.Cli
             if (opts.TryGetValue("orbital", out string? o)) options.OrbitalPeriodDays = double.Parse(o);
             if (opts.TryGetValue("tilt", out string? tl)) options.AxialTiltDegrees = double.Parse(tl);
             if (opts.TryGetValue("parallel", out string? pl)) options.Parallel = bool.Parse(pl);
+            if (opts.TryGetValue("beta", out string? b))
+            {
+                string[] parts = b.Split(',');
+                var betas = new double[parts.Length];
+                for (int i = 0; i < parts.Length; i++) betas[i] = double.Parse(parts[i].Trim());
+                options.BetaSweep = betas;
+            }
             return ThermalClimateMeasurement.Run(options);
         }
 
@@ -248,7 +255,8 @@ namespace WorldGen.Cli
                 "  worldgen calibrate-ordinals [--count <n>] [--plates <n>] [--level <n>] [--water <0..1>]\n" +
                 "  worldgen thermal-climate --seed <hex> --plates <n> --level <n> [--time <myr>]\n" +
                 "                           [--days <n>] [--water <0..1>] [--orbital <nap>] [--tilt <fok>]\n" +
-                "                           [--parallel <true|false>]   (ND-158 koltsegmeres, nem CI-lepes)\n");
+                "                           [--parallel <true|false>] [--beta <b1,b2,...>]\n" +
+                "                           (ND-158 koltsegmeres es ND-159 beta-sopres, nem CI-lepes)\n");
         }
     }
 }
