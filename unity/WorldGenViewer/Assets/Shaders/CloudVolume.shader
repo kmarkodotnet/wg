@@ -75,8 +75,15 @@ Shader "WorldGen/CloudVolume"
             float4x4 _CloudWorldToPlanet;
             // (belso hej-sugar, kulso hej-sugar, tengerszint-sugar, -) egysegben
             float4 _CloudShell;
-            // (egyseg/meter, maxBaseMeters, maxThicknessMeters, extinctionPerMeter)
+            // (ALAP-skala [rajzolt egyseg / modell meter], maxBaseMeters,
+            //  maxThicknessMeters, extinctionPerMeter)
             float4 _CloudScale;
+            // A VASTAGSAG sajat, kisebb fuggoleges skalaja. MIERT KULON: az
+            // alapnak a TEREP nagyitasat kell kovetnie, kulonben a 111-szeresen
+            // rajzolt hegyek atdofnek a dekket; ugyanaz a szorzo viszont egy
+            // 9,5 km-es zivatarfelhobol 1054 km-es tornyot csinalna, ami
+            // kipuposodik a bolygobol (MERT, felhasznaloi visszajelzes).
+            float _CloudThicknessScale;
             // (baseFadeFrac, topFadeFrac, subGridEdgeWidth, verticalStretch)
             float4 _CloudProfile;
             // (detail alap-frekvencia, profil-atlag, HG-g, fazis-csucs vagas)
@@ -228,11 +235,14 @@ Shader "WorldGen/CloudVolume"
                 float cov = atlas.r;
                 if (cov <= 0.0) return 0.0;
 
-                float altitudeMeters = (r - _CloudShell.z) / max(_CloudScale.x, 1e-20);
+                // A dekk ALJA az alap-skalaval, a VASTAGSAGA a sajatjaval
+                // rajzolodik, ezert a magassag-tortet a KET skala kozott kell
+                // szamolni - nem lehet egyetlen "meter" koordinatara hozni.
                 float baseMeters = atlas.g * _CloudScale.y;
                 float thickness = max(atlas.b * _CloudScale.z, 1.0);
                 thicknessMeters = thickness;
-                float hf = (altitudeMeters - baseMeters) / thickness;
+                float rBaseLocal = _CloudShell.z + baseMeters * _CloudScale.x;
+                float hf = (r - rBaseLocal) / max(thickness * _CloudThicknessScale, 1e-20);
                 if (hf <= 0.0 || hf >= 1.0) return 0.0;
 
                 float profile = PlanetSmoothstep01(hf / max(_CloudProfile.x, 1e-4))
@@ -347,9 +357,12 @@ Shader "WorldGen/CloudVolume"
                     maxTop = max(maxTop, bm + tm);
                     maxThick = max(maxThick, tm);
                 }
+                // Az ablak also/felso vege a KET skalaval: az alj az alap-,
+                // a teto az alap + vastagsag-skalaval.
                 float pad = maxThick * 0.25;
                 float rBase = _CloudShell.z + max(minBase - pad, 0.0) * _CloudScale.x;
-                float rTop = _CloudShell.z + (maxTop + pad) * _CloudScale.x;
+                float rTop = _CloudShell.z + minBase * _CloudScale.x
+                    + (maxTop - minBase + pad) * _CloudThicknessScale;
                 rBase = max(rBase, _CloudShell.x);
                 rTop = min(rTop, _CloudShell.y);
 
@@ -373,7 +386,12 @@ Shader "WorldGen/CloudVolume"
 
                 int steps = max((int)_CloudMarch.x, 1);
                 float tStep = (t1 - t0) / steps;
-                float stepMeters = tStep / max(_CloudScale.x, 1e-20);
+                // A dekk fuggoleges kiterjedese a VASTAGSAG-skalaval van rajzolva,
+                // ezert az optikai ut is azzal valtodik modell-meterre. (A
+                // vizszintes komponenshez mas skala tartozna - a dekk viszont
+                // vekony, tehat a sugarak tulnyomorest kozel fuggolegesek;
+                // ugyanez a kozelites all a terep-nagyitas ota amugy is.)
+                float stepMeters = tStep / max(_CloudThicknessScale, 1e-20);
                 // Az "opacitas" csuszka az OPTIKAI MELYSEGET skalazza, nem a kesz
                 // alfat: igy a felho FIZIKAI modon vekonyodik (a suru mag
                 // tovabbra is opakabb, mint a perem), nem pedig egyenletesen

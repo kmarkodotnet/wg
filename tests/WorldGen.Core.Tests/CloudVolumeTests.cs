@@ -588,6 +588,67 @@ namespace WorldGen.Core.Tests
         }
 
         [Fact]
+        public void Advect_IsAnIsometry_AndDoesNotSaturate()
+        {
+            // EZ A LÉNYEG (MÉRT hiba javitása): a modell beépített sodródása
+            // (hozzáadás + újranormálás) π/2-nél TELÍTŐDIK, tehát hosszú
+            // távon megáll. A forgatás nem: tetszőleges szögre értelmes és
+            // hossztartó.
+            double[] px = { 1, 0, 0, 0.577, -0.3 };
+            double[] py = { 0, 1, 0, 0.577, 0.9 };
+            double[] pz = { 0, 0, 1, 0.577, 0.3162 };
+            foreach (double radians in new[] { 0.0, 0.3, 1.5, 3.0, 10.0, 100.0 })
+            {
+                for (int i = 0; i < px.Length; i++)
+                {
+                    double len0 = Math.Sqrt(px[i] * px[i] + py[i] * py[i] + pz[i] * pz[i]);
+                    CloudVolume.Advect(px[i], py[i], pz[i], radians, out double ax, out double ay, out double az);
+                    double len1 = Math.Sqrt(ax * ax + ay * ay + az * az);
+                    Assert.Equal(len0, len1, 9);
+                }
+            }
+        }
+
+        [Fact]
+        public void Advect_ZeroAngleIsTheIdentityAndTheAxisIsFixed()
+        {
+            CloudVolume.Advect(0.3, 0.4, 0.866, 0.0, out double ax, out double ay, out double az);
+            Assert.Equal(0.3, ax, 9);
+            Assert.Equal(0.4, ay, 9);
+            Assert.Equal(0.866, az, 9);
+            // A tengely maga fixpont.
+            CloudVolume.Advect(CloudVolume.AdvectionAxisX, CloudVolume.AdvectionAxisY, CloudVolume.AdvectionAxisZ,
+                1.234, out double bx, out double by, out double bz);
+            Assert.Equal(CloudVolume.AdvectionAxisX, bx, 9);
+            Assert.Equal(CloudVolume.AdvectionAxisY, by, 9);
+            Assert.Equal(CloudVolume.AdvectionAxisZ, bz, 9);
+        }
+
+        [Fact]
+        public void Advect_KeepsMovingWhereTheModelsDriftWouldHaveStalled()
+        {
+            // A tengelyre MERŐLEGES pont a legtöbbet mozduló. Két nagy szög
+            // között is ÉRDEMI az elmozdulás - a telitődő változat itt már
+            // állna.
+            double a = 30.0, b = 30.0 + CloudVolume.WeatherAdvectionRadiansPerDay;
+            CloudVolume.Advect(0, 0, 1, a, out double ax, out double ay, out double az);
+            CloudVolume.Advect(0, 0, 1, b, out double bx, out double by, out double bz);
+            double dot = ax * bx + ay * by + az * bz;
+            double angle = Math.Acos(Math.Min(1.0, Math.Max(-1.0, dot)));
+            Assert.Equal(CloudVolume.WeatherAdvectionRadiansPerDay, angle, 6);
+        }
+
+        [Fact]
+        public void AdvectionSpeed_IsTheDocumentedJetStreamScale()
+        {
+            // 0,3 rad/nap a 7420 km-es sugaron ~2225 km/nap = 25,8 m/s.
+            double kmPerDay = CloudVolume.WeatherAdvectionRadiansPerDay * (PlanetConstants.RadiusMeters / 1000.0);
+            Assert.InRange(kmPerDay, 2100.0, 2350.0);
+            double metresPerSecond = kmPerDay * 1000.0 / 86400.0;
+            Assert.InRange(metresPerSecond, 24.0, 28.0);
+        }
+
+        [Fact]
         public void DetailPhase_IsPureAndSeedDependent()
         {
             CloudVolume.DetailPhase(12345UL, out double x1, out double y1, out double z1);

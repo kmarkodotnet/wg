@@ -665,6 +665,67 @@ namespace WorldGen.Core.Climate
             return local <= 0.0 ? 0.0 : (local >= 1.0 ? 1.0 : local);
         }
 
+        // -------------------------------------------------------------------
+        // 5. IDŐJÁRÁS-ADVEKCIÓ — a vándorló felhőrendszerek
+        // -------------------------------------------------------------------
+
+        /// <summary>
+        /// A felhőrendszerek vonulási sebessége radián/bolygó-nap.
+        ///
+        /// MIÉRT NEM A MODELL BEÉPÍTETT SODRÓDÁSA (MÉRT hiba). A
+        /// <see cref="WindPrecipitation.WeatherNoiseRaw"/> úgy sodor, hogy a
+        /// mintavételi ponthoz HOZZÁADJA a <c>driftAxis · (0,01·t)</c>
+        /// vektort, majd újranormálja. Ez kis <c>t</c>-re helyes kis
+        /// elfordulás, DE TELÍTŐDIK: az elfordulás <c>atan(0,01·t)</c>, ami
+        /// π/2-nél megáll, és <c>t ≳ 100</c> fölött MINDEN pont a drift-tengely
+        /// felé kollapszál — a zajmező elfajul. MÉRVE: <c>t = 2559</c>-nél az
+        /// eltolás 25,6 egység, az elfordulás 1,53 rad (a π/2 határ), tehát a
+        /// mintázat gyakorlatilag megáll. Hosszú távú óraként használhatatlan.
+        ///
+        /// A gömbön a helyes advekció FORGATÁS (ld. <see cref="Advect"/>):
+        /// tetszőlegesen sokáig fut, torzulás és telítődés nélkül.
+        ///
+        /// 0,3 rad/nap = 2225 km/nap = **25,8 m/s** a 7420 km-es sugáron —
+        /// futóáramlás-szintű vonulási sebesség, ami a KÖZÉPSZINTŰ dekkhez
+        /// (<see cref="MidLevelBaseMeters"/>) illik.
+        /// </summary>
+        public const double WeatherAdvectionRadiansPerDay = 0.3;
+
+        /// <summary>
+        /// Az advekció tengelye — a modell saját időjárás-sodródási tengelye
+        /// (<c>WindPrecipitation.WeatherDriftAxis*</c>), ami már egységvektor
+        /// (0,6² + 0,8² = 1).
+        /// </summary>
+        public const double AdvectionAxisX = WindPrecipitation.WeatherDriftAxisX;
+
+        /// <summary>Ld. <see cref="AdvectionAxisX"/>.</summary>
+        public const double AdvectionAxisY = WindPrecipitation.WeatherDriftAxisY;
+
+        /// <summary>Ld. <see cref="AdvectionAxisX"/>.</summary>
+        public const double AdvectionAxisZ = WindPrecipitation.WeatherDriftAxisZ;
+
+        /// <summary>
+        /// Egy gömbfelszíni irány elforgatása az advekciós tengely körül
+        /// (Rodrigues-formula). A forgatás IZOMETRIA: a mintázat torzulás
+        /// nélkül vándorol, és tetszőleges szögre értelmes — ez a döntő
+        /// eltérés a modell additív sodródásától, ami π/2-nél telítődik.
+        /// </summary>
+        public static void Advect(
+            double x, double y, double z, double radians,
+            out double ax, out double ay, out double az)
+        {
+            double c = DeterministicMath.Cos(radians);
+            double s = DeterministicMath.Sin(radians);
+            const double kx = AdvectionAxisX, ky = AdvectionAxisY, kz = AdvectionAxisZ;
+            double dot = kx * x + ky * y + kz * z;
+            double crossX = ky * z - kz * y;
+            double crossY = kz * x - kx * z;
+            double crossZ = kx * y - ky * x;
+            ax = x * c + crossX * s + kx * dot * (1.0 - c);
+            ay = y * c + crossY * s + ky * dot * (1.0 - c);
+            az = z * c + crossZ * s + kz * dot * (1.0 - c);
+        }
+
         /// <summary>
         /// A részlet-zaj FÁZISA a világ seedjéből. A
         /// <see cref="RandomDomain.Decorative"/> domainben van — ugyanaz a

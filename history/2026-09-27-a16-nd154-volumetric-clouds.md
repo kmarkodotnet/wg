@@ -128,6 +128,30 @@ lefedettséggel; az „opacitás" csúszka az OPTIKAI MÉLYSÉGET skálázza (0,
 alapérték, 1,0 = fizikai); perem-lágyság 0,25 → 0,35. Három élő csúszka a
 további hangoláshoz. Részletek: ND-154.
 
+## Harmadik kör (2026-09-28): kipúpo sodás, magasság-ugrálás, mozgás
+
+Három további kifogás, mind valódi hiba; a negyedik nem a felhőrétegben volt.
+
+1. **Kipúpo sodás.** A felhő minden függőleges méretét a terep 111-szeres
+   nagyításával rajzoltam; egy 9,5 km-es zivatarfelhő így 1054 km-es torony
+   lett. Most két külön függőleges skála van: az ALAP a terepét követi
+   (különben a hegyek átdöfik), a VASTAGSÁG saját, kisebb szorzót kap.
+   A héj külső sugara 135,9 → 121,2 egység.
+2. **Magasság-ugrálás kameramozgatásra.** A lépésszám nézetfüggő volt
+   (12–48); mivel a menet az ABLAKOT osztja N részre, ez eltolta a
+   mintavételi magasságokat. Most fix 32 lépés, és teszt őrzi.
+3. **Álló felhők.** A modell beépített sodródása additív eltolás +
+   újranormálás, ami π/2-nél TELÍTŐDIK — `t ≳ 100` fölött a zajmező
+   elfajul, tehát hosszú távú óraként használhatatlan. Gömbön a helyes
+   advekció a FORGATÁS: az új `CloudVolume.Advect` izometria, tetszőleges
+   szögre. MÉRVE: egy napforduló alatt a korong változó hányada
+   **1,91% → 25,89%**.
+4. **Deep time — NEM a felhőréteg hibája.** A `MoisturePrecipitation.Compute`
+   a deep time értékét meg sem kapja (a cache-komment expliciten rögzíti):
+   a csapadék-mező deep-time-invariáns, és a felhő ezt hűen tükrözi.
+   Új tétel: todo2 B19, saját ND-t igényel (a klíma-mező numerikáját
+   változtatná, és a hidrológiát is érinti).
+
 ## Ami nyitva maradt
 
 - **B17** — a vizuális átvétel második köre. A limbnél a mély konvektív cellák a 111-szeres nyújtás miatt kiugró dudorokat adnak (9,5 km × 111 = 14 egység); ez a nyújtás következménye, nem hiba, de eldöntendő, hogy így maradjon-e.

@@ -48,57 +48,18 @@ namespace WorldGen.Viewer.LodChunking.Tests
         }
 
         [Fact]
-        public void ViewSteps_AreClampedToTheDocumentedRange()
+        public void MarchSteps_AreFixed_SoTheDeckDoesNotShiftWithTheCamera()
         {
-            // Nagyon távoli kamera: a héj néhány pixel, a minimum elég.
-            Assert.Equal(CloudRaymarchPlan.MinViewSteps,
-                CloudRaymarchPlan.ViewSteps(1.0e7, 100.32, 0.32, 1.0, 900));
-            // A héjon belül: a maximum.
-            Assert.Equal(CloudRaymarchPlan.MaxViewSteps,
-                CloudRaymarchPlan.ViewSteps(100.1, 100.32, 0.32, 1.0, 900));
-        }
-
-        [Fact]
-        public void ViewSteps_DecreaseWithDistance()
-        {
-            int previous = int.MaxValue;
-            for (int i = 0; i < 40; i++)
-            {
-                double distance = 100.4 + i * 40.0;
-                int steps = CloudRaymarchPlan.ViewSteps(distance, 100.32, 0.32, 1.0, 900);
-                Assert.InRange(steps, CloudRaymarchPlan.MinViewSteps, CloudRaymarchPlan.MaxViewSteps);
-                Assert.True(steps <= previous, $"a távolodással nem növekedhet a lépésszám ({distance}: {steps} > {previous})");
-                previous = steps;
-            }
-        }
-
-        [Fact]
-        public void ViewSteps_RiseWithResolutionAndFallWithFieldOfView()
-        {
-            int lowRes = CloudRaymarchPlan.ViewSteps(140.0, 100.32, 0.32, 1.0, 200);
-            int highRes = CloudRaymarchPlan.ViewSteps(140.0, 100.32, 0.32, 1.0, 2000);
-            Assert.True(highRes >= lowRes, "több pixel → több lépés");
-
-            int narrow = CloudRaymarchPlan.ViewSteps(140.0, 100.32, 0.32, 0.3, 900);
-            int wide = CloudRaymarchPlan.ViewSteps(140.0, 100.32, 0.32, 1.4, 900);
-            Assert.True(narrow >= wide, "szűkebb látószög → nagyobb nagyítás → több lépés");
-        }
-
-        [Fact]
-        public void ShellPixels_IsZeroForDegenerateInput()
-        {
-            Assert.Equal(0.0, CloudRaymarchPlan.ShellPixels(200.0, 100.0, 0.0, 1.0, 900));
-            Assert.Equal(0.0, CloudRaymarchPlan.ShellPixels(200.0, 100.0, 0.3, 1.0, 0));
-            Assert.Equal(0.0, CloudRaymarchPlan.ShellPixels(200.0, 100.0, 0.3, 0.0, 900));
-        }
-
-        [Fact]
-        public void ViewSteps_HandleDegenerateInputWithTheMinimum()
-        {
-            Assert.Equal(CloudRaymarchPlan.MinViewSteps,
-                CloudRaymarchPlan.ViewSteps(double.NaN, 100.32, 0.32, 1.0, 900));
-            Assert.Equal(CloudRaymarchPlan.MinViewSteps,
-                CloudRaymarchPlan.ViewSteps(200.0, 100.32, 0.0, 1.0, 900));
+            // FELHASZNÁLÓI VISSZAJELZÉS (2026-09-28): „ahogy mozgatom, adott
+            // felhő magassága is ugrál". A menet az ABLAKOT osztja N részre,
+            // tehát a lépésszám bármilyen nézetfüggősége eltolja a
+            // mintavételi magasságokat. Ez a teszt azt rögzíti, hogy a
+            // lépésszám KONSTANS - ha valaki visszavezetne egy kamera-függő
+            // változatot, itt bukna el.
+            Assert.Equal(32, CloudRaymarchPlan.MarchSteps);
+            // A függőleges profil két átmeneti sávja legalább négy mintát kap.
+            Assert.True(CloudRaymarchPlan.MarchSteps * WorldGen.Core.Climate.CloudVolume.ProfileBaseFadeFraction >= 4.0);
+            Assert.True(CloudRaymarchPlan.MarchSteps * WorldGen.Core.Climate.CloudVolume.ProfileTopFadeFraction >= 4.0);
         }
 
         [Fact]

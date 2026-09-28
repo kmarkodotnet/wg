@@ -8662,6 +8662,66 @@ KÖVETKEZMÉNYE és KONZISZTENS a tereppél (egy 2,3 km-es hegy 255 km-nek láts
 nem hiba — de eldöntendő, hogy így maradjon-e, vagy a felhő VASTAGSÁGA kapjon
 kisebb nyújtást, mint az ALAPJA.
 
+#### Harmadik kör: kipúpo sodás, magasság-ugrálás, mozgás (2026-09-28)
+
+Három további kifogás, mind valódi hibára mutatott.
+
+**(1) „Bizonyos felhők durván kipúpo sodnak a bolygóból."** A második körben a
+felhő minden függőleges méretét a terep 111-szeres nagyításával rajzoltam. Az
+ALAPRA ez kell (különben a hegyek átdöfik), a VASTAGSÁGRA viszont káros: egy
+9,5 km-es zivatarfelhő így 1054 km-es (14 egységnyi) toronyként rajzolódott egy
+100 egység sugarú bolygón. **Javítás:** két KÜLÖN függőleges skála — az alap a
+terep nagyítását követi, a vastagság saját, kisebb szorzót kap
+(`cloudThicknessExaggeration`, alapértelmezés 20). A héj külső sugara 135,9-ről
+121,2 egységre csökkent, a limb kitisztúlt.
+
+**(2) „Ahogy mozgatom, adott felhő magassága is ugrál."** A lépésszám
+nézetfüggő volt (12–48 a kamera távolságától). A menet a mintavételi ABLAKOT
+osztja N részre, tehát a lépésszám változása ELTOLJA azokat a magasságokat, ahol
+a sűrűséget mintavételezzük — egy vékony dekk súlyának középpontja fél
+lépéssel elmozdul, ami a képen a felhő magasságának ugrásáként látszik.
+**Javítás:** FIX 32 lépés (`CloudRaymarchPlan.MarchSteps`); a nézetfüggő
+választó és a tesztjei törölve, helyettük egy teszt ŐRZI, hogy a lépésszám
+konstans marad.
+
+**(3) „A felhők pozíciója statikus."** HÁROM oka volt, és a harmadik egy
+modell-szintű korlát, ami eddig nem derült ki:
+
+  a) a sodródási út alapértelmezésben KI volt kapcsolva;
+  b) a VALÓS időt integrálta, nem a szimulációsét — most a Nap órájából jön;
+  c) **a modell beépített sodródása TELÍTŐDIK.** A
+     `WindPrecipitation.WeatherNoiseRaw` úgy sodor, hogy a mintavételi
+     ponthoz HOZZÁADJA a `driftAxis · (0,01·t)` vektort, majd újranormálja.
+     Az elfordulás ezért `atan(0,01·t)`, ami **π/2-nél megáll**, és `t ≳ 100`
+     fölött minden pont a drift-tengely felé kollapszál. MÉRVE: `t = 2559`-nél
+     az eltolás 25,6 egység, az elfordulás 1,53 rad — a mintázat gyakorlatilag
+     áll. Hosszú távú óraként használhatatlan.
+
+**Javítás:** gömbön a helyes advekció a FORGATÁS. Az új
+`CloudVolume.Advect` (Rodrigues-formula a modell saját sodródási tengelye
+körül) izometria: tetszőlegesen sokáig fut, torzulás és telitődés nélkül. Az
+időjárás-tag így VONUL, a klimatológia (ITCZ, orografikus) pedig a helyén
+marad — pontosan ez a fizikai szerepmegosztás. A modell `t` paraméterét
+nullán hagyjuk, hogy a telitődő út ne szóljon bele.
+
+**MÉRVE** (azonos megvilágítás, EGY teljes napforduló alatt, a korongon):
+a változó pixelek aránya **1,91% → 25,89%** (13,5×), az erősen változóké
+0,00% → 0,90%. A sebesség SZÁRMAZTATOTT: 0,3 rad/nap = 2225 km/nap =
+**25,8 m/s** a 7420 km-es sugáron — futóáramlás-szintű vonulási sebesség,
+ami a középszintű dekkhez illik. Csúszkák: `cloudAdvectionRadiansPerDay`
+(0–2) és `cloudWeatherStrength` (a vándorló hányad súlya; a modell saját
+kalibrált 0,7-e az alapértelmezés).
+
+**(4) „Deep time-ban totál változatlanok" — EZ NEM A FELHŐRÉTEG HIBÁJA.** A
+`MoisturePrecipitation.Compute` a deep time értékét **meg sem kapja**: saját,
+t=0-ás eleváció-mezőből számol, kráter és erózió nélkül (ezt a
+`GetOrComputePrecipitationField` cache-ének komment je expliciten rögzíti is).
+A csapadék-mező tehát deep-time-INVARIÁNS, és a felhő ezt hűen tükrözi — a
+lemezek szétválása, a hegységek felemelkedése nem látszik a csapadékon, tehát
+a felhőn sem. Ez MODELL-szintű hiány, nem render-hiba, és a javítása a
+csapadék-lánc deep-time-osítása lenne — önálló tétel, saját ND-vel, mert a
+klíma-mező numerikus viselkedését változtatja. Felvéve a todo2 B19 sorába.
+
 **ISMERT KORLÁT, dokumentálva.** Űrből nézve a burkoló KÖZELI lapja van elöl,
 ezért ott a mélységteszt nem segít: egy a felhődekkbe emelkedő HEGY nem takarja
 el a mögötte lévő felhőt. A domináns takaró (a bolygó túloldala) analitikusan
