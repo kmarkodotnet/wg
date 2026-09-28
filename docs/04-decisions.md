@@ -8601,6 +8601,55 @@ felhasználói ítélet.
 | 10 | Holt státusz-property: az „RGBA32 nem támogatott" és „hiba az atlasz-építésben" sosem jutott ki | a státusz a teljesítmény-naplóba kerül |
 | 11 | A `SurfaceSkyOpenness` doksija „nincs benne transzcendens"-t állított, a kód viszont nyers `Math.Cos`/`Sin`-t hívott | `DeterministicMath`, és a gyűrűk szögfüggvényei a ciklusból kiemelve |
 
+#### Felhasználói visszajelzés utáni második kör (2026-09-27)
+
+A felhasználói ítélet két dolgot kifogásolt: *„a felhő átlátszósága nem elég
+magas, totálisan takarja minden felhő a területet, emellett pontosan
+talajszintre van rajzolva, ... a hegységek csúcsa környékére kellene rajzolni."*
+Mindkettő VALÓDI hibára mutatott, és a másodikból egy komoly, addig észre nem
+vett hiba derült ki.
+
+**(1) A felhő 1/111-ed magasságban volt rajzolva — a terep-nagyítás hiánya.**
+A jelenetben `terrainReliefExaggeration = 111`, azaz a domborzat 111-szeres
+függőleges nagyítással van rajzolva: egy 2308 m-es csúcs 255 km magasnak
+(3,45 egység) látszik. A felhő magasságát viszont NEM szoroztam a nagyítással,
+így a dekk a valódi 2500 m-nek megfelelő 0,034 egységnél ült — a rajzolt
+hegyek TÖREDÉKÉNÉL, gyakorlatilag a felszínen. Innen a „talajszintre van
+rajzolva" benyomás. **Javítás:** a `_CloudScale.x` mostantól „rajzolt egység
+per MODELL méter", vagyis a felhő ugyanazt a függőleges nyújtást kapja, mint a
+terep — enélkül a nagyított hegyek átdöfnék a dekket.
+
+**(2) A dekk terepkövető volt, pedig középszintű felhőlap.** Az alap
+`talaj + LCL` volt. Az LCL fizikailag helyes, de a FELSZÍNI légbuborék
+kondenzációs szintje — a KÖD és a gomolyfelhő alapja, ami tényleg követi a
+domborzatot. A csapadék-mező által hajtott dekk viszont frontális/konvektív
+RENDSZER, aminek a tömege a közép-troposzférában ül, közel állandó nyomási
+szinten, VÍZSZINTES lapként. **Javítás:** `MidLevelBaseMeters = 2500` — a WMO
+középszintű osztályának (2–7 km) alsó pereme, ami MÉRVE a modellezett domborzat
+fölé kerül (a legmagasabb szárazföld 2308 m, a szárazföld 99%-a 1469 m alatt,
+a mediánja 325 m). A lap a szárazföld 99%-a fölött vízszintes; ahol a talaj
+fölötti kondenzációs szint mégis fölé kerülne, ott folytonosan megemelkedik.
+
+**(3) Minden felhő opak volt, mert nem létezett vékony felhő.** A vastagság
+MINDEN nemnulla lefedettségnél legalább 500 m volt (τ = 7). **Javítás:**
+`MinThicknessMeters = 80` (τ = 1,1, áttetsző fátyol), és a vastagság innen nő a
+lefedettséggel — fizikailag a felhővastagság és a lefedettség erősen korrelál.
+
+**(4) Az „opacitás" csúszka mostantól az OPTIKAI MÉLYSÉGET skálázza**, nem a
+kész alfát: így a felhő fizikai módon vékonyodik (a sűrű mag továbbra is
+opakabb a peremnél), nem egyenletesen elhalványul. Az alapérték **0,45** —
+tudatos, visszafordítható render-döntés: a felhő optikai mélysége fizikailag
+tényleg opak, de a bolygó megismerhetősége fontosabb. 1,0 = a fizikai érték.
+
+**(5) A perem-lágyság (`SubGridEdgeWidth`) 0,25 → 0,35.** A 0,55 MÉRVE túl
+sokat kent szét: a lágy perem a cella nagyobb részét érinti, így összességében
+TÖBB eget takart el vékony felhővel.
+
+Három új, élő Inspector-csúszka a látvány-ítélethez (B17):
+`cloudDeckBaseMeters` (a lap szintje), `cloudEdgeSoftness` (perem-lágyság),
+`cloudVolumeOpacity` (optikai mélység). Az elsőnek az atlaszt is újra kell
+csomagolnia, ezt a munka-indító kapu kezeli.
+
 **ISMERT KORLÁT, dokumentálva.** Űrből nézve a burkoló KÖZELI lapja van elöl,
 ezért ott a mélységteszt nem segít: egy a felhődekkbe emelkedő HEGY nem takarja
 el a mögötte lévő felhőt. A domináns takaró (a bolygó túloldala) analitikusan

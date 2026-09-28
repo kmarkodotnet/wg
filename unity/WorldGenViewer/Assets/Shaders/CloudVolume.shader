@@ -82,7 +82,7 @@ Shader "WorldGen/CloudVolume"
             // (detail alap-frekvencia, profil-atlag, HG-g, fazis-csucs vagas)
             float4 _CloudDetail;
             float4 _CloudDetailPhase;
-            // (lepesszam, atereszte-kilepes, opacitas-skala, ambiens)
+            // (lepesszam, atereszte-kilepes, optikai-melyseg-skala, ambiens)
             float4 _CloudMarch;
             // DIAGNOSZTIKA (ugyanaz a szerep, mint a diagForceZeroLighting-nal):
             // 0 = ki, 1 = a burkolo-geometria tomor kitoltese (rendereodik-e
@@ -374,7 +374,11 @@ Shader "WorldGen/CloudVolume"
                 int steps = max((int)_CloudMarch.x, 1);
                 float tStep = (t1 - t0) / steps;
                 float stepMeters = tStep / max(_CloudScale.x, 1e-20);
-                float extinction = _CloudScale.w;
+                // Az "opacitas" csuszka az OPTIKAI MELYSEGET skalazza, nem a kesz
+                // alfat: igy a felho FIZIKAI modon vekonyodik (a suru mag
+                // tovabbra is opakabb, mint a perem), nem pedig egyenletesen
+                // elhalvanyul. 1 = a Core-ban kalibralt, fizikai ertek.
+                float extinction = _CloudScale.w * _CloudMarch.z;
 
                 float3 L = PlanetSafeNormalize(
                     mul((float3x3)_CloudWorldToPlanet, _SunDir.xyz), float3(0, 1, 0));
@@ -449,11 +453,18 @@ Shader "WorldGen/CloudVolume"
                     return fixed4((1.0 - transmittance).xxx, 1);
                 }
 
-                float alpha = saturate((1.0 - transmittance) * _CloudMarch.z);
+                float alpha = saturate(1.0 - transmittance);
                 if (alpha <= 0.0)
                     discard;
-                float3 rgb = radiance * _CloudMarch.z;
-                if (any(isnan(rgb)) || any(isinf(rgb)))
+                float3 rgb = radiance;
+                // NaN/Inf-fogo, isnan() NELKUL: a fordito az optikai-melyseg
+                // skala kiemelese ota BIZONYITANI tudja, hogy az ertek nem
+                // NaN, es figyelmeztetest ad az isnan()-ra ("value cannot be
+                // NaN") - a `>=` osszehasonlitas viszont NaN-ra is hamis, tehat
+                // ugyanazt fogja meg, es a negativ radianciat is (ami szinten
+                // csak hiba lehet). A cian ugyanaz a diagnosztikai szin, mint a
+                // terep-shaderben.
+                if (!all(rgb >= 0.0) || any(isinf(rgb)))
                     return fixed4(0, 1, 1, 1);
                 return fixed4(rgb, alpha);
             }

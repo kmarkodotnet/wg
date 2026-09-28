@@ -89,7 +89,8 @@ namespace WorldGen.Viewer.Lod
         /// </summary>
         public static void BuildChannels(
             double[] coverage, double[] elevationMeters, double seaLevelMeters,
-            double[] baseMeters, double[] thicknessMeters)
+            double[] baseMeters, double[] thicknessMeters,
+            double deckBaseMeters = CloudVolume.MidLevelBaseMeters)
         {
             if (coverage == null) throw new ArgumentNullException(nameof(coverage));
             if (elevationMeters == null) throw new ArgumentNullException(nameof(elevationMeters));
@@ -102,7 +103,7 @@ namespace WorldGen.Viewer.Lod
             {
                 double ground = elevationMeters[c] - seaLevelMeters;
                 if (ground < 0.0) ground = 0.0;
-                baseMeters[c] = CloudVolume.CloudBaseAboveSeaLevelMeters(coverage[c], ground);
+                baseMeters[c] = CloudVolume.CloudBaseAboveSeaLevelMeters(coverage[c], ground, deckBaseMeters);
                 thicknessMeters[c] = CloudVolume.CloudThicknessMeters(coverage[c], ground);
             }
         }

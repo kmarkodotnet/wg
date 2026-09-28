@@ -55,8 +55,16 @@ namespace WorldGen.Viewer
 
         [SerializeField]
         [Range(0f, 2f)]
-        [Tooltip("A felhő takarásának/fényességének globális skálája. 1 = a Core-ban kalibrált optikai mélység; 0 = láthatatlan.")]
-        private float cloudVolumeOpacity = 1f;
+        [Tooltip("A felhő OPTIKAI MÉLYSÉGÉNEK skálája. 1 = a Core-ban kalibrált, fizikai érték (egy 500 m-es rétegfelhő optikai mélysége 10, azaz opak); " +
+                 "kisebb érték fizikai módon vékonyítja a felhőt, tehát átlátszik rajta a felszín - a sűrű mag ilyenkor is opakabb marad a peremnél. 0 = láthatatlan.")]
+        // FELHASZNÁLÓI VISSZAJELZÉS (2026-09-27): „a felhő átlátszósága nem elég
+        // magas, totálisan takarja minden felhő a területet". Az alapérték
+        // ezért 1,0-ről 0,45-re csökkent. Ez TUDATOS, VISSZAFORDÍTHATÓ
+        // render-döntés, nem a modell meghamisítása: a felhő optikai mélysége
+        // fizikailag TÉNYLEG opak (egy 700 m-es vízfelhő τ-ja ~10, azon nem
+        // látni át), de a bolygó megismerhetősége fontosabb, mint a felhő
+        // fotometriai hűsége. 1,0-ra állítva a fizikai érték áll vissza.
+        private float cloudVolumeOpacity = 0.45f;
 
         [SerializeField]
         [Range(0f, 0.5f)]
@@ -72,6 +80,20 @@ namespace WorldGen.Viewer
         [Range(0.5f, 4f)]
         [Tooltip("Az atlasz újraépítésének minimális időköre másodpercben (felhő-sodródásnál).")]
         private float cloudVolumeRebuildSeconds = 1.5f;
+
+        [SerializeField]
+        [Range(500f, 8000f)]
+        [Tooltip("A felhődekk VÍZSZINTES alapszintje méterben a tengerszint fölött. A réteg nem követi a terepet - csak ott emelkedik meg, " +
+                 "ahol a talaj fölötti kondenzációs szint már e fölé kerülne. 2500 m a WMO középszintű osztályának alsó pereme, és a mért " +
+                 "domborzat (max 2308 m) fölé teszi a lapot.")]
+        private float cloudDeckBaseMeters = (float)CloudVolume.MidLevelBaseMeters;
+
+        [SerializeField]
+        [Range(0.1f, 0.9f)]
+        [Tooltip("A felhőfolt PEREMÉNEK lágysága: a cella mekkora hányada esik a felhő-mag és a derült ég közti átmenetbe. " +
+                 "Nagyobb érték = átlátszóbb, rétegfelhős jelleg; kisebb = élesebb, gomolyfelhős. A cella-átlagos lefedettség " +
+                 "MINDEN értéknél pontosan a modellezett marad.")]
+        private float cloudEdgeSoftness = (float)CloudVolume.SubGridEdgeWidth;
 
         [SerializeField]
         [Range(0, 4)]
@@ -130,6 +152,7 @@ namespace WorldGen.Viewer
         private bool _cloudBuiltListenerAdded;
         private float _cloudAtlasLastBuildRealtime = float.NegativeInfinity;
         private double _cloudAtlasDriftTime = double.NaN;
+        private double _cloudAtlasDeckBase = double.NaN;
         private bool _cloudFormatWarningShown;
         private string _cloudVolumeStatus = "térfogati felhő: nincs adat";
 
@@ -182,10 +205,14 @@ namespace WorldGen.Viewer
             // eredmény, sem textúra nincs. MÉRT eset: a réteg Play közbeni
             // újrafordítás után némán eltűnt.
             bool worldChanged = _cloudAtlasLatest == null || _cloudAtlasBuiltRevision != _cloudAtlasRevision;
+            // A dekk alapszintje az atlasz G csatornájában van, tehát a csúszka
+            // elmozdulása ÚJRACSOMAGOLÁST igényel - különben a változás csak a
+            // következő világ-újraépítéskor látszana.
+            bool deckMoved = !_cloudAtlasDeckBase.Equals((double)cloudDeckBaseMeters);
             bool driftMoved = cloudDriftEnabled
                 && (double.IsNaN(_cloudAtlasDriftTime) || _cloudDriftTime != _cloudAtlasDriftTime)
                 && Time.unscaledTime - _cloudAtlasLastBuildRealtime >= Mathf.Max(0.5f, cloudVolumeRebuildSeconds);
-            if (!worldChanged && !driftMoved)
+            if (!worldChanged && !driftMoved && !deckMoved)
                 return;
 
             MoisturePrecipitation.PrecipitationField precipField = _lastPrecipField;
@@ -201,12 +228,14 @@ namespace WorldGen.Viewer
             double driftTime = cloudDriftEnabled ? _cloudDriftTime : 0.0;
             double threshold = cloudDensityThreshold;
             double gamma = cloudDensityGamma;
+            double deckBase = cloudDeckBaseMeters;
             double exaggeration = terrainReliefExaggeration;
 
             _cloudAtlasDriftTime = driftTime;
             _cloudAtlasLastBuildRealtime = Time.unscaledTime;
+            _cloudAtlasDeckBase = deckBase;
             _cloudAtlasTask = Task.Run(
-                () => BuildCloudAtlas(precipField, revision, seed, seaLevel, driftTime, threshold, gamma, exaggeration, token),
+                () => BuildCloudAtlas(precipField, revision, seed, seaLevel, driftTime, threshold, gamma, exaggeration, deckBase, token),
                 token);
         }
 
@@ -218,7 +247,7 @@ namespace WorldGen.Viewer
         private static CloudAtlasResult BuildCloudAtlas(
             MoisturePrecipitation.PrecipitationField precipField, int revision, ulong seed,
             double seaLevelMeters, double driftTime, double thresholdPercentile, double gamma,
-            double reliefExaggeration, CancellationToken token)
+            double reliefExaggeration, double deckBaseMeters, CancellationToken token)
         {
             var sw = Stopwatch.StartNew();
             DenseGridMetrics grid = CloudGrid.Value;
@@ -307,7 +336,7 @@ namespace WorldGen.Viewer
 
             var baseMeters = new double[cells];
             var thicknessMeters = new double[cells];
-            CloudSkyAtlas.BuildChannels(coverage, elevation, seaLevelMeters, baseMeters, thicknessMeters);
+            CloudSkyAtlas.BuildChannels(coverage, elevation, seaLevelMeters, baseMeters, thicknessMeters, deckBaseMeters);
 
             token.ThrowIfCancellationRequested();
             // Az égbolt-nyitottság a DOMBORZATTÓL függ, a felhő-sodródástól NEM,
@@ -501,9 +530,19 @@ namespace WorldGen.Viewer
                 return;
             }
 
-            double unitsPerMeter = elevationScale;
-            double seaLevelRadius = radius + _adaptiveSeaLevel * unitsPerMeter;
-            double innerRadius = seaLevelRadius + CloudVolume.MinBaseAboveGroundMeters * unitsPerMeter;
+            // A RAJZOLT magasság a terep domborzat-nagyítását KÖVETI: ha a
+            // domborzat k-szoros magasan van rajzolva, a fölötte lebegő
+            // felhődekknek is k-szoros magasan kell lennie, különben a
+            // nagyított hegyek átdöfnék. `_CloudScale.x` ezért "rajzolt egység
+            // per MODELL méter" - a shader így közvetlenül modell-métert nyer
+            // vissza, amit az atlasz alj/vastagság értékeivel össze lehet mérni.
+            double exaggeration = terrainReliefExaggeration == 0.0 ? 1.0 : terrainReliefExaggeration;
+            double unitsPerMeter = elevationScale * exaggeration;
+            double seaLevelRadius = radius + _adaptiveSeaLevel * elevationScale;
+            // A dekk alja SOHA nem megy a vízszintes lap alá, ezért a belső
+            // héjgömb is ott kezdődik - így a menet nem pazarol lépést a lap
+            // alatti üres légrétegre.
+            double innerRadius = seaLevelRadius + cloudDeckBaseMeters * unitsPerMeter;
             double outerRadius = seaLevelRadius + CloudVolume.ShellOuterAboveSeaLevelMeters * unitsPerMeter;
             double padding = CloudRaymarchPlan.ShellPaddingFactor(CloudShellMeshLevel);
             double meshRadius = outerRadius * padding;
@@ -523,7 +562,7 @@ namespace WorldGen.Viewer
             Shader.SetGlobalVector(CloudProfileId, new Vector4(
                 (float)CloudVolume.ProfileBaseFadeFraction,
                 (float)CloudVolume.ProfileTopFadeFraction,
-                (float)CloudVolume.SubGridEdgeWidth,
+                cloudEdgeSoftness,
                 (float)CloudVolume.DetailVerticalStretch));
             Shader.SetGlobalFloat(CloudTwilightId, (float)CloudVolume.TwilightBandCos);
             Shader.SetGlobalVector(CloudNoiseId, new Vector4(

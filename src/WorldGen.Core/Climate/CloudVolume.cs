@@ -129,7 +129,52 @@ namespace WorldGen.Core.Climate
         /// <summary>A csomagolás (atlasz) felső korlátja a felhőalapra, m a tengerszint fölött.</summary>
         public const double MaxBaseAboveSeaLevelMeters = 12000.0;
 
-        /// <summary>Rétegfelhő-vastagság a lefedettség alsó végén (m) — stratus.</summary>
+        /// <summary>
+        /// A felhődekk ALAPSZINTJE a tengerszint fölött (m) — a réteg
+        /// VÍZSZINTES, nem a terepet követi.
+        ///
+        /// MIÉRT NEM TEREPKÖVETŐ (felhasználói visszajelzés, 2026-09-27:
+        /// „pontosan talajszintre van rajzolva, ... a hegységek csúcsa
+        /// környékére kellene"). Az első változat a felhőalapot
+        /// <c>talaj + LCL</c>-ként számolta. Az LCL fizikailag helyes — de a
+        /// FELSZÍNI légbuborék kondenzációs szintje, azaz a KÖD és a gomolyfelhő
+        /// alapja, ami tényleg követi a domborzatot. A csapadék-mező által
+        /// hajtott dekk viszont frontális/konvektív RENDSZER, aminek a tömege a
+        /// közép-troposzférában ül, és ott a réteg közel állandó NYOMÁSI
+        /// szinten, vagyis VÍZSZINTES lapként fekszik. A terepkövetés miatt a
+        /// felhő ráragadt minden dombra, és felszínre festett matricának
+        /// látszott.
+        ///
+        /// AZ ÉRTÉK: a WMO középszintű felhőosztálya 2–7 km; 2500 m ennek az
+        /// alsó pereme, és MÉRVE a modellezett domborzat fölé kerül (ebben a
+        /// világban a legmagasabb szárazföld 2308 m a tengerszint fölött level
+        /// 6-on, a szárazföld 99%-a 1469 m alatt), tehát a lap TELJES
+        /// EGÉSZÉBEN a terep fölött lebeg. Magasabb domborzatú világon a
+        /// csúcsok természetes módon átbökik — azt az orografikus emelés
+        /// (lásd lent) folytonosan kezeli.
+        /// </summary>
+        public const double MidLevelBaseMeters = 2500.0;
+
+        /// <summary>
+        /// A LEGVÉKONYABB felhőréteg vastagsága (m).
+        ///
+        /// MIÉRT VAN (felhasználói visszajelzés, 2026-09-27: „a felhő
+        /// átlátszósága nem elég magas, totálisan takarja minden felhő a
+        /// területet"). Az első változat MINDEN nemnulla lefedettségnél
+        /// legalább 500 m vastag réteget adott, aminek az optikai mélysége
+        /// <c>0,02 · 0,7 · 500 = 7</c> — vagyis a modell szerint alig felhős
+        /// cella is TELJESEN OPAK felhőt kapott, és a képen nem létezett
+        /// vékony, átlátszó felhő.
+        ///
+        /// 80 m-nél az optikai mélység <c>0,02 · 0,7 · 80 = 1,1</c>: áttetsző
+        /// fátyol, amin átlátszik a felszín. A vastagság innen NŐ a
+        /// lefedettséggel — fizikailag a felhő vastagsága és a lefedettség
+        /// erősen korrelál (szórványos sekély gomolyfelhő vs. mély, zárt
+        /// rendszer), tehát ez nem kozmetikai csúszka.
+        /// </summary>
+        public const double MinThicknessMeters = 80.0;
+
+        /// <summary>Rétegfelhő-vastagság a teljes lefedettség LINEÁRIS tagjában (m) — stratus.</summary>
         public const double StratusThicknessMeters = 500.0;
 
         /// <summary>
@@ -173,14 +218,28 @@ namespace WorldGen.Core.Climate
         }
 
         /// <summary>
-        /// A felhőalap a TENGERSZINT fölött (m). A felhőalap a TALAJ fölött
-        /// képződik, ezért a domborzat fölött megemelkedik — így a felhőtakaró
-        /// ráborul a hegyláncra, nem átvágja azt.
+        /// A felhőalap a TENGERSZINT fölött (m): a VÍZSZINTES középszintű lap
+        /// (<see cref="MidLevelBaseMeters"/>), megemelve ott, ahol a terep
+        /// olyan magas, hogy a fölötte lévő kondenzációs szint már a lap FÖLÉ
+        /// kerülne. Így a dekk alapesetben sík lapként lebeg a domborzat
+        /// fölött, a kivételesen magas hegyláncok fölött viszont ráborul —
+        /// mindkettő valódi jelenség, és az átmenet folytonos.
         /// </summary>
-        public static double CloudBaseAboveSeaLevelMeters(double coverage, double groundAboveSeaLevelMeters)
+        /// <param name="coverage">A cella lefedettsége [0,1].</param>
+        /// <param name="groundAboveSeaLevelMeters">A talaj magassága a tengerszint fölött (m).</param>
+        /// <param name="deckBaseMeters">
+        /// A vízszintes lap szintje; alapértelmezésben
+        /// <see cref="MidLevelBaseMeters"/>. Élő hangoláshoz felülírható
+        /// (ld. a viewer <c>cloudDeckBaseMeters</c> csúszkáját) — a látvány-
+        /// ítélet (todo2 B17) ezen múlik.
+        /// </param>
+        public static double CloudBaseAboveSeaLevelMeters(
+            double coverage, double groundAboveSeaLevelMeters, double deckBaseMeters = MidLevelBaseMeters)
         {
             double ground = groundAboveSeaLevelMeters > 0.0 ? groundAboveSeaLevelMeters : 0.0;
-            double b = ground + LiftingCondensationLevelMeters(coverage);
+            double deck = deckBaseMeters > 0.0 ? deckBaseMeters : 0.0;
+            double orographic = ground + LiftingCondensationLevelMeters(coverage);
+            double b = orographic > deck ? orographic : deck;
             return b > MaxBaseAboveSeaLevelMeters ? MaxBaseAboveSeaLevelMeters : b;
         }
 
@@ -193,7 +252,8 @@ namespace WorldGen.Core.Climate
         {
             double c = coverage <= 0.0 ? 0.0 : (coverage >= 1.0 ? 1.0 : coverage);
             double ground = groundAboveSeaLevelMeters > 0.0 ? groundAboveSeaLevelMeters : 0.0;
-            double t = StratusThicknessMeters
+            double t = MinThicknessMeters
+                + (StratusThicknessMeters - MinThicknessMeters) * c
                 + ConvectiveThicknessMeters * c * c
                 + OrographicThicknessFactor * ground * c;
             return t > MaxThicknessMeters ? MaxThicknessMeters : t;
@@ -485,7 +545,25 @@ namespace WorldGen.Core.Climate
         /// szélessége a lefedettség skáláján. A felhőfolt SZÉLE nem éles: ez
         /// a sáv adja a foszladozó peremet.
         /// </summary>
-        public const double SubGridEdgeWidth = 0.25;
+        /// <remarks>
+        /// FELHASZNÁLÓI VISSZAJELZÉS (2026-09-27): „a felhő átlátszósága nem
+        /// elég magas, totálisan takarja minden felhő a területet." Az érték
+        /// 0,25-ről 0,55-re nőtt. A sáv azt szabja meg, a cella mekkora
+        /// hányada ESIK a felhő-mag és a derült ég közti ÁTMENETBE: 0,25-nél
+        /// egy 0,3-as lefedettségű cella 17,5%-a teljesen opak, 0,35-nél 12,5%-a,
+        /// 0,55-nél pedig csak 2,5%-a — a maradék az átlátszó átmeneti sáv. A cella-átlag
+        /// MINDKÉT esetben pontosan a modellezett érték marad (a küszöb zárt
+        /// alakja tetszőleges sávszélességre érvényes), tehát ez nem a modell
+        /// meghamisítása, hanem a cellán belüli eloszlás alakja — fizikailag a
+        /// rétegfelhős (lágy peremű) és a gomolyfelhős (éles peremű) jelleg
+        /// közti választás.
+        ///
+        /// A 0,55 viszont MÉRVE túl sokat kent szét: a lágy perem a cella
+        /// nagyobb részét ÉRINTI, így összességében TÖBB eget takart el vékony
+        /// felhővel. A 0,35 a középút — a teljesen opak mag a cella kis része
+        /// marad, de a felhőfoltok között tiszta ég van.
+        /// </remarks>
+        public const double SubGridEdgeWidth = 0.35;
 
         /// <summary>
         /// A render-oldali részlet-fBm SZÓRÁSA (4 oktáv érték-zaj,

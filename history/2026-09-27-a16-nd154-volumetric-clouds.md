@@ -104,9 +104,33 @@ hiánya és az árnyék/felhő felbontás-eltérése. Részletek: ND-154 táblá
 - Képek: `artifacts/a16/` (A/B be-ki, kontinens-nézet, a fejlesztés közbeni
   állapotok).
 
+## Felhasználói visszajelzés utáni második kör
+
+*„a felhő átlátszósága nem elég magas, totálisan takarja minden felhő a
+területet, emellett pontosan talajszintre van rajzolva, ... a hegységek csúcsa
+környékére kellene rajzolni."*
+
+A második kifogásból egy addig észre nem vett, komoly hiba derült ki: a
+jelenetben a domborzat **111-szeres** függőleges nagyítással van rajzolva
+(`terrainReliefExaggeration = 111`), a felhő magasságát viszont nem szoroztam
+vele — a dekk így a rajzolt hegyek 1/111-ed magasságában, gyakorlatilag a
+felszínen ült. Ezen felül a felhőalap terepkövető volt (`talaj + LCL`), pedig
+egy középszintű, csapadék-hajtotta dekk vízszintes lap; az LCL a KÖD és a
+gomolyfelhő alapja, nem ezé. Az átlátszatlanságnak pedig az volt az oka, hogy
+minden nemnulla lefedettségnél legalább 500 m vastag (τ = 7) réteg keletkezett,
+tehát vékony felhő egyszerűen nem létezett a modellben.
+
+Javítások: a felhő ugyanazt a függőleges nyújtást kapja, mint a terep;
+`MidLevelBaseMeters = 2500` vízszintes lap (a WMO középszintű osztályának alsó
+pereme, ami a mért domborzat — max 2308 m, p99 1469 m — fölé kerül);
+`MinThicknessMeters = 80` (τ = 1,1 áttetsző fátyol), innen nő a vastagság a
+lefedettséggel; az „opacitás" csúszka az OPTIKAI MÉLYSÉGET skálázza (0,45
+alapérték, 1,0 = fizikai); perem-lágyság 0,25 → 0,35. Három élő csúszka a
+további hangoláshoz. Részletek: ND-154.
+
 ## Ami nyitva maradt
 
-- **B17** — a vizuális átvétel (felhasználói ítélet a fényességről/sűrűségről).
+- **B17** — a vizuális átvétel második köre. A limbnél a mély konvektív cellák a 111-szeres nyújtás miatt kiugró dudorokat adnak (9,5 km × 111 = 14 egység); ez a nyújtás következménye, nem hiba, de eldöntendő, hogy így maradjon-e.
 - **Mélységtextúra** — űrből nézve egy a dekkbe emelkedő hegy nem takarja el a
   mögötte lévő felhőt (HDRP custom pass kellene hozzá).
 - **A terep-paletta újrafokozása** (ND-156, todo2 B18), a B17 után.

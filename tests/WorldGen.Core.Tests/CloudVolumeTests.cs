@@ -112,11 +112,54 @@ namespace WorldGen.Core.Tests
         }
 
         [Fact]
-        public void CloudBase_RisesWithTheGround()
+        public void CloudBase_IsAHorizontalSheet_NotTerrainFollowing()
         {
-            double flat = CloudVolume.CloudBaseAboveSeaLevelMeters(0.5, 0.0);
-            double mountain = CloudVolume.CloudBaseAboveSeaLevelMeters(0.5, 3000.0);
-            Assert.Equal(flat + 3000.0, mountain, 9);
+            // FELHASZNÁLÓI VISSZAJELZÉS (2026-09-27): a terepkövető alj miatt a
+            // felhő „pontosan talajszintre" került. A középszintű dekk
+            // VÍZSZINTES lap: a mért domborzat teljes tartományán (0-2308 m)
+            // ugyanazon a szinten van.
+            double atSeaLevel = CloudVolume.CloudBaseAboveSeaLevelMeters(0.5, 0.0);
+            Assert.Equal(CloudVolume.MidLevelBaseMeters, atSeaLevel, 9);
+            // A mért szárazföld-eloszlás jellemző pontjai (medián 325 m,
+            // p90 878 m, p99 1469 m) MIND a sík szakaszra esnek - a dekk tehát
+            // a szárazföld több mint 99%-a fölött vízszintes lap.
+            foreach (double ground in new[] { 0.0, 325.0, 878.0, 1469.0 })
+                Assert.Equal(CloudVolume.MidLevelBaseMeters,
+                    CloudVolume.CloudBaseAboveSeaLevelMeters(0.5, ground), 9);
+            // 1469 m-nél a lap 1031 m-rel a talaj FÖLÖTT van - ez az, ami a
+            // „felszínre festett matrica" benyomást megszünteti.
+            Assert.True(CloudVolume.MidLevelBaseMeters - 1469.0 > 1000.0);
+        }
+
+        [Fact]
+        public void CloudBase_LiftsOnlyWhereTheGroundWouldPushThroughTheSheet()
+        {
+            // Kivételesen magas terep fölött a kondenzációs szint a lap FÖLÉ
+            // kerül, és onnan a dekk ráborul a hegyláncra - az átmenet folytonos.
+            double lcl = CloudVolume.LiftingCondensationLevelMeters(0.5);
+            double threshold = CloudVolume.MidLevelBaseMeters - lcl;
+            Assert.Equal(CloudVolume.MidLevelBaseMeters,
+                CloudVolume.CloudBaseAboveSeaLevelMeters(0.5, threshold), 9);
+            Assert.Equal(threshold + 1000.0 + lcl,
+                CloudVolume.CloudBaseAboveSeaLevelMeters(0.5, threshold + 1000.0), 9);
+
+            double previous = 0.0;
+            for (int i = 0; i <= 40; i++)
+            {
+                double b = CloudVolume.CloudBaseAboveSeaLevelMeters(0.5, i * 200.0);
+                Assert.True(b >= previous - 1e-9, "a felhőalap nem süllyedhet a magasabb terep fölött");
+                previous = b;
+            }
+        }
+
+        [Fact]
+        public void CloudBase_DeckLevelIsLiveTunable()
+        {
+            // A látvány-ítélethez (todo2 B17) a lap szintje élőben hangolható.
+            Assert.Equal(4000.0, CloudVolume.CloudBaseAboveSeaLevelMeters(0.5, 0.0, 4000.0), 9);
+            Assert.Equal(1000.0, CloudVolume.CloudBaseAboveSeaLevelMeters(0.5, 0.0, 1000.0), 9);
+            // A csúszka nem teheti a domborzat alá a dekket ott, ahol a talaj magasabb.
+            Assert.True(CloudVolume.CloudBaseAboveSeaLevelMeters(0.5, 2308.0, 500.0) > 2308.0);
         }
 
         [Fact]
@@ -124,6 +167,28 @@ namespace WorldGen.Core.Tests
         {
             double b = CloudVolume.CloudBaseAboveSeaLevelMeters(0.0, 50_000.0);
             Assert.Equal(CloudVolume.MaxBaseAboveSeaLevelMeters, b, 9);
+        }
+
+        [Fact]
+        public void SubGridEdgeWidth_IsSoftEnoughToLeaveMostOfACellTranslucent()
+        {
+            // FELHASZNÁLÓI VISSZAJELZÉS (2026-09-27): „totálisan takarja minden
+            // felhő a területet". A sávszélesség azt szabja meg, a cella
+            // mekkora hányada teljesen OPAK: egy 0,3-as lefedettségű cellában
+            // az opak mag aránya T - w, ami a korábbi 0,25-nél 17,5%, a
+            // mostani 0,35-nél 12,5% (0,55-nél 2,5% lenne, de az MÉRVE túl
+            // sok eget kent be vékony felhővel).
+            const double coverage = 0.3;
+            double opaqueFraction = CloudVolume.SubGridThreshold(coverage) - CloudVolume.SubGridEdgeWidth;
+            if (opaqueFraction < 0.0) opaqueFraction = 0.0;
+            Assert.True(opaqueFraction < 0.15,
+                $"a teljesen opak mag aránya {opaqueFraction:F3} - túl sok a cellából");
+            // ...és a cella-átlag EKKOR IS a modellezett érték marad.
+            const int samples = 20000;
+            double sum = 0.0;
+            for (int i = 0; i < samples; i++)
+                sum += CloudVolume.SubGridCoverage(coverage, (i + 0.5) / samples);
+            Assert.Equal(coverage, sum / samples, 2);
         }
 
         [Fact]
@@ -135,12 +200,30 @@ namespace WorldGen.Core.Tests
         }
 
         [Fact]
-        public void CloudThickness_SpansStratusToConvective()
+        public void CloudThickness_SpansAThinVeilToDeepConvection()
         {
-            Assert.Equal(CloudVolume.StratusThicknessMeters, CloudVolume.CloudThicknessMeters(0.0, 0.0), 9);
+            // Az alsó vég ÁTTETSZŐ fátyol (optikai mélység ~1,1), a felső vég
+            // zivatarfelhő - enélkül minden felhő teljesen opak volt.
+            Assert.Equal(CloudVolume.MinThicknessMeters, CloudVolume.CloudThicknessMeters(0.0, 0.0), 9);
             Assert.Equal(
                 CloudVolume.StratusThicknessMeters + CloudVolume.ConvectiveThicknessMeters,
                 CloudVolume.CloudThicknessMeters(1.0, 0.0), 9);
+
+            double thinTau = CloudVolume.ExtinctionPerMeter * CloudVolume.VerticalProfileMean * CloudVolume.MinThicknessMeters;
+            Assert.InRange(thinTau, 0.5, 2.0);
+            Assert.InRange(CloudVolume.Transmittance(thinTau), 0.13, 0.61);
+        }
+
+        [Fact]
+        public void CloudThickness_GrowsMonotonicallyWithCoverage()
+        {
+            double previous = 0.0;
+            for (int i = 0; i <= 20; i++)
+            {
+                double t = CloudVolume.CloudThicknessMeters(i / 20.0, 0.0);
+                Assert.True(t > previous, "vastagabb felhő tartozik a nagyobb lefedettséghez");
+                previous = t;
+            }
         }
 
         [Fact]
