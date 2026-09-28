@@ -37,6 +37,24 @@ namespace WorldGen.Core.Climate
         /// <summary>ND-142: az anomáliagradiens szél-visszacsatolásának 0..1 erőssége.</summary>
         public double AirFeedbackStrength { get; }
 
+        /// <summary>
+        /// ND-160 MÉRŐKAMPÓ: a BÁZIS radiatív tagjának albedója. <c>null</c>
+        /// (az alapértelmezés) esetén a bázis a cella FELSZÍNI albedóját
+        /// használja — pontosan a mai viselkedés, BITRE.
+        ///
+        /// MIÉRT VAN. Az ND-160 lelete szerint a bázis radiatív tagja felszíni
+        /// albedóval számol, miközben a képlet maga BOLYGÓ-energiamérleg, és a
+        /// hozzáadott +33 K üvegház-eltolás a 255 K-es, a≈0,30-as BOLYGÓ-albedós
+        /// egyensúlyhoz van kalibrálva — innen a mért +10,3 K globális többlet.
+        /// A javasolt javítás (egységes bolygó-albedó) SEED-TÖRŐ, ezért itt csak
+        /// MÉRHETŐVÉ tesszük: az alapértelmezés változatlan, a döntés nyitva marad.
+        ///
+        /// Az érték kizárólag a BÁZISRA hat; a tickenkénti anomália-tag
+        /// (<see cref="Albedo"/>) továbbra is a felszíni albedót használja —
+        /// ott az a fizikailag helyes mennyiség (ND-160, „a SOLVER nem hibás").
+        /// </summary>
+        public double? BaselineAlbedo { get; }
+
         public ThermalModelParameters(
             double landAlbedo = 0.30,
             double oceanAlbedo = 0.06,
@@ -59,7 +77,8 @@ namespace WorldGen.Core.Climate
             double minExchangeWindMs = 1.0,
             double radiativeSmoothing = 0.5,
             double solarConstant = Temperature.DefaultFPeak,
-            double airFeedbackStrength = 0.1)
+            double airFeedbackStrength = 0.1,
+            double? baselineAlbedo = null)
         {
             RequirePositive(seawaterDensity, nameof(seawaterDensity));
             RequirePositive(seawaterSpecificHeat, nameof(seawaterSpecificHeat));
@@ -83,6 +102,7 @@ namespace WorldGen.Core.Climate
             RequireUnit(landEmissivity, nameof(landEmissivity));
             RequireUnit(radiativeSmoothing, nameof(radiativeSmoothing));
             RequireUnit(airFeedbackStrength, nameof(airFeedbackStrength));
+            if (baselineAlbedo.HasValue) RequireUnit(baselineAlbedo.Value, nameof(baselineAlbedo));
 
             double oceanCs = seawaterDensity * seawaterSpecificHeat * oceanDepthM;
             double soilSpecificHeat = soilSpecificHeatRatio * calorieJoulesPerKgK;
@@ -99,7 +119,18 @@ namespace WorldGen.Core.Climate
             MinExchangeWindMs = minExchangeWindMs;
             RadiativeSmoothing = radiativeSmoothing;
             AirFeedbackStrength = airFeedbackStrength;
+            BaselineAlbedo = baselineAlbedo;
         }
+
+        /// <summary>A bázis radiatív tagjának albedója egy felszíntípusra (ND-160 mérőkampó).</summary>
+        /// <remarks>
+        /// A visszaesési ág SZÁNDÉKOSAN a <see cref="Temperature"/> konstansait
+        /// adja, nem az <see cref="Albedo"/> paraméterezett értékeit: a bázis
+        /// eddig is bedrótozva ezt a kettőt használta, és a mérőkampó nem
+        /// változtathatja meg egyetlen meglévő hívó eredményét sem.
+        /// </remarks>
+        public double BaselineAlbedoFor(SurfaceThermalKind kind)
+            => BaselineAlbedo ?? (kind == SurfaceThermalKind.Ocean ? Temperature.AlbedoOcean : Temperature.AlbedoLand);
 
         public double Albedo(SurfaceThermalKind kind) => _albedo[(int)kind];
         public double Emissivity(SurfaceThermalKind kind) => _emissivity[(int)kind];

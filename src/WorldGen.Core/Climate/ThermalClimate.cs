@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using WorldGen.Core.Grid;
 using WorldGen.Core.Hydrology;
@@ -246,6 +247,51 @@ namespace WorldGen.Core.Climate
             var result = new Biome[count];
             for (int c = 0; c < count; c++)
                 result[c] = BiomeClassification.Classify(annual.MeanAirK[c], isOceanic[c], precipitation[c], thresholds);
+            return result;
+        }
+
+        /// <summary>
+        /// Ugyanaz, de a HIDEG VÉGET a már kiszámolt jégosztály dönti el
+        /// (ND-164), nem a <see cref="BiomeClassification"/> abszolút
+        /// küszöbei.
+        ///
+        /// MIÉRT KELL. A <see cref="BiomeClassification.IceSheetThresholdK"/>
+        /// (−10 °C) és a <see cref="BiomeClassification.OceanFreezingK"/>
+        /// (−2 °C) ABSZOLÚT éves középhőmérsékletre vonatkozik, a hőmodell
+        /// viszont az ND-160 szerint globálisan ~10 K-nel melegebb, és a
+        /// radiatív simítás (ND-159) a sarki éves átlagot is felhúzza.
+        /// MÉRVE (seed 0xA7C944210000, level 5): a hőmodell éves LEVEGŐ-átlaga
+        /// <b>−1,7 °C</b>-nál nem megy lejjebb — tehát a két abszolút küszöb
+        /// alá EGYETLEN cella sem esik, és a jégtakaró-biome, valamint a
+        /// tengeri jég NÉMÁN kiürülne.
+        ///
+        /// Ez pontosan az a hibaosztály, amit az ND-159 a jégMASZKRA már
+        /// eldöntött: abszolút küszöb helyett PERCENTILIS. A jégosztály
+        /// (<see cref="ThermalIceClassification"/>) már így készül; ez a
+        /// túlterhelés csak ÁTVISZI a döntést a biome-ra, hogy a kettő ne
+        /// mondjon mást — a képen amúgy is EGY jégtakaró van.
+        ///
+        /// MELLÉKHATÁS, ami valójában javítás: az ND-59 óta KÉT független
+        /// jégréteg élt egymás mellett (a jitterelt jégmaszk és a biome saját,
+        /// jitter nélküli <see cref="Biome.IceSheet"/>-je), és a nyers, kör
+        /// alakú biome-jég „átsejlett" ott, ahol a maszk épp hamis volt.
+        /// Ezzel az úttal egyetlen forrás marad.
+        ///
+        /// A MELEG VÉG VÁLTOZATLAN: a tundra/erdő/sivatag határokat továbbra
+        /// is a hőmérséklet és a csapadék percentilisei döntik el.
+        /// </summary>
+        public static Biome[] ClassifyBiomes(ThermalAnnualStatistics annual, bool[] isOceanic,
+            double[] precipitation, BiomeClassification.PrecipitationThresholds thresholds,
+            IReadOnlyList<LakesIceErosion.IceClass> iceClass)
+        {
+            if (iceClass == null) throw new ArgumentNullException(nameof(iceClass));
+            Biome[] result = ClassifyBiomes(annual, isOceanic, precipitation, thresholds);
+            if (iceClass.Count != result.Length)
+                throw new ArgumentException("A jégosztály mérete a cellaszámmal egyezzen.", nameof(iceClass));
+
+            for (int c = 0; c < result.Length; c++)
+                if (iceClass[c] == LakesIceErosion.IceClass.PermanentIce)
+                    result[c] = isOceanic[c] ? Biome.SeaIce : Biome.IceSheet;
             return result;
         }
     }

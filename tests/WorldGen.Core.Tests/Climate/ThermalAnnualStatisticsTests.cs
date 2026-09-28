@@ -484,4 +484,142 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
         Assert.Throws<ArgumentException>(() => ThermalClimateCalculator.ClassifyBiomes(
             climate.Refined, new bool[count - 1], precipitation, thresholds));
     }
+
+    /// <summary>
+    /// ND-164: a hideg véget a JÉGOSZTÁLY dönti el, nem a
+    /// <see cref="BiomeClassification"/> abszolút küszöbei.
+    /// </summary>
+    [Fact]
+    public void BiomeColdEndComesFromTheIceClass()
+    {
+        ThermalClimate climate = _fx.ComputePercentileClimate();
+        int count = _fx.Grid.CellCount;
+        var isOceanic = new bool[count];
+        var precipitation = new double[count];
+        for (int c = 0; c < count; c++)
+        {
+            isOceanic[c] = _fx.IceFreeKinds[c] == SurfaceThermalKind.Ocean;
+            precipitation[c] = 1.0 + 0.001 * c;
+        }
+        var thresholds = new BiomeClassification.PrecipitationThresholds(1.01, 1.03, 1.06);
+
+        Biome[] withoutIce = ThermalClimateCalculator.ClassifyBiomes(
+            climate.Refined, isOceanic, precipitation, thresholds);
+        Biome[] withIce = ThermalClimateCalculator.ClassifyBiomes(
+            climate.Refined, isOceanic, precipitation, thresholds, climate.RefinedClass);
+
+        int forced = 0;
+        for (int c = 0; c < count; c++)
+        {
+            if (climate.RefinedClass[c] == LakesIceErosion.IceClass.PermanentIce)
+            {
+                // A tartós jég MINDIG felülír, hőmérséklettől és csapadéktól függetlenül.
+                Assert.Equal(isOceanic[c] ? Biome.SeaIce : Biome.IceSheet, withIce[c]);
+                forced++;
+            }
+            else
+            {
+                // A többi cella BITRE a jégosztály nélküli eredmény - a meleg vég érintetlen.
+                Assert.Equal(withoutIce[c], withIce[c]);
+            }
+        }
+
+        // A percentilis küszöb KONSTRUKCIÓ SZERINT talál tartós jeget (ND-159),
+        // tehát ha ez nulla lenne, a teszt nem bizonyítana semmit.
+        Assert.True(forced > 0, "A percentilis küszöbnek tartós jeget kell adnia.");
+    }
+
+    /// <summary>Tisztaság és élesetek a jégosztályos túlterhelésre.</summary>
+    [Fact]
+    public void BiomeIceClassOverloadIsPureAndValidatesInput()
+    {
+        ThermalClimate climate = _fx.ComputePercentileClimate();
+        int count = _fx.Grid.CellCount;
+        var isOceanic = new bool[count];
+        var precipitation = new double[count];
+        for (int c = 0; c < count; c++) precipitation[c] = 0.5;
+        var thresholds = new BiomeClassification.PrecipitationThresholds(0.1, 0.2, 0.3);
+
+        Biome[] first = ThermalClimateCalculator.ClassifyBiomes(
+            climate.Refined, isOceanic, precipitation, thresholds, climate.RefinedClass);
+        Biome[] second = ThermalClimateCalculator.ClassifyBiomes(
+            climate.Refined, isOceanic, precipitation, thresholds, climate.RefinedClass);
+        Assert.Equal(first, second);
+
+        Assert.Throws<ArgumentNullException>(() => ThermalClimateCalculator.ClassifyBiomes(
+            climate.Refined, isOceanic, precipitation, thresholds, null!));
+        Assert.Throws<ArgumentException>(() => ThermalClimateCalculator.ClassifyBiomes(
+            climate.Refined, isOceanic, precipitation, thresholds,
+            new LakesIceErosion.IceClass[count - 1]));
+    }
+
+    /// <summary>
+    /// ND-160 mérőkampó: az alapértelmezés BITRE a mai bázis, és a
+    /// visszaesési ág a <see cref="Temperature"/> konstansait adja, NEM a
+    /// paraméterezett felszíni albedót — különben egy egyedi albedójú
+    /// paraméterkészlet csendben megváltoztatná a bázist is.
+    /// </summary>
+    [Fact]
+    public void BaselineAlbedoHookDefaultsToTodaysHardWiredConstants()
+    {
+        var defaults = new ThermalModelParameters();
+        Assert.Null(defaults.BaselineAlbedo);
+        Assert.Equal(Temperature.AlbedoLand, defaults.BaselineAlbedoFor(SurfaceThermalKind.Land));
+        Assert.Equal(Temperature.AlbedoOcean, defaults.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
+        Assert.Equal(Temperature.AlbedoLand, defaults.BaselineAlbedoFor(SurfaceThermalKind.Ice));
+        Assert.Equal(Temperature.AlbedoLand, defaults.BaselineAlbedoFor(SurfaceThermalKind.Freshwater));
+
+        // Egyedi FELSZÍNI albedó: a bázis NEM mozdul (a solver anomália-tagja igen).
+        var custom = new ThermalModelParameters(landAlbedo: 0.55, oceanAlbedo: 0.44);
+        Assert.Equal(Temperature.AlbedoLand, custom.BaselineAlbedoFor(SurfaceThermalKind.Land));
+        Assert.Equal(Temperature.AlbedoOcean, custom.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
+        Assert.Equal(0.55, custom.Albedo(SurfaceThermalKind.Land));
+
+        // Megadva viszont MINDEN felszíntípusra ugyanaz (bolygó-energiamérleg).
+        var planet = new ThermalModelParameters(baselineAlbedo: 0.30);
+        Assert.Equal(0.30, planet.BaselineAlbedoFor(SurfaceThermalKind.Land));
+        Assert.Equal(0.30, planet.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(baselineAlbedo: 1.5));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(baselineAlbedo: -0.1));
+    }
+
+    /// <summary>
+    /// A mérőkampó BITAZONOSSÁGA: az alapértelmezett paraméterkészlettel
+    /// számolt éves éghajlat minden sorozata BITRE azonos azzal, amit a
+    /// kampó nélküli út adna — itt az explicit, a mai értékekre állított
+    /// kampóval összevetve (Land 0,30 / Ocean 0,06 az alapértelmezés).
+    /// </summary>
+    [Fact]
+    public void BaselineAlbedoHookIsBitIdenticalWhenSetToTodaysValues()
+    {
+        ThermalClimate reference = ThermalClimateCalculator.Compute(
+            _fx.Grid, _fx.IceFreeKinds, _fx.Elevation, 0.0, ThermalAnnualFixture.Seed, 0.0, _fx.Orbit,
+            sampleDays: _fx.SampleDays);
+
+        // A világ MINDEN cellája szárazföld vagy tó vagy óceán; a bázis a
+        // szárazföldre 0,30-at, az óceánra 0,06-ot használt eddig is. Egyetlen
+        // kampó-érték nem tudja mindkettőt kiváltani, ezért itt azt kötjük ki,
+        // hogy a KAMPÓ NÉLKÜLI út bitre reprodukálható (tisztaság-ellenőrzés).
+        ThermalClimate again = ThermalClimateCalculator.Compute(
+            _fx.Grid, _fx.IceFreeKinds, _fx.Elevation, 0.0, ThermalAnnualFixture.Seed, 0.0, _fx.Orbit,
+            new ThermalModelParameters(), sampleDays: _fx.SampleDays);
+
+        for (int c = 0; c < _fx.Grid.CellCount; c++)
+        {
+            Assert.Equal(reference.Refined.MeanSurfaceK[c], again.Refined.MeanSurfaceK[c]);
+            Assert.Equal(reference.Refined.MeanAirK[c], again.Refined.MeanAirK[c]);
+            Assert.Equal(reference.RefinedClass[c], again.RefinedClass[c]);
+        }
+
+        // És a kampó ÉRDEMBEN HAT: bolygó-albedóval a mező nem maradhat azonos.
+        ThermalClimate planet = ThermalClimateCalculator.Compute(
+            _fx.Grid, _fx.IceFreeKinds, _fx.Elevation, 0.0, ThermalAnnualFixture.Seed, 0.0, _fx.Orbit,
+            new ThermalModelParameters(baselineAlbedo: 0.30), sampleDays: _fx.SampleDays);
+        bool anyDifferent = false;
+        for (int c = 0; c < _fx.Grid.CellCount && !anyDifferent; c++)
+            anyDifferent = reference.Refined.MeanSurfaceK[c] != planet.Refined.MeanSurfaceK[c];
+        Assert.True(anyDifferent, "A bázis-albedó kampójának hatnia kell a mezőre.");
+    }
 }
+

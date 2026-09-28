@@ -79,7 +79,8 @@ namespace WorldGen.Core.Climate
                     continue;
                 total = 0.0;
                 for (int j = 0; j < windows.Length; j++)
-                    total += RadiativeTemperature(_parameters.EffectiveFactor(windowFactors[j], annual), Temperature.AlbedoOcean);
+                    total += RadiativeTemperature(_parameters.EffectiveFactor(windowFactors[j], annual),
+                        _parameters.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
                 AnnualMeanRadiativeK[c] = total / Temperature.OceanAnnualSamples;
             }
         }
@@ -120,7 +121,7 @@ namespace WorldGen.Core.Climate
                 double f = samples.AverageFactor(_grid.CenterX[c], _grid.CenterY[c], _grid.CenterZ[c]);
                 bool oceanic = _kinds[c] == SurfaceThermalKind.Ocean;
                 double tRad = RadiativeTemperature(_parameters.EffectiveFactor(f, AnnualFactor[c]),
-                    oceanic ? Temperature.AlbedoOcean : Temperature.AlbedoLand);
+                    _parameters.BaselineAlbedoFor(oceanic ? SurfaceThermalKind.Ocean : SurfaceThermalKind.Land));
                 double tOcean = oceanic ? Temperature.OceanBufferingStrength * (AnnualMeanRadiativeK[c] - tRad) : 0.0;
                 double tAlt = Temperature.LapseRateKPerM * Math.Max(0.0, _elevationM[c] - _seaLevelM);
                 dailyFactor[c] = f;

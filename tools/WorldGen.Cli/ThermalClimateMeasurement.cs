@@ -49,8 +49,17 @@ namespace WorldGen.Cli
             /// <summary>ND-159: a bázis-hőmérséklet tagonkénti felbontása (mi teszi a modellt meleggé).</summary>
             public bool Decompose;
 
+            /// <summary>ND-160 MÉRŐKAMPÓ: a bázis radiatív tagjának albedója; <c>null</c> = a mai, felszíni albedó.</summary>
+            public double? BaselineAlbedo;
+
             /// <summary>ND-163: a csapadék-mező A/B-je a háromféle hőmérséklet-/szélforrással.</summary>
             public bool Precipitation;
+
+            /// <summary>ND-164: a BIOME-térkép A/B-je, ha a hőmérséklet-tengely a hőmodell éves LEVEGŐ-átlaga.</summary>
+            public bool Biome;
+
+            /// <summary>A viewer biome-tengelyének napi fázisa (climateDayT) — az analitikus alapvonalhoz.</summary>
+            public double DayT;
 
             /// <summary>
             /// ND-161: durvább rácson számolt éghajlat, a teljes szintűvel
@@ -148,9 +157,13 @@ namespace WorldGen.Cli
 
             foreach (double beta in betas)
             {
-                var parameters = new ThermalModelParameters(radiativeSmoothing: beta);
+                var parameters = new ThermalModelParameters(radiativeSmoothing: beta,
+                    baselineAlbedo: options.BaselineAlbedo);
                 bool isDefault = beta == ThermalModelParameters.Default.RadiativeSmoothing;
-                Console.WriteLine($"--- beta = {beta:0.###}{(isDefault ? "  (a mai alapérték)" : "")} ---");
+                Console.WriteLine($"--- beta = {beta:0.###}{(isDefault ? "  (a mai alapérték)" : "")}" +
+                                  (options.BaselineAlbedo.HasValue
+                                      ? $", bázis-albedó = {options.BaselineAlbedo.Value:0.###} (ND-160 mérőkampó)"
+                                      : "") + " ---");
 
                 sw.Restart();
                 ThermalClimate climate = ThermalClimateCalculator.Compute(grid, kinds, elevation, seaLevel,
@@ -215,6 +228,8 @@ namespace WorldGen.Cli
                     Decompose(grid, kinds, elevation, seaLevel, options, orbit, parameters, climate);
                 if (options.Precipitation)
                     ComparePrecipitation(grid, kinds, elevation, seaLevel, options, orbit, parameters, sw);
+                if (options.Biome)
+                    CompareBiomes(grid, kinds, elevation, seaLevel, options, orbit, climate);
                 foreach (int coarseLevel in options.ClimateLevels)
                 {
                     CompareCoarseClimate(coarseLevel, grid, options, orbit, parameters, climate, sw,
@@ -359,6 +374,190 @@ namespace WorldGen.Cli
                 ranks[i] = v <= q1 ? 0 : v <= q2 ? 1 : v <= q3 ? 2 : 3;
             }
             return ranks;
+        }
+
+        /// <summary>
+        /// ND-164: a BIOME-térkép A/B-je. A kérdés, amit eldönt: mennyivel
+        /// más a biome-térkép, ha a hőmérséklet-tengely a hőmodell éves
+        /// LEVEGŐ-középhőmérséklete, nem a viewer mai, analitikus
+        /// <see cref="Temperature.TemperatureKelvinFromSamples"/> értéke.
+        ///
+        /// MIÉRT A LEVEGŐ, ÉS MIÉRT AZ ÉVES. A Whittaker-jellegű tábla
+        /// (ND-126) éves levegő-középhőmérsékletre van kalibrálva, és a
+        /// <c>ThermalClimateCalculator.ClassifyBiomes</c> is azt
+        /// olvassa. A mai viewer-érték ezzel szemben EGYETLEN nap
+        /// (climateDayT) 24 mintás inszoláció-átlaga — tehát nemcsak a modell
+        /// más, hanem az IDŐABLAK is.
+        ///
+        /// Három változat, hogy a két hatás szétváljon:
+        ///   (0) MAI: analitikus hőmérséklet + analitikus csapadék
+        ///   (1) hőmodell éves LEVEGŐ-átlag + analitikus csapadék
+        ///   (2) hőmodell éves LEVEGŐ-átlag + a hőmodell felszíni átlagával
+        ///       számolt csapadék — EZ az, amit a 6. fázis fogyasztói
+        ///       átállása ténylegesen ad.
+        ///
+        /// A csapadék-vágópontokat MINDEN változat a SAJÁT mezőjéből kapja
+        /// (<see cref="BiomeClassification.ComputeThresholdsForVegetatedLand"/>),
+        /// mert a viewer is így csinálja — különben nem azt mérnénk, amit a
+        /// felhasználó lát.
+        /// </summary>
+        private static void CompareBiomes(DenseGridMetrics grid, SurfaceThermalKind[] kinds,
+            double[] elevation, double seaLevel, Options options, ThermalOrbit orbit, ThermalClimate climate)
+        {
+            int level = options.Level;
+            int side = grid.Side;
+            var field = new Dictionary<TileId, double>(grid.CellCount);
+            var tileOf = new TileId[grid.CellCount];
+            var isOceanic = new bool[grid.CellCount];
+            for (int face = 0; face < 6; face++)
+                for (int u = 0; u < side; u++)
+                    for (int v = 0; v < side; v++)
+                    {
+                        int index = DenseGridMetrics.Index(face, u, v, side);
+                        TileId id = TileId.FromFaceLevelUV(face, level, (uint)u, (uint)v);
+                        tileOf[index] = id;
+                        field[id] = elevation[index];
+                        isOceanic[index] = kinds[index] == SurfaceThermalKind.Ocean;
+                    }
+
+            // A MAI viewer-tengely: egyetlen nap 24 Nap-irányából vett átlag.
+            DailyInsolationSampleDirections samples = DailyInsolationSampleDirections.Create(
+                options.DayT, options.OrbitalPeriodDays, options.RotationPeriodDays, orbit.AxialTiltRad);
+            var analyticK = new double[grid.CellCount];
+            for (int c = 0; c < grid.CellCount; c++)
+            {
+                TileGeometry.ToPosition(tileOf[c], out double x, out double y, out double z);
+                analyticK[c] = Temperature.TemperatureKelvinFromSamples(
+                    x, y, z, in samples, isOceanic[c], elevation[c], seaLevel);
+            }
+
+            // A hőmodell tengelyei: a biome a LEVEGŐ-, a párolgás a FELSZÍNI átlagot kapja.
+            var thermalAirK = new double[grid.CellCount];
+            var surfaceK = new Dictionary<TileId, double>(grid.CellCount);
+            for (int c = 0; c < grid.CellCount; c++)
+            {
+                thermalAirK[c] = climate.Refined.MeanAirK[c];
+                surfaceK[tileOf[c]] = climate.Refined.MeanSurfaceK[c];
+            }
+
+            double axialTilt = options.AxialTiltDegrees;
+            MoisturePrecipitation.PrecipitationField precipAnalytic = MoisturePrecipitation.ComputeFromFields(
+                field, seaLevel, options.Seed, level, null, null, options.DayT,
+                options.OrbitalPeriodDays, options.RotationPeriodDays, axialTilt);
+            MoisturePrecipitation.PrecipitationField precipThermal = MoisturePrecipitation.ComputeFromFields(
+                field, seaLevel, options.Seed, level, surfaceK, null, options.DayT,
+                options.OrbitalPeriodDays, options.RotationPeriodDays, axialTilt);
+
+            Biome[] b0 = ClassifyVariant(tileOf, isOceanic, analyticK, precipAnalytic, null);
+            Biome[] b1 = ClassifyVariant(tileOf, isOceanic, thermalAirK, precipAnalytic, null);
+            Biome[] b2 = ClassifyVariant(tileOf, isOceanic, thermalAirK, precipThermal, null);
+            Biome[] b3 = ClassifyVariant(tileOf, isOceanic, thermalAirK, precipThermal, climate.RefinedClass);
+            Biome[] b4 = ClassifyVariant(tileOf, isOceanic, thermalAirK, precipThermal, climate.RefinedClass, true);
+
+            int iceLand = 0, iceOcean = 0;
+            for (int c = 0; c < grid.CellCount; c++)
+                if (climate.RefinedClass[c] == LakesIceErosion.IceClass.PermanentIce)
+                {
+                    if (isOceanic[c]) iceOcean++; else iceLand++;
+                }
+
+            Console.WriteLine($"  [BIOME A/B] hőmérséklet-tengely: analitikus " +
+                              $"[{Min(analyticK) - 273.15:F1}, {Max(analyticK) - 273.15:F1}] °C → " +
+                              $"hőmodell éves levegő [{Min(thermalAirK) - 273.15:F1}, " +
+                              $"{Max(thermalAirK) - 273.15:F1}] °C");
+            Console.WriteLine($"    a percentilis tartós jég megoszlása: {iceLand} szárazföldi, {iceOcean} óceáni cella");
+
+            // A DÖNTŐ kérdés a hideg véghez: a (2) tundrája ELTAKARÓDIK-e amúgy is?
+            // A viewer render-kategóriája jégre vált ott, ahol a maszk jeget mond
+            // (RenderCategory.IceSheet), tehát ha a tundra-cellák a jégmaszkon
+            // BELÜL vannak, a (3) NEM vesz el semmit a KÉPBŐL — csak a panelt
+            // hozza összhangba azzal, ami látszik (I4).
+            int tundra = 0, tundraInsideIce = 0;
+            for (int c = 0; c < grid.CellCount; c++)
+            {
+                if (isOceanic[c] || b2[c] != Biome.Tundra) continue;
+                tundra++;
+                if (climate.RefinedClass[c] == LakesIceErosion.IceClass.PermanentIce) tundraInsideIce++;
+            }
+            Console.WriteLine($"    a (2) szárazföldi tundrájából a jégmaszkon BELÜL: " +
+                              $"{tundraInsideIce}/{tundra}" +
+                              $" ({(tundra > 0 ? 100.0 * tundraInsideIce / tundra : 0.0):F1}%)");
+            ReportBiome("(1) csak a hőmérséklet-tengely", b0, b1, isOceanic);
+            ReportBiome("(2) + a párolgás hőmérséklete is", b0, b2, isOceanic);
+            ReportBiome("    (2) a (1)-hez képest", b1, b2, isOceanic);
+            ReportBiome("(3) + a hideg vég a jégosztályból", b0, b3, isOceanic);
+            ReportBiome("(4) (3) + tundra a szezonális hóból", b0, b4, isOceanic);
+            ReportBiomeHistogram("(0) mai", b0, isOceanic);
+            ReportBiomeHistogram("(2) abszolút hidegvég", b2, isOceanic);
+            ReportBiomeHistogram("(3) jégosztályos hidegvég", b3, isOceanic);
+            ReportBiomeHistogram("(4) + hós tundra", b4, isOceanic);
+        }
+
+        /// <summary>Egy biome-változat: saját csapadék-vágópontokkal, ahogy a viewer is számolja.</summary>
+        private static Biome[] ClassifyVariant(TileId[] tileOf, bool[] isOceanic, double[] temperatureK,
+            MoisturePrecipitation.PrecipitationField precip,
+            System.Collections.Generic.IReadOnlyList<LakesIceErosion.IceClass>? iceClass,
+            bool snowTundra = false)
+        {
+            var landSamples = new List<(double TemperatureK, double Precipitation)>(tileOf.Length);
+            for (int c = 0; c < tileOf.Length; c++)
+                if (!isOceanic[c]) landSamples.Add((temperatureK[c], precip.Precipitation[tileOf[c]]));
+            BiomeClassification.PrecipitationThresholds thresholds =
+                BiomeClassification.ComputeThresholdsForVegetatedLand(landSamples);
+
+            var result = new Biome[tileOf.Length];
+            for (int c = 0; c < tileOf.Length; c++)
+                result[c] = BiomeClassification.Classify(
+                    temperatureK[c], isOceanic[c], precip.Precipitation[tileOf[c]], thresholds);
+            if (iceClass != null)
+                for (int c = 0; c < tileOf.Length; c++)
+                {
+                    if (iceClass[c] == LakesIceErosion.IceClass.PermanentIce)
+                        result[c] = isOceanic[c] ? Biome.SeaIce : Biome.IceSheet;
+                    else if (snowTundra && !isOceanic[c]
+                             && iceClass[c] == LakesIceErosion.IceClass.SeasonalSnow)
+                        result[c] = Biome.Tundra;
+                }
+            return result;
+        }
+
+        /// <summary>Két biome-térkép egyezése — külön a szárazföldön, mert a képen az látszik.</summary>
+        private static void ReportBiome(string label, Biome[] baseline, Biome[] other, bool[] isOceanic)
+        {
+            int all = 0, land = 0, landSame = 0, allSame = 0;
+            for (int c = 0; c < baseline.Length; c++)
+            {
+                all++;
+                if (baseline[c] == other[c]) allSame++;
+                if (isOceanic[c]) continue;
+                land++;
+                if (baseline[c] == other[c]) landSame++;
+            }
+            Console.WriteLine($"    {label}: egyezés {allSame}/{all} ({100.0 * allSame / all:F1}%), " +
+                              $"szárazföldön {landSame}/{land} " +
+                              $"({(land > 0 ? 100.0 * landSame / land : 0.0):F1}%)");
+        }
+
+        /// <summary>A szárazföldi biome-megoszlás — ez mutatja meg, MERRE tolódik a kép.</summary>
+        private static void ReportBiomeHistogram(string label, Biome[] biomes, bool[] isOceanic)
+        {
+            var counts = new Dictionary<Biome, int>();
+            int land = 0;
+            for (int c = 0; c < biomes.Length; c++)
+            {
+                if (isOceanic[c]) continue;
+                land++;
+                counts.TryGetValue(biomes[c], out int n);
+                counts[biomes[c]] = n + 1;
+            }
+            var parts = new List<string>();
+            foreach (Biome b in new[] { Biome.IceSheet, Biome.Tundra, Biome.Desert, Biome.Grassland,
+                                        Biome.TemperateForest, Biome.Savanna, Biome.Rainforest })
+            {
+                counts.TryGetValue(b, out int n);
+                parts.Add($"{b} {(land > 0 ? 100.0 * n / land : 0.0):F1}%");
+            }
+            Console.WriteLine($"    szárazföldi megoszlás {label}: {string.Join(", ", parts)}");
         }
 
         /// <summary>
