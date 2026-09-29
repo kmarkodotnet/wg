@@ -143,3 +143,11 @@ fizikája (A24 (b)), mert onnan jobban megítélhető, hogy egyáltalán kell-e.
 - **A24 (b):** a hideg vég oka — β, hőkapacitás, meridionális transzport
   szétválasztása, méréssel.
 - **A7 (c):** a csapadék szele (ND-163, 67,7%).
+
+## Becslés
+
+A7 funkcionális súlyozással kb. **97%** — a maradék a csapadék szele
+(ND-163, ~2%) és a vizuális átvétel (B20). Az A24 ezzel a saját (a)
+pontját letudta, de a fő tétele — a hideg vég fizikája (b) — érintetlen,
+tehát A24 kb. **30%**. Erre a körre durván **2,5 munkaóra** ment rá; durva
+becslés, nincs valós idő-naplózás a projektben.
