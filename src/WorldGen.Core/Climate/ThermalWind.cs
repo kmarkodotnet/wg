@@ -134,7 +134,12 @@ namespace WorldGen.Core.Climate
             double annual, bool isOceanic, double elevationM)
         {
             double daily = samples.AverageFactor(g[t], g[t + 1], g[t + 2]);
-            double albedo = isOceanic ? Temperature.AlbedoOcean : Temperature.AlbedoLand;
+            // ND-160: a bázis-albedó a modellparaméterekből jön (alapértelmezésben
+            // BOLYGÓ-albedó). A szél a bázis KÉPLETÉT differenciázza, tehát ha itt
+            // más albedó szerepelne, a szél egy nem létező bázishoz tartozó
+            // gradienst adna — a két hely SZÁNDÉKOSAN ugyanaz a forrás.
+            double albedo = _parameters.BaselineAlbedoFor(
+                isOceanic ? SurfaceThermalKind.Ocean : SurfaceThermalKind.Land);
             double tRad = ThermalBaseline.RadiativeTemperature(_parameters.EffectiveFactor(daily, annual), albedo);
             return tRad + Temperature.DefaultGreenhouseK + Temperature.MeridionalHeatTransportK(g[t + 2])
                 - Temperature.LapseRateKPerM * Math.Max(0.0, elevationM - _seaLevelM);

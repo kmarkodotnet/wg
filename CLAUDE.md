@@ -184,9 +184,18 @@ HIDEG VÉGE is a percentilis jégosztályból jön (ND-164), mert a hőmodell
 IceSheet és a −2 °C-os SeaIce küszöb elérhetetlen. **Ha bármilyen
 ABSZOLÚT hőmérséklet-küszöböt írsz a hőmodell mezőjére, előbb mérd meg a
 mező tényleges tartományát** — ez a hibaosztály kétszer is átcsúszott.
-Nyitva: ND-160 (bázis-albedó, seed-törő; a mérőkampó kész, bolygó-albedó
-mellett a globális medián 33,7 → 18,1 °C és a tengeri jég visszatér) és
-ND-163 (a csapadék szele).
+**ND-160 LEZÁRVA (2026-09-29, seed-törő):** a bázis radiatív tagja
+BOLYGÓ-albedóval (`Temperature.AlbedoPlanet = 0,30`) számol, a felszíni
+albedó a solver anomália-tagjában marad. Mérve level 5-on: globális medián
+33,7 → **18,1 °C**, maximum 45,9 → **25,5 °C**, egyezés a régi jégosztállyal
+72,7 → **86,4%**, a **tengeri jég visszatért** (64 cella). A minimum viszont
+BITRE ugyanott, −1,7 °C-on — a szárazföldi bázis bitazonos, tehát a hideg vég
+összenyomottsága NEM albedó-kérdés, és a percentilis-küszöbök (ND-159,
+ND-164) továbbra is kellenek. Generátorverzió 5 → **6**, hőmodell-modellverzió
+3 → **4**; minden hőmodell-gyorsítótár érvénytelen. Nyitva: **ND-165** (ugyanaz
+az albedó-keverés az ANALITIKUS úton — szándékosan nem javítva egy körben a
+másikkal) és ND-163 (a csapadék szele). A következő mérés a hideg vég oka:
+β / hőkapacitás / meridionális transzport szétválasztása (todo2 A24 (b)).
 
 **M13 (2026-09-27, A16):** a Planet nézet felhője mostantól TÉRFOGATI —
 saját, gömbi raymarch a csapadék-mezőből (ND-154), felszíni felhőárnyékkal.

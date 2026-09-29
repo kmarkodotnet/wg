@@ -117,6 +117,12 @@ namespace WorldGen.Core.Climate
             WriteFiniteDouble(stream, p.MinExchangeWindMs);
             WriteFiniteDouble(stream, p.RadiativeSmoothing);
             WriteFiniteDouble(stream, p.AirFeedbackStrength);
+            // ND-160: a BÁZIS albedója is az azonosító része. Két érték elég,
+            // mert mindhárom módot szétválasztja (bolygó: 0,30/0,30; legacy:
+            // 0,06/0,30; explicit a: a/a) — nélküle egy A/B-mérés némán
+            // TALÁLATOT kapna a másik mód gyorsítótárára.
+            WriteFiniteDouble(stream, p.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
+            WriteFiniteDouble(stream, p.BaselineAlbedoFor(SurfaceThermalKind.Land));
             for (int k = 0; k < 4; k++)
             {
                 var kind = (SurfaceThermalKind)k;

@@ -16,7 +16,7 @@ namespace WorldGen.Core.Climate
     /// </summary>
     public sealed class ThermalModelParameters
     {
-        public const int ModelVersion = 3;
+        public const int ModelVersion = 4;
 
         public static readonly ThermalModelParameters Default = new ThermalModelParameters();
 
@@ -38,22 +38,32 @@ namespace WorldGen.Core.Climate
         public double AirFeedbackStrength { get; }
 
         /// <summary>
-        /// ND-160 MÉRŐKAMPÓ: a BÁZIS radiatív tagjának albedója. <c>null</c>
-        /// (az alapértelmezés) esetén a bázis a cella FELSZÍNI albedóját
-        /// használja — pontosan a mai viselkedés, BITRE.
+        /// A BÁZIS radiatív tagjának albedója. <c>null</c> (az alapértelmezés)
+        /// esetén a bázis az ND-160 szerinti BOLYGÓ-albedót
+        /// (<see cref="Temperature.AlbedoPlanet"/>) használja — kivéve, ha
+        /// <see cref="LegacySurfaceBaselineAlbedo"/> igaz, ami az ND-160 ELŐTTI,
+        /// felszíni albedós bázist adja vissza bitre (kizárólag A/B-mérésre).
         ///
-        /// MIÉRT VAN. Az ND-160 lelete szerint a bázis radiatív tagja felszíni
-        /// albedóval számol, miközben a képlet maga BOLYGÓ-energiamérleg, és a
-        /// hozzáadott +33 K üvegház-eltolás a 255 K-es, a≈0,30-as BOLYGÓ-albedós
-        /// egyensúlyhoz van kalibrálva — innen a mért +10,3 K globális többlet.
-        /// A javasolt javítás (egységes bolygó-albedó) SEED-TÖRŐ, ezért itt csak
-        /// MÉRHETŐVÉ tesszük: az alapértelmezés változatlan, a döntés nyitva marad.
+        /// MIÉRT NEM A FELSZÍNI ALBEDÓ (ND-160, LEZÁRVA, (1) opció). A bázis
+        /// képlete BOLYGÓ-energiamérleg, és a hozzáadott +33 K üvegház-eltolás a
+        /// 255 K-es, a ≈ 0,30-as BOLYGÓ-albedós egyensúlyhoz van kalibrálva.
+        /// A felszíni albedóval számolt radiatív tag ezért +10,3 K globális
+        /// többletet adott (a medián éves átlag +33,7 °C volt a Föld ~+15 °C-ja
+        /// helyett), és a hiba VILÁGFÜGGŐ volt: a szárazföld-arány szabta meg.
         ///
         /// Az érték kizárólag a BÁZISRA hat; a tickenkénti anomália-tag
         /// (<see cref="Albedo"/>) továbbra is a felszíni albedót használja —
         /// ott az a fizikailag helyes mennyiség (ND-160, „a SOLVER nem hibás").
         /// </summary>
         public double? BaselineAlbedo { get; }
+
+        /// <summary>
+        /// A/B-KAMPÓ: az ND-160 ELŐTTI bázis-albedó (óceánon
+        /// <see cref="Temperature.AlbedoOcean"/>, egyébként
+        /// <see cref="Temperature.AlbedoLand"/>). Kizárólag a döntés
+        /// visszamérésére; a szimuláció alapértelmezésben nem ezt használja.
+        /// </summary>
+        public bool LegacySurfaceBaselineAlbedo { get; }
 
         public ThermalModelParameters(
             double landAlbedo = 0.30,
@@ -78,7 +88,8 @@ namespace WorldGen.Core.Climate
             double radiativeSmoothing = 0.5,
             double solarConstant = Temperature.DefaultFPeak,
             double airFeedbackStrength = 0.1,
-            double? baselineAlbedo = null)
+            double? baselineAlbedo = null,
+            bool legacySurfaceBaselineAlbedo = false)
         {
             RequirePositive(seawaterDensity, nameof(seawaterDensity));
             RequirePositive(seawaterSpecificHeat, nameof(seawaterSpecificHeat));
@@ -120,17 +131,23 @@ namespace WorldGen.Core.Climate
             RadiativeSmoothing = radiativeSmoothing;
             AirFeedbackStrength = airFeedbackStrength;
             BaselineAlbedo = baselineAlbedo;
+            LegacySurfaceBaselineAlbedo = legacySurfaceBaselineAlbedo;
         }
 
-        /// <summary>A bázis radiatív tagjának albedója egy felszíntípusra (ND-160 mérőkampó).</summary>
+        /// <summary>A bázis radiatív tagjának albedója egy felszíntípusra (ND-160).</summary>
         /// <remarks>
-        /// A visszaesési ág SZÁNDÉKOSAN a <see cref="Temperature"/> konstansait
-        /// adja, nem az <see cref="Albedo"/> paraméterezett értékeit: a bázis
-        /// eddig is bedrótozva ezt a kettőt használta, és a mérőkampó nem
-        /// változtathatja meg egyetlen meglévő hívó eredményét sem.
+        /// A <paramref name="kind"/> csak a LEGACY ágon számít: az ND-160 utáni
+        /// bázis felszíntípus-független, mert bolygó-albedóval dolgozik. A
+        /// paraméter azért marad, hogy az A/B-ág bitre visszaadható legyen.
+        ///
+        /// A konstansok SZÁNDÉKOSAN a <see cref="Temperature"/>-ből jönnek, nem
+        /// az <see cref="Albedo"/> paraméterezett értékeiből: a bázis eddig is
+        /// bedrótozva ezeket használta.
         /// </remarks>
         public double BaselineAlbedoFor(SurfaceThermalKind kind)
-            => BaselineAlbedo ?? (kind == SurfaceThermalKind.Ocean ? Temperature.AlbedoOcean : Temperature.AlbedoLand);
+            => BaselineAlbedo ?? (LegacySurfaceBaselineAlbedo
+                ? (kind == SurfaceThermalKind.Ocean ? Temperature.AlbedoOcean : Temperature.AlbedoLand)
+                : Temperature.AlbedoPlanet);
 
         public double Albedo(SurfaceThermalKind kind) => _albedo[(int)kind];
         public double Emissivity(SurfaceThermalKind kind) => _emissivity[(int)kind];

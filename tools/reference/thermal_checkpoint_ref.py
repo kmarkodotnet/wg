@@ -26,13 +26,15 @@ def main():
     # (ND-108). Verzioemeleskor ITT is emelni kell ES ujra kell generalni a
     # vektorokat - kulonben a checkpoint-KAT elbukik (ez tortent az
     # ND-136 / A19 emelesnel, 2 -> 3, es az ND-137-nel, 3 -> 4 -> 5).
-    generator = "5"
+    generator = "6"
     inputs = string("WorldGen.Thermal.Inputs.1") + string(generator) + u64(ref.MODEL_VERSION)
     inputs += u64(ref.LEVEL) + f64(ref.RADIUS_M) + u64(1) + f64(0.0) + f64(0.0)
     inputs += f64(ref.ORBITAL_PERIOD_DAYS) + f64(ref.ROTATION_PERIOD_DAYS) + f64(ref.AXIAL_TILT_RAD)
     for v in (ref.F_PEAK, ref.AIR_HEAT_CAPACITY, ref.AIR_RELAXATION, ref.EXCHANGE_PER_MS,
               ref.MIN_EXCHANGE_WIND_MS, ref.RADIATIVE_SMOOTHING, ref.AIR_FEEDBACK_STRENGTH):
         inputs += f64(v)
+    # ND-160: a BAZIS albedoja (ocean, szarazfold) - bolygo-albedoval mindketto 0,30.
+    inputs += f64(ref.ALBEDO_PLANET_BASELINE) + f64(ref.ALBEDO_PLANET_BASELINE)
     # A paraméterobjektum dokumentált műveleti sorrendje: előbb fajhő, utána térfogati kapacitás.
     land_cs = ref.SOIL_DRY_DENSITY * (ref.SOIL_SPECIFIC_HEAT) * ref.LAND_DEPTH_M
     capacities = [land_cs, ref._OCEAN_CS, ref._OCEAN_CS, land_cs]

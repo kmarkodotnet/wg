@@ -183,6 +183,8 @@ namespace WorldGen.Cli
             if (opts.TryGetValue("precip", out string? pr)) options.Precipitation = bool.Parse(pr);
             if (opts.TryGetValue("biome", out string? bi)) options.Biome = bool.Parse(bi);
             if (opts.TryGetValue("baseline-albedo", out string? ba)) options.BaselineAlbedo = double.Parse(ba);
+            if (opts.TryGetValue("legacy-baseline-albedo", out string? lba))
+                options.LegacySurfaceBaselineAlbedo = bool.Parse(lba);
             if (opts.TryGetValue("dayt", out string? dt)) options.DayT = double.Parse(dt);
             if (opts.TryGetValue("rotation", out string? rp)) options.RotationPeriodDays = double.Parse(rp);
             if (opts.TryGetValue("climate-level", out string? cl))

@@ -9194,7 +9194,7 @@ tényleges átkötése és annak vizuális átvétele külön lépés. A mérőe
 van, tehát bármelyik opció újramérhető más seedeken is.
 
 
-### ND-160 — A bázis radiatív tagja FELSZÍNI albedót használ BOLYGÓ-energiamérlegben (MÉRVE, DÖNTÉS NYITOTT)
+### ND-160 — A bázis radiatív tagja BOLYGÓ-albedóval számol (LEZÁRVA 2026-09-29, (1) opció, SEED-TÖRŐ)
 
 **Dátum:** 2026-09-28. **Előzmény:** ND-42 (üvegház-konstansok), ND-100
 (bázis), ND-159 (β-söprés), todo2 B14 (b) konstans-megerősítés.
@@ -9254,6 +9254,90 @@ kezelik, mert nem abszolút szintre támaszkodnak.
 **Javaslat: (1)**, de csak a 6. fázis fogyasztói átállása ÉS annak vizuális
 átvétele UTÁN — különben egy mérésben két változás keveredne, és
 pontosan ez a hiba vezetett az ND-142 kalibrációs köréhez.
+
+---
+
+## LEZÁRÁS (2026-09-29): az (1) opció, implementálva és megmérve
+
+**A halasztási feltétel teljesült.** A 6. fázis fogyasztói átállása kész
+(ND-162 jégmaszk, ND-164 biome/párolgás) és a vizuális átvétel megtörtént —
+az ítélet az volt, hogy „kikapcsolva fest jobban", és pont ez tette a
+FIZIKAI hitelességet a következő kör fő tételévé (todo2 A24). A szintet
+javító változás tehát most nem keveredik mással: ez az egyetlen numerikus
+módosítás ebben a körben.
+
+**Amit a kód most tesz.** A bázis radiatív tagja egységesen
+`Temperature.AlbedoPlanet = 0,30`-cal számol, felszíntípus-függetlenül. Két
+helyen — és SZÁNDÉKOSAN ugyanabból a forrásból:
+
+| hely | mi változott |
+|---|---|
+| `ThermalBaseline` (cella-bázis, óceáni éves radiatív átlag) | `_parameters.BaselineAlbedoFor(...)`, az új alapértelmezéssel |
+| `ThermalWind.PointTemperature` (a bázis 4 offset-pontja) | eddig BEDRÓTOZOTT `Temperature.AlbedoOcean/AlbedoLand`, most ugyanaz a paraméter |
+
+A szél azért tartozik ide, mert a bázis KÉPLETÉT differenciázza: ha ott más
+albedó szerepelne, a szél egy nem létező bázishoz tartozó gradienst adna.
+(Az ND-160 mérőkampó ezt még nem érte el — a `--baseline-albedo` csak a
+`ThermalBaseline`-t állította át, a szelet nem. A most mért aggregátumok
+mégis egyeznek a kampó számaival, mert az albedó a gradienst csak
+multiplikatívan, `((1−a)/(1−a'))^0,25` arányban skálázza, és a 4 offset-pont
+ugyanahhoz a cellához tartozik, tehát a szél-változás az óceánon 7,1%-os
+skálázás, a szárazföldön nulla.)
+
+A `Temperature.AlbedoOcean/AlbedoLand` **megmarad** — a solver tickenkénti
+anomália-tagja (`_cellAlbedoTerm`) továbbra is ezekkel dolgozik, ott ez a
+fizikailag helyes mennyiség. Az `AlbedoPlanet` számszerűen egyenlő az
+`AlbedoLand`-del, de NEM ugyanaz a mennyiség, ezért külön konstans.
+
+**A/B-kampó a visszaméréshez.** `ThermalModelParameters.LegacySurfaceBaselineAlbedo`
+(CLI: `--legacy-baseline-albedo true`) bitre visszaadja az ND-160 ELŐTTI,
+kevert albedós bázist. A kampó VALÓDI: a lenti „régi" oszlop számai ezzel
+a kapcsolóval, a mai kódból készültek.
+
+**MÉRÉS** (`worldgen thermal-climate --seed A7C944210000 --plates 20
+--level 5 --decompose true`, Release, 12 mintanap, 6144 cella / 3993 óceáni):
+
+| mérték | régi (felszíni albedó) | ÚJ (bolygó-albedó) |
+|---|---:|---:|
+| T_rad(f_eff) globális átlag | 264,86 K | **252,19 K** |
+| bázis globális átlag | 302,89 K (+29,74 °C) | **290,22 K (+17,07 °C)** |
+| éves átlag mediánja (P50) | +33,7 °C | **+18,1 °C** |
+| éves átlag MINIMUMA (P0) | −1,7 °C | **−1,7 °C (bitre ugyanaz)** |
+| éves átlag maximuma | +45,9 °C | **+25,5 °C** |
+| egyezés a régi (analitikus) jégosztállyal | 72,7% | **86,4%** |
+| a mai 421 jégcellát adó küszöb | +6,91 °C | **+6,04 °C** |
+| szezonális hó | 1108 cella | **1943 cella** |
+| tengeri jég (jégosztályos hidegvég) | 32 → 0 cella | **64 cella (1,6%)** |
+| biome-egyezés a maival, szárazföldön | 78,3% | **80,1%** |
+
+**Amit a döntés MEGOLDOTT:** a szintet. A globális medián +33,7 → +18,1 °C
+(a Föld ~+15 °C-jához közel), a tengeri jég visszatért, a szezonális hó
+megháromszorozódott, és a régi jégtakaróval való egyezés 72,7 → 86,4%.
+A hiba VILÁGFÜGGŐSÉGE is megszűnt: a bázis szintje már nem a szárazföld-arány
+függvénye.
+
+**Amit NEM oldott meg, kimondva:** a hideg végét. A minimum BITRE ugyanott,
+−1,7 °C-on maradt — mert az a szárazföldi póluson van, ahol a felszíni
+szárazföld-albedó eddig is 0,30 volt, tehát a bázis ott bitazonos. Ezt a
+`PlanetaryBaselineCoolsTheOceanAndLeavesLandBitIdentical` teszt ki is
+kötözi: a szárazföldi bázis bitre változatlan, az óceáni 13–21 K-nel hűl.
+Következésképp az ND-159 (percentilis jégküszöb) és az ND-164 (jégosztályos
+biome-hidegvég) **továbbra is kell** — a tartomány összenyomottságának oka
+másban van (radiatív simítás β, hőkapacitás, meridionális transzport), ez a
+todo2 A24 (b) tétele.
+
+**Seed-törés.** `WorldGeneratorVersion.Current` 5 → **6**,
+`ThermalModelParameters.ModelVersion` 3 → **4**. Minden hőmodell-kimenet
+változik (bázis, szél, éves éghajlat, jégosztály, biome, csapadék). A
+`ThermalCheckpoint.ComputeModelIdentity` mostantól a BÁZIS albedóját is
+tartalmazza (óceán + szárazföld érték, ami mindhárom módot szétválasztja) —
+nélküle egy A/B-mérés némán a másik mód gyorsítótárára találna rá; ez
+pontosan az ND-162 csapdaosztálya. Python-referencia és tesztvektorok
+újragenerálva (`thermal_field_ref.py` MODEL_VERSION 4,
+`thermal_checkpoint_ref.py` generator „6").
+
+**Nyitva marad:** ugyanez a keverés az ANALITIKUS hőmérséklet-úton is ott
+van — ld. **ND-165**.
 
 
 ### ND-161 — Durvább rácson számolt éves éghajlat: ELUTASÍTVA, mérés alapján (A7 6. fázis)
@@ -9769,6 +9853,72 @@ A 430 pontosan a CLI-ben mért percentilis jégcella-szám.
    a globális szintet a Földéhez viszi. Seed-törő.
 3. **ND-163** — a csapadék szele (nagy változás, 67,7%) és a kioltódó éves
    szél modellkérdése.
+
+*(Utóirat 2026-09-29: az ND-160 LEZÁRVA, az (1) opcióval — a tengeri jég
+visszatért (64 cella), a globális medián +18,1 °C, a szárazföldi
+biome-egyezés 78,3% → 80,1%. A hideg vég viszont nem mozdult, tehát a
+jégosztályos hidegvég marad.)*
+
+
+### ND-165 — Ugyanaz az albedó-keverés az ANALITIKUS hőmérséklet-úton (MÉRVE a képlet, DÖNTÉS NYITOTT)
+
+**Dátum:** 2026-09-29. **Előzmény:** ND-42 (a teljes analitikus
+hőmérséklet-modell), ND-100 (hőmodell-bázis), **ND-160** (a bázis
+bolygó-albedója, LEZÁRVA).
+
+**A lelet.** Az ND-160 a hőmodell BÁZISÁT javította. Ugyanaz a keverés
+azonban ott van az ANALITIKUS úton is, amit a viewer ma is használ (és amire
+a kép nagy része épül):
+
+| hely | kód |
+|---|---|
+| `Temperature.TemperatureKelvinFromAverageInsolation` | `albedo = isOceanic ? AlbedoOcean : AlbedoLand` |
+| `Temperature.TemperatureKelvinFull` | ugyanaz, majd `+ GreenhouseTemperature(...)` (~33 K) |
+
+A szerkezet azonos az ND-160-ban leírttal: a radiatív tag FELSZÍNI albedóval
+számol, a hozzáadott ~33 K üvegház-eltolás viszont a 255 K-es, a ≈ 0,30-as
+BOLYGÓ-albedós egyensúlyhoz van kalibrálva. Az óceáni radiatív tag ezért
+ugyanazon inszolációs faktor mellett `((1−0,06)/(1−0,30))^0,25 = 1,0765`
+arányban, azaz ~19–20 K-nel melegebb a kelleténél — pontosan az a többlet,
+amit az ND-160 a hőmodellből kivett.
+
+**Amit MÉRTEM (level 5, seed 0xA7C944210000, 20 lemez):** az analitikus út
+éves átlaga `[−77,3; +47,9] °C`. A felső vég (+47,9 °C) illeszkedik a
+gyanúhoz; a globális MEDIÁNT ezen az úton még nem mértem meg — a
+`thermal-climate` mérés az analitikus utat csak a jégosztályhoz futtatja, a
+percentilis-bontása nincs kiírva. Ez a döntés első teendője.
+
+**Miért NEM javítottam most.** Három ok, mindegyik a munkarendből:
+1. **Egy körben egy numerikus változás.** Az ND-160 hatását most lehet
+   tisztán megmérni; ha az analitikus út is mozdulna, a két hatás
+   összekeveredne (ez az ND-142 tanulsága).
+2. **Az analitikus út a mai KÉP forrása**, és a felhasználó éppen ezt
+   találta jobbnak (todo2 A24). Egy ~19 K-es óceáni hűtés a hőmérséklet-,
+   jég-, csapadék- és biome-képet EGYSZERRE változtatná meg, mérés és
+   vizuális átvétel nélkül.
+3. **Az absztrakt küszöbök itt ABSZOLÚTAK.** A `BiomeClassification`
+   hőmérséklet-sávjai és a `LakesIceErosion` −15/−2 °C-os küszöbei ehhez az
+   úthoz vannak kalibrálva; ezeket a változás után újra kell mérni.
+
+**Opciók:**
+
+**(1) Ugyanaz, mint az ND-160-nál: bolygó-albedó a radiatív tagban.** A két
+út fizikailag konzisztens lesz, és a hőmodellre való átállás (ND-162/164)
+mérőszámai is értelmezhetőbbek, mert a két oldal ugyanarról a szintről
+indul. Seed-törő; a biome- és jégküszöböket újra kell mérni.
+
+**(2) Előbb a hideg vég (A24 (b)), utána ez.** Ha a tartomány
+összenyomottsága a hőmodellben megoldódik, kiderülhet, hogy az analitikus
+utat egyáltalán nem kell javítani, mert a fogyasztók addigra a hőmodellre
+állnak.
+
+**(3) Marad így.** Az analitikus út tudatosan egy „illusztratív", meleg
+bolygó, és csak a percentilis-alapú fogyasztók használják.
+
+**Javaslat: (2)** — a sorrend a fontos. Az ND-160 után a következő mérés a
+hideg vég oka (β, hőkapacitás, meridionális transzport szétválasztása); az
+analitikus út javítása onnan jobban megítélhető. Ha viszont a hőmodellre
+való teljes átállás elmarad, az (1) kötelező lesz.
 
 
 ### A többi nyitott döntés

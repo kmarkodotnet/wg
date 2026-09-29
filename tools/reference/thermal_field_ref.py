@@ -68,7 +68,7 @@ from neighbor_ref import DIRECTIONS, neighbor
 from sphere_position_ref import position_from_face_uv, position_from_tile
 from temperature_ref import climate_cycle_temperature_k, greenhouse_temperature
 
-MODEL_VERSION = 3
+MODEL_VERSION = 4
 AIR_FEEDBACK_STRENGTH = 0.1  # ND-142: level-6 előfutási kontrollból kalibrálva.
 LEVEL = 6
 N = 1 << LEVEL
@@ -91,8 +91,11 @@ ANNUAL_SAMPLES = 12
 # Temperature.cs konstansok (kód)
 SIGMA = 5.670374419e-8
 F_PEAK = 1361.0
-ALBEDO_OCEAN_FULL = 0.06
-ALBEDO_LAND_FULL = 0.30
+# ND-160 (LEZARVA, (1) opcio): a BAZIS radiativ tagja BOLYGO-albedoval szamol.
+# A keplet bolygo-energiamerleg, es a +33 K uveghaz-eltolas a 255 K-es,
+# a ~ 0,30-as BOLYGO-albedos egyensulyhoz van kalibralva; a felszini albedo
+# (ALBEDO[]) a tickenkenti anomalia-tagban marad, ahova valo.
+ALBEDO_PLANET_BASELINE = 0.30
 LAPSE_RATE_K_PER_M = 0.0065
 OCEAN_BUFFERING_STRENGTH = 0.3
 SIMPLE_GREENHOUSE_K = 33.0
@@ -339,7 +342,7 @@ class Baseline:
             if kinds[k] == OCEAN:
                 total = 0.0
                 for wf in window_factors:
-                    total += radiative_temperature(effective_factor(wf, annual), ALBEDO_OCEAN_FULL)
+                    total += radiative_temperature(effective_factor(wf, annual), ALBEDO_PLANET_BASELINE)
                 self.annual_mean[k] = total / ANNUAL_SAMPLES
         self.hour_cache = {}
 
@@ -352,7 +355,7 @@ class Baseline:
                 f = average_factor(self.grid.center[k], samples)
                 oceanic = self.kinds[k] == OCEAN
                 t_rad = radiative_temperature(effective_factor(f, self.annual_factor[k]),
-                                              ALBEDO_OCEAN_FULL if oceanic else ALBEDO_LAND_FULL)
+                                              ALBEDO_PLANET_BASELINE)
                 t_ocean = OCEAN_BUFFERING_STRENGTH * (self.annual_mean[k] - t_rad) if oceanic else 0.0
                 t_alt = LAPSE_RATE_K_PER_M * max(0.0, self.elevation[k] - self.sea_level_m)
                 factor[k] = f
@@ -417,10 +420,9 @@ def offset_points(p):
     return east, north, out
 
 
-def point_temperature(q, samples, annual, is_oceanic, elevation_m, sea_level_m):
+def point_temperature(q, samples, annual, elevation_m, sea_level_m):
     daily = average_factor(q, samples)
-    albedo = ALBEDO_OCEAN_FULL if is_oceanic else ALBEDO_LAND_FULL
-    t = radiative_temperature(effective_factor(daily, annual), albedo)
+    t = radiative_temperature(effective_factor(daily, annual), ALBEDO_PLANET_BASELINE)
     return (t + SIMPLE_GREENHOUSE_K + meridional_heat_transport_k(q[2])
             - LAPSE_RATE_K_PER_M * max(0.0, elevation_m - sea_level_m))
 
@@ -468,8 +470,7 @@ class WindField:
 
     def _wind(self, geom, samples, owner):
         p, east, north, pts, annual = geom
-        oceanic = self.kinds[owner] == OCEAN
-        temps = [point_temperature(pts[t], samples, annual[t], oceanic, self.elevation[owner], self.sea_level_m)
+        temps = [point_temperature(pts[t], samples, annual[t], self.elevation[owner], self.sea_level_m)
                  for t in range(4)]
         return wind_from_temperatures(p, east, north, temps)
 
@@ -546,7 +547,7 @@ class AirWindFeedback:
             owners = self.grid.edge_i + list(range(len(self.grid.center)))
             for geom, owner in zip(geometry, owners):
                 _, _, _, pts, annual = geom
-                temps = [point_temperature(pts[t], samples, annual[t], self.wind.kinds[owner] == OCEAN,
+                temps = [point_temperature(pts[t], samples, annual[t],
                                           self.wind.elevation[owner], self.wind.sea_level_m) for t in range(4)]
                 out.append(((temps[0] - temps[1]) / (2.0 * GRADIENT_EPS),
                             (temps[2] - temps[3]) / (2.0 * GRADIENT_EPS)))

@@ -63,6 +63,7 @@ public class ThermalCheckpointTests
 
     [Theory]
     [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(7)]
+    [InlineData(8)] [InlineData(9)]
     public void WorldInputsArePartOfIdentityAndForeignStateCannotContinue(int input)
     {
         var field = Field();
@@ -72,6 +73,10 @@ public class ThermalCheckpointTests
             3 => Field(parameters: new ThermalModelParameters(airColumnM: 1100)),
             4 => Field(orbit: new ThermalOrbit(360, 1, 0.4)),
             5 => Field(changeKind: true), 6 => Field(changeElevation: true),
+            // ND-160: a BÁZIS albedója is bemenet — különben egy A/B-mérés
+            // némán a másik mód gyorsítótárára/checkpointjára találna rá.
+            8 => Field(parameters: new ThermalModelParameters(legacySurfaceBaselineAlbedo: true)),
+            9 => Field(parameters: new ThermalModelParameters(baselineAlbedo: 0.25)),
             _ => Field(parameters: new ThermalModelParameters(airFeedbackStrength: 0.25))
         };
         Assert.NotEqual(field.ModelIdentity, other.ModelIdentity);

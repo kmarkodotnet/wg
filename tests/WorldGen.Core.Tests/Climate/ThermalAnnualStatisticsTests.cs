@@ -554,72 +554,94 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
     }
 
     /// <summary>
-    /// ND-160 mérőkampó: az alapértelmezés BITRE a mai bázis, és a
-    /// visszaesési ág a <see cref="Temperature"/> konstansait adja, NEM a
-    /// paraméterezett felszíni albedót — különben egy egyedi albedójú
-    /// paraméterkészlet csendben megváltoztatná a bázist is.
+    /// ND-160 (LEZÁRVA, (1) opció): a bázis radiatív tagja BOLYGÓ-albedóval
+    /// számol, felszíntípus-függetlenül. A FELSZÍNI albedó paraméterezése a
+    /// bázist nem mozdítja (az a solver anomália-tagjának mennyisége), és a
+    /// LEGACY kampó bitre visszaadja az ND-160 előtti kevert albedót.
     /// </summary>
     [Fact]
-    public void BaselineAlbedoHookDefaultsToTodaysHardWiredConstants()
+    public void BaselineUsesPlanetaryAlbedoAndTheLegacyHookReproducesTheOldMix()
     {
         var defaults = new ThermalModelParameters();
         Assert.Null(defaults.BaselineAlbedo);
-        Assert.Equal(Temperature.AlbedoLand, defaults.BaselineAlbedoFor(SurfaceThermalKind.Land));
-        Assert.Equal(Temperature.AlbedoOcean, defaults.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
-        Assert.Equal(Temperature.AlbedoLand, defaults.BaselineAlbedoFor(SurfaceThermalKind.Ice));
-        Assert.Equal(Temperature.AlbedoLand, defaults.BaselineAlbedoFor(SurfaceThermalKind.Freshwater));
+        Assert.False(defaults.LegacySurfaceBaselineAlbedo);
+        foreach (SurfaceThermalKind kind in new[] { SurfaceThermalKind.Land, SurfaceThermalKind.Ocean,
+                                                    SurfaceThermalKind.Ice, SurfaceThermalKind.Freshwater })
+            Assert.Equal(Temperature.AlbedoPlanet, defaults.BaselineAlbedoFor(kind));
 
         // Egyedi FELSZÍNI albedó: a bázis NEM mozdul (a solver anomália-tagja igen).
         var custom = new ThermalModelParameters(landAlbedo: 0.55, oceanAlbedo: 0.44);
-        Assert.Equal(Temperature.AlbedoLand, custom.BaselineAlbedoFor(SurfaceThermalKind.Land));
-        Assert.Equal(Temperature.AlbedoOcean, custom.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
+        Assert.Equal(Temperature.AlbedoPlanet, custom.BaselineAlbedoFor(SurfaceThermalKind.Land));
+        Assert.Equal(Temperature.AlbedoPlanet, custom.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
         Assert.Equal(0.55, custom.Albedo(SurfaceThermalKind.Land));
 
-        // Megadva viszont MINDEN felszíntípusra ugyanaz (bolygó-energiamérleg).
-        var planet = new ThermalModelParameters(baselineAlbedo: 0.30);
-        Assert.Equal(0.30, planet.BaselineAlbedoFor(SurfaceThermalKind.Land));
-        Assert.Equal(0.30, planet.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
+        // A/B-kampó: pontosan az ND-160 ELŐTTI kevert albedó.
+        var legacy = new ThermalModelParameters(legacySurfaceBaselineAlbedo: true);
+        Assert.Equal(Temperature.AlbedoOcean, legacy.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
+        Assert.Equal(Temperature.AlbedoLand, legacy.BaselineAlbedoFor(SurfaceThermalKind.Land));
+        Assert.Equal(Temperature.AlbedoLand, legacy.BaselineAlbedoFor(SurfaceThermalKind.Ice));
+        Assert.Equal(Temperature.AlbedoLand, legacy.BaselineAlbedoFor(SurfaceThermalKind.Freshwater));
+
+        // Az explicit érték MINDKETTŐT felülírja, a legacy ágat is.
+        var explicitAlbedo = new ThermalModelParameters(baselineAlbedo: 0.42, legacySurfaceBaselineAlbedo: true);
+        Assert.Equal(0.42, explicitAlbedo.BaselineAlbedoFor(SurfaceThermalKind.Land));
+        Assert.Equal(0.42, explicitAlbedo.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
 
         Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(baselineAlbedo: 1.5));
         Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(baselineAlbedo: -0.1));
     }
 
     /// <summary>
-    /// A mérőkampó BITAZONOSSÁGA: az alapértelmezett paraméterkészlettel
-    /// számolt éves éghajlat minden sorozata BITRE azonos azzal, amit a
-    /// kampó nélküli út adna — itt az explicit, a mai értékekre állított
-    /// kampóval összevetve (Land 0,30 / Ocean 0,06 az alapértelmezés).
+    /// ND-160 HATÁSA a BÁZISRA, cellatípus szerint szétválasztva. Ez a teszt
+    /// mondja ki, mit tesz pontosan a döntés: a szárazföldi bázis BITRE
+    /// változatlan (a felszíni szárazföld-albedó eddig is 0,30 volt), az
+    /// óceáni bázis viszont ~19–20 K-nel hidegebb — ez a +10,3 K-es globális
+    /// többlet forrása. Az explicit bolygó-albedós kampó pedig bitre az
+    /// alapértelmezés.
     /// </summary>
     [Fact]
-    public void BaselineAlbedoHookIsBitIdenticalWhenSetToTodaysValues()
+    public void PlanetaryBaselineCoolsTheOceanAndLeavesLandBitIdentical()
     {
-        ThermalClimate reference = ThermalClimateCalculator.Compute(
-            _fx.Grid, _fx.IceFreeKinds, _fx.Elevation, 0.0, ThermalAnnualFixture.Seed, 0.0, _fx.Orbit,
-            sampleDays: _fx.SampleDays);
+        var legacy = new ThermalBaseline(_fx.Grid, _fx.IceFreeKinds, _fx.Elevation, 0.0,
+            ThermalAnnualFixture.Seed, 0.0, _fx.Orbit,
+            new ThermalModelParameters(legacySurfaceBaselineAlbedo: true));
+        var planet = new ThermalBaseline(_fx.Grid, _fx.IceFreeKinds, _fx.Elevation, 0.0,
+            ThermalAnnualFixture.Seed, 0.0, _fx.Orbit);
+        var explicitPlanet = new ThermalBaseline(_fx.Grid, _fx.IceFreeKinds, _fx.Elevation, 0.0,
+            ThermalAnnualFixture.Seed, 0.0, _fx.Orbit,
+            new ThermalModelParameters(baselineAlbedo: Temperature.AlbedoPlanet));
 
-        // A világ MINDEN cellája szárazföld vagy tó vagy óceán; a bázis a
-        // szárazföldre 0,30-at, az óceánra 0,06-ot használt eddig is. Egyetlen
-        // kampó-érték nem tudja mindkettőt kiváltani, ezért itt azt kötjük ki,
-        // hogy a KAMPÓ NÉLKÜLI út bitre reprodukálható (tisztaság-ellenőrzés).
-        ThermalClimate again = ThermalClimateCalculator.Compute(
-            _fx.Grid, _fx.IceFreeKinds, _fx.Elevation, 0.0, ThermalAnnualFixture.Seed, 0.0, _fx.Orbit,
-            new ThermalModelParameters(), sampleDays: _fx.SampleDays);
+        int count = _fx.Grid.CellCount;
+        var legacyBase = new double[count];
+        var planetBase = new double[count];
+        var explicitBase = new double[count];
+        var factor = new double[count];
+        const long hour = 81;
+        legacy.EvaluateHour(hour, factor, legacyBase);
+        planet.EvaluateHour(hour, factor, planetBase);
+        explicitPlanet.EvaluateHour(hour, factor, explicitBase);
 
-        for (int c = 0; c < _fx.Grid.CellCount; c++)
+        double minOceanDrop = double.PositiveInfinity, maxOceanDrop = double.NegativeInfinity;
+        int oceanCells = 0, landCells = 0;
+        for (int c = 0; c < count; c++)
         {
-            Assert.Equal(reference.Refined.MeanSurfaceK[c], again.Refined.MeanSurfaceK[c]);
-            Assert.Equal(reference.Refined.MeanAirK[c], again.Refined.MeanAirK[c]);
-            Assert.Equal(reference.RefinedClass[c], again.RefinedClass[c]);
+            Assert.Equal(planetBase[c], explicitBase[c]);
+            if (_fx.IceFreeKinds[c] == SurfaceThermalKind.Ocean)
+            {
+                oceanCells++;
+                double drop = legacyBase[c] - planetBase[c];
+                if (drop < minOceanDrop) minOceanDrop = drop;
+                if (drop > maxOceanDrop) maxOceanDrop = drop;
+            }
+            else
+            {
+                landCells++;
+                Assert.Equal(legacyBase[c], planetBase[c]);
+            }
         }
 
-        // És a kampó ÉRDEMBEN HAT: bolygó-albedóval a mező nem maradhat azonos.
-        ThermalClimate planet = ThermalClimateCalculator.Compute(
-            _fx.Grid, _fx.IceFreeKinds, _fx.Elevation, 0.0, ThermalAnnualFixture.Seed, 0.0, _fx.Orbit,
-            new ThermalModelParameters(baselineAlbedo: 0.30), sampleDays: _fx.SampleDays);
-        bool anyDifferent = false;
-        for (int c = 0; c < _fx.Grid.CellCount && !anyDifferent; c++)
-            anyDifferent = reference.Refined.MeanSurfaceK[c] != planet.Refined.MeanSurfaceK[c];
-        Assert.True(anyDifferent, "A bázis-albedó kampójának hatnia kell a mezőre.");
+        Assert.True(oceanCells > 0 && landCells > 0, "A próbavilágban legyen óceán és szárazföld is.");
+        Assert.True(minOceanDrop > 0.0, $"Az óceáni bázis mindenhol hűl; a legkisebb esés {minOceanDrop:F3} K.");
+        Assert.InRange(maxOceanDrop, 13.0, 21.0);
     }
 }
-

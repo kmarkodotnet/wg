@@ -49,8 +49,11 @@ namespace WorldGen.Cli
             /// <summary>ND-159: a bázis-hőmérséklet tagonkénti felbontása (mi teszi a modellt meleggé).</summary>
             public bool Decompose;
 
-            /// <summary>ND-160 MÉRŐKAMPÓ: a bázis radiatív tagjának albedója; <c>null</c> = a mai, felszíni albedó.</summary>
+            /// <summary>ND-160: a bázis radiatív tagjának albedója; <c>null</c> = a bolygó-albedó (alapértelmezés).</summary>
             public double? BaselineAlbedo;
+
+            /// <summary>ND-160 A/B: az ND-160 ELŐTTI, felszíni albedós bázis (óceán 0,06 / szárazföld 0,30).</summary>
+            public bool LegacySurfaceBaselineAlbedo;
 
             /// <summary>ND-163: a csapadék-mező A/B-je a háromféle hőmérséklet-/szélforrással.</summary>
             public bool Precipitation;
@@ -158,12 +161,16 @@ namespace WorldGen.Cli
             foreach (double beta in betas)
             {
                 var parameters = new ThermalModelParameters(radiativeSmoothing: beta,
-                    baselineAlbedo: options.BaselineAlbedo);
+                    baselineAlbedo: options.BaselineAlbedo,
+                    legacySurfaceBaselineAlbedo: options.LegacySurfaceBaselineAlbedo);
                 bool isDefault = beta == ThermalModelParameters.Default.RadiativeSmoothing;
                 Console.WriteLine($"--- beta = {beta:0.###}{(isDefault ? "  (a mai alapérték)" : "")}" +
                                   (options.BaselineAlbedo.HasValue
-                                      ? $", bázis-albedó = {options.BaselineAlbedo.Value:0.###} (ND-160 mérőkampó)"
-                                      : "") + " ---");
+                                      ? $", bázis-albedó = {options.BaselineAlbedo.Value:0.###} (explicit)"
+                                      : options.LegacySurfaceBaselineAlbedo
+                                          ? ", bázis-albedó = FELSZÍNI (ND-160 ELŐTTI, A/B)"
+                                          : $", bázis-albedó = {Temperature.AlbedoPlanet:0.###} (bolygó, ND-160)")
+                                  + " ---");
 
                 sw.Restart();
                 ThermalClimate climate = ThermalClimateCalculator.Compute(grid, kinds, elevation, seaLevel,

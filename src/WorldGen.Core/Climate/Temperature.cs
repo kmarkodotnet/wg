@@ -40,6 +40,23 @@ namespace WorldGen.Core.Climate
         public const double DefaultFPeak = 1361.0; // W/m^2, Föld-szerű napállandó, illusztrációhoz
         public const double AlbedoOcean = 0.06;
         public const double AlbedoLand = 0.30;
+
+        /// <summary>
+        /// ND-160: a BOLYGÓ-albedó (felhők + légkör + felszín együtt), amihez a
+        /// 255 K-es sugárzási egyensúly — és ezzel a +33 K-es
+        /// <see cref="DefaultGreenhouseK"/> eltolás — kalibrálva van.
+        ///
+        /// MIÉRT KÜLÖN KONSTANS. A hőmodell BÁZISA (ND-100) bolygó-energiamérleg,
+        /// tehát ott a bolygó-albedó a fizikailag helyes mennyiség; az
+        /// <see cref="AlbedoOcean"/> / <see cref="AlbedoLand"/> FELSZÍNI albedó a
+        /// tickenkénti anomália-tagba tartozik. A kettő összekeverése adta a
+        /// +10,3 K-es globális többletet (ND-160).
+        ///
+        /// Számszerűen egyenlő az <see cref="AlbedoLand"/>-del, de NEM ugyanaz a
+        /// mennyiség — ezért külön konstans, és ezért nem szabad összevonni.
+        /// </summary>
+        public const double AlbedoPlanet = 0.30;
+
         public const double LapseRateKPerM = 0.0065;
         public const int DefaultNumDaySamples = 24;
         public const double DefaultGreenhouseK = 33.0; // Föld-szerű üvegházhatás, ld. osztály-doc
