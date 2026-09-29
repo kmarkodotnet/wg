@@ -283,10 +283,15 @@ A Core oldali 4-workeres út bitazonos és offline 2,0–2,2× gyorsabb, a viewe
 
 Helyességi tétel — ez a legalattomosabb
 
-A21 🟠 — DeterministicMath.Exp alul-/túlcsordulása
-A függvény bit-manipulációval skálázza a végeredményt (ScaleByPowerOfTwo), és nem figyeli, ha az exponens kifut a double tartományából. Kb. -710 alatt az exponens átcsordul az előjelbitbe, és az eredmény nem 0-hoz tart, hanem determinisztikus szemét: exp(-710) = -1,45e+308, exp(-4e6) = +4,46e+145. A túlcsordulási oldalon ugyanez.
-
-Ma ez senkit nem ér el élesben, mert az ND-137 helyben védekezik (MaxDecayExponent = 700) — de ez a védelem modulonként megismétlendő, és pont ez az a fajta dolog, ami egyszer ki fog maradni. A javítás helye a DeterministicMath.Exp maga (alul 0.0, felül PositiveInfinity), és a Ln/Pow is átnézendő. Előtte végig kell ellenőrizni, hogy egyetlen meglévő KAT-vektor sem esik a ma szemetes tartományba — ha nem, a változás bitre semleges, és nem seed-törő.
+A21 ✅ — DeterministicMath.Exp/Ln/Pow tartomány-élesetek (ND-150, 2026-09-26)
+A `ScaleByPowerOfTwoChecked` az alulcsordulást 0,0-ra, a túlcsordulást
+pozitív végtelenre képezi. Az `Exp` NaN- és argumentumkaput kapott; az `Ln`
+kezeli a pozitív végtelent és a szubnormális bemenetet; a `Pow` nulla
+kitevőnél 1,0-t ad. Az ND-137 helyi `MaxDecayExponent`-védelme szándékosan
+megmaradt, mert eltávolítása numerikus változás lenne. A 3000 KAT-vektor
+és a három mért világ-hash változatlan maradt; a részletes bizonyíték a fenti
+A21 táblasorban és a `history/2026-09-26-a21-nd150-deterministic-math-edge-cases.md`
+naplóban található.
 
 ---
 

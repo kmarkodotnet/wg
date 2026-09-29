@@ -72,6 +72,10 @@ nem garantált transzcendens műveletek (`Math.Log/Exp/Sin/Cos/Pow`) csak az
   betöltési hibát és döntésnapló-frissítést igényel.
 - Kis, áttekinthető változtatásokat készíts. Commitot vagy push-t csak akkor
   végezz, ha a felhasználó kéri vagy jóváhagyja. A távoli repo publikus.
+- Ha egy feladat elkészült, és a felhasználó a következőre utasít, előbb
+  készíts külön commitot az elkészült feladat változásaiból, pontos angol
+  tárggyal és részletes leírással. Más, még folyamatban lévő munka változásait
+  ne vedd bele. Push továbbra is csak külön kérésre történjen.
 - A kód, az azonosítók és a commitüzenetek angolul; a dokumentáció, kommentek
   és felhasználói kommunikáció magyarul készül.
 - Jelentős munka után frissítsd a releváns dokumentációt és a `history/`
