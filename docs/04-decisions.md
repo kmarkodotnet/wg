@@ -9635,6 +9635,21 @@ mérőeszköz mindháromhoz készen áll.
 **Nem seed-törő:** csak új API-k; a `WorldGeneratorVersion` marad `"5"`, a
 hőmodell verziója 3.
 
+**Utómérés (2026-09-29, ND-160 után).** A korábbi A/B a jégmentes **A menet**
+éves szelét mérte, miközben a fogyasztó a végleges **B menetet** használná.
+A CLI mérőút most a B felszíntípusain ismétli meg a szélgyűjtést, és bitenként
+ellenőrzi, hogy a szélrögzítés nem változtatja meg a B éves hőmezőjét.
+Ugyanazon level-5 világon: az éves szélállandóság **0,737**, a hőmérséklet
+önmagában **89,3%**, hőmérséklet + B-menetes szél **66,9%** szárazföldi
+csapadéknegyed-egyezést ad az analitikus alaphoz képest. A szélcsere önmagában
+**70,4%** egyezést ad a hőmodell-hőmérsékletes változathoz képest.
+
+Az éves átlagvektor kioltódása csak a szélső eltérések egy részét magyarázza:
+a `|átlagvektor| / átlagsebesség` szerinti `<0,25` sávban 31 szárazföldi
+cella van, míg a `0,50–0,75` sávban **1374**, és ezek **37,6%-a** is más
+csapadéknegyedbe kerül. A kapu ezért zárva marad; az éves vektor helyi
+kioltódásának külön kezelése önmagában nem oldaná a széles körű átrendeződést.
+
 
 ### ND-164 — A biome hőmérséklet-tengelye és a párolgás átállása a hőmodellre; a hideg vég a jégosztályból (A7 6. fázis, ELFOGADVA, implementálva)
 
@@ -9919,6 +9934,41 @@ bolygó, és csak a percentilis-alapú fogyasztók használják.
 hideg vég oka (β, hőkapacitás, meridionális transzport szétválasztása); az
 analitikus út javítása onnan jobban megítélhető. Ha viszont a hőmodellre
 való teljes átállás elmarad, az (1) kötelező lesz.
+
+
+### ND-166 — A hőmodell hideg vége: radiatív simítás és meridionális proxy szétválasztása (A7/A24, DÖNTÉS NYITOTT)
+
+**Dátum:** 2026-09-29. **Előzmény:** ND-100, ND-126b, ND-159, ND-160 és a felhasználó ND-160 utáni élő ítélete: a `useThermalClimateBiome` kikapcsolva továbbra is jobban fest; a cél a hőmodell fizikai javítása.
+
+**Mért diagnózis** (seed `A7C944210000`, 20 lemez, level 5, 12 mintanap, két menet, bolygó-albedó):
+
+| β | Éves minimum | P5 | P50 | Tartós jég 7%-os vágópontja | Pillanatnyi minimum |
+|---:|---:|---:|---:|---:|---:|
+| 0,5 (jelenlegi) | −1,7 °C | +5,4 °C | +18,1 °C | +6,07 °C | −33,1 °C |
+| 0,3 | −9,9 °C | −0,1 °C | +17,7 °C | +1,18 °C | −55,7 °C |
+| 0,2 | −16,4 °C | −4,5 °C | +17,4 °C | −2,46 °C | −71,7 °C |
+
+A talaj effektív mélységének 0,5 → 0,12 m csökkentése β=0,5 mellett az éves minimumot **nem mozdította** (−1,7 °C), de a pillanatnyi maximumot +55,8 → +74,2 °C-ra emelte. Az óceáni mélység 10 → 2,4 m-re csökkentése sem mozdította az éves minimumot. A leghidegebb cella éves átlaga a bázisától legfeljebb 0,1 K-re van: a hideg vég itt **bázisprobléma**, nem a napi hőtehetetlenség hiánya.
+
+A `Temperature.MeridionalHeatTransportK(z) = 40 K · z⁴` tag az ND-126b analitikus hőútját is javította, majd változtatás nélkül bekerült a hőmodell bázisába és a termikus szél gradiensébe. A level-5 rácson a bázishoz területileg súlyozva **+8,00 K-t** ad, a β=0,2 leghidegebb cellájában **+39,90 K-t**. Ez önmagában pozitív hőforrás; egy belső meridionális hőszállítás globális integrálja viszont zérus kell legyen. A fizikai korlátot az [energiaegyensúly-modellek szakirodalma](https://esd.copernicus.org/articles/11/1195/2020/) is kimondja. A hőmérséklethez adott K-eltolás egyébként sem energiafluxus, tehát a nulla átlagra központosítás csak diagnosztikai közelítés lehet, nem automatikus végső megoldás.
+
+**Opciók és sorrend:**
+
+1. A meglévő tag erősségét csak mérőparaméterként változtatni, az alapértéket 1-en tartva. Ez szétválasztja a β és a proxy hatását; a régi világkimenet bitre azonos marad. A szél bázisgradiensét ugyanazzal a paraméterrel kell számolni, a nem alapértelmezett értéknek külön modellazonosító kell.
+2. A pozitív K-proxyt energiamegmaradó, rácséleken fluxust szállító taggal felváltani. Ez új numerikus algoritmus, Python-orákulumot, vektorokat és explicit modell-/generátorverzió-emelést kíván. A kalibrációban a sarki éves átlag, a globális energiamérleg és a napi szélsőértékek együtt számítanak; a régi analitikus jégtérkép nem fizikai orákulum (−218,8 °C-os sarki éjszakát adott).
+3. A β megváltoztatása önmagában. A fenti mérés szerint javítja a hideg véget, de β=0,2-nél is −2,46 °C-os éves átlagnál kellene a tartós-jég 7%-os vágópontja; a +8 K globális hőforrás megmarad. Ez nem zárja le az ND-t.
+
+**Jelenlegi döntés:** az 1. lépés diagnosztikai megvalósítása, majd több seed és rácsszint A/B-mérése. A fogyasztói csapadékszél-kaput és a percentilis jégküszöböt addig nem nyitjuk át. Az alapértelmezett numerikus viselkedés változtatásához a 2. lépés új, bizonyított döntése szükséges.
+
+**Első A/B eredmény (2026-09-29):** a `meridionalTransportScale` 1,0 alapértéken bitre a régi út; a nem alapérték külön modellazonosítót kap. β=0,2 mellett a skála 1,0 → 0,75 → 0,0 változása a level-5 éves minimumot **−16,4 → −26,4 → −56,3 °C**-ra, a 7%-os jégvágópontot **−2,46 → −9,89 → −31,55 °C**-ra viszi. A globális bázis átlagához a tag rendre **+8 → +6 → 0 K**-t ad. A 0,75-ös beállítás számai ígéretesebbek, de ez továbbra is globális hőforrás; **nem választott végleges modell**. A nullázás pedig megmutatja, hogy a jelenlegi anomália-advekció önmagában nem pótolja a klímabázis meridionális hőszállítását. A 2. opció energiamegmaradó fluxusmodelljének tervezése marad a következő numerikus lépés.
+
+### ND-167 — Konzervatív élfluxus numerikus szerződése (A7, RÉSZDÖNTÉS)
+
+**Dátum:** 2026-09-29. **Előzmény:** ND-166 és a [diffúziós energiaegyensúly-modellek](https://esd.copernicus.org/articles/11/1195/2020/) azon feltétele, hogy a belső hőszállítás globális integrálja nulla.
+
+**Döntés:** a fluxus diszkrét alapegysége egy kanonikus, egyszer bejárt rácsél. Az `i < j` élhez adott nemnegatív, véges `G_e` vezetőképesség (W/K) és a két abszolút hőmérséklet (K) alapján `Q_e = G_e · (T_j − T_i)` (W). Az `i` cella `+Q_e`, a `j` cella `−Q_e` teljesítményt kap; a cella W/m²-forrása `P_c / A_c`, a későbbi hőmérsékleti tendencia `P_c / (A_c C_c)` K/s, ahol `C_c` J/(m² K). Az élsorrend rögzített, a számítás szekvenciális. Azonos bemenetből bitazonos eredmény készül; a két végpontra ugyanaz az egyszer kiszámolt `Q_e` kerül ellenkező előjellel. Az energiamegmaradást a teljesítményösszeg lebegőpontos hibán belüli nullája igazolja. Ez a numerikus mag nem választ `G_e` értéket.
+
+**Határ:** ez csak a fluxus-/divergencia-kernel, nem kész klímamodell. A geometriai `G_e` szabálya, meridionális irányfüggése, együtthatója, stabil időintegrálása, a bázis és anomália viszonya, illetve a felszín/levegő energiafelosztása még nyitott. A jelenlegi +40 K proxy, a generátorverzió, a checkpoint és a viewer kimenete nem változik. Fogyasztói bekötés előtt külön ND-168 döntés, Python KAT és teljes A/B szükséges; a bekötés seed-törő változtatásként verzióemeléssel jár.
 
 
 ### A többi nyitott döntés

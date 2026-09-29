@@ -80,6 +80,26 @@ modul vagy döntés hiányzik) · 👁 élő Unity Play kell hozzá.
 
 ---
 
+**A7/B20 utóállapot (2026-09-29).** A felhasználó az ND-160 utáni
+`useThermalClimateBiome` A/B-ről is azt jelezte, hogy **kikapcsolva jobb**, és
+a hőmodell fizikai javítását kéri. Ez az elsődleges B20 látványítélet;
+képernyőkép és részletes jégperem-átvétel nem érkezett. Az A24 hidegvég-
+diagnózisa (ND-166) szerint β=0,5 → 0,2 mellett az éves minimum −1,7 →
+−16,4 °C, de a meridionális K-proxy globálisan +8 K-t ad a bázishoz.
+A talaj- és óceáni hőkapacitás csökkentése az éves minimumot nem javította.
+A meridionális skála csak A/B-mérőparaméter; a világ alapértelmezett kimenete
+bitre változatlan. Az ND-163 csapadékszél-kapuját az új, végleges B-menetes
+mérés is zárva tartja: a szárazföld 29,6%-a csapadéknegyedet váltana.
+Következő numerikus munka: energiamegmaradó meridionális fluxus a hőmodellben,
+Python-referenciával és külön seed-verziós döntéssel.
+
+**A7 következő részlépése (ND-167, 2026-09-29):** elkészült az abszolút
+hőmérséklet-különbségből és élvezetőképességből páronként ellentétes
+teljesítményt képző Core-kernel, Python-referencia és vektorteszt. A teljes
+élfluxus összege numerikus hibán belül nulla. A vezetőképesség földrajzi
+szabálya, a stabil időléptetés és a hősolverbe kötés **nyitott ND-168**;
+ezért a hőmodell látványa és a seedkimenet még nem változott.
+
 ## C. Blokkolt — nem ütemezhető, amíg a feltétel hiányzik
 
 | # | Feladat | Mi hiányzik alóla |
@@ -300,7 +320,7 @@ LEZÁRVA (ND-153, 2026-09-27). A mód célja az ÉVES jel, ami csak a pálya-sz�
 
 Látvány (a hátsó sor)
 
-A15 🟡 — M13 Fázis 2–4: GPU-vezérelt geometria, procedurális mikro-részlet textúra. Nincs elkezdve (az 1. fázis, a folytonos árnyalás, kész).
+A15 ✅ — M13 Fázis 2–4: lezárva (ND-151, 2026-09-27). A GPU compute és a GPU-vezérelt mesh fázisát az ND-128 után elvetettük; a modellből származó, nézetfüggő per-pixel mikro-részlet elkészült. A megvalósítás és a korábbi élő Play mérés részletei a fenti A15 sorban és a `history/2026-09-27-a15-nd151-surface-micro-detail.md` naplóban vannak. A látvány felhasználói átvétele külön B16 tétel.
 
 A16 ✅ — M13 volumetrikus felhő + AO: kész (ND-154, ND-155). Saját, gömbi raymarch a csapadék-mezőből; a felhőalap a Lawrence-féle LCL-ből származik és a talajjal emelkedik; egyetlen 104 KB-os négycsatornás atlasz viszi a lefedettséget, az aljat, a vastagságot és az égbolt-nyitottságot. Az AO helyét a mérés döntötte el: a szárazföldi nyitottság level 6-on 0,999999, level 10-en 0,999992, tehát makro-léptéken nincs okkludáló domborzat — az AO a per-pixel mikro-reliefbe került, a planetáris okkluder a felhő. A színkalibráció (ND-156) tudatosan a vizuális átvétel utánra halasztva, dokumentált eljárással. Napló: history/2026-09-27-a16-nd154-volumetric-clouds.md.
 

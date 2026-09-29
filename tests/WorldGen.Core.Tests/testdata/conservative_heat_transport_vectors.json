@@ -1,0 +1,91 @@
+{
+  "decision": "ND-167",
+  "cases": [
+    {
+      "cellCount": 2,
+      "edgeI": [
+        0
+      ],
+      "edgeJ": [
+        1
+      ],
+      "conductanceWPerK": [
+        3.0
+      ],
+      "temperatureK": [
+        10.0,
+        20.0
+      ],
+      "powerW": [
+        30.0,
+        -30.0
+      ]
+    },
+    {
+      "cellCount": 4,
+      "edgeI": [
+        0,
+        0,
+        1,
+        2
+      ],
+      "edgeJ": [
+        1,
+        2,
+        3,
+        3
+      ],
+      "conductanceWPerK": [
+        1.25,
+        2.0,
+        0.5,
+        3.0
+      ],
+      "temperatureK": [
+        260.0,
+        280.0,
+        275.0,
+        250.0
+      ],
+      "powerW": [
+        55.0,
+        -40.0,
+        -105.0,
+        90.0
+      ]
+    },
+    {
+      "cellCount": 4,
+      "edgeI": [
+        0,
+        0,
+        1,
+        2
+      ],
+      "edgeJ": [
+        1,
+        2,
+        3,
+        3
+      ],
+      "conductanceWPerK": [
+        1.25,
+        2.0,
+        0.5,
+        3.0
+      ],
+      "temperatureK": [
+        270.0,
+        270.0,
+        270.0,
+        270.0
+      ],
+      "powerW": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}

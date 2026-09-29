@@ -141,7 +141,7 @@ namespace WorldGen.Core.Climate
             double albedo = _parameters.BaselineAlbedoFor(
                 isOceanic ? SurfaceThermalKind.Ocean : SurfaceThermalKind.Land);
             double tRad = ThermalBaseline.RadiativeTemperature(_parameters.EffectiveFactor(daily, annual), albedo);
-            return tRad + Temperature.DefaultGreenhouseK + Temperature.MeridionalHeatTransportK(g[t + 2])
+            return tRad + Temperature.DefaultGreenhouseK + _parameters.MeridionalHeatTransportK(g[t + 2])
                 - Temperature.LapseRateKPerM * Math.Max(0.0, elevationM - _seaLevelM);
         }
 

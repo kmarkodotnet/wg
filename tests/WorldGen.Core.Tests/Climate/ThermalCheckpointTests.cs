@@ -63,7 +63,7 @@ public class ThermalCheckpointTests
 
     [Theory]
     [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(7)]
-    [InlineData(8)] [InlineData(9)]
+    [InlineData(8)] [InlineData(9)] [InlineData(10)]
     public void WorldInputsArePartOfIdentityAndForeignStateCannotContinue(int input)
     {
         var field = Field();
@@ -77,6 +77,7 @@ public class ThermalCheckpointTests
             // némán a másik mód gyorsítótárára/checkpointjára találna rá.
             8 => Field(parameters: new ThermalModelParameters(legacySurfaceBaselineAlbedo: true)),
             9 => Field(parameters: new ThermalModelParameters(baselineAlbedo: 0.25)),
+            10 => Field(parameters: new ThermalModelParameters(meridionalTransportScale: 0.5)),
             _ => Field(parameters: new ThermalModelParameters(airFeedbackStrength: 0.25))
         };
         Assert.NotEqual(field.ModelIdentity, other.ModelIdentity);
@@ -86,6 +87,25 @@ public class ThermalCheckpointTests
         Assert.Throws<InvalidDataException>(() => ThermalCheckpoint.Restore(other, destination, ThermalCheckpoint.Capture(field, state)));
         Assert.Throws<ArgumentException>(() => other.Step(state));
         Assert.Null(destination.ModelIdentity);
+    }
+
+    [Fact]
+    public void MeridionalDiagnosticChangesBaselineButDefaultKeepsOracleIdentity()
+    {
+        var normal = Field();
+        var explicitDefault = Field(parameters: new ThermalModelParameters(meridionalTransportScale: 1.0));
+        var withoutProxy = Field(parameters: new ThermalModelParameters(meridionalTransportScale: 0.0));
+        Assert.Equal(normal.ModelIdentity, explicitDefault.ModelIdentity);
+        Assert.NotEqual(normal.ModelIdentity, withoutProxy.ModelIdentity);
+
+        int count = normal.Grid.CellCount;
+        var factor = new double[count];
+        var current = new double[count];
+        var reduced = new double[count];
+        normal.Baseline.EvaluateHour(81, factor, current);
+        withoutProxy.Baseline.EvaluateHour(81, factor, reduced);
+        Assert.Contains(Enumerable.Range(0, count), c => current[c] > reduced[c]);
+        Assert.All(Enumerable.Range(0, count), c => Assert.True(current[c] >= reduced[c]));
     }
 
     [Theory]

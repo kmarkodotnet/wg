@@ -38,6 +38,13 @@ namespace WorldGen.Core.Climate
         public double AirFeedbackStrength { get; }
 
         /// <summary>
+        /// ND-166 diagnosztikai skála a meglévő 40 K · z⁴ meridionális
+        /// hőmérséklet-proxyra. Alapértéke 1: a jelenlegi világ bitre azonos.
+        /// Nem energiamegmaradó hőszállítási algoritmus.
+        /// </summary>
+        public double MeridionalTransportScale { get; }
+
+        /// <summary>
         /// A BÁZIS radiatív tagjának albedója. <c>null</c> (az alapértelmezés)
         /// esetén a bázis az ND-160 szerinti BOLYGÓ-albedót
         /// (<see cref="Temperature.AlbedoPlanet"/>) használja — kivéve, ha
@@ -89,7 +96,8 @@ namespace WorldGen.Core.Climate
             double solarConstant = Temperature.DefaultFPeak,
             double airFeedbackStrength = 0.1,
             double? baselineAlbedo = null,
-            bool legacySurfaceBaselineAlbedo = false)
+            bool legacySurfaceBaselineAlbedo = false,
+            double meridionalTransportScale = 1.0)
         {
             RequirePositive(seawaterDensity, nameof(seawaterDensity));
             RequirePositive(seawaterSpecificHeat, nameof(seawaterSpecificHeat));
@@ -113,6 +121,7 @@ namespace WorldGen.Core.Climate
             RequireUnit(landEmissivity, nameof(landEmissivity));
             RequireUnit(radiativeSmoothing, nameof(radiativeSmoothing));
             RequireUnit(airFeedbackStrength, nameof(airFeedbackStrength));
+            RequireUnit(meridionalTransportScale, nameof(meridionalTransportScale));
             if (baselineAlbedo.HasValue) RequireUnit(baselineAlbedo.Value, nameof(baselineAlbedo));
 
             double oceanCs = seawaterDensity * seawaterSpecificHeat * oceanDepthM;
@@ -130,6 +139,7 @@ namespace WorldGen.Core.Climate
             MinExchangeWindMs = minExchangeWindMs;
             RadiativeSmoothing = radiativeSmoothing;
             AirFeedbackStrength = airFeedbackStrength;
+            MeridionalTransportScale = meridionalTransportScale;
             BaselineAlbedo = baselineAlbedo;
             LegacySurfaceBaselineAlbedo = legacySurfaceBaselineAlbedo;
         }
@@ -152,6 +162,13 @@ namespace WorldGen.Core.Climate
         public double Albedo(SurfaceThermalKind kind) => _albedo[(int)kind];
         public double Emissivity(SurfaceThermalKind kind) => _emissivity[(int)kind];
         public double SurfaceHeatCapacity(SurfaceThermalKind kind) => _surfaceHeatCapacity[(int)kind];
+
+        /// <summary>A jelenlegi proxy erőssége; 1-nél ugyanaz a műveleti út, mint ND-166 előtt.</summary>
+        public double MeridionalHeatTransportK(double z)
+        {
+            double current = Temperature.MeridionalHeatTransportK(z);
+            return MeridionalTransportScale == 1.0 ? current : MeridionalTransportScale * current;
+        }
 
         /// <summary><c>(1 − β)·daily + β·annual</c>, a Python-referenciával azonos sorrendben.</summary>
         public double EffectiveFactor(double dailyFactor, double annualFactor)

@@ -37,6 +37,11 @@ namespace WorldGen.Cli
             public double AxialTiltDegrees = 23.44;
             public bool Parallel = true;
 
+            /// <summary>A24: az effektív felszíni hőkapacitás mélységeinek mérőkampói.</summary>
+            public double OceanDepthM = 10.0;
+            public double LandDepthM = 0.5;
+            public double MeridionalTransportScale = 1.0;
+
             /// <summary>
             /// ND-159: a vizsgalando radiativ simitasi (beta) ertekek. Ures
             /// lista eseten csak az alapertelmezett modell fut le.
@@ -161,10 +166,15 @@ namespace WorldGen.Cli
             foreach (double beta in betas)
             {
                 var parameters = new ThermalModelParameters(radiativeSmoothing: beta,
+                    oceanDepthM: options.OceanDepthM, landDepthM: options.LandDepthM,
+                    meridionalTransportScale: options.MeridionalTransportScale,
                     baselineAlbedo: options.BaselineAlbedo,
                     legacySurfaceBaselineAlbedo: options.LegacySurfaceBaselineAlbedo);
                 bool isDefault = beta == ThermalModelParameters.Default.RadiativeSmoothing;
-                Console.WriteLine($"--- beta = {beta:0.###}{(isDefault ? "  (a mai alapérték)" : "")}" +
+                Console.WriteLine($"--- beta = {beta:0.###}{(isDefault ? "  (a mai alapérték)" : "")}, " +
+                                  $"óceánmélység = {options.OceanDepthM:0.###} m, " +
+                                  $"talajmélység = {options.LandDepthM:0.###} m" +
+                                  $", meridionális skála = {options.MeridionalTransportScale:0.###}" +
                                   (options.BaselineAlbedo.HasValue
                                       ? $", bázis-albedó = {options.BaselineAlbedo.Value:0.###} (explicit)"
                                       : options.LegacySurfaceBaselineAlbedo
@@ -234,7 +244,7 @@ namespace WorldGen.Cli
                 if (options.Decompose)
                     Decompose(grid, kinds, elevation, seaLevel, options, orbit, parameters, climate);
                 if (options.Precipitation)
-                    ComparePrecipitation(grid, kinds, elevation, seaLevel, options, orbit, parameters, sw);
+                    ComparePrecipitation(grid, elevation, seaLevel, options, orbit, parameters, climate, sw);
                 if (options.Biome)
                     CompareBiomes(grid, kinds, elevation, seaLevel, options, orbit, climate);
                 foreach (int coarseLevel in options.ClimateLevels)
@@ -266,9 +276,9 @@ namespace WorldGen.Cli
         /// csapadék percentilisei döntik el, tehát egy egyenletes skálázódás
         /// SEMMIT nem változtatna a képen. Ami számít: átrendeződik-e a sorrend.
         /// </summary>
-        private static void ComparePrecipitation(DenseGridMetrics grid, SurfaceThermalKind[] kinds,
+        private static void ComparePrecipitation(DenseGridMetrics grid,
             double[] elevation, double seaLevel, Options options, ThermalOrbit orbit,
-            ThermalModelParameters parameters, Stopwatch sw)
+            ThermalModelParameters parameters, ThermalClimate climate, Stopwatch sw)
         {
             int level = options.Level;
             var field = new Dictionary<TileId, double>(grid.CellCount);
@@ -284,9 +294,11 @@ namespace WorldGen.Cli
                         field[id] = elevation[index];
                     }
 
-            // A hőmodell éves mezője, SZÉLLEL együtt (a szél ingyen jön).
+            // A fogyasztó a VÉGLEGES B menet éghajlatát olvasná. Az ND-163
+            // korábbi A/B-je itt még a jégmentes A menetet mérte; az nem a
+            // tényleges átállás szélmezője, ezért a B típusait használjuk.
             sw.Restart();
-            var thermal = new SurfaceTemperatureField(grid, kinds, elevation, seaLevel,
+            var thermal = new SurfaceTemperatureField(grid, climate.RefinedKinds.ToArray(), elevation, seaLevel,
                 options.Seed, options.TimeMyr * 1.0e6, orbit, parameters);
             ThermalAnnualStatistics annual = ThermalAnnualStatisticsCalculator.Compute(
                 thermal, new ThermalSnapshot(grid.CellCount), options.SampleDays, 0, includeWind: true);
@@ -294,16 +306,22 @@ namespace WorldGen.Cli
 
             var temperature = new Dictionary<TileId, double>(grid.CellCount);
             var wind = new Dictionary<TileId, SurfaceWindSample>(grid.CellCount);
+            var steadiness = new Dictionary<TileId, double>(grid.CellCount);
             double rotationSum = 0.0;
             for (int c = 0; c < grid.CellCount; c++)
             {
                 TileId id = tileOf[c];
+                if (BitConverter.DoubleToInt64Bits(annual.MeanSurfaceK[c]) !=
+                    BitConverter.DoubleToInt64Bits(climate.Refined.MeanSurfaceK[c]))
+                    throw new InvalidOperationException($"A szélrögzítés megváltoztatta a B menet hőmérsékletét: {id}.");
                 temperature[id] = annual.MeanSurfaceK[c];
                 double wx = annual.MeanWindX![c], wy = annual.MeanWindY![c], wz = annual.MeanWindZ![c];
                 double speed = annual.MeanWindSpeedMs![c];
                 wind[id] = new SurfaceWindSample(wx, wy, wz, speed);
                 double netto = Math.Sqrt(wx * wx + wy * wy + wz * wz);
-                if (speed > 1e-12) rotationSum += netto / speed;
+                double persistence = speed > 1e-12 ? netto / speed : 0.0;
+                steadiness[id] = persistence;
+                rotationSum += persistence;
             }
             double meanSteadiness = rotationSum / grid.CellCount;
 
@@ -318,11 +336,63 @@ namespace WorldGen.Cli
                 field, seaLevel, options.Seed, level, temperature, wind, 0.0,
                 options.OrbitalPeriodDays, options.RotationPeriodDays, axialTilt);
 
-            Console.WriteLine($"  [CSAPADÉK A/B] éves mező széllel: {annualMs / 1000.0:F1} s; " +
+            Console.WriteLine($"  [CSAPADÉK A/B, végleges B menet] éves mező széllel: {annualMs / 1000.0:F1} s; " +
                               $"szél-állandóság (|átlagvektor| / átlagsebesség): {meanSteadiness:F3}");
             ReportPrecipitation("(1) hőmérséklet a hőmodellből", p0, p1, field, seaLevel);
             ReportPrecipitation("(2) + szél is a hőmodellből", p0, p2, field, seaLevel);
             ReportPrecipitation("    (2) a (1)-hez képest", p1, p2, field, seaLevel);
+            ReportWindPersistence(p1, p2, field, seaLevel, steadiness);
+        }
+
+        /// <summary>
+        /// Az éves átlagvektor kioltódása és a csapadék-átsorolás kapcsolata.
+        /// A sávok diagnosztikai csoportok; nem változtatják meg a modellt.
+        /// </summary>
+        private static void ReportWindPersistence(
+            MoisturePrecipitation.PrecipitationField analyticWind,
+            MoisturePrecipitation.PrecipitationField thermalWind,
+            Dictionary<TileId, double> elevation, double seaLevel,
+            Dictionary<TileId, double> steadiness)
+        {
+            var tiles = new List<TileId>();
+            var baseline = new List<double>();
+            var changed = new List<double>();
+            foreach (KeyValuePair<TileId, double> kv in elevation)
+            {
+                if (kv.Value < seaLevel) continue;
+                tiles.Add(kv.Key);
+                baseline.Add(analyticWind.Precipitation[kv.Key]);
+                changed.Add(thermalWind.Precipitation[kv.Key]);
+            }
+            if (tiles.Count == 0) return;
+
+            int[] oldRanks = QuartileRanks(baseline);
+            int[] newRanks = QuartileRanks(changed);
+            int[] count = new int[4], moved = new int[4];
+            double[] sumDifference = new double[4], sumBaseline = new double[4];
+            double[] maxDifference = new double[4];
+            for (int i = 0; i < tiles.Count; i++)
+            {
+                double persistence = steadiness[tiles[i]];
+                int band = persistence < 0.25 ? 0 : persistence < 0.5 ? 1 : persistence < 0.75 ? 2 : 3;
+                double difference = Math.Abs(changed[i] - baseline[i]);
+                count[band]++;
+                if (oldRanks[i] != newRanks[i]) moved[band]++;
+                sumDifference[band] += difference;
+                sumBaseline[band] += baseline[i];
+                if (difference > maxDifference[band]) maxDifference[band] = difference;
+            }
+            string[] labels = { "<0,25", "0,25–0,50", "0,50–0,75", "≥0,75" };
+            Console.WriteLine("    Szél-állandóság szerint a szárazföldön (a negyedek globális vágópontokból):");
+            for (int band = 0; band < 4; band++)
+            {
+                if (count[band] == 0) continue;
+                Console.WriteLine($"      {labels[band]}: n={count[band]}, negyedváltás={moved[band]} " +
+                                  $"({100.0 * moved[band] / count[band]:F1}%), " +
+                                  $"átlagos |eltérés|={sumDifference[band] / count[band]:F4} " +
+                                  $"({(sumBaseline[band] > 0.0 ? 100.0 * sumDifference[band] / sumBaseline[band] : 0.0):F1}%), " +
+                                  $"max={maxDifference[band]:F4}");
+            }
         }
 
         /// <summary>Két csapadék-mező összevetése a SZÁRAZFÖLDÖN, percentilis-besorolással.</summary>
@@ -794,11 +864,16 @@ namespace WorldGen.Cli
 
             double totalArea = 0.0;
             double wRad = 0.0, wOcean = 0.0, wMerid = 0.0, wAlt = 0.0, wBase = 0.0;
+            int coldestCell = 0;
+            for (int c = 1; c < grid.CellCount; c++)
+                if (climate.Refined.MeanSurfaceK[c] < climate.Refined.MeanSurfaceK[coldestCell])
+                    coldestCell = c;
+            double coldRad = 0.0, coldOcean = 0.0, coldMerid = 0.0, coldAlt = 0.0, coldBase = 0.0;
             for (int c = 0; c < grid.CellCount; c++)
             {
                 double area = grid.Area[c];
                 double bs = baseSum[c] / days.Length;
-                double merid = Temperature.MeridionalHeatTransportK(grid.CenterZ[c]);
+                double merid = parameters.MeridionalHeatTransportK(grid.CenterZ[c]);
                 double alt = Temperature.LapseRateKPerM * Math.Max(0.0, elevation[c] - seaLevel);
                 double rest = bs - baseline.GreenhouseK - merid + alt - baseline.CycleK;
 
@@ -823,6 +898,14 @@ namespace WorldGen.Cli
                 wMerid += area * merid;
                 wAlt += area * alt;
                 wBase += area * bs;
+                if (c == coldestCell)
+                {
+                    coldRad = rad;
+                    coldOcean = ocean;
+                    coldMerid = merid;
+                    coldAlt = alt;
+                    coldBase = bs;
+                }
             }
 
             Console.WriteLine("  BÁZIS-FELBONTÁS (területtel súlyozott globális átlag, K):");
@@ -834,6 +917,12 @@ namespace WorldGen.Cli
             Console.WriteLine($"    T_ciklus         {baseline.CycleK,8:F2}");
             Console.WriteLine($"    = bázis átlag     {wBase / totalArea,8:F2} K " +
                               $"({wBase / totalArea - 273.15:F2} °C)");
+            Console.WriteLine($"    LEGHIDEGEBB ÉVES CELLA: index={coldestCell}, " +
+                              $"típus={climate.RefinedKinds[coldestCell]}, z={grid.CenterZ[coldestCell]:F3}, " +
+                              $"éves={climate.Refined.MeanSurfaceK[coldestCell] - 273.15:F2} °C");
+            Console.WriteLine($"      bázis={coldBase - 273.15:F2} °C; radiatív={coldRad:F2} K, " +
+                              $"óceáni={coldOcean:F2} K, meridionális=+{coldMerid:F2} K, " +
+                              $"magasság=-{coldAlt:F2} K, ciklus={baseline.CycleK:F2} K");
         }
 
         /// <summary>

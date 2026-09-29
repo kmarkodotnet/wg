@@ -1142,6 +1142,19 @@ javaslatok; a végleges alak a Python-referencia után dől el.
 
 ### 11.6 Megvalósított állapot (2026-09-13)
 
+**Utóállapot (2026-09-29, ND-158–166):** az éves, kétmenetes hőstatisztika
+a viewer jégmaszkját, a biome hőmérséklet-tengelyét és a csapadék párolgási
+hőmérsékletét táplálja (ND-162/164). A csapadék szél-tagja az analitikus
+úton marad: a végleges B menet éves szelével mérve a szárazföld 29,6%-a
+más csapadéknegyedbe kerülne (ND-163). Az ND-160 után a felhasználó a
+hőmodell-biome kikapcsolt képét ítélte jobbnak. Az ND-166 mérése a hideg
+tartomány szűkületét a radiatív simításhoz és a mindenütt pozitív
+meridionális K-proxyhoz köti. Az energiamegmaradó fluxusmodell nyitott.
+Az ND-167-ben elkészült a kanonikus éleken páronként ellentétes W-fluxust
+összegző Core-kernel és a Python KAT. A vezetőképesség és a hősolverbe
+kötés még nincs eldöntve; az alapértelmezett világkimenetet ez nem érinti.
+Az alábbi táblázat a 2026-09-13-i történeti kiindulópontot rögzíti.
+
 | Réteg | Hely | Állapot |
 |---|---|---|
 | Python-referencia | `tools/reference/thermal_field_ref.py` → `thermal_field_vectors.json` | Kész; kétszeri futás bájtra azonos |

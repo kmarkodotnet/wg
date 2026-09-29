@@ -179,6 +179,10 @@ namespace WorldGen.Cli
             if (opts.TryGetValue("orbital", out string? o)) options.OrbitalPeriodDays = double.Parse(o);
             if (opts.TryGetValue("tilt", out string? tl)) options.AxialTiltDegrees = double.Parse(tl);
             if (opts.TryGetValue("parallel", out string? pl)) options.Parallel = bool.Parse(pl);
+            if (opts.TryGetValue("ocean-depth", out string? od)) options.OceanDepthM = double.Parse(od);
+            if (opts.TryGetValue("land-depth", out string? ld)) options.LandDepthM = double.Parse(ld);
+            if (opts.TryGetValue("meridional-scale", out string? ms))
+                options.MeridionalTransportScale = double.Parse(ms);
             if (opts.TryGetValue("decompose", out string? dc)) options.Decompose = bool.Parse(dc);
             if (opts.TryGetValue("precip", out string? pr)) options.Precipitation = bool.Parse(pr);
             if (opts.TryGetValue("biome", out string? bi)) options.Biome = bool.Parse(bi);
@@ -275,7 +279,9 @@ namespace WorldGen.Cli
                 "                           [--parallel <true|false>] [--beta <b1,b2,...>]\n" +
                 "                           [--ice-percentile <q|absolute>] [--decompose true]\n" +
                 "                           [--climate-level <L1,L2,...>] [--precip true] [--biome true]\n" +
-                "                           [--dayt <0..1>] [--rotation <nap>] [--baseline-albedo <a>]\n" +
+                 "                           [--dayt <0..1>] [--rotation <nap>] [--baseline-albedo <a>]\n" +
+                 "                           [--ocean-depth <m>] [--land-depth <m>] (A24 mérőkampók)\n" +
+                 "                           [--meridional-scale <0..1>] (ND-166 mérőkampó)\n" +
                 "                           (ND-158 koltsegmeres es ND-159 beta-sopres, nem CI-lepes)\n");
         }
     }

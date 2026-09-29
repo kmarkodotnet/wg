@@ -126,7 +126,7 @@ namespace WorldGen.Core.Climate
                 double tAlt = Temperature.LapseRateKPerM * Math.Max(0.0, _elevationM[c] - _seaLevelM);
                 dailyFactor[c] = f;
                 baseK[c] = tRad + GreenhouseK + tOcean
-                    + Temperature.MeridionalHeatTransportK(_grid.CenterZ[c]) - tAlt + CycleK;
+                    + _parameters.MeridionalHeatTransportK(_grid.CenterZ[c]) - tAlt + CycleK;
             }
         }
 

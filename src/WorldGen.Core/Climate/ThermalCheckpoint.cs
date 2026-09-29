@@ -130,6 +130,14 @@ namespace WorldGen.Core.Climate
                 WriteFiniteDouble(stream, p.Emissivity(kind));
                 WriteFiniteDouble(stream, p.SurfaceHeatCapacity(kind));
             }
+            // ND-166: az A/B-paraméter nem kaphatja a régi cache-azonosítót.
+            // Az alapértéket nem írjuk hozzá, így a korábbi alapmodell
+            // checkpointja és lemez-cache-e bitre azonos marad.
+            if (p.MeridionalTransportScale != 1.0)
+            {
+                WriteString(stream, "ND-166-meridional-scale");
+                WriteFiniteDouble(stream, p.MeridionalTransportScale);
+            }
             for (int c = 0; c < field.Grid.CellCount; c++)
             {
                 WriteUInt64(stream, (ulong)field.KindAt(c));

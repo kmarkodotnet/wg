@@ -241,9 +241,10 @@ def radiative_temperature(factor, albedo):
     return math.sqrt(math.sqrt(raw)) if raw > 0.0 else 0.0
 
 
-def meridional_heat_transport_k(z):
+def meridional_heat_transport_k(z, scale=1.0):
     z2 = z * z
-    return MERIDIONAL_HEAT_TRANSPORT_MAX_K * z2 * z2
+    current = MERIDIONAL_HEAT_TRANSPORT_MAX_K * z2 * z2
+    return current if scale == 1.0 else scale * current
 
 
 # ---------------------------------------------------------------------------
@@ -323,8 +324,10 @@ def synthetic_world(grid):
 # ---------------------------------------------------------------------------
 
 class Baseline:
-    def __init__(self, grid, kinds, elevation, sea_level_m, world_seed, t_years):
+    def __init__(self, grid, kinds, elevation, sea_level_m, world_seed, t_years,
+                 meridional_scale=1.0):
         self.grid, self.kinds, self.elevation = grid, kinds, elevation
+        self.meridional_scale = meridional_scale
         self.sea_level_m = sea_level_m
         self.constant = greenhouse_temperature()
         self.cycle = climate_cycle_temperature_k(world_seed, t_years)
@@ -360,7 +363,7 @@ class Baseline:
                 t_alt = LAPSE_RATE_K_PER_M * max(0.0, self.elevation[k] - self.sea_level_m)
                 factor[k] = f
                 base[k] = (t_rad + self.constant + t_ocean
-                           + meridional_heat_transport_k(self.grid.center[k][2])
+                           + meridional_heat_transport_k(self.grid.center[k][2], self.meridional_scale)
                            - t_alt + self.cycle)
             if len(self.hour_cache) > 4:
                 self.hour_cache.pop(next(iter(self.hour_cache)))
@@ -420,10 +423,10 @@ def offset_points(p):
     return east, north, out
 
 
-def point_temperature(q, samples, annual, elevation_m, sea_level_m):
+def point_temperature(q, samples, annual, elevation_m, sea_level_m, meridional_scale=1.0):
     daily = average_factor(q, samples)
     t = radiative_temperature(effective_factor(daily, annual), ALBEDO_PLANET_BASELINE)
-    return (t + SIMPLE_GREENHOUSE_K + meridional_heat_transport_k(q[2])
+    return (t + SIMPLE_GREENHOUSE_K + meridional_heat_transport_k(q[2], meridional_scale)
             - LAPSE_RATE_K_PER_M * max(0.0, elevation_m - sea_level_m))
 
 
@@ -453,8 +456,9 @@ def wind_from_gradient(p, east, north, grad_e, grad_n):
 
 
 class WindField:
-    def __init__(self, grid, kinds, elevation, sea_level_m):
+    def __init__(self, grid, kinds, elevation, sea_level_m, meridional_scale=1.0):
         self.grid, self.kinds, self.elevation, self.sea_level_m = grid, kinds, elevation, sea_level_m
+        self.meridional_scale = meridional_scale
         windows = annual_sample_windows()
         self.edge_geom = []
         for e in range(len(grid.edge_i)):
@@ -470,7 +474,8 @@ class WindField:
 
     def _wind(self, geom, samples, owner):
         p, east, north, pts, annual = geom
-        temps = [point_temperature(pts[t], samples, annual[t], self.elevation[owner], self.sea_level_m)
+        temps = [point_temperature(pts[t], samples, annual[t], self.elevation[owner], self.sea_level_m,
+                                   self.meridional_scale)
                  for t in range(4)]
         return wind_from_temperatures(p, east, north, temps)
 
@@ -548,7 +553,8 @@ class AirWindFeedback:
             for geom, owner in zip(geometry, owners):
                 _, _, _, pts, annual = geom
                 temps = [point_temperature(pts[t], samples, annual[t],
-                                          self.wind.elevation[owner], self.wind.sea_level_m) for t in range(4)]
+                                          self.wind.elevation[owner], self.wind.sea_level_m,
+                                          self.wind.meridional_scale) for t in range(4)]
                 out.append(((temps[0] - temps[1]) / (2.0 * GRADIENT_EPS),
                             (temps[2] - temps[3]) / (2.0 * GRADIENT_EPS)))
             if len(self.cache) >= 2:
@@ -585,11 +591,13 @@ class AirWindFeedback:
 # ---------------------------------------------------------------------------
 
 class Field:
-    def __init__(self, world_seed=184482873278464, t_years=0.0, sea_level_m=0.0):
+    def __init__(self, world_seed=184482873278464, t_years=0.0, sea_level_m=0.0,
+                 meridional_scale=1.0):
         self.grid = Grid()
         self.kinds, self.elevation = synthetic_world(self.grid)
-        self.baseline = Baseline(self.grid, self.kinds, self.elevation, sea_level_m, world_seed, t_years)
-        self.wind = WindField(self.grid, self.kinds, self.elevation, sea_level_m)
+        self.baseline = Baseline(self.grid, self.kinds, self.elevation, sea_level_m,
+                                 world_seed, t_years, meridional_scale)
+        self.wind = WindField(self.grid, self.kinds, self.elevation, sea_level_m, meridional_scale)
         self.feedback = AirWindFeedback(self.wind)
 
     def advect(self, theta_a, edge_u, dt):
