@@ -143,6 +143,9 @@ namespace WorldGen.Viewer
             /// </summary>
             public Dictionary<TileId, double> SurfaceAllK = new Dictionary<TileId, double>();
 
+            /// <summary>ND-169: a végleges B menet éves szélvektora és átlagsebessége.</summary>
+            public Dictionary<TileId, SurfaceWindSample> MeanWind = new Dictionary<TileId, SurfaceWindSample>();
+
             /// <summary>A cella eleavacioja - a homerseklet magassag-korrekciojahoz (ND-164).</summary>
             public Dictionary<TileId, double> ElevationM = new Dictionary<TileId, double>();
 
@@ -295,6 +298,12 @@ namespace WorldGen.Viewer
         private static ulong ComputeInputsIdentity(ThermalClimateInputs inputs)
         {
             ulong hash = 1469598103934665603UL;
+            // A Play közbeni script-frissítésnél azonos fizikai bemenetek mellett
+            // is más klímát adhat az új algoritmus. A revíziós kapu ezért a
+            // verziókat is olvassa, nem csak a lemez-cache kulcsa.
+            hash = MixIdentity(hash, (ulong)ThermalModelParameters.ModelVersion);
+            foreach (char digit in WorldGen.Core.Persistence.WorldGeneratorVersion.Current)
+                hash = MixIdentity(hash, digit);
             hash = MixIdentity(hash, (ulong)inputs.Level);
             hash = MixIdentity(hash, inputs.Seed);
             hash = MixIdentity(hash, (ulong)BitConverter.DoubleToInt64Bits(inputs.SeaLevelM));
@@ -372,12 +381,14 @@ namespace WorldGen.Viewer
         /// </summary>
         private bool TryGetThermalClimateBiomeFields(
             out Dictionary<TileId, double> meanAirK, out Dictionary<TileId, double> surfaceAllK,
-            out Dictionary<TileId, double> elevationM, out double climateSeaLevelM)
+            out Dictionary<TileId, double> elevationM, out double climateSeaLevelM,
+            out Dictionary<TileId, SurfaceWindSample> meanWind)
         {
             meanAirK = null;
             surfaceAllK = null;
             elevationM = null;
             climateSeaLevelM = 0.0;
+            meanWind = null;
             if (!useThermalClimateIce || !useThermalClimateBiome) return false;
             if (_climateApplied == null || _climateApplied.Revision != _climateRevision) return false;
             if (_climateApplied.MeanAirK.Count == 0) return false;
@@ -386,6 +397,7 @@ namespace WorldGen.Viewer
             surfaceAllK = _climateApplied.SurfaceAllK;
             elevationM = _climateApplied.ElevationM;
             climateSeaLevelM = _climateApplied.SeaLevelM;
+            meanWind = _climateApplied.MeanWind;
             return true;
         }
 
@@ -430,7 +442,7 @@ namespace WorldGen.Viewer
             {
                 ThermalClimate climate = ThermalClimateCalculator.Compute(grid, inputs.IceFreeKinds,
                     inputs.ElevationM, inputs.SeaLevelM, inputs.Seed, inputs.TYears, inputs.Orbit,
-                    useParallelLocalStep: false);
+                    useParallelLocalStep: false, includeRefinedWind: true);
                 token.ThrowIfCancellationRequested();
                 payload = ThermalClimateDiskCache.Payload.From(climate);
                 SaveThermalClimateToDisk(key, payload);
@@ -466,6 +478,9 @@ namespace WorldGen.Viewer
                         // a kepen mondana mast.
                         result.MeanAirK[id] = payload.Refined.MeanAirK[index] + glaciationOffsetK;
                         result.SurfaceAllK[id] = payload.Refined.MeanSurfaceK[index] + glaciationOffsetK;
+                        result.MeanWind[id] = new SurfaceWindSample(
+                            payload.Refined.MeanWindX[index], payload.Refined.MeanWindY[index],
+                            payload.Refined.MeanWindZ[index], payload.Refined.MeanWindSpeedMs[index]);
                         result.ElevationM[id] = inputs.ElevationM[index];
                         if (inputs.IceFreeKinds[index] == SurfaceThermalKind.Ocean) continue; // SeaIce a biome-bol
                         result.MeanSurfaceK[id] = payload.Refined.MeanSurfaceK[index] + glaciationOffsetK;

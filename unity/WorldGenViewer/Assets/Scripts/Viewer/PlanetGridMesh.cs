@@ -1333,6 +1333,7 @@ namespace WorldGen.Viewer
         /// (ld. MoisturePrecipitation.ComputeFromElevationField doksi).
         /// </summary>
         private Dictionary<TileId, double> _adaptiveEvaporationTemperatureK;
+        private Dictionary<TileId, SurfaceWindSample> _adaptiveClimateWind;
 
         /// <summary>
         /// ND-117: a szarazfold-tile-ok NYERS evi kozephomerseklete (jegesedesi
@@ -3074,10 +3075,12 @@ namespace WorldGen.Viewer
             // az analitikus elonezetet hasznalja, es egyszerre valt at.
             bool climateBiome = TryGetThermalClimateBiomeFields(
                 out Dictionary<TileId, double> climateAirK, out Dictionary<TileId, double> climateSurfaceAllK,
-                out Dictionary<TileId, double> climateElevationM, out double climateSeaLevelM);
+                out Dictionary<TileId, double> climateElevationM, out double climateSeaLevelM,
+                out Dictionary<TileId, SurfaceWindSample> climateWind);
             BuildClimateAirCornerTable(climateBiome ? climateAirK : null,
                 climateBiome ? climateElevationM : null, climateSeaLevelM);
             _adaptiveEvaporationTemperatureK = climateBiome ? climateSurfaceAllK : null;
+            _adaptiveClimateWind = climateBiome ? climateWind : null;
             PerfLog($"Build() ice(iceTiles={iceMeanK.Count}, source={(climateIce ? "thermal" : "analytic-preview")}, "
                 + $"biomeAxis={(climateBiome ? "thermal" : "analytic")})"
                 + $"={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
@@ -3372,7 +3375,7 @@ namespace WorldGen.Viewer
             const bool needsPrecipField = true;
             MoisturePrecipitation.PrecipitationField precipField = needsPrecipField
                 ? GetOrComputePrecipitationField(seed, plateCount, level, targetWaterFraction,
-                    _adaptiveEvaporationTemperatureK)
+                    _adaptiveEvaporationTemperatureK, _adaptiveClimateWind)
                 : null;
             _adaptivePrecip = precipField?.Precipitation;
             // ND-130: a sarok-tabla MEG a vagopontok elott - a kuszoboket
@@ -6673,32 +6676,41 @@ namespace WorldGen.Viewer
         /// csapadek is az lett.
         /// </summary>
         private Dictionary<TileId, double> _pcEvaporationTemperatureK;
+        private Dictionary<TileId, SurfaceWindSample> _pcClimateWind;
 
         private MoisturePrecipitation.PrecipitationField GetOrComputePrecipitationField(
             ulong precipSeed, int precipPlateCount, int precipLevel, double precipTargetWater,
-            Dictionary<TileId, double> evaporationTemperatureK)
+            Dictionary<TileId, double> evaporationTemperatureK,
+            Dictionary<TileId, SurfaceWindSample> climateWind)
         {
             if (_hasPrecipCache && _pcField != null
                 && _pcSeed == precipSeed && _pcPlateCount == precipPlateCount && _pcLevel == precipLevel
                 && _pcDayT == climateDayT && _pcOrbital == climateOrbitalPeriodDays
                 && _pcRotation == climateRotationPeriodDays && _pcAxialTilt == climateAxialTiltDegrees
                 && _pcTargetWater == precipTargetWater
-                && ReferenceEquals(_pcEvaporationTemperatureK, evaporationTemperatureK))
+                && ReferenceEquals(_pcEvaporationTemperatureK, evaporationTemperatureK)
+                && ReferenceEquals(_pcClimateWind, climateWind))
             {
                 _precipCacheHit = true;
                 return _pcField;
             }
 
             _precipCacheHit = false;
-            _pcField = MoisturePrecipitation.Compute(precipSeed, precipPlateCount, precipLevel,
-                evaporationTemperatureK,
-                climateDayT, climateOrbitalPeriodDays, climateRotationPeriodDays,
-                climateAxialTiltDegrees, targetWaterFraction: precipTargetWater);
+            _pcField = climateWind == null
+                ? MoisturePrecipitation.Compute(precipSeed, precipPlateCount, precipLevel,
+                    evaporationTemperatureK,
+                    climateDayT, climateOrbitalPeriodDays, climateRotationPeriodDays,
+                    climateAxialTiltDegrees, targetWaterFraction: precipTargetWater)
+                : MoisturePrecipitation.ComputeWithClimateFields(precipSeed, precipPlateCount, precipLevel,
+                    evaporationTemperatureK, climateWind,
+                    climateDayT, climateOrbitalPeriodDays, climateRotationPeriodDays,
+                    climateAxialTiltDegrees, targetWaterFraction: precipTargetWater);
             _pcSeed = precipSeed; _pcPlateCount = precipPlateCount; _pcLevel = precipLevel;
             _pcDayT = climateDayT; _pcOrbital = climateOrbitalPeriodDays;
             _pcRotation = climateRotationPeriodDays; _pcAxialTilt = climateAxialTiltDegrees;
             _pcTargetWater = precipTargetWater;
             _pcEvaporationTemperatureK = evaporationTemperatureK;
+            _pcClimateWind = climateWind;
             _hasPrecipCache = true;
             return _pcField;
         }

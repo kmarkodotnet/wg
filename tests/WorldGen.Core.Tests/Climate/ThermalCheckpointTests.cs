@@ -90,22 +90,30 @@ public class ThermalCheckpointTests
     }
 
     [Fact]
-    public void MeridionalDiagnosticChangesBaselineButDefaultKeepsOracleIdentity()
+    public void MeridionalTransportRedistributesAnnualBaseline()
     {
         var normal = Field();
         var explicitDefault = Field(parameters: new ThermalModelParameters(meridionalTransportScale: 1.0));
-        var withoutProxy = Field(parameters: new ThermalModelParameters(meridionalTransportScale: 0.0));
+        var withoutTransport = Field(parameters: new ThermalModelParameters(meridionalTransportScale: 0.0));
         Assert.Equal(normal.ModelIdentity, explicitDefault.ModelIdentity);
-        Assert.NotEqual(normal.ModelIdentity, withoutProxy.ModelIdentity);
+        Assert.NotEqual(normal.ModelIdentity, withoutTransport.ModelIdentity);
 
         int count = normal.Grid.CellCount;
         var factor = new double[count];
         var current = new double[count];
         var reduced = new double[count];
         normal.Baseline.EvaluateHour(81, factor, current);
-        withoutProxy.Baseline.EvaluateHour(81, factor, reduced);
+        withoutTransport.Baseline.EvaluateHour(81, factor, reduced);
         Assert.Contains(Enumerable.Range(0, count), c => current[c] > reduced[c]);
-        Assert.All(Enumerable.Range(0, count), c => Assert.True(current[c] >= reduced[c]));
+        Assert.Contains(Enumerable.Range(0, count), c => current[c] < reduced[c]);
+        double weighted = 0.0, area = 0.0;
+        for (int c = 0; c < count; c++)
+        {
+            weighted += normal.Grid.Area[c] * normal.Baseline.AnnualTransportCorrectionK[c];
+            area += normal.Grid.Area[c];
+            Assert.Equal(0.0, withoutTransport.Baseline.AnnualTransportCorrectionK[c]);
+        }
+        Assert.True(Math.Abs(weighted / area) < 1e-9);
     }
 
     [Theory]

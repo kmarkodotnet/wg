@@ -9970,6 +9970,26 @@ A `Temperature.MeridionalHeatTransportK(z) = 40 K · z⁴` tag az ND-126b analit
 
 **Határ:** ez csak a fluxus-/divergencia-kernel, nem kész klímamodell. A geometriai `G_e` szabálya, meridionális irányfüggése, együtthatója, stabil időintegrálása, a bázis és anomália viszonya, illetve a felszín/levegő energiafelosztása még nyitott. A jelenlegi +40 K proxy, a generátorverzió, a checkpoint és a viewer kimenete nem változik. Fogyasztói bekötés előtt külön ND-168 döntés, Python KAT és teljes A/B szükséges; a bekötés seed-törő változtatásként verzióemeléssel jár.
 
+### ND-168 — Az éves meridionális hőmérleg bekötése (A7, IMPLEMENTÁCIÓS DÖNTÉS)
+
+**Dátum:** 2026-09-29. **Előzmény:** ND-166/167. A korábbi `40 K · z⁴` proxy a globális bázishoz +8 K-t adott, ezért belső hőszállításként nem tartható fenn. A cél a meglévő kétmenetes éves éghajlat és az órás hőmező közös fizikai bázisa.
+
+**Modell:** a 12 éves ablakban számított, bolygó-albedós radiatív bázis `T₀,c` éves átlaga után az `i < j` éleken `G_e = D · R² · (L_e / d_ij) · (n_e · N_e)²` W/K. Itt `L_e` az él húrhossza, `d_ij` a cellaközéppontok húr-távolsága, `n_e` az élnormál, `N_e` a helyi észak; így a vezetés meridionális irányú, a cubed-sphere lapvarratain ugyanazzal az éllel. `D = 0,555 W/(m² K)` a [climlab meridionális diffúziójának alapértéke](https://climlab.readthedocs.io/en/latest/api/climlab.dynamics.MeridionalHeatDiffusion.html); `λ = 2,09 W/(m² K)` a [Budyko-féle lineáris energiavisszacsatolás közölt értéke](https://esd.copernicus.org/articles/11/1195/2020/esd-11-1195-2020.pdf). Ezek földi kiinduló értékek, nem ebből a generált világból utólag illesztett számok.
+
+Az éves `B_c` mező a `λ A_c (B_c − T₀,c) = Σ_e Q_{e→c}(B)` diszkrét mérleget oldja. A pozitív `G_e` és `λ A_c` miatt a rendszer szimmetrikus, pozitív definit. A korrekció `δ_c = B_c − T₀,c` a teljes éves hőbázishoz adódik; az órás és a szél-bázis ugyanennek a mezőnek a gradiensét használja. Egy él két végpontján ellenkező teljesítmény szerepel, ezért a globális hőmérleg belső tagja nulla. A numerikus megoldó rögzített iterációszámú, kanonikus élsorrendű, előkondicionált konjugáltgradiens-eljárás; nincs tolerancia miatti platformfüggő iterációszám. A szezonális `β = 0,5` simítás és a tickenkénti anomália-solver külön marad; a hőtehetetlenségük későbbi fizikai finomítás tárgya, nem az éves hőtranszporté.
+
+**Kompatibilitás:** az alapértelmezett `40 K · z⁴` tag megszűnik a hőmodell bázisában és termikus szelében. A diagnosztikai skála csak kifejezett legacy A/B-ágon értelmes. Ez seed-törő: hőmodell 4 → 5, generátor 6 → 7, a checkpoint és a lemez-cache eltérő verziót explicit elutasít. Python referencia, kézzel számolt kisrács-KAT, újragenerált vektorok és C# tesztek tartoznak hozzá. A hőmodellből származó csapadékszél fogyasztói bekötése a korábbi nagy A/B-eltérés miatt külön ND-163 kapu marad; az éves hőmérleg lezárása önmagában nem jogosítja fel annak néma aktiválását.
+
+**Átvételi határ:** a numerikus és fogyasztói kódot a felhasználó kérése szerint átadjuk közös utólagos ellenőrzésre. A hőmodell-biome vizuális minősége és az ND-163 szélcsere csak az élő Unity-kép és a felhasználó mérése után minősíthető késznek.
+
+### ND-169 — A végleges éves szél csapadékfogyasztója (A7, IMPLEMENTÁCIÓS DÖNTÉS)
+
+**Dátum:** 2026-09-29. **Előzmény:** ND-163, ND-164 és ND-168. Az ND-163 A/B a régi radiatív bázison nagy csapadékváltozást adott; a szél használata ezért az új fizikai bázissal együtt kap külön vizuális átvételt.
+
+**Döntés:** a kétmenetes hőklíma végleges B menetében a már számolt cellaközépponti szélvektor és az átlagsebesség éves átlaga is tárolódik. Ha a viewer ugyanennek a klímának a hőmérsékletét használja a párolgáshoz, a csapadék nedvesség-advekciója is ennek a B menetnek a szelét kapja. A `SurfaceWindSample` vektorátlag és sebességátlag külön mennyiség marad; nem képezzük egyikből a másikat. Cache-találatkor azonos mezők olvashatók vissza, ezért a lemezformátum verziója emelkedik. Az analitikus előnézet továbbra is együtt használ analitikus hőmérsékletet és szelet. A hőklíma-kapcsoló kikapcsolt állapotában a régi út változatlan.
+
+**Átvételi kapu:** a korábbi ND-163 mérés alapján a változás nagy lehet. Az A7 technikai bekötése elkészült; elfogadott vizuális kimenetet és fizikai pontosságot a felhasználó utólagos Unity-ellenőrzése nélkül nem állítunk. A parancssori buildet, teszteket és KAT-ot is a felhasználó végzi az átadás után.
+
 
 ### A többi nyitott döntés
 

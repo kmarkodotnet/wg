@@ -40,11 +40,11 @@ public class ThermalClimateDiskCacheTests
         return new SurfaceTemperatureField(grid, kinds, elevation, 0.0, Seed, 0.0, Orbit, parameters);
     }
 
-    private static ThermalClimate Climate(double? percentile = 0.07)
+    private static ThermalClimate Climate(double? percentile = 0.07, bool includeWind = true)
     {
         (DenseGridMetrics grid, SurfaceThermalKind[] kinds, double[] elevation) = World();
         return ThermalClimateCalculator.Compute(grid, kinds, elevation, 0.0, Seed, 0.0, Orbit,
-            sampleDays: 4, permanentIcePercentile: percentile);
+            sampleDays: 4, permanentIcePercentile: percentile, includeRefinedWind: includeWind);
     }
 
     private static ThermalClimateDiskCache.Key KeyFor(SurfaceTemperatureField field, double? percentile = 0.07)
@@ -104,6 +104,33 @@ public class ThermalClimateDiskCacheTests
         Assert.Equal(climate.RefinedThresholds.SeasonalSnowMinK, loaded.SeasonalSnowThresholdK);
         Assert.Equal(climate.ReclassifiedCells, loaded.ReclassifiedCells);
         Assert.Equal(climate.SecondPassSkipped, loaded.SecondPassSkipped);
+    }
+
+    [Fact]
+    public void RoundTripPreservesRefinedWindForPrecipitationConsumer()
+    {
+        SurfaceTemperatureField field = Field();
+        ThermalClimate climate = Climate(includeWind: true);
+        ThermalClimateDiskCache.Key key = KeyFor(field);
+        byte[] bytes = Written(key, ThermalClimateDiskCache.Payload.From(climate));
+        ThermalClimateDiskCache.Payload? loaded = Read(bytes, key, out string? reason);
+        Assert.Null(reason);
+        Assert.NotNull(loaded);
+        Assert.NotNull(climate.Refined.MeanWindX);
+        for (int c = 0; c < field.Grid.CellCount; c++)
+        {
+            Assert.Equal(climate.Refined.MeanWindX![c], loaded!.Refined.MeanWindX[c]);
+            Assert.Equal(climate.Refined.MeanWindY![c], loaded.Refined.MeanWindY[c]);
+            Assert.Equal(climate.Refined.MeanWindZ![c], loaded.Refined.MeanWindZ[c]);
+            Assert.Equal(climate.Refined.MeanWindSpeedMs![c], loaded.Refined.MeanWindSpeedMs[c]);
+        }
+    }
+
+    [Fact]
+    public void CacheRejectsClimateWithoutAnnualWindInsteadOfWritingPlaceholderValues()
+    {
+        Assert.Throws<ArgumentException>(() => ThermalClimateDiskCache.Payload.From(
+            Climate(includeWind: false)));
     }
 
     [Fact]

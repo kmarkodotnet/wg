@@ -281,7 +281,7 @@ namespace WorldGen.Cli
                 "                           [--climate-level <L1,L2,...>] [--precip true] [--biome true]\n" +
                  "                           [--dayt <0..1>] [--rotation <nap>] [--baseline-albedo <a>]\n" +
                  "                           [--ocean-depth <m>] [--land-depth <m>] (A24 mérőkampók)\n" +
-                 "                           [--meridional-scale <0..1>] (ND-166 mérőkampó)\n" +
+                "                           [--meridional-scale <0..1>] (ND-168 diffúziós skála)\n" +
                 "                           (ND-158 koltsegmeres es ND-159 beta-sopres, nem CI-lepes)\n");
         }
     }

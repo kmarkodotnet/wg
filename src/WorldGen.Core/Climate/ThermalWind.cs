@@ -17,7 +17,8 @@ namespace WorldGen.Core.Climate
     /// <item>Kelet = normalize(−y, x, 0), észak = p × kelet (a póluson a
     /// meglévő konvenció szerint kelet = (0, 1, 0)).</item>
     /// <item>Termikus komponens: a <c>T_rad(f_eff) + 33 − T_alt</c>
-    /// pont-hőmérséklet véges differenciája (a simított faktor miatt a sarki
+    /// pont-hőmérséklet véges differenciája és az ND-168 éves
+    /// energiamegmaradó korrekciójának rácsgradiense (a simított faktor miatt a sarki
     /// éjszaka határán is véges; a nyers napi faktorral ~5700 m/s-os kiugrás
     /// adódott), 30°-os Coriolis-forgatás <see cref="DeterministicMath.SinCos"/>-szal.</item>
     /// <item>Orográfiai eltérítés nincs (első modellverzió).</item>
@@ -36,6 +37,7 @@ namespace WorldGen.Core.Climate
         private readonly double _seaLevelM;
         private readonly ThermalOrbit _orbit;
         private readonly ThermalModelParameters _parameters;
+        private readonly double[]? _annualCorrectionK;
         private readonly double _coriolisSin, _coriolisCos;
 
         // Pontonként (élközép, majd cellaközép): kelet, észak, a négy
@@ -47,7 +49,8 @@ namespace WorldGen.Core.Climate
         private readonly double[] _edgeA, _speedA, _edgeB, _speedB;
 
         public ThermalWind(DenseGridMetrics grid, SurfaceThermalKind[] kinds, double[] elevationM,
-            double seaLevelM, ThermalOrbit orbit, ThermalModelParameters? parameters = null)
+            double seaLevelM, ThermalOrbit orbit, ThermalModelParameters? parameters = null,
+            double[]? annualCorrectionK = null)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _kinds = kinds ?? throw new ArgumentNullException(nameof(kinds));
@@ -57,6 +60,9 @@ namespace WorldGen.Core.Climate
             _seaLevelM = seaLevelM;
             _orbit = orbit;
             _parameters = parameters ?? ThermalModelParameters.Default;
+            if (annualCorrectionK != null && annualCorrectionK.Length != grid.CellCount)
+                throw new ArgumentException("Az éves korrekció cellaszáma eltér.", nameof(annualCorrectionK));
+            _annualCorrectionK = annualCorrectionK == null ? null : (double[])annualCorrectionK.Clone();
             DeterministicMath.SinCos(WindPrecipitation.CoriolisDeflectionDeg * Math.PI / 180.0, out _coriolisSin, out _coriolisCos);
             _edgeA = new double[grid.EdgeCount];
             _edgeB = new double[grid.EdgeCount];
@@ -70,6 +76,7 @@ namespace WorldGen.Core.Climate
             _cellGeometry = new double[grid.CellCount * GeometryStride];
             for (int c = 0; c < grid.CellCount; c++)
                 FillGeometry(_cellGeometry, c * GeometryStride, grid.CenterX[c], grid.CenterY[c], grid.CenterZ[c], windows);
+            if (_annualCorrectionK != null) _feedback = new FeedbackData(this);
         }
 
         /// <summary>A meglévő sávindex transzcendens függvény nélkül, <c>z = sin(lat)</c>-ból.</summary>
@@ -141,11 +148,12 @@ namespace WorldGen.Core.Climate
             double albedo = _parameters.BaselineAlbedoFor(
                 isOceanic ? SurfaceThermalKind.Ocean : SurfaceThermalKind.Land);
             double tRad = ThermalBaseline.RadiativeTemperature(_parameters.EffectiveFactor(daily, annual), albedo);
-            return tRad + Temperature.DefaultGreenhouseK + _parameters.MeridionalHeatTransportK(g[t + 2])
+            return tRad + Temperature.DefaultGreenhouseK
                 - Temperature.LapseRateKPerM * Math.Max(0.0, elevationM - _seaLevelM);
         }
 
         private void WindFromGeometry(double[] g, int o, in DailyInsolationSampleDirections samples, int owner,
+            int neighbor,
             out double windEast, out double windNorth, out double wind3dX, out double wind3dY, out double wind3dZ)
         {
             bool oceanic = _kinds[owner] == SurfaceThermalKind.Ocean;
@@ -160,6 +168,12 @@ namespace WorldGen.Core.Climate
             const double e = WindPrecipitation.GradientEps;
             double gradE = (tEp - tEm) / (2.0 * e);
             double gradN = (tNp - tNm) / (2.0 * e);
+            if (_feedback != null && _annualCorrectionK != null)
+            {
+                _feedback.StaticGradient(owner, neighbor, out double gx, out double gy, out double gz);
+                gradE += gx * g[o] + gy * g[o + 1] + gz * g[o + 2];
+                gradN += gx * g[o + 3] + gy * g[o + 4] + gz * g[o + 5];
+            }
             double rawE = gradE * WindPrecipitation.ThermalWindCoeff;
             double rawN = gradN * WindPrecipitation.ThermalWindCoeff;
             WindPrecipitation.LimitThermalWind(rawE, rawN, out rawE, out rawN);
@@ -186,13 +200,13 @@ namespace WorldGen.Core.Climate
                 day - 0.5, _orbit.OrbitalPeriodDays, _orbit.RotationPeriodDays, _orbit.AxialTiltRad);
             for (int e = 0; e < _grid.EdgeCount; e++)
             {
-                WindFromGeometry(_edgeGeometry, e * GeometryStride, samples, _grid.EdgeI[e],
+                WindFromGeometry(_edgeGeometry, e * GeometryStride, samples, _grid.EdgeI[e], _grid.EdgeJ[e],
                     out _, out _, out double wx, out double wy, out double wz);
                 edgeVelocity[e] = wx * _grid.EdgeNormalX[e] + wy * _grid.EdgeNormalY[e] + wz * _grid.EdgeNormalZ[e];
             }
             for (int c = 0; c < _grid.CellCount; c++)
             {
-                WindFromGeometry(_cellGeometry, c * GeometryStride, samples, c,
+                WindFromGeometry(_cellGeometry, c * GeometryStride, samples, c, -1,
                     out double we, out double wn, out _, out _, out _);
                 cellSpeed[c] = Math.Sqrt(we * we + wn * wn);
             }

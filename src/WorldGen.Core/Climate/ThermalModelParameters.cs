@@ -16,7 +16,7 @@ namespace WorldGen.Core.Climate
     /// </summary>
     public sealed class ThermalModelParameters
     {
-        public const int ModelVersion = 4;
+        public const int ModelVersion = 5;
 
         public static readonly ThermalModelParameters Default = new ThermalModelParameters();
 
@@ -38,9 +38,9 @@ namespace WorldGen.Core.Climate
         public double AirFeedbackStrength { get; }
 
         /// <summary>
-        /// ND-166 diagnosztikai skála a meglévő 40 K · z⁴ meridionális
-        /// hőmérséklet-proxyra. Alapértéke 1: a jelenlegi világ bitre azonos.
-        /// Nem energiamegmaradó hőszállítási algoritmus.
+        /// ND-168: a 0,555 W/(m² K) meridionális diffúziós együttható
+        /// diagnosztikai skálája. Alapértéke 1; nulla értéknél nincs
+        /// meridionális hőszállítás.
         /// </summary>
         public double MeridionalTransportScale { get; }
 
@@ -162,13 +162,6 @@ namespace WorldGen.Core.Climate
         public double Albedo(SurfaceThermalKind kind) => _albedo[(int)kind];
         public double Emissivity(SurfaceThermalKind kind) => _emissivity[(int)kind];
         public double SurfaceHeatCapacity(SurfaceThermalKind kind) => _surfaceHeatCapacity[(int)kind];
-
-        /// <summary>A jelenlegi proxy erőssége; 1-nél ugyanaz a műveleti út, mint ND-166 előtt.</summary>
-        public double MeridionalHeatTransportK(double z)
-        {
-            double current = Temperature.MeridionalHeatTransportK(z);
-            return MeridionalTransportScale == 1.0 ? current : MeridionalTransportScale * current;
-        }
 
         /// <summary><c>(1 − β)·daily + β·annual</c>, a Python-referenciával azonos sorrendben.</summary>
         public double EffectiveFactor(double dailyFactor, double annualFactor)

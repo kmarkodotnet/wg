@@ -57,6 +57,7 @@ namespace WorldGen.Core.Climate
             private readonly int[] _neighbors;
             private readonly double[] _deltaE, _deltaN, _invEE, _invEN, _invNN;
             private readonly double[] _gx, _gy, _gz;
+            private readonly double[]? _staticGx, _staticGy, _staticGz;
             private readonly double[] _baseEA, _baseNA, _baseEB, _baseNB;
             private long _dayA = long.MinValue, _dayB = long.MinValue;
 
@@ -89,6 +90,32 @@ namespace WorldGen.Core.Climate
                     double det = ee * nn - en * en;
                     if (!(det > 0.0)) throw new InvalidOperationException("Szinguláris hőrács-gradiens.");
                     _invEE[c] = nn / det; _invEN[c] = -en / det; _invNN[c] = ee / det;
+                }
+                if (owner._annualCorrectionK != null)
+                {
+                    Gradient(owner._annualCorrectionK);
+                    _staticGx = (double[])_gx.Clone();
+                    _staticGy = (double[])_gy.Clone();
+                    _staticGz = (double[])_gz.Clone();
+                }
+            }
+
+            public void StaticGradient(int owner, int neighbor, out double gx, out double gy, out double gz)
+            {
+                if (_staticGx == null || _staticGy == null || _staticGz == null)
+                {
+                    gx = gy = gz = 0.0;
+                    return;
+                }
+                if (neighbor < 0)
+                {
+                    gx = _staticGx[owner]; gy = _staticGy[owner]; gz = _staticGz[owner];
+                }
+                else
+                {
+                    gx = 0.5 * (_staticGx[owner] + _staticGx[neighbor]);
+                    gy = 0.5 * (_staticGy[owner] + _staticGy[neighbor]);
+                    gz = 0.5 * (_staticGz[owner] + _staticGz[neighbor]);
                 }
             }
 
@@ -146,6 +173,13 @@ namespace WorldGen.Core.Climate
                     double nm = _owner.PointTemperature(g, o + 18, samples, g[o + 24], ocean, elevation);
                     east[k] = (ep - em) / (2.0 * WindPrecipitation.GradientEps);
                     north[k] = (np - nm) / (2.0 * WindPrecipitation.GradientEps);
+                    if (_staticGx != null)
+                    {
+                        StaticGradient(cell, edge ? _owner._grid.EdgeJ[index] : -1,
+                            out double gx, out double gy, out double gz);
+                        east[k] += gx * g[o] + gy * g[o + 1] + gz * g[o + 2];
+                        north[k] += gx * g[o + 3] + gy * g[o + 4] + gz * g[o + 5];
+                    }
                 }
             }
 

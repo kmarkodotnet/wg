@@ -1,5 +1,17 @@
 # Milestone-terv
 
+**2026-09-29, A7 / ND-168–169 átadási állapot:** az energiamegmaradó éves
+meridionális hőmérleg, az órás bázis és szél közös korrekciója, valamint a
+végleges éves szél csapadékfogyasztói bekötése elkészült. A Python-orákulum
+és a verziózott vektorok frissültek; hőmodellverzió 5, generátorverzió 7,
+éghajlat-cache formátum `WGTC0002`. A felhasználó végzi a buildet, a
+teszteket, a Python KAT-ellenőrzést és az élő Unity A/B-t, ezért ezekre
+itt nincs sikerállítás. A7 **implementáció ~100%**, bizonyított átvétel
+**~90%**: a maradék a felsorolt ellenőrzések és az esetleges javításuk.
+Ez tartalmilag súlyozott becslés; a hátralévő **~1–4 munkaóra durva
+becslés**, az élő vizuális/performance visszajelzés kimenetelétől függ.
+[ND-168–169 napló](../history/2026-09-29-a7-nd168-169-annual-transport-wind-consumer.md).
+
 **2026-09-29, A7 / ND-167 részlépés:** a hidegvég ND-166 diagnózisa után
 elkészült az energiamegmaradó élfluxus Core-kernelje, Python KAT-je és
 vektortesztje. A fizikai vezetőképesség és a solver-bekötés ND-168-ban nyitott;

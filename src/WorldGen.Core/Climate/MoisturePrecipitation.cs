@@ -85,6 +85,30 @@ namespace WorldGen.Core.Climate
         }
 
         /// <summary>
+        /// ND-169: a paraméteres elevációs út a hőklíma éves felszíni
+        /// hőmérsékletével és végleges éves szelével. Mindkét mező ugyanahhoz
+        /// a B menethez tartozik; hiányzó tile esetén a belső kapu hibát ad.
+        /// </summary>
+        public static PrecipitationField ComputeWithClimateFields(
+            ulong worldSeed, int plateCount, int level,
+            IReadOnlyDictionary<TileId, double> temperatureK,
+            IReadOnlyDictionary<TileId, SurfaceWindSample> wind,
+            double dayT = 0.0, double orbitalPeriodDays = 365.25, double rotationPeriodDays = 1.0,
+            double axialTiltDegrees = 23.44, int iterations = DefaultIterations,
+            double precipBaseFraction = DefaultPrecipBaseFraction,
+            double orographicCoeff = DefaultOrographicCoeff, double orographicElevScale = DefaultOrographicElevScale,
+            double targetWaterFraction = DefaultTargetWaterFraction)
+        {
+            if (temperatureK == null) throw new ArgumentNullException(nameof(temperatureK));
+            if (wind == null) throw new ArgumentNullException(nameof(wind));
+            Dictionary<TileId, double> field = SeaLevelCalibration.ComputeElevationField(worldSeed, plateCount, level);
+            double seaLevel = SeaLevelCalibration.CalibrateSeaLevel(field.Values, targetWaterFraction);
+            return ComputeFromFields(field, seaLevel, worldSeed, level, temperatureK, wind,
+                dayT, orbitalPeriodDays, rotationPeriodDays, axialTiltDegrees, iterations,
+                precipBaseFraction, orographicCoeff, orographicElevScale);
+        }
+
+        /// <summary>
         /// Ugyanaz a nedvesség-transzport, de MEGADOTT eleváció-mezővel és
         /// tengerszinttel.
         ///

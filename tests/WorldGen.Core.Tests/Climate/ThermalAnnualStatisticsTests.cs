@@ -592,15 +592,12 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
     }
 
     /// <summary>
-    /// ND-160 HATÁSA a BÁZISRA, cellatípus szerint szétválasztva. Ez a teszt
-    /// mondja ki, mit tesz pontosan a döntés: a szárazföldi bázis BITRE
-    /// változatlan (a felszíni szárazföld-albedó eddig is 0,30 volt), az
-    /// óceáni bázis viszont ~19–20 K-nel hidegebb — ez a +10,3 K-es globális
-    /// többlet forrása. Az explicit bolygó-albedós kampó pedig bitre az
-    /// alapértelmezés.
+    /// ND-160: a radiatív változás az óceánon indul. Az ND-168 éves
+    /// hőszállítása már a szárazföldre is átviszi a különbség egy részét.
+    /// Az explicit bolygó-albedós kampó bitre az alapértelmezés.
     /// </summary>
     [Fact]
-    public void PlanetaryBaselineCoolsTheOceanAndLeavesLandBitIdentical()
+    public void PlanetaryBaselineCoolsRadiativeOceanAndTransportSharesTheChange()
     {
         var legacy = new ThermalBaseline(_fx.Grid, _fx.IceFreeKinds, _fx.Elevation, 0.0,
             ThermalAnnualFixture.Seed, 0.0, _fx.Orbit,
@@ -621,27 +618,34 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
         planet.EvaluateHour(hour, factor, planetBase);
         explicitPlanet.EvaluateHour(hour, factor, explicitBase);
 
-        double minOceanDrop = double.PositiveInfinity, maxOceanDrop = double.NegativeInfinity;
+        double minOceanRadiativeDrop = double.PositiveInfinity;
+        double maxOceanRadiativeDrop = double.NegativeInfinity;
+        double weightedDifference = 0.0, area = 0.0;
+        bool landChanged = false;
         int oceanCells = 0, landCells = 0;
         for (int c = 0; c < count; c++)
         {
             Assert.Equal(planetBase[c], explicitBase[c]);
+            weightedDifference += _fx.Grid.Area[c] * (legacyBase[c] - planetBase[c]);
+            area += _fx.Grid.Area[c];
             if (_fx.IceFreeKinds[c] == SurfaceThermalKind.Ocean)
             {
                 oceanCells++;
-                double drop = legacyBase[c] - planetBase[c];
-                if (drop < minOceanDrop) minOceanDrop = drop;
-                if (drop > maxOceanDrop) maxOceanDrop = drop;
+                double drop = legacy.AnnualMeanRadiativeK[c] - planet.AnnualMeanRadiativeK[c];
+                if (drop < minOceanRadiativeDrop) minOceanRadiativeDrop = drop;
+                if (drop > maxOceanRadiativeDrop) maxOceanRadiativeDrop = drop;
             }
             else
             {
                 landCells++;
-                Assert.Equal(legacyBase[c], planetBase[c]);
+                if (legacyBase[c] != planetBase[c]) landChanged = true;
             }
         }
 
         Assert.True(oceanCells > 0 && landCells > 0, "A próbavilágban legyen óceán és szárazföld is.");
-        Assert.True(minOceanDrop > 0.0, $"Az óceáni bázis mindenhol hűl; a legkisebb esés {minOceanDrop:F3} K.");
-        Assert.InRange(maxOceanDrop, 13.0, 21.0);
+        Assert.True(minOceanRadiativeDrop > 0.0);
+        Assert.InRange(maxOceanRadiativeDrop, 13.0, 21.0);
+        Assert.True(landChanged, "Az éves hőszállításnak az óceáni változást szárazföldre is át kell vinnie.");
+        Assert.True(weightedDifference / area > 0.0);
     }
 }

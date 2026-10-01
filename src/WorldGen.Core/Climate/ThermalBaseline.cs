@@ -11,7 +11,9 @@ namespace WorldGen.Core.Climate
     /// nélkül, de a radiatív tag simított faktort kap (M13, 2026-09-13):
     /// <c>f_eff = (1 − β)·f_napi + β·f_éves</c>. A napi faktoros változat sarki
     /// éjszakán ~29 K-t adott; a simítás a szállítás és a hőtehetetlenség
-    /// proxyja. <c>f_napi</c> óránként, középre igazított 24 mintás ablakból
+    /// proxyja. Az ND-168 a korábbi pozitív sarki K-tag helyére az éves
+    /// célmező energiamegmaradó meridionális egyensúlyi korrekcióját teszi.
+    /// <c>f_napi</c> óránként, középre igazított 24 mintás ablakból
     /// (<c>dayT = h/24 − 0,5</c>), <c>f_éves</c> 12 éves ablakból; az óceáni
     /// kontinentalitás-tag a simított radiatív hőmérséklet éves átlagához húz.
     /// Órán belül a napi faktor és a bázis lineárisan interpolált.
@@ -39,6 +41,9 @@ namespace WorldGen.Core.Climate
         /// <summary>Óceáni cellák simított radiatív hőmérsékletének éves átlaga; más cellán 0.</summary>
         public double[] AnnualMeanRadiativeK { get; }
 
+        /// <summary>ND-168: az éves energiamegmaradó meridionális korrekció, K.</summary>
+        public double[] AnnualTransportCorrectionK { get; }
+
         public ThermalBaseline(DenseGridMetrics grid, SurfaceThermalKind[] kinds, double[] elevationM,
             double seaLevelM, ulong worldSeed, double tYears, ThermalOrbit orbit,
             ThermalModelParameters? parameters = null)
@@ -63,6 +68,7 @@ namespace WorldGen.Core.Climate
 
             AnnualFactor = new double[count];
             AnnualMeanRadiativeK = new double[count];
+            var annualTargetK = new double[count];
             DailyInsolationSampleDirections[] windows = CreateAnnualWindows(orbit);
             var windowFactors = new double[windows.Length];
             for (int c = 0; c < count; c++)
@@ -75,14 +81,20 @@ namespace WorldGen.Core.Climate
                 }
                 double annual = total / Temperature.OceanAnnualSamples;
                 AnnualFactor[c] = annual;
-                if (kinds[c] != SurfaceThermalKind.Ocean)
-                    continue;
                 total = 0.0;
                 for (int j = 0; j < windows.Length; j++)
                     total += RadiativeTemperature(_parameters.EffectiveFactor(windowFactors[j], annual),
-                        _parameters.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
-                AnnualMeanRadiativeK[c] = total / Temperature.OceanAnnualSamples;
+                        _parameters.BaselineAlbedoFor(kinds[c] == SurfaceThermalKind.Ocean
+                            ? SurfaceThermalKind.Ocean : SurfaceThermalKind.Land));
+                double meanRadiative = total / Temperature.OceanAnnualSamples;
+                if (kinds[c] == SurfaceThermalKind.Ocean)
+                    AnnualMeanRadiativeK[c] = meanRadiative;
+                double altitudeK = Temperature.LapseRateKPerM * Math.Max(0.0, elevationM[c] - seaLevelM);
+                annualTargetK[c] = meanRadiative + GreenhouseK - altitudeK + CycleK;
             }
+            AnnualTransportCorrectionK = MeridionalEnergyBalance.SolveCorrection(
+                grid, annualTargetK,
+                MeridionalEnergyBalance.DiffusionWm2K * _parameters.MeridionalTransportScale);
         }
 
         public DenseGridMetrics Grid => _grid;
@@ -126,7 +138,7 @@ namespace WorldGen.Core.Climate
                 double tAlt = Temperature.LapseRateKPerM * Math.Max(0.0, _elevationM[c] - _seaLevelM);
                 dailyFactor[c] = f;
                 baseK[c] = tRad + GreenhouseK + tOcean
-                    + _parameters.MeridionalHeatTransportK(_grid.CenterZ[c]) - tAlt + CycleK;
+                    + AnnualTransportCorrectionK[c] - tAlt + CycleK;
             }
         }
 

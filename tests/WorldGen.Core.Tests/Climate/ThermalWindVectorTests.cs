@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using WorldGen.Core.Climate;
 using WorldGen.Core.Grid;
+using WorldGen.Core.Tectonics;
 using Xunit;
 
 namespace WorldGen.Core.Tests.Climate;
@@ -357,5 +358,28 @@ public class MoisturePrecipitationFieldInputTests
         foreach (KeyValuePair<TileId, double> kv in windOnly.Precipitation)
             if (kv.Value != both.Precipitation[kv.Key]) anyDifference = true;
         Assert.True(anyDifference, "A hőmérséklet-mezőnek a szél mellett is hatnia kell (párolgás).");
+    }
+
+    [Fact]
+    public void ClimateFieldConveniencePathUsesTheSamePrecipitationInputs()
+    {
+        const int plateCount = 20;
+        Dictionary<TileId, double> field = SeaLevelCalibration.ComputeElevationField(Seed, plateCount, Level);
+        double seaLevel = SeaLevelCalibration.CalibrateSeaLevel(field.Values,
+            MoisturePrecipitation.DefaultTargetWaterFraction);
+        var temperature = new Dictionary<TileId, double>();
+        var wind = new Dictionary<TileId, SurfaceWindSample>();
+        foreach (TileId id in field.Keys)
+        {
+            temperature[id] = 284.0;
+            wind[id] = new SurfaceWindSample(0.0, 0.0, 0.0, 4.0);
+        }
+
+        MoisturePrecipitation.PrecipitationField direct =
+            MoisturePrecipitation.ComputeFromFields(field, seaLevel, Seed, Level, temperature, wind);
+        MoisturePrecipitation.PrecipitationField wrapped =
+            MoisturePrecipitation.ComputeWithClimateFields(Seed, plateCount, Level, temperature, wind);
+        foreach (KeyValuePair<TileId, double> kv in direct.Precipitation)
+            Assert.Equal(kv.Value, wrapped.Precipitation[kv.Key]);
     }
 }

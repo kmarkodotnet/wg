@@ -1142,17 +1142,23 @@ javaslatok; a végleges alak a Python-referencia után dől el.
 
 ### 11.6 Megvalósított állapot (2026-09-13)
 
-**Utóállapot (2026-09-29, ND-158–166):** az éves, kétmenetes hőstatisztika
+**Utóállapot (2026-09-29, ND-158–169):** az éves, kétmenetes hőstatisztika
 a viewer jégmaszkját, a biome hőmérséklet-tengelyét és a csapadék párolgási
-hőmérsékletét táplálja (ND-162/164). A csapadék szél-tagja az analitikus
-úton marad: a végleges B menet éves szelével mérve a szárazföld 29,6%-a
-más csapadéknegyedbe kerülne (ND-163). Az ND-160 után a felhasználó a
-hőmodell-biome kikapcsolt képét ítélte jobbnak. Az ND-166 mérése a hideg
-tartomány szűkületét a radiatív simításhoz és a mindenütt pozitív
-meridionális K-proxyhoz köti. Az energiamegmaradó fluxusmodell nyitott.
-Az ND-167-ben elkészült a kanonikus éleken páronként ellentétes W-fluxust
-összegző Core-kernel és a Python KAT. A vezetőképesség és a hősolverbe
-kötés még nincs eldöntve; az alapértelmezett világkimenetet ez nem érinti.
+hőmérsékletét táplálja (ND-162/164). Az ND-167 konzervatív élfluxus-kernelre
+az ND-168 éves meridionális egyensúlyi mérleget épít: a radiatív célmezőből
+számolt vezetőképesség és a rögzített lépésszámú PCG adja a kelvinben mért
+korrekciót, amelynek területi átlaga nulla. Ugyanez a korrekció kerül az órás
+bázisba és a termikus szél gradiensébe; a régi `40 K * z⁴` tag ezen a hőúton
+megszűnt. A `Temperature` analitikus útja változatlan, lásd ND-165.
+
+Az ND-169-ben a végleges B menet éves szélvektora és átlagsebessége a
+csapadék fogyasztói bemenetévé vált, ha a viewer hőmodell-biome kapcsolója
+aktív. Ugyanez a négy mező a `WGTC0002` lemez-cache-ben is szerepel. Az
+analitikus előnézet analitikus hőt és szelet használ. Hőmodellverzió **5**,
+generátorverzió **"7"**; a korábbi checkpoint és cache elutasított. A Python
+referencia és a vektorok frissültek. Az új modell élő Unity-fordítása,
+teljesítménye és képe a felhasználó utólagos ellenőrzésére vár; a korábbi
+„kikapcsolva jobb” ítélet más modellverzióra vonatkozott.
 Az alábbi táblázat a 2026-09-13-i történeti kiindulópontot rögzíti.
 
 | Réteg | Hely | Állapot |

@@ -41,9 +41,9 @@ namespace WorldGen.Viewer.Lod
     ///    <see cref="FingerprintTicks"/> ticket a kanonikus kezdőállapotból,
     ///    és a kapott θ-mezőkről hash-t képez. Ez MINDEN numerikus változást
     ///    elkap a solverben, a szélben, a bázisban és a paraméterekben —
-    ///    ugyanazt a kódot futtatja, csak sokkal rövidebben. MÉRVE: 96 tick a
-    ///    14 880-ból menetenként, tehát a validáció a teljes számítás
-    ///    nagyjából <b>0,3%-a</b> (level 6-on ~0,4 s a 117 s helyett).
+    ///    ugyanazt a kódot futtatja, csak sokkal rövidebben. A 96 tickes
+    ///    előtag a korábbi modellben level 6-on ~0,4 s volt a 117 s-os teljes
+    ///    éves futáshoz képest; az ND-168 utáni költséget újra kell mérni.
     ///
     ///    Kiegészítésként a fejléc tartalmazza az ND-143
     ///    <see cref="SurfaceTemperatureField.ModelIdentity"/> hash-t (a teljes
@@ -61,7 +61,7 @@ namespace WorldGen.Viewer.Lod
     ///
     /// 3. <b>„Méret-, I/O- és invalidációs terv kell."</b> A méret a
     ///    cellaszámmal lineáris: level 6-on (24 576 cella)
-    ///    <b>~2,4 MiB</b> fájlonként — két éves statisztika (6-6 double tömb)
+    ///    <b>~3,8 MiB</b> fájlonként — két éves statisztika (10-10 double tömb)
     ///    plusz a két jégosztály- és a felszíntípus-tömb. Ez nagyságrenddel
     ///    kisebb, mint a terrain-bázis 18–54 MiB-ja, tehát a kvóta-nyomás is
     ///    kisebb. A tartalomról 64 bites ellenőrzőösszeg készül
@@ -71,14 +71,14 @@ namespace WorldGen.Viewer.Lod
     public static class ThermalClimateDiskCache
     {
         /// <summary>"WGTC" + a FÁJLFORMÁTUM (nem az algoritmus) verziója.</summary>
-        private const ulong Magic = 0x5747544330303031UL; // "WGTC0001"
+        private const ulong Magic = 0x5747544330303032UL; // "WGTC0002"
 
         /// <summary>
         /// A MOSTANI fájlformátum névelőtagja — a takarítás ez alapján ismeri
         /// fel az elavult fájlokat. A formátum minden megváltozásakor ezt is
         /// emelni kell, a <see cref="Magic"/> verziószámával együtt.
         /// </summary>
-        public const string FileNamePrefix = "climate_k1";
+        public const string FileNamePrefix = "climate_k2";
 
         /// <summary>A takarítás szűrője: ez a fájl a MOSTANI formátum nevét viseli-e.</summary>
         public static bool IsCurrentFormatFileName(string fileName) =>
@@ -169,7 +169,7 @@ namespace WorldGen.Viewer.Lod
         }
 
         /// <summary>
-        /// Egy éves statisztika hat tömbje. A <see cref="ThermalAnnualStatistics"/>
+        /// Egy éves statisztika tíz tömbje. A <see cref="ThermalAnnualStatistics"/>
         /// csak olvasható nézeteket ad, ezért a kimentéshez és a
         /// visszaépítéshez ez a nyers alak kell.
         /// </summary>
@@ -181,6 +181,10 @@ namespace WorldGen.Viewer.Lod
             public double[] MaxSurfaceK = Array.Empty<double>();
             public double[] MinAirK = Array.Empty<double>();
             public double[] MaxAirK = Array.Empty<double>();
+            public double[] MeanWindX = Array.Empty<double>();
+            public double[] MeanWindY = Array.Empty<double>();
+            public double[] MeanWindZ = Array.Empty<double>();
+            public double[] MeanWindSpeedMs = Array.Empty<double>();
 
             public static AnnualArrays From(ThermalAnnualStatistics stats)
             {
@@ -193,6 +197,10 @@ namespace WorldGen.Viewer.Lod
                     MaxSurfaceK = Copy(stats.MaxSurfaceK),
                     MinAirK = Copy(stats.MinAirK),
                     MaxAirK = Copy(stats.MaxAirK),
+                    MeanWindX = CopyRequired(stats.MeanWindX),
+                    MeanWindY = CopyRequired(stats.MeanWindY),
+                    MeanWindZ = CopyRequired(stats.MeanWindZ),
+                    MeanWindSpeedMs = CopyRequired(stats.MeanWindSpeedMs),
                 };
             }
 
@@ -203,7 +211,15 @@ namespace WorldGen.Viewer.Lod
                 return result;
             }
 
-            internal double[][] All => new[] { MeanSurfaceK, MeanAirK, MinSurfaceK, MaxSurfaceK, MinAirK, MaxAirK };
+            private static double[] CopyRequired(System.Collections.ObjectModel.ReadOnlyCollection<double>? source)
+            {
+                if (source == null)
+                    throw new ArgumentException("A cache-hez az éves szélmező minden komponense szükséges.");
+                return Copy(source);
+            }
+
+            internal double[][] All => new[] { MeanSurfaceK, MeanAirK, MinSurfaceK, MaxSurfaceK, MinAirK, MaxAirK,
+                MeanWindX, MeanWindY, MeanWindZ, MeanWindSpeedMs };
         }
 
         /// <summary>A gyorsítótárazott tartalom — pontosan az, ami a <see cref="ThermalClimate"/>-ből kell.</summary>
@@ -288,8 +304,8 @@ namespace WorldGen.Viewer.Lod
         /// <summary>A fejléc fix része: magic + cellCount + napszám + percentilis + lenyomat + tartalom-hash.</summary>
         private const int FixedHeaderBytes = 8 + 4 + 4 + 8 + 8 + 8;
 
-        /// <summary>Egy cella bájtmérete a tartalomban: 12 double + 2 jégosztály + 1 felszíntípus.</summary>
-        private const int PerCellBytes = 12 * 8 + 3;
+        /// <summary>Egy cella bájtmérete: 20 double + 2 jégosztály + 1 felszíntípus.</summary>
+        private const int PerCellBytes = 20 * 8 + 3;
 
         /// <summary>A tartalom fix farka: három küszöb, az átsorolt szám és a rövidzár-jelző.</summary>
         private const int TrailerBytes = 3 * 8 + 4 + 1;
@@ -495,6 +511,10 @@ namespace WorldGen.Viewer.Lod
             target.MaxSurfaceK = new double[cellCount];
             target.MinAirK = new double[cellCount];
             target.MaxAirK = new double[cellCount];
+            target.MeanWindX = new double[cellCount];
+            target.MeanWindY = new double[cellCount];
+            target.MeanWindZ = new double[cellCount];
+            target.MeanWindSpeedMs = new double[cellCount];
             return target.All;
         }
 

@@ -130,9 +130,9 @@ namespace WorldGen.Core.Climate
                 WriteFiniteDouble(stream, p.Emissivity(kind));
                 WriteFiniteDouble(stream, p.SurfaceHeatCapacity(kind));
             }
-            // ND-166: az A/B-paraméter nem kaphatja a régi cache-azonosítót.
-            // Az alapértéket nem írjuk hozzá, így a korábbi alapmodell
-            // checkpointja és lemez-cache-e bitre azonos marad.
+            // ND-166/168: a diffúziós A/B-skála is modellbemenet.
+            // A régi checkpointot a 4 -> 5 modell- és 6 -> 7 generátorverzió
+            // explicit elutasítja; az alapértéket ezért továbbra sem írjuk hozzá.
             if (p.MeridionalTransportScale != 1.0)
             {
                 WriteString(stream, "ND-166-meridional-scale");

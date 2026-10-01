@@ -139,7 +139,8 @@ namespace WorldGen.Core.Climate
             double[] elevationM, double seaLevelM, ulong worldSeed, double tYears, ThermalOrbit orbit,
             ThermalModelParameters? parameters = null, int sampleDays = ThermalAnnualStatisticsCalculator.DefaultSampleDays,
             long firstDay = 0, bool useParallelLocalStep = false,
-            double? permanentIcePercentile = ThermalIceClassification.DefaultPermanentIcePercentile)
+            double? permanentIcePercentile = ThermalIceClassification.DefaultPermanentIcePercentile,
+            bool includeRefinedWind = false)
         {
             if (grid == null) throw new ArgumentNullException(nameof(grid));
             if (iceFreeKinds == null) throw new ArgumentNullException(nameof(iceFreeKinds));
@@ -150,7 +151,8 @@ namespace WorldGen.Core.Climate
                         "KIMENETE, nem bemenete. Használd az IceFreeKinds() metódust.", nameof(iceFreeKinds));
 
             ThermalAnnualStatistics iceFreeStats = RunPass(grid, iceFreeKinds, elevationM, seaLevelM,
-                worldSeed, tYears, orbit, parameters, sampleDays, firstDay, useParallelLocalStep);
+                worldSeed, tYears, orbit, parameters, sampleDays, firstDay, useParallelLocalStep,
+                includeRefinedWind);
             ThermalIceClassification.IceThresholds iceFreeThresholds =
                 ThresholdsFor(iceFreeStats, permanentIcePercentile);
             LakesIceErosion.IceClass[] iceFreeClass =
@@ -173,7 +175,7 @@ namespace WorldGen.Core.Climate
             // szerint viszont a felére viszi az időt (ND-158).
             ThermalAnnualStatistics refinedStats = anyPermanentIce
                 ? RunPass(grid, refinedKinds, elevationM, seaLevelM, worldSeed, tYears, orbit,
-                    parameters, sampleDays, firstDay, useParallelLocalStep)
+                    parameters, sampleDays, firstDay, useParallelLocalStep, includeRefinedWind)
                 : iceFreeStats;
             ThermalIceClassification.IceThresholds refinedThresholds = anyPermanentIce
                 ? ThresholdsFor(refinedStats, permanentIcePercentile)
@@ -192,13 +194,15 @@ namespace WorldGen.Core.Climate
 
         private static ThermalAnnualStatistics RunPass(DenseGridMetrics grid, SurfaceThermalKind[] kinds,
             double[] elevationM, double seaLevelM, ulong worldSeed, double tYears, ThermalOrbit orbit,
-            ThermalModelParameters? parameters, int sampleDays, long firstDay, bool useParallelLocalStep)
+            ThermalModelParameters? parameters, int sampleDays, long firstDay, bool useParallelLocalStep,
+            bool includeWind)
         {
             var field = new SurfaceTemperatureField(grid, kinds, elevationM, seaLevelM, worldSeed, tYears,
                 orbit, parameters);
             field.UseParallelLocalStep = useParallelLocalStep;
             var state = new ThermalSnapshot(grid.CellCount);
-            return ThermalAnnualStatisticsCalculator.Compute(field, state, sampleDays, firstDay);
+            return ThermalAnnualStatisticsCalculator.Compute(field, state, sampleDays, firstDay,
+                includeWind: includeWind);
         }
 
         /// <summary>

@@ -116,7 +116,8 @@ def make_field(grid, kinds, elevation):
     f.kinds = list(kinds)
     f.elevation = list(elevation)
     f.baseline = tf.Baseline(grid, f.kinds, f.elevation, SEA_LEVEL_M, WORLD_SEED, T_YEARS)
-    f.wind = tf.WindField(grid, f.kinds, f.elevation, SEA_LEVEL_M)
+    f.wind = tf.WindField(grid, f.kinds, f.elevation, SEA_LEVEL_M,
+                          f.baseline.transport_correction)
     f.feedback = tf.AirWindFeedback(f.wind)
     return f
 

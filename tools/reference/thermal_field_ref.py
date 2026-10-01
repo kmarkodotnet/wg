@@ -22,9 +22,11 @@ BÁZIS (ND-100, 2026-09-13-i módosítás): az első futás szerint a napi fakto
       f_napi(h) = 24 mintás napi átlag a dayT = h/24 − 0,5 ablakban
       f_éves    = 12 éves ablak (dayT = j·orbital/12) napi faktorainak átlaga
       f_eff     = (1 − β)·f_napi + β·f_éves,   β = 0,5
-      Bs = Ba = T_rad(f_eff) + T_greenhouse + T_ocean − T_alt + T_cycle
+      Bs = Ba = T_rad(f_eff) + T_greenhouse + T_ocean + δ_annual − T_alt + T_cycle
       T_ocean   = 0,3·(mean_j T_rad(f_eff_j) − T_rad(f_eff))   (csak óceán)
-  Órán belül f_napi és Bs lineárisan interpolálva: X(t) = X_h + (X_{h+1} − X_h)·w.
+  Az ND-168 δ_annual mezőjét a meridional_energy_balance_ref.py számolja
+  páronként konzervatív élfluxusból. Órán belül f_napi és Bs lineárisan
+  interpolálva: X(t) = X_h + (X_{h+1} − X_h)·w.
 
 SZÉL (ND-102): determinisztikus átírás — zonális sáv −sin(6|lat|) z és
   sqrt(1−z²) polinomjaként; kelet = normalize(−y, x, 0), észak = p × kelet;
@@ -64,11 +66,12 @@ import math
 import sys
 
 import deterministic_math_ref as dm
+from meridional_energy_balance_ref import solve_correction, conductance
 from neighbor_ref import DIRECTIONS, neighbor
 from sphere_position_ref import position_from_face_uv, position_from_tile
 from temperature_ref import climate_cycle_temperature_k, greenhouse_temperature
 
-MODEL_VERSION = 4
+MODEL_VERSION = 5
 AIR_FEEDBACK_STRENGTH = 0.1  # ND-142: level-6 előfutási kontrollból kalibrálva.
 LEVEL = 6
 N = 1 << LEVEL
@@ -254,6 +257,7 @@ def meridional_heat_transport_k(z, scale=1.0):
 class Grid:
     def __init__(self):
         n = N
+        self.radius_m = RADIUS_M
         self.center = [None] * CELL_COUNT
         self.area = [0.0] * CELL_COUNT
         self.edge_i, self.edge_j, self.edge_len = [], [], []
@@ -334,6 +338,7 @@ class Baseline:
         windows = annual_sample_windows()
         self.annual_factor = [0.0] * CELL_COUNT
         self.annual_mean = [0.0] * CELL_COUNT
+        annual_target = [0.0] * CELL_COUNT
         for k in range(CELL_COUNT):
             p = grid.center[k]
             window_factors = [average_factor(p, w) for w in windows]
@@ -342,11 +347,17 @@ class Baseline:
                 total += wf
             annual = total / ANNUAL_SAMPLES
             self.annual_factor[k] = annual
+            total = 0.0
+            for wf in window_factors:
+                total += radiative_temperature(effective_factor(wf, annual), ALBEDO_PLANET_BASELINE)
+            mean_radiative = total / ANNUAL_SAMPLES
             if kinds[k] == OCEAN:
-                total = 0.0
-                for wf in window_factors:
-                    total += radiative_temperature(effective_factor(wf, annual), ALBEDO_PLANET_BASELINE)
-                self.annual_mean[k] = total / ANNUAL_SAMPLES
+                self.annual_mean[k] = mean_radiative
+            altitude = LAPSE_RATE_K_PER_M * max(0.0, elevation[k] - sea_level_m)
+            annual_target[k] = mean_radiative + self.constant - altitude + self.cycle
+        self.transport_correction = solve_correction(
+            grid.area, grid.edge_i, grid.edge_j,
+            [v * meridional_scale for v in conductance(grid)], annual_target)
         self.hour_cache = {}
 
     def hour(self, h):
@@ -363,7 +374,7 @@ class Baseline:
                 t_alt = LAPSE_RATE_K_PER_M * max(0.0, self.elevation[k] - self.sea_level_m)
                 factor[k] = f
                 base[k] = (t_rad + self.constant + t_ocean
-                           + meridional_heat_transport_k(self.grid.center[k][2], self.meridional_scale)
+                           + self.transport_correction[k]
                            - t_alt + self.cycle)
             if len(self.hour_cache) > 4:
                 self.hour_cache.pop(next(iter(self.hour_cache)))
@@ -423,10 +434,10 @@ def offset_points(p):
     return east, north, out
 
 
-def point_temperature(q, samples, annual, elevation_m, sea_level_m, meridional_scale=1.0):
+def point_temperature(q, samples, annual, elevation_m, sea_level_m):
     daily = average_factor(q, samples)
     t = radiative_temperature(effective_factor(daily, annual), ALBEDO_PLANET_BASELINE)
-    return (t + SIMPLE_GREENHOUSE_K + meridional_heat_transport_k(q[2], meridional_scale)
+    return (t + SIMPLE_GREENHOUSE_K
             - LAPSE_RATE_K_PER_M * max(0.0, elevation_m - sea_level_m))
 
 
@@ -456,9 +467,10 @@ def wind_from_gradient(p, east, north, grad_e, grad_n):
 
 
 class WindField:
-    def __init__(self, grid, kinds, elevation, sea_level_m, meridional_scale=1.0):
+    def __init__(self, grid, kinds, elevation, sea_level_m, correction):
         self.grid, self.kinds, self.elevation, self.sea_level_m = grid, kinds, elevation, sea_level_m
-        self.meridional_scale = meridional_scale
+        self.correction = correction
+        self.correction_gradients = None
         windows = annual_sample_windows()
         self.edge_geom = []
         for e in range(len(grid.edge_i)):
@@ -472,12 +484,20 @@ class WindField:
             self.cell_geom.append((p, east, north, pts, [annual_factor(q, windows) for q in pts]))
         self.cache = {}
 
-    def _wind(self, geom, samples, owner):
+    def _wind(self, geom, samples, owner, neighbor=-1):
         p, east, north, pts, annual = geom
-        temps = [point_temperature(pts[t], samples, annual[t], self.elevation[owner], self.sea_level_m,
-                                   self.meridional_scale)
+        temps = [point_temperature(pts[t], samples, annual[t], self.elevation[owner], self.sea_level_m)
                  for t in range(4)]
-        return wind_from_temperatures(p, east, north, temps)
+        ge = (temps[0] - temps[1]) / (2.0 * GRADIENT_EPS)
+        gn = (temps[2] - temps[3]) / (2.0 * GRADIENT_EPS)
+        if self.correction_gradients is not None:
+            grad = self.correction_gradients[owner]
+            if neighbor >= 0:
+                other = self.correction_gradients[neighbor]
+                grad = tuple(0.5 * (grad[k] + other[k]) for k in range(3))
+            ge += dot(grad, east)
+            gn += dot(grad, north)
+        return wind_from_gradient(p, east, north, ge, gn)
 
     def snapshot(self, k):
         if k not in self.cache:
@@ -485,7 +505,7 @@ class WindField:
             samples = daily_sample_directions(float(k) - 0.5)
             edge_u = [0.0] * len(g.edge_i)
             for e in range(len(g.edge_i)):
-                _, _, w3 = self._wind(self.edge_geom[e], samples, g.edge_i[e])
+                _, _, w3 = self._wind(self.edge_geom[e], samples, g.edge_i[e], g.edge_j[e])
                 edge_u[e] = dot(w3, g.edge_normal[e])
             speed = [0.0] * CELL_COUNT
             for c in range(CELL_COUNT):
@@ -528,6 +548,7 @@ class AirWindFeedback:
             det = ee * nn - en * en
             assert det > 0.0
             self.inverse.append((nn / det, -en / det, ee / det))
+        self.wind.correction_gradients = self.gradients(self.wind.correction)
         self.cache = {}
 
     def gradients(self, theta):
@@ -553,10 +574,14 @@ class AirWindFeedback:
             for geom, owner in zip(geometry, owners):
                 _, _, _, pts, annual = geom
                 temps = [point_temperature(pts[t], samples, annual[t],
-                                          self.wind.elevation[owner], self.wind.sea_level_m,
-                                          self.wind.meridional_scale) for t in range(4)]
-                out.append(((temps[0] - temps[1]) / (2.0 * GRADIENT_EPS),
-                            (temps[2] - temps[3]) / (2.0 * GRADIENT_EPS)))
+                                          self.wind.elevation[owner], self.wind.sea_level_m) for t in range(4)]
+                grad = self.wind.correction_gradients[owner]
+                if len(out) < len(self.grid.edge_i):
+                    other = self.wind.correction_gradients[self.grid.edge_j[len(out)]]
+                    grad = tuple(0.5 * (grad[k] + other[k]) for k in range(3))
+                east, north = geom[1], geom[2]
+                out.append(((temps[0] - temps[1]) / (2.0 * GRADIENT_EPS) + dot(grad, east),
+                            (temps[2] - temps[3]) / (2.0 * GRADIENT_EPS) + dot(grad, north)))
             if len(self.cache) >= 2:
                 self.cache.pop(next(iter(self.cache)))
             self.cache[day] = out
@@ -597,7 +622,8 @@ class Field:
         self.kinds, self.elevation = synthetic_world(self.grid)
         self.baseline = Baseline(self.grid, self.kinds, self.elevation, sea_level_m,
                                  world_seed, t_years, meridional_scale)
-        self.wind = WindField(self.grid, self.kinds, self.elevation, sea_level_m, meridional_scale)
+        self.wind = WindField(self.grid, self.kinds, self.elevation, sea_level_m,
+                              self.baseline.transport_correction)
         self.feedback = AirWindFeedback(self.wind)
 
     def advect(self, theta_a, edge_u, dt):

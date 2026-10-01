@@ -873,7 +873,7 @@ namespace WorldGen.Cli
             {
                 double area = grid.Area[c];
                 double bs = baseSum[c] / days.Length;
-                double merid = parameters.MeridionalHeatTransportK(grid.CenterZ[c]);
+                double merid = baseline.AnnualTransportCorrectionK[c];
                 double alt = Temperature.LapseRateKPerM * Math.Max(0.0, elevation[c] - seaLevel);
                 double rest = bs - baseline.GreenhouseK - merid + alt - baseline.CycleK;
 
@@ -921,7 +921,7 @@ namespace WorldGen.Cli
                               $"típus={climate.RefinedKinds[coldestCell]}, z={grid.CenterZ[coldestCell]:F3}, " +
                               $"éves={climate.Refined.MeanSurfaceK[coldestCell] - 273.15:F2} °C");
             Console.WriteLine($"      bázis={coldBase - 273.15:F2} °C; radiatív={coldRad:F2} K, " +
-                              $"óceáni={coldOcean:F2} K, meridionális=+{coldMerid:F2} K, " +
+                              $"óceáni={coldOcean:F2} K, meridionális={coldMerid:+0.00;-0.00;0.00} K, " +
                               $"magasság=-{coldAlt:F2} K, ciklus={baseline.CycleK:F2} K");
         }
 

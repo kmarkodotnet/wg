@@ -7,7 +7,9 @@ namespace WorldGen.Core.Persistence
     /// </summary>
     public static class WorldGeneratorVersion
     {
-        // ND-160: a hőmodell BÁZISÁNAK radiatív tagja BOLYGÓ-albedóval számol
+        // ND-168/169: az éves bázis meridionális szállítása energiamegmaradó
+        // élfluxus, a végleges B menet éves szele a csapadékot is táplálja.
+        // Előzmény — ND-160: a hőmodell BÁZISÁNAK radiatív tagja BOLYGÓ-albedóval számol
         // (a felszíni albedó a tickenkénti anomália-tagban marad). A bázis és a
         // belőle differenciált termikus szél is változik, tehát minden
         // hőmodell-kimenet (éves éghajlat, jégosztály, biome, csapadék) új.
@@ -23,6 +25,6 @@ namespace WorldGen.Core.Persistence
         // vonatkoztatási rendszerében értékelődik ki, tehát együtt vándorol
         // a kéreggel.
         // Előzmény — ND-142: a pillanatnyi levegőanomália visszahat a termikus szélre.
-        public const string Current = "6";
+        public const string Current = "7";
     }
 }
