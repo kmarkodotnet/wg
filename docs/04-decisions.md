@@ -9991,6 +9991,26 @@ Az éves `B_c` mező a `λ A_c (B_c − T₀,c) = Σ_e Q_{e→c}(B)` diszkrét m
 **Átvételi kapu:** a korábbi ND-163 mérés alapján a változás nagy lehet. Az A7 technikai bekötése elkészült; elfogadott vizuális kimenetet és fizikai pontosságot a felhasználó utólagos Unity-ellenőrzése nélkül nem állítunk. A parancssori buildet, teszteket és KAT-ot is a felhasználó végzi az átadás után.
 
 
+### ND-170 — A24 fizikai átvételi diagnosztika (MÉRÉSI DÖNTÉS)
+
+**Dátum:** 2026-10-01. Az ND-168 implementációja önmagában nem igazolja
+a hideg tartományt. Az alapmodell vagy a jégküszöb következő változtatása
+előtt a CLI a tényleges éves célmezőből és korrekcióból közölje a
+`λ δ − P(T₀+δ)/A` cellánkénti maradék maximumát (W/m²), a transzport
+globális integrálját és a korrekció területi átlagát. A nullára központosított
+korrekció önmagában nem bizonyítja a megoldó konvergenciáját.
+
+A klímastatisztika területtel súlyozott felszíni/levegő-átlaga, féltekénkénti
+sarki átlaga, valamint a fagypont feletti éves átlagú tartós-jég területe
+kerüljön a mérésbe. A régi analitikus jégdarabszám összehasonlítás,
+nem fizikai cél. Az abszolút −15 °C-os szabály külön kétmenetes futás,
+mert az A menet jégmaszkja visszahat a B menetre.
+
+Ez kizárólag megfigyelés: nincs új alapparaméter, jégküszöb vagy numerikus
+műveleti sorrend a szimulációban, ezért nincs új verzióemelés. A
+`ThermalBaseline.AnnualTargetK` a már kiszámított célmező olvasható nézete;
+a CLI nem épít saját hőmodellt. A fizikai és vizuális átvétel nyitott.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

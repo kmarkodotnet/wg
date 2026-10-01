@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using WorldGen.Core.Grid;
 
 namespace WorldGen.Core.Climate
@@ -43,6 +44,9 @@ namespace WorldGen.Core.Climate
 
         /// <summary>ND-168: az éves energiamegmaradó meridionális korrekció, K.</summary>
         public double[] AnnualTransportCorrectionK { get; }
+
+        /// <summary>ND-170: a mérlegegyenlet tényleges éves célmezője, K; csak diagnosztikai olvasásra.</summary>
+        public IReadOnlyList<double> AnnualTargetK { get; }
 
         public ThermalBaseline(DenseGridMetrics grid, SurfaceThermalKind[] kinds, double[] elevationM,
             double seaLevelM, ulong worldSeed, double tYears, ThermalOrbit orbit,
@@ -95,6 +99,7 @@ namespace WorldGen.Core.Climate
             AnnualTransportCorrectionK = MeridionalEnergyBalance.SolveCorrection(
                 grid, annualTargetK,
                 MeridionalEnergyBalance.DiffusionWm2K * _parameters.MeridionalTransportScale);
+            AnnualTargetK = Array.AsReadOnly(annualTargetK);
         }
 
         public DenseGridMetrics Grid => _grid;

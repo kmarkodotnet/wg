@@ -1,5 +1,18 @@
 # Milestone-terv
 
+**2026-10-01, M5 / A24 folytatás (ND-170):** az új transzport fizikai
+átvételéhez mérlegegyenlet-maradék, területi és sarki hőátlag, valamint
+meleg tartós-jég diagnosztika készült. Új regressziós kapu vizsgálja a
+level-5/6 megoldó maradékát; a futtatás még nincs igazolva. A korábbi
+felhasználói kérés a teszteket és méréseket kézi átvételre hagyta; ennek
+feloldásáról az aktuális munkamenetben kérdés van függőben. Az A24 nem
+lezárt: új fizikai alapérték vagy abszolút jégküszöb még nincs kiválasztva.
+A24 funkcionális becslés ~45% (diagnózis és implementáció megvan,
+termelési fizikai mérés, küszöbdöntés és élő átvétel hátra). A mostani
+diagnosztikai kiegészítés ráfordítása durván 1–2, a további mérési/döntési
+kör 4–8 munkaóra; egy új fizikai modell szükségessége ezt növelheti.
+[A24 napló](../history/2026-10-01-a24-physical-acceptance-diagnostics.md).
+
 **2026-09-29, A7 / ND-168–169 átadási állapot:** az energiamegmaradó éves
 meridionális hőmérleg, az órás bázis és szél közös korrekciója, valamint a
 végleges éves szél csapadékfogyasztói bekötése elkészült. A Python-orákulum

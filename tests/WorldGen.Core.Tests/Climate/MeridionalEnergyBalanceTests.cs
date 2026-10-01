@@ -11,6 +11,37 @@ namespace WorldGen.Core.Tests.Climate;
 
 public sealed class MeridionalEnergyBalanceTests
 {
+    [Theory]
+    [InlineData(5)]
+    [InlineData(6)]
+    public void ProductionGridBalanceHasSmallResidualForPolarAndLocalForcing(int level)
+    {
+        DenseGridMetrics grid = DenseGridMetrics.Build(level);
+        var target = new double[grid.CellCount];
+        for (int c = 0; c < target.Length; c++)
+        {
+            double z = grid.CenterZ[c];
+            // Sima meridionális kontraszt és lokális törés: a kisrács
+            // konvergenciája nem bizonyítja a termelési rácsét.
+            target[c] = 290.0 - 45.0 * z * z
+                - (grid.CenterX[c] > 0.7 && z > 0.0 ? 8.0 : 0.0);
+        }
+        double[] correction = MeridionalEnergyBalance.SolveCorrection(grid, target);
+        double[] g = MeridionalEnergyBalance.BuildConductance(grid);
+        var transport = new ConservativeHeatTransport(grid.CellCount, grid.EdgeI, grid.EdgeJ, g);
+        var balanced = new double[target.Length];
+        for (int c = 0; c < target.Length; c++) balanced[c] = target[c] + correction[c];
+        var power = new double[target.Length];
+        transport.ComputePowerW(balanced, power);
+        double maxResidual = 0.0;
+        for (int c = 0; c < target.Length; c++)
+            maxResidual = Math.Max(maxResidual, Math.Abs(power[c] / grid.Area[c]
+                - MeridionalEnergyBalance.RadiativeFeedbackWm2K * correction[c]));
+        // 0,01 W/m² / λ < 0,005 K: a mérleghiba legyen a jelentett
+        // századfokos diagnosztika alatt; ez nem fizikai kalibrációs kapu.
+        Assert.True(maxResidual < 0.01, $"L{level}: residual={maxResidual:R} W/m²");
+    }
+
     [Fact]
     public void LevelOneGeometryAndCorrectionMatchPythonReference()
     {

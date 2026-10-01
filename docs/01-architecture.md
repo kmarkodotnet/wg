@@ -1142,6 +1142,14 @@ javaslatok; a végleges alak a Python-referencia után dől el.
 
 ### 11.6 Megvalósított állapot (2026-09-13)
 
+**A24 mérési kiegészítés (2026-10-01, ND-170):** a bázis az éves
+transzport előtti, tényleges célmezőt `AnnualTargetK` olvasható nézetként
+is kiadja. A CLI `thermal-climate --decompose true` ebből méri a
+mérlegegyenlet cellánkénti maradékát W/m²-ben. A normál klímariport
+területtel súlyozott felszíni/levegő-átlagot, külön északi/déli 60–90°-os
+sávátlagot és a fagypont feletti éves átlagú tartós-jég területét közli.
+A diagnosztika nem módosítja a modell eredményét vagy a jégküszöböt.
+
 **Utóállapot (2026-09-29, ND-158–169):** az éves, kétmenetes hőstatisztika
 a viewer jégmaszkját, a biome hőmérséklet-tengelyét és a csapadék párolgási
 hőmérsékletét táplálja (ND-162/164). Az ND-167 konzervatív élfluxus-kernelre

@@ -156,7 +156,7 @@ namespace WorldGen.Cli
                               $"éves átlag [{legacyMinMean - 273.15:F1}, {legacyMaxMean - 273.15:F1}] °C");
             Console.WriteLine($"  PILLANATNYI (napi átlag) szélsőértékek: min " +
                               $"{legacyMinDaily - 273.15:F1} °C, max {legacyMaxDaily - 273.15:F1} °C");
-            Console.WriteLine("  (ez a CÉL-darabszám: ezt a jégtakarót mutatja ma a viewer)");
+            Console.WriteLine("  (történeti összehasonlítás; nem fizikai cél és nem az aktív hőmodell jege)");
             Console.WriteLine();
 
             var betas = new List<double>();
@@ -202,6 +202,7 @@ namespace WorldGen.Cli
                                   $"{Max(climate.Refined.MeanSurfaceK) - 273.15:F1}] °C; " +
                                   $"levegő: [{Min(climate.Refined.MeanAirK) - 273.15:F1}, " +
                                   $"{Max(climate.Refined.MeanAirK) - 273.15:F1}] °C");
+                ReportPhysicalClimate(grid, climate);
 
                 // A PILLANATNYI szélsőértékek. Ez az ND-100 döntő száma: a
                 // radiatív simítás pont azért került be, mert simítás nélkül a
@@ -224,9 +225,10 @@ namespace WorldGen.Cli
                                   $"P10={Percentile(sorted, 0.10) - 273.15:F1}, " +
                                   $"P50={Percentile(sorted, 0.50) - 273.15:F1}");
 
-                // Az a küszöb, ami PONTOSAN a mai jégtakarót adná vissza ennél a bétánál.
+                // Történeti darabszámhoz tartozó eloszlási hely; a szigorú
+                // küszöb és az esetleges holtverseny miatt nem pontos inverz.
                 if (legacyPermanent > 0 && legacyPermanent <= sorted.Length)
-                    Console.WriteLine($"  a mai {legacyPermanent} jégcellát adó küszöb: " +
+                    Console.WriteLine($"  a régi {legacyPermanent} jégcella rangjához tartozó hőmérséklet: " +
                                       $"{sorted[legacyPermanent - 1] - 273.15:F2} °C (a mai küszöb: " +
                                       $"{LakesIceErosion.PermanentIceMeanThresholdK - 273.15:F2} °C)");
 
@@ -847,6 +849,7 @@ namespace WorldGen.Cli
             var field = new SurfaceTemperatureField(grid, climate.RefinedKinds.ToArray(), elevation, seaLevel,
                 options.Seed, options.TimeMyr * 1.0e6, orbit, parameters);
             ThermalBaseline baseline = field.Baseline;
+            ReportTransportBalance(grid, baseline, parameters);
 
             // A bázis időfüggő (napi faktor), ezért a mintanapok déli
             // időpontjaira átlagolunk - ugyanazokra a napokra, amiket az éves
@@ -923,6 +926,61 @@ namespace WorldGen.Cli
             Console.WriteLine($"      bázis={coldBase - 273.15:F2} °C; radiatív={coldRad:F2} K, " +
                               $"óceáni={coldOcean:F2} K, meridionális={coldMerid:+0.00;-0.00;0.00} K, " +
                               $"magasság=-{coldAlt:F2} K, ciklus={baseline.CycleK:F2} K");
+        }
+
+        private static void ReportTransportBalance(DenseGridMetrics grid, ThermalBaseline baseline,
+            ThermalModelParameters parameters)
+        {
+            double[] conductance = MeridionalEnergyBalance.BuildConductance(grid,
+                MeridionalEnergyBalance.DiffusionWm2K * parameters.MeridionalTransportScale);
+            var transport = new ConservativeHeatTransport(grid.CellCount, grid.EdgeI, grid.EdgeJ, conductance);
+            var balanced = new double[grid.CellCount];
+            for (int c = 0; c < balanced.Length; c++)
+                balanced[c] = baseline.AnnualTargetK[c] + baseline.AnnualTransportCorrectionK[c];
+            var power = new double[grid.CellCount];
+            transport.ComputePowerW(balanced, power);
+            double area = 0.0, netPower = 0.0, correction = 0.0, maxResidual = 0.0;
+            for (int c = 0; c < balanced.Length; c++)
+            {
+                area += grid.Area[c];
+                netPower += power[c];
+                correction += grid.Area[c] * baseline.AnnualTransportCorrectionK[c];
+                double residual = MeridionalEnergyBalance.RadiativeFeedbackWm2K
+                    * baseline.AnnualTransportCorrectionK[c] - power[c] / grid.Area[c];
+                maxResidual = Math.Max(maxResidual, Math.Abs(residual));
+            }
+            Console.WriteLine($"  ÉVES MÉRLEG: max maradék={maxResidual:E6} W/m², " +
+                $"nettó belső teljesítmény={netPower:E6} W ({netPower / area:E6} W/m²), " +
+                $"területi átlagkorrekció={correction / area:E6} K");
+        }
+
+        private static void ReportPhysicalClimate(DenseGridMetrics grid, ThermalClimate climate)
+        {
+            double area = 0.0, surface = 0.0, air = 0.0, warmIceArea = 0.0;
+            var polarArea = new double[2];
+            var polarAir = new double[2];
+            // |z| >= sqrt(3)/2: a 60 fokon túli sáv, trigonometrikus művelet nélkül.
+            double polarZ = Math.Sqrt(3.0) / 2.0;
+            for (int c = 0; c < grid.CellCount; c++)
+            {
+                double a = grid.Area[c];
+                area += a;
+                surface += a * climate.Refined.MeanSurfaceK[c];
+                air += a * climate.Refined.MeanAirK[c];
+                if (climate.RefinedClass[c] == LakesIceErosion.IceClass.PermanentIce
+                    && climate.Refined.MeanSurfaceK[c] >= 273.15)
+                    warmIceArea += a;
+                if (Math.Abs(grid.CenterZ[c]) < polarZ) continue;
+                int hemisphere = grid.CenterZ[c] >= 0.0 ? 0 : 1;
+                polarArea[hemisphere] += a;
+                polarAir[hemisphere] += a * climate.Refined.MeanAirK[c];
+            }
+            Console.WriteLine($"  TERÜLETI ÉVES ÁTLAG: felszín={surface / area - 273.15:F3} °C, " +
+                $"levegő={air / area - 273.15:F3} °C; meleg tartós jég={100.0 * warmIceArea / area:F3}% bolygóterület");
+            for (int h = 0; h < 2; h++)
+                Console.WriteLine(polarArea[h] > 0.0
+                    ? $"    {(h == 0 ? "északi" : "déli")} sáv (60–90°): levegő={polarAir[h] / polarArea[h] - 273.15:F3} °C"
+                    : $"    {(h == 0 ? "északi" : "déli")} sáv (60–90°): nincs cellaközép ezen a rácson");
         }
 
         /// <summary>
