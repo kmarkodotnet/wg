@@ -231,6 +231,21 @@ namespace WorldGen.Cli
                             $"{TemperatureIndexSnow.MeltPotential(mean, factor):F4} / {TemperatureIndexSnow.MeltPotential(hi, factor):F4} m vízegyenérték/év");
                         Console.WriteLine($"    legmelegebb mintanap Ta átlaga: [{selected.Min(c => exposure.WarmestSampleDayMeanAirK[c]) - 273.15:F2}, " +
                             $"{selected.Max(c => exposure.WarmestSampleDayMeanAirK[c]) - 273.15:F2}] °C; potenciál, nem tényleges veszteség/havazás");
+                        int hottest = selected.OrderByDescending(c => exposure.WarmestSampleDayMeanAirK[c]).First();
+                        ThermalBaseline baseline = exposureField.Baseline;
+                        double altitude = Temperature.LapseRateKPerM * Math.Max(0, elevation[hottest] - seaLevel);
+                        double meanBase = exposure.WarmestSampleDayMeanBaselineK[hottest];
+                        double transport = baseline.AnnualTransportCorrectionK[hottest];
+                        double radiative = meanBase - baseline.GreenhouseK - transport + altitude - baseline.CycleK;
+                        Console.WriteLine($"    ND-173 legmelegebb jégcella: index={hottest}, szélesség={Math.Asin(grid.CenterZ[hottest]) * 180 / Math.PI:F3}°, " +
+                            $"magasság={elevation[hottest] - seaLevel:F1} m, nap={exposure.WarmestSampleDay[hottest]}");
+                        Console.WriteLine($"      napi Ta={exposure.WarmestSampleDayMeanAirK[hottest] - 273.15:F4} °C = " +
+                            $"bázis {meanBase - 273.15:F4} °C + anomália {exposure.WarmestSampleDayMeanAirAnomalyK[hottest]:F6} K");
+                        Console.WriteLine($"      bázis tagjai: radiatív={radiative:F4} K, üvegház={baseline.GreenhouseK:F4} K, " +
+                            $"éves transzport={transport:F4} K, magasság={-altitude:F4} K, ciklus={baseline.CycleK:F4} K");
+                        ReportDailyTransportControl(exposureField, hottest, exposure.WarmestSampleDay[hottest]);
+                        ReportDailyTransportControl(exposureField, hottest,
+                            (long)((exposure.WarmestSampleDay[hottest] + orbit.OrbitalPeriodDays / 2) % orbit.OrbitalPeriodDays));
                     }
                 }
 
@@ -291,6 +306,42 @@ namespace WorldGen.Cli
 
             Console.WriteLine($"Teljes futás: {total.Elapsed.TotalSeconds:F1} s");
             return 0;
+        }
+
+        /// <summary>ND-173: napi egyensúlyi kontroll, hőtárolás nélkül; nem aktív klíma.</summary>
+        private static void ReportDailyTransportControl(SurfaceTemperatureField field, int cell, long day)
+        {
+            DenseGridMetrics grid = field.Grid;
+            var target = new double[grid.CellCount];
+            var sample = new double[grid.CellCount];
+            for (int tick = 0; tick < SimulationTime.TicksPerDay; tick++)
+            {
+                field.BaselineAt(day * SimulationTime.TicksPerDay + tick, sample);
+                for (int c = 0; c < target.Length; c++) target[c] += sample[c];
+            }
+            for (int c = 0; c < target.Length; c++)
+                target[c] = target[c] / SimulationTime.TicksPerDay - field.Baseline.AnnualTransportCorrectionK[c];
+            double diffusion = MeridionalEnergyBalance.DiffusionWm2K * field.Parameters.MeridionalTransportScale;
+            double[] correction = MeridionalEnergyBalance.SolveCorrection(grid, target, diffusion);
+            var temperature = new double[target.Length];
+            double sum = 0, area = 0;
+            for (int c = 0; c < target.Length; c++)
+            {
+                temperature[c] = target[c] + correction[c];
+                sum += grid.Area[c] * correction[c];
+                area += grid.Area[c];
+            }
+            var transport = new ConservativeHeatTransport(grid.CellCount, grid.EdgeI, grid.EdgeJ,
+                MeridionalEnergyBalance.BuildConductance(grid, diffusion));
+            var power = new double[target.Length];
+            transport.ComputePowerW(temperature, power);
+            double residual = 0;
+            for (int c = 0; c < target.Length; c++)
+                residual = Math.Max(residual, Math.Abs(MeridionalEnergyBalance.RadiativeFeedbackWm2K
+                    * correction[c] - power[c] / grid.Area[c]));
+            Console.WriteLine($"      napi egyensúlyi kontroll: nap={day}, transzport előtti bázis={target[cell] - 273.15:F4} °C, " +
+                $"napi korrekció={correction[cell]:F4} K, eredmény={temperature[cell] - 273.15:F4} °C");
+            Console.WriteLine($"        max maradék={residual:E3} W/m², területi korrekcióátlag={sum / area:E3} K (hőtárolás nélkül)");
         }
 
         /// <summary>

@@ -1151,6 +1151,15 @@ hasonlítja össze a mintasűrűségeket. A diagnosztika nem kerül a viewerbe,
 nem módosít jégmaszkot vagy cache-identitást. Csapadék-kalibráció és tengeri
 jégmodell nélkül ebből még nem készülhet fizikai tartósjég-besorolás.
 
+**ND-173:** az olvadási diagnosztika a legmelegebb mintanap indexét,
+bázis- és levegő-anomália-átlagát is kiadja. A CLI tagokra bontja a
+legmelegebb szárazföldi jégcella bázisát, és ugyanazon cellán nyári/téli,
+hőtárolás nélküli napi transzportkontrollt futtat. A jelenlegi `T=B(t)+θ`
+solver hőkapacitása az anomáliára hat; az előírt szezonális bázis változását
+nem korlátozza. Az éves transzport korrekciója minden évszakban ugyanaz.
+A továbblépés időfüggő szezonális energiamérleget kíván, külön albedó- és
+periodikusállapot-döntéssel; az aktuális modell még nem váltott át erre.
+
 **A24 mérési kiegészítés (2026-10-01, ND-170):** a bázis az éves
 transzport előtti, tényleges célmezőt `AnnualTargetK` olvasható nézetként
 is kiadja. A CLI `thermal-climate --decompose true` ebből méri a

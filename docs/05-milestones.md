@@ -1,5 +1,16 @@
 # Milestone-terv
 
+**2026-10-02, M5 / A24 nyári okfeltárás (ND-173):** a legmelegebb
+szárazföldi jégcella +39,8539 °C-os napi levegőátlagából a bázis
++39,8694 °C, az anomália −0,015473 K. Az állandó éves transzport
++25,2418 K-t ad; a napi egyensúlyi kontroll nyáron +0,6717, télen
++31,8939 K-t. A solver hőkapacitása nem fékezi az előírt szezonális
+bázist. Következő implementáció: időfüggő szezonális energiamérleg
+Python-referenciával és periodicitási/energiamérleg-kapukkal.
+**A24 ~75% marad**, e kör durván **2–3 óra**, hátra továbbra is
+**12–24 óra**, bizonytalan kalibrációs költséggel. Az aktív kép változatlan.
+[Okfeltáró napló](../history/2026-10-02-a24-summer-budget.md).
+
 **2026-10-02, M5 / A24 évszakos diagnózis (ND-172):** elkészült a pozitív
 foknap és az explicit hóolvadási kernel, Python KAT-tal és vektorokkal.
 L5-ön a jelenlegi 267 szárazföldi jégcella mindegyikén van olvadási kitettség;

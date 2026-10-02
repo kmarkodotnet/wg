@@ -10095,6 +10095,47 @@ hallgatólagosan m/év adattá. A tengeri jég külön fizikai feladat marad.
 Python KAT és generált vektor előzi meg a C# kernelt. A mérés nem fogyasztója
 a világmodellnek: a jégbesorolás és a generátorverzió változatlan.
 
+### ND-173 — A24 nyári hőmérséklet tagonkénti vizsgálata (MÉRÉSI DÖNTÉS)
+
+**Dátum:** 2026-10-02. Az ND-172 pozitív foknap-mérése után a következő
+diagnosztika minden cella legmelegebb mintanapjához megőrzi a nap indexét,
+a bázis átlagát és a levegő-anomália átlagát. A két utóbbi összege a
+nap levegőátlaga; a rekonstrukció eltérését teszt ellenőrzi.
+A CLI a jelenlegi szárazföldi jégmaszk legmelegebb celláján közli a
+helyet, a magasságot, a radiatív részt, az üvegház-, éves transzport-,
+magassági és ciklustagot. A radiatív rész a tényleges bázisból maradékként
+származik; szárazföldön nincs óceáni puffer. Nem alkotunk második hőmodellt.
+
+Megvizsgálandó: (1) a magas nyári hő a bázisból vagy az anomália-solverből
+ered-e; (2) az éves transzport állandó korrekciója mennyit ad nyáron;
+(3) a változó bázisra mennyiben hat a solver hőkapacitása és jégalbedója.
+Ezekből csak mérés után következhet új szezonális modell. A megfigyelés
+nem módosít szimulációs sorrendet, alapparamétert vagy verziót.
+
+Kontrollként ugyanazt az ND-168 egyensúlyi megoldót a kiválasztott nap
+átlagos, éves transzport nélküli bázisára is lefuttatjuk, és fél keringéssel
+később megismételjük. Ez **pillanatnyi egyensúlyi kontroll**, nincs benne
+hőtárolás; nem tekintjük kész évszakos klímának. A cellás maradék és a
+korrekció területi átlaga a kontrollban is mérendő.
+
+**Kódból igazolt szerkezeti korlát:** a solver `T = B(t) + θ` alakban csak
+a `θ` anomáliát lépteti. A `LocalStep` nem von le `C dB/dt` tagot, ezért
+a teljes hőmérsékletben a bázis változása hőkapacitástól függetlenül jelenik
+meg. Ez az eredeti anomáliamodell működése, de nem időfüggő energiamérleg
+a teljes hőmérsékletre. A felszíni jégalbedó csak a napi anomália
+`F(1−a)(cos(z)−f_napi)` forrásában szerepel; a szárazföldi szezonális
+bázist nem hűti. A mélység vagy a jégalbedó önmagában nem javíthatja a bázist.
+
+A következő implementáció iránya ezért **időfüggő szezonális energiamérleg**,
+amelyben a hőtárolás, a sugárzási forrás és a konzervatív transzport ugyanazt
+a hőmérsékletmezőt kezeli. A [climlab EBM dokumentációja](https://climlab.readthedocs.io/en/stable/api/climlab.model.ebm.html)
+ilyen `C ∂T/∂t = elnyelt rövidhullám − kimenő hosszúhullám + diffúzió`
+szerkezetet ír le. A saját megoldásban külön tisztázandó a felszíni és
+bolygó-albedó kapcsolata, az állandó magassági/ciklustag helye, valamint
+a periodikus állapot determinisztikus előállítása. A napi egyensúlyi
+kontroll nem kerül automatikusan a viewerbe. Az aktív átállás későbbi
+numerikus döntést, Python-orákulumot és verzióemelést igényel.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

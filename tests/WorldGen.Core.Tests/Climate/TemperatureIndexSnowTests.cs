@@ -99,6 +99,13 @@ public class ThermalMeltExposureTests : IClassFixture<ThermalAnnualFixture>
                 - actual.PositiveDegreeDays[c]), 0, 1e-9);
             Assert.InRange(Math.Abs(expected.GetProperty("warmest")[c].GetDouble()
                 - actual.WarmestSampleDayMeanAirK[c]), 0, 1e-9);
+            Assert.Equal(expected.GetProperty("warmestDay")[c].GetInt64(), actual.WarmestSampleDay[c]);
+            Assert.InRange(Math.Abs(expected.GetProperty("warmestBase")[c].GetDouble()
+                - actual.WarmestSampleDayMeanBaselineK[c]), 0, 1e-9);
+            Assert.InRange(Math.Abs(expected.GetProperty("warmestAnomaly")[c].GetDouble()
+                - actual.WarmestSampleDayMeanAirAnomalyK[c]), 0, 1e-9);
+            Assert.InRange(Math.Abs(actual.WarmestSampleDayMeanAirK[c]
+                - actual.WarmestSampleDayMeanBaselineK[c] - actual.WarmestSampleDayMeanAirAnomalyK[c]), 0, 1e-10);
         }
     }
 
@@ -111,6 +118,9 @@ public class ThermalMeltExposureTests : IClassFixture<ThermalAnnualFixture>
         var replay = ThermalMeltExposure.Compute(field, _fx.SampleDays);
         Assert.Equal(exposure.PositiveDegreeDays.ToArray(), replay.PositiveDegreeDays.ToArray());
         Assert.Equal(exposure.WarmestSampleDayMeanAirK.ToArray(), replay.WarmestSampleDayMeanAirK.ToArray());
+        Assert.Equal(exposure.WarmestSampleDay.ToArray(), replay.WarmestSampleDay.ToArray());
+        Assert.Equal(exposure.WarmestSampleDayMeanBaselineK.ToArray(), replay.WarmestSampleDayMeanBaselineK.ToArray());
+        Assert.Equal(exposure.WarmestSampleDayMeanAirAnomalyK.ToArray(), replay.WarmestSampleDayMeanAirAnomalyK.ToArray());
         var state = new ThermalSnapshot(_fx.Grid.CellCount);
         var lower = new double[_fx.Grid.CellCount];
         var upper = new double[lower.Length];
@@ -123,6 +133,8 @@ public class ThermalMeltExposureTests : IClassFixture<ThermalAnnualFixture>
                 lower[c] += Math.Max(stats.MeanAirK[c] - 273.15, 0);
                 upper[c] += Math.Max(stats.MaxAirK[c] - 273.15, 0);
                 warmest[c] = Math.Max(warmest[c], stats.MeanAirK[c]);
+                if (day == exposure.WarmestSampleDay[c])
+                    Assert.Equal(stats.MeanAirK[c], exposure.WarmestSampleDayMeanAirK[c]);
             }
         }
         double weight = field.Orbit.OrbitalPeriodDays / exposure.SampleDays.Count;
