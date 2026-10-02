@@ -1149,6 +1149,11 @@ mérlegegyenlet cellánkénti maradékát W/m²-ben. A normál klímariport
 területtel súlyozott felszíni/levegő-átlagot, külön északi/déli 60–90°-os
 sávátlagot és a fagypont feletti éves átlagú tartós-jég területét közli.
 A diagnosztika nem módosítja a modell eredményét vagy a jégküszöböt.
+Az ND-171 L5/L6 ellenőrzése a mérlegegyenletre sikeres; a régi abszolút
+jégküszöb kontrollja nulla tartós jeget adott. A percentilis kiváltása
+ezért önálló, évszakos hó/jégmodell-döntés marad. A felhasználó az aktuális
+alkalmazás működését/képét rendben lévőnek jelezte; az alábbi átadási
+szöveg ellenőrizetlen állapotra utaló mondatai történetiek.
 
 **Utóállapot (2026-09-29, ND-158–169):** az éves, kétmenetes hőstatisztika
 a viewer jégmaszkját, a biome hőmérséklet-tengelyét és a csapadék párolgási

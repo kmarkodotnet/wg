@@ -9938,6 +9938,12 @@ való teljes átállás elmarad, az (1) kötelező lesz.
 
 ### ND-166 — A hőmodell hideg vége: radiatív simítás és meridionális proxy szétválasztása (A7/A24, DÖNTÉS NYITOTT)
 
+**Utóállapot (2026-10-01):** az alábbi diagnózis transzportágát az
+ND-168 implementációja és az ND-171 mérési kapuja továbbléptette. A
+pozitív K-proxy az aktív hőmodellben már nincs. Az évszakos simítás és a
+percentilis jég kiváltása továbbra is nyitott; az alábbi „következő lépés”
+mondatok a 2026-09-29-i történeti állapotot rögzítik.
+
 **Dátum:** 2026-09-29. **Előzmény:** ND-100, ND-126b, ND-159, ND-160 és a felhasználó ND-160 utáni élő ítélete: a `useThermalClimateBiome` kikapcsolva továbbra is jobban fest; a cél a hőmodell fizikai javítása.
 
 **Mért diagnózis** (seed `A7C944210000`, 20 lemez, level 5, 12 mintanap, két menet, bolygó-albedó):
@@ -9972,6 +9978,12 @@ A `Temperature.MeridionalHeatTransportK(z) = 40 K · z⁴` tag az ND-126b analit
 
 ### ND-168 — Az éves meridionális hőmérleg bekötése (A7, IMPLEMENTÁCIÓS DÖNTÉS)
 
+**Átvételi kiegészítés (2026-10-01):** az ND-171 szerint az L5/L6
+mérlegmaradék-kapu teljesült, három seed fizikai diagnosztikája elkészült.
+A felhasználó az aktuális működést/képet rendben lévőnek jelezte. A
+tesztek régi vektormásolatait javítottuk; Debug/Release 1976/1976 zöld.
+A következő, percentilist kiváltó jégmodell nincs ezzel elfogadva.
+
 **Dátum:** 2026-09-29. **Előzmény:** ND-166/167. A korábbi `40 K · z⁴` proxy a globális bázishoz +8 K-t adott, ezért belső hőszállításként nem tartható fenn. A cél a meglévő kétmenetes éves éghajlat és az órás hőmező közös fizikai bázisa.
 
 **Modell:** a 12 éves ablakban számított, bolygó-albedós radiatív bázis `T₀,c` éves átlaga után az `i < j` éleken `G_e = D · R² · (L_e / d_ij) · (n_e · N_e)²` W/K. Itt `L_e` az él húrhossza, `d_ij` a cellaközéppontok húr-távolsága, `n_e` az élnormál, `N_e` a helyi észak; így a vezetés meridionális irányú, a cubed-sphere lapvarratain ugyanazzal az éllel. `D = 0,555 W/(m² K)` a [climlab meridionális diffúziójának alapértéke](https://climlab.readthedocs.io/en/latest/api/climlab.dynamics.MeridionalHeatDiffusion.html); `λ = 2,09 W/(m² K)` a [Budyko-féle lineáris energiavisszacsatolás közölt értéke](https://esd.copernicus.org/articles/11/1195/2020/esd-11-1195-2020.pdf). Ezek földi kiinduló értékek, nem ebből a generált világból utólag illesztett számok.
@@ -9983,6 +9995,11 @@ Az éves `B_c` mező a `λ A_c (B_c − T₀,c) = Σ_e Q_{e→c}(B)` diszkrét m
 **Átvételi határ:** a numerikus és fogyasztói kódot a felhasználó kérése szerint átadjuk közös utólagos ellenőrzésre. A hőmodell-biome vizuális minősége és az ND-163 szélcsere csak az élő Unity-kép és a felhasználó mérése után minősíthető késznek.
 
 ### ND-169 — A végleges éves szél csapadékfogyasztója (A7, IMPLEMENTÁCIÓS DÖNTÉS)
+
+**Átvételi kiegészítés (2026-10-01):** a felhasználó az új hőmodell
+általános képét/működését rendben lévőnek jelezte; a kért parancssori
+tesztkör ezután lefutott. Részletes csapadék-/felhő-A/B mérés ebből nem
+következik. Az alábbi utólagos futtatásra váró állapot az átadás története.
 
 **Dátum:** 2026-09-29. **Előzmény:** ND-163, ND-164 és ND-168. Az ND-163 A/B a régi radiatív bázison nagy csapadékváltozást adott; a szél használata ezért az új fizikai bázissal együtt kap külön vizuális átvételt.
 
@@ -10010,6 +10027,48 @@ Ez kizárólag megfigyelés: nincs új alapparaméter, jégküszöb vagy numerik
 műveleti sorrend a szimulációban, ezért nincs új verzióemelés. A
 `ThermalBaseline.AnnualTargetK` a már kiszámított célmező olvasható nézete;
 a CLI nem épít saját hőmodellt. A fizikai és vizuális átvétel nyitott.
+
+### ND-171 — A24 abszolút jégküszöb és szezonális simítás a konzervatív transzport után (MÉRT RÉSZDÖNTÉS)
+
+**Dátum:** 2026-10-01. Az ND-170 mérése után az ND-168 numerikus
+transzportja level 5/6-on átvehető a 0,01 W/m² maradékkapu szerint:
+maximum `1,42e-9` / `0,0038911 W/m²`. A belső teljesítmény globális
+területre osztott összege mindkét szinten `3e-14 W/m²` alatt van.
+Ez a diszkrét mérleg ellenőrzése, nem a teljes klíma fizikai hitelesítése.
+
+Seed `A7C944210000`, 20 lemez, 12 mintanap, kétmenetes éves modell:
+
+| β | Tartós-jég szabály | Éves Ts minimum | Területi Ta átlag | Pillanatnyi Ts min / max | Tartós jég |
+|---:|---|---:|---:|---:|---:|
+| 0,5 | 7. percentilis, L5 | −11,7 °C | 9,049 °C | −40,2 / 41,6 °C | 430 cella |
+| 0,5 | −15 °C, L5 | −11,8 °C | 9,048 °C | −40,0 / 42,4 °C | 0 cella |
+| 0,3 | −15 °C, L5 | −15,4 °C | 7,825 °C | −61,2 / 57,6 °C | 5 cella |
+| 0,2 | −15 °C, L5 | −18,3 °C | 6,931 °C | −76,1 / 66,7 °C | 140 cella |
+| 0,5 | 7. percentilis, L6 | −11,9 °C | 9,019 °C | −40,9 / 41,9 °C | 1720 cella |
+
+Két további seed (`A7C944210001`, `A7C944210002`) L5 minimuma −8,2 /
+−12,4 °C, területi Ta átlaga 13,111 / 8,921 °C. Mindhárom seeden a
+percentilis tartós jég éves felszíni átlaga fagypont alatti. A seedfüggő
+éghajlati ciklus eltér, ezért a 9 °C globális átlag nem hasonlítható
+közvetlenül egy fix földi 15 °C-os célszámhoz.
+
+**Rész-döntés:** az A24(c) nem zárható le a régi −15 °C küszöb
+visszaállításával. A β csökkentését sem választjuk pusztán azért, hogy
+jeget adjon: egyszerre módosítja a globális átlagot és a napi szélsőségeket.
+Az alap β=0,5 és a percentilis átmenetileg marad; nincs seed-verzióváltás.
+Az új hőút vizuális működésére a felhasználó „minden rendben” visszajelzést
+adott. Ez nem a következő, még el nem készült küszöbváltás elfogadása.
+
+**A következő fizikai döntés nyitott:** szárazföldön a hófelhalmozódás és
+az olvadás éves mérlege, tengeren külön fagyási/olvadási feltétel kell.
+Az [NSIDC összefoglalója](https://nsidc.org/learn/parts-cryosphere/glaciers/science-glaciers)
+szerint a jég fennmaradását a felhalmozódás és veszteség egyenlege dönti
+el; egyetlen éves hőmérsékleti vágópont ennek proxyja. A mostani csapadék
+MVP-skálája és 12 napos hőmintavétel nem jogosít fel kg/m²/év mérleg
+állítására. Előbb egység-/kalibrációs és évszakos mintavételi terv, majd
+Python referencia és explicit verzióváltás szükséges. Korlátozott, csak
+hőmérsékleti szezonális proxy külön, névvel vállalt egyszerűsítés lehet;
+ezt nem nevezzük tömegmegmaradó jégmodellnek.
 
 ### A többi nyitott döntés
 

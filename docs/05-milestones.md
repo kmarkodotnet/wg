@@ -1,6 +1,20 @@
 # Milestone-terv
 
-**2026-10-01, M5 / A24 folytatás (ND-170):** az új transzport fizikai
+**2026-10-01, M5 / A24 mérési eredmény (ND-171):** az ND-168 transzport
+L5/L6 mérlege a 0,01 W/m² maradékkapun belüli; három seed alapbeállításán
+nincs fagypont feletti éves átlagú tartós jég. A kanonikus éves minimum
+L5 −11,7 °C, L6 −11,9 °C. Az abszolút −15 °C-os kontroll nulla jeget ad,
+ezért a percentilis kiváltása és a szezonális fizika továbbra is nyitott.
+A felhasználó az aktuális képet/működést rendben lévőnek jelezte.
+Az első ellenőrzés 9 régi tesztadatból eredő Core-hibát talált; a Python
+vektorok C#-másolatai frissítve. Debug/Release **1976/1976** teszt zöld,
+a teljes Python hővektor-újragenerálás byte-egyező.
+Részfeladatbecslés **A24 ~70%**; e kör
+durva ráfordítása **2–4 óra**, a következő jégmodell tervezése/mérési
+előkészítése **4–8 óra**, nem teljes implementációs ígéret.
+[Mérési napló](../history/2026-10-01-a24-physical-validation.md).
+
+**Történeti előzmény — 2026-10-01, M5 / A24 folytatás (ND-170):** az új transzport fizikai
 átvételéhez mérlegegyenlet-maradék, területi és sarki hőátlag, valamint
 meleg tartós-jég diagnosztika készült. Új regressziós kapu vizsgálja a
 level-5/6 megoldó maradékát; a futtatás még nincs igazolva. A korábbi

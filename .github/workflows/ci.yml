@@ -85,6 +85,12 @@ jobs:
           python verify_thermal_feedback.py --check ../../tests/WorldGen.Core.Tests/testdata/thermal_feedback_vectors.json
           python thermal_checkpoint_ref.py
           diff thermal_checkpoint_vectors.json ../../tests/WorldGen.Core.Tests/testdata/thermal_checkpoint_vectors.json
+      - name: Eves meridionalis merleg oracle (ND-168)
+        working-directory: tools/reference
+        run: |
+          python meridional_energy_balance_ref.py --verify-kat
+          python meridional_energy_balance_ref.py
+          git diff --exit-code -- ../../tests/WorldGen.Core.Tests/testdata/meridional_energy_balance_vectors.json
       - name: Eves hostatisztika es ketmenetes jegmaszk oracle (ND-158)
         working-directory: tools/reference
         run: |

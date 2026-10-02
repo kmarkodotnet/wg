@@ -1,5 +1,10 @@
 # A24 — az új hőmodell fizikai átvételének előkészítése
 
+**Utóállapot:** a felhasználó engedélyezte a futtatást és az aktuális
+alkalmazást rendben lévőnek jelezte. Az alábbi függőben lévő kérés az
+előkészítés történeti állapota; a tényleges mérés és javítás a
+[következő naplóban](2026-10-01-a24-physical-validation.md) szerepel.
+
 **Ág:** `a19-plate-frame-noise`. **Döntés:** ND-170.
 
 ## Kiinduló állapot
