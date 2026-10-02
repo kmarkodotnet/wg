@@ -184,6 +184,8 @@ namespace WorldGen.Cli
             if (opts.TryGetValue("meridional-scale", out string? ms))
                 options.MeridionalTransportScale = double.Parse(ms);
             if (opts.TryGetValue("decompose", out string? dc)) options.Decompose = bool.Parse(dc);
+            if (opts.TryGetValue("melt-exposure-days", out string? med))
+                options.MeltExposureDays = Array.ConvertAll(med.Split(','), int.Parse);
             if (opts.TryGetValue("precip", out string? pr)) options.Precipitation = bool.Parse(pr);
             if (opts.TryGetValue("biome", out string? bi)) options.Biome = bool.Parse(bi);
             if (opts.TryGetValue("baseline-albedo", out string? ba)) options.BaselineAlbedo = double.Parse(ba);
@@ -282,6 +284,7 @@ namespace WorldGen.Cli
                  "                           [--dayt <0..1>] [--rotation <nap>] [--baseline-albedo <a>]\n" +
                  "                           [--ocean-depth <m>] [--land-depth <m>] (A24 mérőkampók)\n" +
                 "                           [--meridional-scale <0..1>] (ND-168 diffúziós skála)\n" +
+                "                           [--melt-exposure-days <12,24,48>] (ND-172 hóolvadási potenciál)\n" +
                 "                           (ND-158 koltsegmeres es ND-159 beta-sopres, nem CI-lepes)\n");
         }
     }

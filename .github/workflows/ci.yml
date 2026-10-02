@@ -96,3 +96,10 @@ jobs:
         run: |
           python thermal_annual_ref.py
           diff thermal_annual_vectors.json ../../tests/WorldGen.Core.Tests/testdata/thermal_annual_vectors.json
+      - name: Hoolvadasi referencia es KAT (ND-172)
+        working-directory: tools/reference
+        run: |
+          python snow_melt_ref.py
+          diff snow_melt_vectors.json ../../tests/WorldGen.Core.Tests/testdata/snow_melt_vectors.json
+          python thermal_melt_exposure_ref.py
+          diff thermal_melt_exposure_vectors.json ../../tests/WorldGen.Core.Tests/testdata/thermal_melt_exposure_vectors.json

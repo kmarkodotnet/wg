@@ -10070,6 +10070,31 @@ Python referencia és explicit verzióváltás szükséges. Korlátozott, csak
 hőmérsékleti szezonális proxy külön, névvel vállalt egyszerűsítés lehet;
 ezt nem nevezzük tömegmegmaradó jégmodellnek.
 
+### ND-172 — A24 pozitív foknap és hóolvadási potenciál (DIAGNOSZTIKA)
+
+**Dátum:** 2026-10-02. A szárazföldi jég következő mérési lépése a tényleges
+levegő-hőmérsékletből számított pozitív foknap: `max(Ta−273,15; 0) × dt`,
+ahol `dt` 86400 SI-másodperces napban értendő. A meglévő solver mintanapjain
+minden tick elejét mintázzuk, majd a minták összegét `keringési nap / mintanap`
+súllyal évesítjük. Ez mintavételes becslés; 12/24/48 nap összevetése szükséges.
+A napi átlag pozitív részének vétele elveszítené a nappali olvadást.
+
+A külön, tiszta hómérleg-kernel explicit bemenete a kezdeti hó és a lépés
+elején hozzáadott havazás (m vízegyenérték), a foknap (K·nap), illetve az
+olvadási tényező (m vízegyenérték / K·nap). A tényleges olvadás a készlet és
+a potenciál minimuma. Nincs visszafagyás, firn vagy csupaszjég-olvadás.
+A diagnosztikai viszonyítás `0,003 m/(K·nap)` hóolvadási tényező;
+a [PISM dokumentáció](https://www.pism.io/docs/climate_forcing/surface.html)
+3 mm **folyékony vízegyenérték** / pozitív foknap alapértéket közöl.
+Ez empirikus hőmérsékleti modell, nem teljes energiamérleg vagy PISM-port.
+
+A CLI a jelenlegi tartós **szárazföldi** jégcellák hóolvadási potenciálját
+méri. Ez nem tényleges éves veszteség vagy előírt havazás: az időzítés és
+a készlet korlátozhatja az olvadást. A jelenlegi csapadékproxy nem válik
+hallgatólagosan m/év adattá. A tengeri jég külön fizikai feladat marad.
+Python KAT és generált vektor előzi meg a C# kernelt. A mérés nem fogyasztója
+a világmodellnek: a jégbesorolás és a generátorverzió változatlan.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |

@@ -1,5 +1,18 @@
 # Milestone-terv
 
+**2026-10-02, M5 / A24 évszakos diagnózis (ND-172):** elkészült a pozitív
+foknap és az explicit hóolvadási kernel, Python KAT-tal és vektorokkal.
+L5-ön a jelenlegi 267 szárazföldi jégcella mindegyikén van olvadási kitettség;
+a 48 mintanapos potenciál területi átlaga 9,915 m vízegyenérték/év a
+3 mm/K·nap viszonyítás mellett. A 24→48 napos átlagváltozás csak 0,256%.
+A legmelegebb mintanapi Ta +21,82…+39,85 °C; a hideg éves átlag nem
+igazolja a jég fennmaradását. A fizikai hó-utánpótlás és a tengeri jég
+továbbra is nyitott; a viewer besorolása nem változott.
+11 új teszt Debug/Release zöld; teljes Release kör 1986 teszt + az utolsó
+vektorteszt célzottan. **A24 ~75%**, e kör durván **2–4 óra**, hátra
+**12–24 óra** a szezonális/jégmodell munkából, nagy bizonytalansággal.
+[Mérési napló](../history/2026-10-02-a24-snow-melt-exposure.md).
+
 **2026-10-01, M5 / A24 mérési eredmény (ND-171):** az ND-168 transzport
 L5/L6 mérlege a 0,01 W/m² maradékkapun belüli; három seed alapbeállításán
 nincs fagypont feletti éves átlagú tartós jég. A kanonikus éves minimum

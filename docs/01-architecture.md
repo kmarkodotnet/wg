@@ -1142,6 +1142,15 @@ javaslatok; a végleges alak a Python-referencia után dől el.
 
 ### 11.6 Megvalósított állapot (2026-09-13)
 
+**A24 olvadási diagnosztika (2026-10-02, ND-172):** a `ThermalMeltExposure`
+a solver tick-eleji levegő-hőmérsékletének pozitív foknapját évesíti, és
+megőrzi a legmelegebb mintanap átlagát. A `TemperatureIndexSnow` tiszta,
+explicit készletű hóolvadási kernel m vízegyenértékben. A CLI
+`thermal-climate --melt-exposure-days 12,24,48` rögzített B-menet maszk mellett
+hasonlítja össze a mintasűrűségeket. A diagnosztika nem kerül a viewerbe,
+nem módosít jégmaszkot vagy cache-identitást. Csapadék-kalibráció és tengeri
+jégmodell nélkül ebből még nem készülhet fizikai tartósjég-besorolás.
+
 **A24 mérési kiegészítés (2026-10-01, ND-170):** a bázis az éves
 transzport előtti, tényleges célmezőt `AnnualTargetK` olvasható nézetként
 is kiadja. A CLI `thermal-climate --decompose true` ebből méri a

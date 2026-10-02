@@ -54,6 +54,9 @@ namespace WorldGen.Cli
             /// <summary>ND-159: a bázis-hőmérséklet tagonkénti felbontása (mi teszi a modellt meleggé).</summary>
             public bool Decompose;
 
+            /// <summary>ND-172: mintasűrűségek az éves olvadási potenciál méréséhez.</summary>
+            public int[] MeltExposureDays = Array.Empty<int>();
+
             /// <summary>ND-160: a bázis radiatív tagjának albedója; <c>null</c> = a bolygó-albedó (alapértelmezés).</summary>
             public double? BaselineAlbedo;
 
@@ -78,6 +81,8 @@ namespace WorldGen.Cli
 
         public static int Run(Options options)
         {
+            foreach (int exposureDays in options.MeltExposureDays)
+                ThermalAnnualStatisticsCalculator.SampleDayIndices(options.OrbitalPeriodDays, exposureDays);
             var total = Stopwatch.StartNew();
             var sw = Stopwatch.StartNew();
 
@@ -203,6 +208,31 @@ namespace WorldGen.Cli
                                   $"levegő: [{Min(climate.Refined.MeanAirK) - 273.15:F1}, " +
                                   $"{Max(climate.Refined.MeanAirK) - 273.15:F1}] °C");
                 ReportPhysicalClimate(grid, climate);
+                foreach (int exposureDays in options.MeltExposureDays)
+                {
+                    var exposureField = new SurfaceTemperatureField(grid, climate.RefinedKinds.ToArray(),
+                        elevation, seaLevel, options.Seed, options.TimeMyr * 1.0e6, orbit, parameters);
+                    exposureField.UseParallelLocalStep = options.Parallel;
+                    ThermalMeltExposure exposure = ThermalMeltExposure.Compute(exposureField, exposureDays);
+                    var selected = Enumerable.Range(0, grid.CellCount).Where(c =>
+                        kinds[c] == SurfaceThermalKind.Land &&
+                        climate.RefinedClass[c] == LakesIceErosion.IceClass.PermanentIce).ToArray();
+                    Console.WriteLine($"  ND-172: {exposureDays} mintanap, {selected.Length} tartós szárazföldi jégcella (rögzített maszk)");
+                    if (selected.Length > 0)
+                    {
+                        double lo = selected.Min(c => exposure.PositiveDegreeDays[c]);
+                        double hi = selected.Max(c => exposure.PositiveDegreeDays[c]);
+                        double area = selected.Sum(c => grid.Area[c]);
+                        double mean = selected.Sum(c => grid.Area[c] * exposure.PositiveDegreeDays[c]) / area;
+                        double factor = TemperatureIndexSnow.ReferenceSnowMeltFactor;
+                        Console.WriteLine($"    PDD min/területi átlag/max: {lo:F3} / {mean:F3} / {hi:F3} K·nap/év; " +
+                            $"nulla PDD: {selected.Count(c => exposure.PositiveDegreeDays[c] == 0)} cella");
+                        Console.WriteLine($"    hóolvadási potenciál (3 mm/K·nap): {TemperatureIndexSnow.MeltPotential(lo, factor):F4} / " +
+                            $"{TemperatureIndexSnow.MeltPotential(mean, factor):F4} / {TemperatureIndexSnow.MeltPotential(hi, factor):F4} m vízegyenérték/év");
+                        Console.WriteLine($"    legmelegebb mintanap Ta átlaga: [{selected.Min(c => exposure.WarmestSampleDayMeanAirK[c]) - 273.15:F2}, " +
+                            $"{selected.Max(c => exposure.WarmestSampleDayMeanAirK[c]) - 273.15:F2}] °C; potenciál, nem tényleges veszteség/havazás");
+                    }
+                }
 
                 // A PILLANATNYI szélsőértékek. Ez az ND-100 döntő száma: a
                 // radiatív simítás pont azért került be, mert simítás nélkül a
