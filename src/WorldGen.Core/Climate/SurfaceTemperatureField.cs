@@ -139,7 +139,7 @@ namespace WorldGen.Core.Climate
             _parameters = parameters ?? ThermalModelParameters.Default;
             _baseline = new ThermalBaseline(grid, _kinds, _elevationM, seaLevelM, worldSeed, tYears, orbit, _parameters);
             _wind = new ThermalWind(grid, _kinds, _elevationM, seaLevelM, orbit, _parameters,
-                _baseline.AnnualTransportCorrectionK);
+                _baseline.AnnualTransportCorrectionK, _baseline.Seasonal);
 
             int count = grid.CellCount;
             _edgeVelocity = new double[grid.EdgeCount];

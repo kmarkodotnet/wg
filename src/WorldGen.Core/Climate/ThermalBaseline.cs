@@ -47,6 +47,7 @@ namespace WorldGen.Core.Climate
 
         /// <summary>ND-170: a mérlegegyenlet tényleges éves célmezője, K; csak diagnosztikai olvasásra.</summary>
         public IReadOnlyList<double> AnnualTargetK { get; }
+        public SeasonalEnergyBalance? Seasonal { get; }
 
         public ThermalBaseline(DenseGridMetrics grid, SurfaceThermalKind[] kinds, double[] elevationM,
             double seaLevelM, ulong worldSeed, double tYears, ThermalOrbit orbit,
@@ -63,6 +64,8 @@ namespace WorldGen.Core.Climate
 
             GreenhouseK = Temperature.GreenhouseTemperature();
             CycleK = Temperature.ClimateCycleTemperatureK(worldSeed, tYears);
+            if (_parameters.UseSeasonalEnergyBalance)
+                CycleK += WorldGen.Core.Tectonics.DeepTimeErosionGlaciation.GlobalTempOffset(tYears / 1.0e6);
 
             int count = grid.CellCount;
             _factorA = new double[count];
@@ -96,9 +99,18 @@ namespace WorldGen.Core.Climate
                 double altitudeK = Temperature.LapseRateKPerM * Math.Max(0.0, elevationM[c] - seaLevelM);
                 annualTargetK[c] = meanRadiative + GreenhouseK - altitudeK + CycleK;
             }
-            AnnualTransportCorrectionK = MeridionalEnergyBalance.SolveCorrection(
-                grid, annualTargetK,
-                MeridionalEnergyBalance.DiffusionWm2K * _parameters.MeridionalTransportScale);
+            if (_parameters.UseSeasonalEnergyBalance)
+            {
+                Seasonal = new SeasonalEnergyBalance(grid, kinds, elevationM, seaLevelM, CycleK, orbit,
+                    _parameters, _parameters.SeasonalPhases);
+                annualTargetK = (double[])Seasonal.AnnualTargetK.Clone();
+                AnnualTransportCorrectionK = new double[count];
+                for (int c = 0; c < count; c++)
+                    AnnualTransportCorrectionK[c] = _parameters.MeridionalTransportScale == 0 ? 0
+                        : Seasonal.AnnualMeanK[c] - annualTargetK[c];
+            }
+            else AnnualTransportCorrectionK = MeridionalEnergyBalance.SolveCorrection(
+                grid, annualTargetK, MeridionalEnergyBalance.DiffusionWm2K * _parameters.MeridionalTransportScale);
             AnnualTargetK = Array.AsReadOnly(annualTargetK);
         }
 
@@ -144,6 +156,7 @@ namespace WorldGen.Core.Climate
                 dailyFactor[c] = f;
                 baseK[c] = tRad + GreenhouseK + tOcean
                     + AnnualTransportCorrectionK[c] - tAlt + CycleK;
+                if (Seasonal != null) baseK[c] = Seasonal.TemperatureK(c, hour / 24.0);
             }
         }
 

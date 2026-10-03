@@ -71,14 +71,14 @@ namespace WorldGen.Viewer.Lod
     public static class ThermalClimateDiskCache
     {
         /// <summary>"WGTC" + a FÁJLFORMÁTUM (nem az algoritmus) verziója.</summary>
-        private const ulong Magic = 0x5747544330303032UL; // "WGTC0002"
+        private const ulong Magic = 0x5747544330303033UL; // "WGTC0003"
 
         /// <summary>
         /// A MOSTANI fájlformátum névelőtagja — a takarítás ez alapján ismeri
         /// fel az elavult fájlokat. A formátum minden megváltozásakor ezt is
         /// emelni kell, a <see cref="Magic"/> verziószámával együtt.
         /// </summary>
-        public const string FileNamePrefix = "climate_k2";
+        public const string FileNamePrefix = "climate_k3";
 
         /// <summary>A takarítás szűrője: ez a fájl a MOSTANI formátum nevét viseli-e.</summary>
         public static bool IsCurrentFormatFileName(string fileName) =>
@@ -235,6 +235,8 @@ namespace WorldGen.Viewer.Lod
             public double SeasonalSnowThresholdK;
             public int ReclassifiedCells;
             public bool SecondPassSkipped;
+            public bool UsesPhysicalIce;
+            public double[] IcePersistenceMarginK = Array.Empty<double>();
 
             public static Payload From(ThermalClimate climate)
             {
@@ -243,11 +245,14 @@ namespace WorldGen.Viewer.Lod
                 var iceFreeClass = new LakesIceErosion.IceClass[count];
                 var refinedClass = new LakesIceErosion.IceClass[count];
                 var refinedKinds = new SurfaceThermalKind[count];
+                var margin = new double[count];
                 for (int c = 0; c < count; c++)
                 {
                     iceFreeClass[c] = climate.IceFreeClass[c];
                     refinedClass[c] = climate.RefinedClass[c];
                     refinedKinds[c] = climate.RefinedKinds[c];
+                    if (climate.RefinedPhysicalIce != null)
+                        margin[c] = climate.RefinedPhysicalIce.PersistenceMarginK[c];
                 }
                 return new Payload
                 {
@@ -261,6 +266,8 @@ namespace WorldGen.Viewer.Lod
                     SeasonalSnowThresholdK = climate.RefinedThresholds.SeasonalSnowMinK,
                     ReclassifiedCells = climate.ReclassifiedCells,
                     SecondPassSkipped = climate.SecondPassSkipped,
+                    UsesPhysicalIce = climate.RefinedPhysicalIce != null,
+                    IcePersistenceMarginK = margin,
                 };
             }
         }
@@ -304,11 +311,11 @@ namespace WorldGen.Viewer.Lod
         /// <summary>A fejléc fix része: magic + cellCount + napszám + percentilis + lenyomat + tartalom-hash.</summary>
         private const int FixedHeaderBytes = 8 + 4 + 4 + 8 + 8 + 8;
 
-        /// <summary>Egy cella bájtmérete: 20 double + 2 jégosztály + 1 felszíntípus.</summary>
-        private const int PerCellBytes = 20 * 8 + 3;
+        /// <summary>Egy cella bájtmérete: 20 hő/szél double + 1 jégmérleg double + 2 jégosztály + 1 felszíntípus.</summary>
+        private const int PerCellBytes = 21 * 8 + 3;
 
-        /// <summary>A tartalom fix farka: három küszöb, az átsorolt szám és a rövidzár-jelző.</summary>
-        private const int TrailerBytes = 3 * 8 + 4 + 1;
+        /// <summary>A tartalom fix farka: három küszöb, az átsorolt szám, rövidzár- és fizikai módjelző.</summary>
+        private const int TrailerBytes = 3 * 8 + 4 + 2;
 
         public static long ExpectedFileSize(int cellCount, int identityByteCount, int sampleDayCount) =>
             FixedHeaderBytes + 4 + identityByteCount + (long)sampleDayCount * 8
@@ -400,7 +407,7 @@ namespace WorldGen.Viewer.Lod
         private static void ValidatePayloadShape(int cellCount, Payload payload)
         {
             if (payload.IceFreeClass.Length != cellCount || payload.RefinedClass.Length != cellCount
-                || payload.RefinedKinds.Length != cellCount)
+                || payload.RefinedKinds.Length != cellCount || payload.IcePersistenceMarginK.Length != cellCount)
                 throw new ArgumentException("A per-cella tombok merete nem egyezik a cellaszammal.", nameof(payload));
             foreach (double[] array in payload.IceFree.All)
                 if (array.Length != cellCount)
@@ -427,6 +434,7 @@ namespace WorldGen.Viewer.Lod
 
             foreach (double[] array in payload.IceFree.All) WriteDoubles(body, ref offset, array);
             foreach (double[] array in payload.Refined.All) WriteDoubles(body, ref offset, array);
+            WriteDoubles(body, ref offset, payload.IcePersistenceMarginK);
             for (int c = 0; c < count; c++) body[offset++] = (byte)payload.IceFreeClass[c];
             for (int c = 0; c < count; c++) body[offset++] = (byte)payload.RefinedClass[c];
             for (int c = 0; c < count; c++) body[offset++] = (byte)payload.RefinedKinds[c];
@@ -436,6 +444,7 @@ namespace WorldGen.Viewer.Lod
             WriteUInt64(body, ref offset, (ulong)BitConverter.DoubleToInt64Bits(payload.SeasonalSnowThresholdK));
             WriteInt32(body, ref offset, payload.ReclassifiedCells);
             body[offset++] = payload.SecondPassSkipped ? (byte)1 : (byte)0;
+            body[offset++] = payload.UsesPhysicalIce ? (byte)1 : (byte)0;
             return body;
         }
 
@@ -464,6 +473,8 @@ namespace WorldGen.Viewer.Lod
             var refined = new AnnualArrays();
             foreach (double[] array in AllocateAll(iceFree, cellCount)) ReadDoubles(body, ref offset, array);
             foreach (double[] array in AllocateAll(refined, cellCount)) ReadDoubles(body, ref offset, array);
+            var margin = new double[cellCount];
+            ReadDoubles(body, ref offset, margin);
 
             var iceFreeClass = new LakesIceErosion.IceClass[cellCount];
             var refinedClass = new LakesIceErosion.IceClass[cellCount];
@@ -498,7 +509,9 @@ namespace WorldGen.Viewer.Lod
                 RefinedThresholdK = BitConverter.Int64BitsToDouble((long)ReadUInt64(body, ref offset)),
                 SeasonalSnowThresholdK = BitConverter.Int64BitsToDouble((long)ReadUInt64(body, ref offset)),
                 ReclassifiedCells = ReadInt32(body, ref offset),
-                SecondPassSkipped = body[offset] != 0,
+                SecondPassSkipped = body[offset++] != 0,
+                UsesPhysicalIce = body[offset++] != 0,
+                IcePersistenceMarginK = margin,
             };
             return true;
         }

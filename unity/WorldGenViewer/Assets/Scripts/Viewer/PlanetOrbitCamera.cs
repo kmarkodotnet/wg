@@ -144,7 +144,12 @@ namespace WorldGen.Viewer
         /// osszehasonlithato (pl. dot-szorzattal a "legkozelebbi kontinens"
         /// meghatarozasahoz).
         /// </summary>
-        public Vector3 CurrentViewDirection => Quaternion.Euler(_pitch, _yaw, 0f) * Vector3.back;
+        // A viewer Start-ja megelőzheti a kamera Start-ját: ekkor is a
+        // tényleges kezdő nézetet adjuk, ne a scene elavult transformját.
+        public Vector3 CurrentViewDirection => Quaternion.Euler(
+            _initialized ? _pitch : initialPitch,
+            _initialized ? _yaw : initialYaw, 0f) * Vector3.back;
+        private bool _initialized;
 
         private float _yaw;
         private float _pitch;
@@ -254,6 +259,7 @@ namespace WorldGen.Viewer
 
             _yaw = initialYaw;
             _pitch = initialPitch;
+            _initialized = true;
             ApplyTransform();
         }
 

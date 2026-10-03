@@ -144,13 +144,13 @@ public class TemperaturePurityTests
 public class TemperatureEdgeCaseTests
 {
     [Fact]
-    public void OceanicAlbedoGivesDifferentResultThanLand()
+    public void RadiativePlanetaryAlbedoIsIndependentOfSurfaceKind()
     {
         double ocean = Temperature.TemperatureKelvin(
             1.0, 0.0, 0.0, 0.0, 365.25, 1.0, 0.4, isOceanic: true, elevationM: 0.0, seaLevelM: 0.0);
         double land = Temperature.TemperatureKelvin(
             1.0, 0.0, 0.0, 0.0, 365.25, 1.0, 0.4, isOceanic: false, elevationM: 0.0, seaLevelM: 0.0);
-        Assert.NotEqual(ocean, land);
+        Assert.Equal(ocean, land);
     }
 
     [Fact]

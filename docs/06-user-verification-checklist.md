@@ -1,5 +1,32 @@
 # Felhasználói ellenőrzési lista
 
+## A8 — új folyóellenőrzés (2026-10-03)
+
+**2026-10-03:** a felhasználó újra tesztelt, a folyó továbbra sem látszott
+közel és messziről. Ez elutasítás, nem a halasztás folytatása. ND-181:
+korai, kamera felőli áttekintés, 4 pixel minimum és éjszakai térképi szín.
+Új kézi elfogadás még szükséges a javítás után.
+
+A korábbi halasztás történeti állapot. ND-185: külön HDRP folyóshader;
+a korábbi puszta képkülönbség félrevezető volt, sötétedést is számolt.
+A saját shaderrel tényleges kék vonal látszik a natív Unity-képeken.
+A korai 1 km-es áttekintést a kész, eredeti 50 m-es hálózat váltja fel.
+A tartós áttekintés kerülő megoldását (ND-184) visszavontuk.
+
+- Play újraindítás a shader-/script-fordítás után. „Folyók” bekapcsolva;
+  a kezdőnézeten, éjjel is legyen kék jelölés, majd nőjön az ágdarabszám.
+- Zoomolj ki az eredeti bolygónézetnél messzebbre: az áttekintés maradjon
+  olvasható. A finom számláló kész állapotánál se tűnjön el a hálózat;
+  az első sor ekkor „finom hálózat”-ra vált, a folyó továbbra is látható.
+- Távoli és közeli nézet: folyók láthatósága, szalagforma, összefolyások,
+  tavak/torkolatok kapcsolata, felszínkövetés zoomkor.
+- Deep-time váltás: az új állapot megjelenik, nincs piros kivétel.
+- A kezdőnézet közepén nagy az óceán: a szárazföldi partok és hegyvidékek
+  felé fordulva keresd a kék vonalakat. Az alak, összefolyások és torkolatok
+  modellhibái (ND-180 / B3) külön nyitottak; a shader ezeket nem javítja.
+- Visszajelzés: látszik-e az első vonal, megmarad-e a finom számítás végén,
+  és olvasható-e az eredeti távolság kb. kétszereséről; van-e piros hiba.
+
 ## A19 — a domborzat együtt mozog a lemezzel (ND-136, 2026-09-26)
 
 **Mi változott:** deep-time-ban eddig csak a lemez-magok mozogtak, a

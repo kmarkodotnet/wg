@@ -103,3 +103,18 @@ jobs:
           diff snow_melt_vectors.json ../../tests/WorldGen.Core.Tests/testdata/snow_melt_vectors.json
           python thermal_melt_exposure_ref.py
           diff thermal_melt_exposure_vectors.json ../../tests/WorldGen.Core.Tests/testdata/thermal_melt_exposure_vectors.json
+      - name: Szezonalis energiamerleg es fizikai jeg oracle (ND-174/175)
+        working-directory: tools/reference
+        run: |
+          for name in periodic_heat_balance seasonal_energy_balance physical_ice_budget seasonal_coupled; do
+            python "${name}_ref.py"
+            diff "${name}_vectors.json" "../../tests/WorldGen.Core.Tests/testdata/${name}_vectors.json"
+          done
+      - name: Analitikus bolygoalbedo es fogyasztoi oracle (ND-165)
+        working-directory: tools/reference
+        run: |
+          for name in temperature wind_precipitation moisture_transport lakes_ice_erosion regolith; do
+            python "${name}_ref.py"
+            diff "${name}_vectors.json" "../../tests/WorldGen.Core.Tests/testdata/${name}_vectors.json"
+          done
+          diff temperature_full_vectors.json ../../tests/WorldGen.Core.Tests/testdata/temperature_full_vectors.json

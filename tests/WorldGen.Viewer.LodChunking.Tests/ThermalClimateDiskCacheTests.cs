@@ -44,7 +44,7 @@ public class ThermalClimateDiskCacheTests
     {
         (DenseGridMetrics grid, SurfaceThermalKind[] kinds, double[] elevation) = World();
         return ThermalClimateCalculator.Compute(grid, kinds, elevation, 0.0, Seed, 0.0, Orbit,
-            sampleDays: 4, permanentIcePercentile: percentile, includeRefinedWind: includeWind);
+            parameters: includeWind ? ThermalModelParameters.Default : ThermalModelParameters.Legacy, sampleDays: 4, permanentIcePercentile: percentile, includeRefinedWind: includeWind);
     }
 
     private static ThermalClimateDiskCache.Key KeyFor(SurfaceTemperatureField field, double? percentile = 0.07)
@@ -98,6 +98,8 @@ public class ThermalClimateDiskCacheTests
             Assert.Equal(climate.IceFreeClass[c], loaded.IceFreeClass[c]);
             Assert.Equal(climate.RefinedClass[c], loaded.RefinedClass[c]);
             Assert.Equal(climate.RefinedKinds[c], loaded.RefinedKinds[c]);
+            Assert.True(loaded.UsesPhysicalIce);
+            Assert.Equal(climate.RefinedPhysicalIce!.PersistenceMarginK[c], loaded.IcePersistenceMarginK[c]);
         }
         Assert.Equal(climate.RefinedThresholds.PermanentIceMeanK, loaded!.RefinedThresholdK);
         Assert.Equal(climate.IceFreeThresholds.PermanentIceMeanK, loaded.IceFreeThresholdK);
@@ -158,7 +160,7 @@ public class ThermalClimateDiskCacheTests
 
         // EZ A LÉNYEG: egy numerikus paraméter-változás megváltoztatja a
         // lenyomatot, tehát a cache nem tölthet be másik modellel írt fájlt.
-        SurfaceTemperatureField tweaked = Field(new ThermalModelParameters(radiativeSmoothing: 0.25));
+        SurfaceTemperatureField tweaked = Field(new ThermalModelParameters(solarConstant: 1300));
         Assert.NotEqual(ThermalClimateDiskCache.ComputeSolverFingerprint(a, 0),
             ThermalClimateDiskCache.ComputeSolverFingerprint(tweaked, 0));
     }
@@ -170,7 +172,7 @@ public class ThermalClimateDiskCacheTests
         ThermalClimateDiskCache.Key key = KeyFor(field);
         byte[] bytes = Written(key, ThermalClimateDiskCache.Payload.From(Climate()));
 
-        SurfaceTemperatureField other = Field(new ThermalModelParameters(radiativeSmoothing: 0.25));
+        SurfaceTemperatureField other = Field(new ThermalModelParameters(solarConstant: 1300));
         ThermalClimateDiskCache.Key otherKey = KeyFor(other);
         Assert.Null(Read(bytes, otherKey, out string? reason));
         Assert.Equal("algoritmus-elteres (solver-lenyomat)", reason);
@@ -270,7 +272,7 @@ public class ThermalClimateDiskCacheTests
         Assert.Equal(name, KeyFor(Field()).ToFileName());
         Assert.True(ThermalClimateDiskCache.IsCurrentFormatFileName(name));
         Assert.NotEqual(name, KeyFor(field, 0.10).ToFileName());
-        Assert.NotEqual(name, KeyFor(Field(new ThermalModelParameters(radiativeSmoothing: 0.25))).ToFileName());
+        Assert.NotEqual(name, KeyFor(Field(new ThermalModelParameters(solarConstant: 1300))).ToFileName());
 
         Assert.False(ThermalClimateDiskCache.IsCurrentFormatFileName("climate_k0_old.bin"));
         Assert.False(ThermalClimateDiskCache.IsCurrentFormatFileName(name + ".tmp"));

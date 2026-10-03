@@ -1,5 +1,50 @@
 # Milestone-terv
 
+**2026-10-03 / A8, ND-181/185:** korai Core-áttekintés, külön HDRP
+folyójelölő shader; az eredeti 50 m-es finom hálózat kéken látható a natív
+alap-, távoli és közeli képen. A korábbi abszolút RGB-eltérés nem bizonyított
+látható folyót, az arra épülő következtetéseket visszavontuk.
+**Súlyozott durva A8-becslés ~80%**, kézi átvétel és kontrollált profil
+nyitott; B3 természetes hálózat / ND-180 modelljavítás külön hátra.
+[Aktuális napló és durva órabecslések](../history/2026-10-03-a8-hdrp-river-visibility.md).
+
+**2026-10-02 / A8, ND-179:** bitazonos modellút, korlátos mesh-feltöltés;
+teljes Unity Play 47 résszel, upload maximum 1,9 ms, publikáció 0,2 ms,
+két natív erőforrás-/geometriateszt PASS. Durván **80–85%**; kontrollált
+memória/GPU/deep-time és későbbre halasztott kézi átvétel hátra.
+**B3 / ND-180:** igazolt többkilométeres összefolyási ugrás és durva
+escape-út, numerikus modelljavítás nyitott.
+[Mérések és durva ráfordításbecslések](../history/2026-10-02-a8-chunked-upload-and-model-diagnosis.md).
+
+**2026-10-02, új A8-visszajelzés:** az ND-177 megjelenítési javítás
+elutasítva, a folyók láthatósága hibás volt. ND-178 minimumszélesség javítás
+és új közeli/távoli Unity-képpár ellenőrizve. A8 továbbra is nyitott, a korábbi ~80% becslés
+nem jelenti a folyómegjelenítés elfogadását.
+[Új láthatósági ellenőrzés](../history/2026-10-02-a8-river-visibility.md).
+
+**2026-10-02, M7/M9 / A8 (ND-177):** a felhasználó által elutasított
+lépcsős folyó-előnézet megszűnt; a kanonikus finom ágak progresszíven
+jelennek meg. Közös víz-shader, kisebb megjelenítési szalagszélesség és
+valódi kész-jelző. Teljes 96 ágú hash-egyezés, **1999/1999 Release**
+regresszió, két teljes Unity Play-menet és nappali HDRP-kép. **A8 ~80%**,
+nem lezárt: új felhasználói képi átvétel és kontrollált teljesítmény,
+memória, gyors deep-time váltás még hátra. E kör durván **3–5 emberóra**,
+fennmaradó kapuk **4–8 óra durva becslés**, új hibajavítás nélkül.
+[Javítás és bizonyíték](../history/2026-10-02-a8-progressive-fine-rivers.md).
+
+**2026-10-02, M5 / A24 lezárva (ND-165/174/175):** az aktív modell periodikus
+szezonális energiamérleget és fizikai hó/fagyási besorolást használ, percentilis
+nélkül. A viewer és a cache a külön jégmérlegjelet kapja; a többi fogyasztó
+valódi hőmérsékletet. Az analitikus bolygó-albedó javítva. Generátor 8,
+hőmodell 6. **1995/1995 teljes regresszió + 1/1 külön L6 jéghatárteszt Debug és Release**, KAT 9/9, referencia-byte-egyezés.
+Tényleges Unity Play és HDRP-kép ellenőrizve külön jelenetmásolaton; hideg és
+meleg cache is működik. **A24 100%**, a rögzített modellhatárokon belül;
+a teljes M5 és a külön teljesítmény/látvány-backlog ettől nem lesz 100%.
+Durva ráfordításbecslés erre a körre **12–20 emberóra**, A24 hátra **0 óra**.
+[Lezárási napló és modellhatárok](../history/2026-10-02-a24-seasonal-physical-ice.md).
+Az alábbi A24-bekezdések történeti állapotok.
+
+
 **2026-10-02, M5 / A24 nyári okfeltárás (ND-173):** a legmelegebb
 szárazföldi jégcella +39,8539 °C-os napi levegőátlagából a bázis
 +39,8694 °C, az anomália −0,015473 K. Az állandó éves transzport

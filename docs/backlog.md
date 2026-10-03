@@ -1,8 +1,37 @@
 # Backlog — hátralévő feladatok mérföldkövenként
 
+**2026-10-03 / A8, ND-181/185:** a felhasználó újratesztelt és újra
+elutasította a láthatóságot; a korábbi halasztás lezárult. Saját HDRP
+folyóshaderrel valódi kék vonal látszik a normál, távoli és közeli natív
+képen, a kész finom hálózat átvétele megmarad. A puszta RGB-különbségre
+épülő korábbi vizuális bizonyíték nem érvényes. Új kézi átvétel, teljesítmény,
+memória és deep-time profil hátra; B3 / ND-180 modellhibái nyitottak.
+[Aktuális javítási napló](../history/2026-10-03-a8-hdrp-river-visibility.md).
+
+**2026-10-02 / ND-179–180:** folyómesh részenkénti feltöltése és atomikus
+publikációja elkészült; teljes Unity-menetben 1,9 ms legnagyobb upload-szelet.
+Az összefolyások közelségvizsgálatának hiánya és a durva escape modellhiba
+igazolva; numerikus javítási döntés nyitott. Kézi teszt felhasználói kérésre
+később, emlékeztető a következő összevont átadásnál.
+[Napló](../history/2026-10-02-a8-chunked-upload-and-model-diagnosis.md).
+
+**2026-10-02, A8 / ND-178:** a felhasználó az ND-177 javítását is
+elutasította: a folyók nem láthatók. A szubpixeles szalaghoz képernyőbeli
+minimumszélesség elkészült; közeli/távoli Unity-képpár ellenőrizve.
+A vizuális kapu nyitott; a korábbi műszaki PASS nem látványelfogadás.
+[Ellenőrzés és korlátok](../history/2026-10-02-a8-river-visibility.md).
+
+**2026-10-02, A8 / ND-177:** a rácsos folyó-előnézet helyett már kész,
+kanonikus finom ágak jelennek meg progresszíven. Műszaki regresszió és
+két Unity Play-menet zöld; a felhasználói új képátvétel, kontrollált
+frame-/memóriaprofil és gyors deep-time váltás továbbra is nyitott.
+[Javítási napló](../history/2026-10-02-a8-progressive-fine-rivers.md).
+
 > **2026-09-21 óta TÖRTÉNETI.** A „mi van hátra" kérdésre a [`../todo2.md`](../todo2.md)
 > válaszol (ellenőrzött állapottal); ez a lap a teljes, mérföldkő szerinti napló
 > és a kidolgozott tervek (hőmérséklet-overlay, navigációs menü, hegységek) forrása.
+
+**2026-10-02:** A24 lezárva: szezonális energiamérleg, fizikai hó/fagyási feltétel, viewer/cache bekötés és analitikus albedójavítás. 1995/1995 teljes regresszió és 1/1 külön L6 jéghatárteszt Debug/Release, tényleges Unity Play/HDRP ellenőrzés. [Mérések és modellhatárok](../history/2026-10-02-a24-seasonal-physical-ice.md).
 
 ## Aktív sorrend — felhasználói döntés, 2026-09-11
 

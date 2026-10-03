@@ -25,6 +25,8 @@ namespace WorldGen.Core.Persistence
         // vonatkoztatási rendszerében értékelődik ki, tehát együtt vándorol
         // a kéreggel.
         // Előzmény — ND-142: a pillanatnyi levegőanomália visszahat a termikus szélre.
-        public const string Current = "7";
+        // ND-165/174/175: analitikus bolygó-albedó, periodikus szezonális energiamérleg
+        // és fizikai hó/jégbesorolás.
+        public const string Current = "8";
     }
 }

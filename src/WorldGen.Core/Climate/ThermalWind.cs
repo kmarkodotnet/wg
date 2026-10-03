@@ -38,6 +38,8 @@ namespace WorldGen.Core.Climate
         private readonly ThermalOrbit _orbit;
         private readonly ThermalModelParameters _parameters;
         private readonly double[]? _annualCorrectionK;
+        private readonly SeasonalEnergyBalance? _seasonal;
+        private readonly double[] _zeroAnomaly;
         private readonly double _coriolisSin, _coriolisCos;
 
         // Pontonként (élközép, majd cellaközép): kelet, észak, a négy
@@ -50,7 +52,7 @@ namespace WorldGen.Core.Climate
 
         public ThermalWind(DenseGridMetrics grid, SurfaceThermalKind[] kinds, double[] elevationM,
             double seaLevelM, ThermalOrbit orbit, ThermalModelParameters? parameters = null,
-            double[]? annualCorrectionK = null)
+            double[]? annualCorrectionK = null, SeasonalEnergyBalance? seasonal = null)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _kinds = kinds ?? throw new ArgumentNullException(nameof(kinds));
@@ -60,9 +62,11 @@ namespace WorldGen.Core.Climate
             _seaLevelM = seaLevelM;
             _orbit = orbit;
             _parameters = parameters ?? ThermalModelParameters.Default;
+            _seasonal = seasonal;
+            _zeroAnomaly = new double[grid.CellCount];
             if (annualCorrectionK != null && annualCorrectionK.Length != grid.CellCount)
                 throw new ArgumentException("Az éves korrekció cellaszáma eltér.", nameof(annualCorrectionK));
-            _annualCorrectionK = annualCorrectionK == null ? null : (double[])annualCorrectionK.Clone();
+            _annualCorrectionK = annualCorrectionK == null || seasonal != null ? null : (double[])annualCorrectionK.Clone();
             DeterministicMath.SinCos(WindPrecipitation.CoriolisDeflectionDeg * Math.PI / 180.0, out _coriolisSin, out _coriolisCos);
             _edgeA = new double[grid.EdgeCount];
             _edgeB = new double[grid.EdgeCount];
@@ -192,6 +196,11 @@ namespace WorldGen.Core.Climate
         /// <summary>A <paramref name="day"/> napi snapshot: élnormál-sebesség és cella-szélsebesség.</summary>
         public void EvaluateDay(long day, double[] edgeVelocity, double[] cellSpeed)
         {
+            if (_seasonal != null)
+            {
+                SampleCoupled(checked(day * SimulationTime.SecondsPerDay), _zeroAnomaly, edgeVelocity, cellSpeed);
+                return;
+            }
             if (edgeVelocity == null || cellSpeed == null
                 || edgeVelocity.Length != _grid.EdgeCount || cellSpeed.Length != _grid.CellCount)
                 throw new ArgumentException("A kimeneti tömbök mérete az él- és cellaszámmal egyezzen.");
@@ -215,6 +224,11 @@ namespace WorldGen.Core.Climate
         /// <summary>Élsebesség és cella-szélsebesség a két szomszédos napi snapshot között interpolálva.</summary>
         public void Sample(long seconds, double[] edgeVelocity, double[] cellSpeed)
         {
+            if (_seasonal != null)
+            {
+                SampleCoupled(seconds, _zeroAnomaly, edgeVelocity, cellSpeed);
+                return;
+            }
             if (edgeVelocity == null || cellSpeed == null
                 || edgeVelocity.Length != _grid.EdgeCount || cellSpeed.Length != _grid.CellCount)
                 throw new ArgumentException("A kimeneti tömbök mérete az él- és cellaszámmal egyezzen.");

@@ -117,6 +117,11 @@ namespace WorldGen.Core.Climate
             WriteFiniteDouble(stream, p.MinExchangeWindMs);
             WriteFiniteDouble(stream, p.RadiativeSmoothing);
             WriteFiniteDouble(stream, p.AirFeedbackStrength);
+            if (p.UseSeasonalEnergyBalance)
+            {
+                WriteString(stream, "ND-174-seasonal-energy-balance");
+                WriteUInt64(stream, (ulong)p.SeasonalPhases);
+            }
             // ND-160: a BÁZIS albedója is az azonosító része. Két érték elég,
             // mert mindhárom módot szétválasztja (bolygó: 0,30/0,30; legacy:
             // 0,06/0,30; explicit a: a/a) — nélküle egy A/B-mérés némán

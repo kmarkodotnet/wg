@@ -10136,6 +10136,68 @@ a periodikus állapot determinisztikus előállítása. A napi egyensúlyi
 kontroll nem kerül automatikusan a viewerbe. Az aktív átállás későbbi
 numerikus döntést, Python-orákulumot és verzióemelést igényel.
 
+### ND-174 — A24 periodikus szezonális energiamérleg (LEZÁRVA)
+
+**Dátum:** 2026-10-02. Az ND-173 után az aktív bázis a teljes szezonális
+hőmérsékletre felírt lineáris energiamérlegre áll át:
+`C dT/dt = S(t)(1−a) − A − B T + P(T)/terület + B(ciklus−Γh)`.
+Itt T Celsiusban, C J/(m² K), a fluxusok W/m²-ben értendők. C a felszín
+és a modellezett levegőoszlop hőkapacitásának összege. A változó bázishoz
+nem adódik újra éves, állandó transzportkorrekció vagy +33 K üvegháztag.
+
+Sugárzási kiindulás: [climlab EBM forrás](https://climlab.readthedocs.io/en/stable/_modules/climlab/model/ebm.html),
+A=210 W/m²; B az ND-168-ban rögzített 2,09 W/(m² K); D=0,555 W/(m² K).
+A jégmentes bolygó-albedó `0,30 + 0,078 P₂(sin szélesség)`, a jeges
+bolygó-albedó 0,62. Ezek effektív légkör-tető albedók, nem a napi solver
+felszíni albedói. A beérkező sugárzás a meglévő determinisztikus pályából
+származik. A régi β-simítás az új bázisban nem helyettesít hőtárolást.
+
+A periodikus évet egyenletes fázisokra bontjuk, visszalépő Euler időalakkal.
+A ciklikus időrendszert diszkrét Fourier-felbontás diagonalizálja; minden
+harmonikusra ugyanaz a konzervatív rácsoperátor és a komplex tárolási tag
+oldandó meg. Így nincs kezdeti év vagy seed-/lekérdezéssorrend-függő spin-up.
+A Python-referencia, analitikus egy-/kétcellás KAT, energiamérleg-maradék,
+fáziskésés, időfelbontás-vizsgálat és C#-vektorteszt előzi meg az aktiválást.
+A szél a megoldott szezonális mező gradiensét kapja.
+
+A jégbesorolásból megszűnik az előírt percentilis. A szárazföldi hó és a
+tengeri jég feltétele külön döntési/tesztkaput kap az új hőmező mérése után.
+Aktiváláskor generátor 7→8, hőmodell 5→6; a régi csomagok/checkpointok
+explicit verzióhibával, a viewer-cache-ek új identitással kezelendők.
+
+### ND-175 — A24 fizikai hó/jégbesorolás, percentilis nélkül (LEZÁRVA)
+
+**Dátum:** 2026-10-02. Szárazföldön a tartós jég éghajlati feltétele az
+éves havazás és a pozitív foknapból számított potenciális hóolvadás pozitív
+egyenlege. Ez felhalmozódási hajlam, nem jégvastagság vagy gleccseráramlás.
+A havazás aránya 0 °C alatt 1, +2 °C felett 0, közte lineáris; az ND-172
+hóolvadási tényezője 0,003 m vízegyenérték/(K·nap). Az évfázisokban a
+szezonális levegőbázis az input, a napi ingadozás alatti olvadást ez a
+klimatológiai közelítés nem oldja fel. A 24/48/96 fázisfinomítás tesztje és az L3 48/96 mérés elkészült.
+
+A csapadék térbeli eloszlását a meglévő nedvességtranszport adja, az adott
+menet éves hőmérsékletéből és szeléből. Külön, explicit kalibráció alakítja
+m vízegyenérték/év értékké: a teljes bolygó területi átlaga 0,97 m/év,
+nulla proxyforrás esetén mindenütt nulla. Kiindulás a [NASA vízkörforgási
+összefoglaló](https://science.nasa.gov/earth/earth-observatory/the-water-cycle/)
+495000 km³/év fluxusa a Föld ~510 millió km² felszínére vetítve.
+Ez földszerű referencia-paraméter, nem mért bolygóadat. Az éven belüli
+csapadék egyenletes; a hó/rain megoszlás követi az évszakos hőt.
+A korábbi dimenzió nélküli csapadékot nem címkézzük át visszamenőleg.
+
+Vízen külön, konzervatív termikus feltétel: tartós fagyási potenciál akkor
+van, ha a legmelegebb évfázis is a fagyáspont alatt marad (tenger −1,8 °C,
+édesvíz 0 °C). Ez nem tengerijég-vastagságmodell. A befagyott tengeri cella
+évszakos hőkapacitása megtartja az alatta levő óceáni réteget.
+
+A két rögzített A/B menet marad. A maszkhoz külön, **K egységű
+jégfennmaradási mérlegjel** készül: szárazföldön
+`(olvadási potenciál−havazás)/(olvadási tényező × év napjai)`, vízen
+`legmelegebb fázis−fagyáspont`. Negatív jel tartós jeget jelent.
+Ez nem hőmérséklet; a viewer hő/párolgás/talaj panelje továbbra is a valódi
+hőmezőt olvassa. Cache és render bemenet külön mezőben viszi a jelet.
+Nincs előírt jégarány, és egy meleg/száraz világ jogosan lehet jégmentes.
+
 ### A többi nyitott döntés
 
 | ID | Kérdés | Javaslat | Mikor |
@@ -10156,3 +10218,237 @@ numerikus döntést, Python-orákulumot és verzióemelést igényel.
 | ND-17 | Denoise strength plafon | 0.35, elevation-korrelációs teszttel | ND-13 után |
 | ND-18 | Erózió cél-LOD | 12 | M7 |
 | ND-22 | Core assembly-izoláció | netstandard2.1, nulla motor-referencia | **Érvényben** |
+
+### ND-165 végrehajtási döntés — 2026-10-02
+
+Az (1) opció végrehajtása: a két analitikus radiatív képlet bolygó-albedót
+használ, mert a hozzáadott üvegház-tag erre a mérlegre van kalibrálva.
+A felszíni albedó a hőmodell napi felszíni fluxusában marad. Az analitikus
+mező gyors előnézet és történeti összehasonlítás; a kész éghajlat jégmaszkját
+az ND-174/175 energiamérlege adja. A generátor 8-as verziója ezt is lefedi.
+A Python referencia és a belőle újragenerált vektorok előzik meg a C# portot.
+Az előnézet óceáni hűlése tudatos, nem a régi túlmelegedéshez igazított küszöb.
+
+### ND-174/175 kiegészítés — numerikus és fogyasztói szerződés
+
+A COCG komplex bilineáris szorzata nem nulla reziduumnál is degenerálódhat;
+a rövid évű L1-es teszt ezt ténylegesen előidézte. A Python/C# megoldó
+ilyenkor nulláról induló Jacobi-tartalékutat használ, legfeljebb 8192 lépéssel.
+A rendszer szigorúan diagonáldomináns; az elfogadást továbbra is a teljes,
+függetlenül újraszámolt fizikai reziduum dönti el. A relatív leállási kapu
+mellett 1e-11 W/m² abszolút kapu védi a közel nulla Fourier-forrást.
+
+A deep-time globális hőeltolás a szezonális forcing része, a viewer nem
+adja hozzá ismét. A cache WGTC0003 / climate_k3 külön tárolja a jég
+fennmaradási jelét és a fizikai mód jelzőjét. A jel nem hőmérséklet:
+a regolit, párolgás és biome hőtengelye valódi K értéket kap. A fizikai
+jégmaszkra nincs dekoratív határzaj; a hideg, de száraz cella nem válhat
+jéggé a biome abszolút hőmérsékleti fallbackjén. A csapadék-adapter kizárólag
+az igazolt, 1e-12 alatti negatív kerekítési maradékot képezi nullára.
+
+
+**2026-10-02 lezárás (ND-165/174/175):** a teljes A24 implementálva és ellenőrizve; 1995/1995 teljes regresszió és 1/1 külön L6 jéghatárteszt Debug/Release, Python KAT és byte-reprodukció, tényleges Unity Play / hideg és meleg cache / HDRP-kép. A modellhatárok és mérések: [A24 lezárási napló](../history/2026-10-02-a24-seasonal-physical-ice.md). Az ND-165 fenti nyitott állapota történeti; az (1) opció elkészült. A csapadék 0,97 m/365,25 nap referencia, más évhosszhoz időarányosan skálázva.
+
+### ND-176 — Klímaazonosság ellenőrzése a Build fogyasztói előtt (HIBAJAVÍTÁS)
+
+2026-10-02, A8 élő átvétel: a Build 63 hiányzó tile-kulcs hibát jelzett.
+A fizikai jégjel teljes rácsú; a `MeanSurfaceK` csak szárazföldi térkép,
+a `SurfaceAllK` viszont minden cella valódi éves felszíni hőmérséklete.
+A fizikai adapter ez utóbbit olvassa. A klímabemenet azonosítóját a
+hidrológia után, a jég/biome/regolit fogyasztása ELŐTT ellenőrizzük.
+Korábban az ellenőrzés a Build későbbi részében volt: más időpont vagy
+rácsszint kezdetben a régi klíma revízióját érvényesnek láthatta.
+Eltérő világnál a régi adat érvénytelen, az analitikus előnézet fut,
+majd az új klíma egyszer kér teljes újraépítést. Ez viewer-életciklus és
+adapterjavítás; Core-numerika, random és generátorverzió nem változik.
+A folyóhálózat vizuális átvétele továbbra is elutasított/nyitott.
+
+Ellenőrzés: offline viewer Release fordítás és tényleges Unity batch
+Build-regresszió külön projektmásolaton zöld (L5/0 → L4/22 Myr, régi
+fizikai klímával). A felhasználói Play-jelenet és a folyólátvány új
+ellenőrzése ettől még hátra van.
+
+### ND-185 — Saját HDRP folyójelölő shader és képi elfogadás
+
+2026-10-03. A natív képpárok kézi ellenőrzése cáfolta a korábbi automatikus
+„látható pixel” értelmezést: a bekapcsolt folyó sötétedést is okozott,
+nem kék vonalat. A puszta abszolút RGB-különbség ezért nem megfelelő kapu.
+A ND-181/184 képi elfogadási állításai addig nem érvényesek, amíg tényleges
+kék, keskeny vonalat nem látunk. Külön `WorldGen/RiverOverlay` shader,
+külön saját anyag: HDRP ForwardOnly, késői rajzolás, ZWrite Off,
+ZTest LEqual, állandó kategória-kék (nem napfényfüggő). A szélesség a
+modell vízhozamsúlyából és minimum 4 képernyőpixelből következik.
+A régi közös víz-/terepshader folyókra bevezetett UV1-szélesítése és
+fragment-jelölése megszűnik, így nem befolyásolhatja a többi réteget.
+A shader Always Included beállítást kap a runtime `Shader.Find` miatt.
+A Core útadata változatlan. Kapu: a kék vonal valóban látszik a normál és
+távoli kamerában; sötétedés vagy csillagzaj nem számít találatnak.
+
+Ellenőrzés: teljes natív Play PASS; kész finom hálózat alap/távoli/közeli
+képen 449 / 374 / 25 912 kék pixel, kézi képi ellenőrzéssel. Négy natív
+EditMode eset PASS; viewer Release 0 hiba. Felhasználói átvétel és B3
+nyitott. [Napló](../history/2026-10-03-a8-hdrp-river-visibility.md).
+
+### ND-184 — Tartós folyó-áttekintés (ELUTASÍTVA, ND-185 kiváltja)
+
+2026-10-03. Kísérlet: a finom számítás után is az 1 km-es áttekintést
+megtartani, a kanonikus 50 m-es adatot külön tárolva. A javaslat hibás
+képi mérésből következett: az abszolút RGB-eltérés sötétedést is sikernek
+számolt. Az ND-185 shaderével az eredeti finom hálózat valódi kék vonala
+is megjelenik alap-, távoli és közeli nézetben. Ezért a kerülő megoldás
+visszavonva: a teljes finom adat elkészültekor átveszi az áttekintés helyét,
+a panel „finom hálózat”-ra vált. A Core bemenete változatlan.
+
+### ND-183 — Viewer követési paraméterek változtatása (ELUTASÍTVA)
+
+2026-10-03. A kanonikus 1000 m / fineDepth=4 próba 202, az
+1000 m / fineDepth=8 próba 108 eltérő belső bolygópixelt adott, miközben
+a kamera-prioritásos teljes áttekintés ~10 200-at. Ez abszolút RGB-eltérés,
+nem igazolt látható folyó; az ND-185 a korábbi értelmezést cáfolta.
+A kísérleti alapbeállítás és egyszeri migráció visszavonva;
+a végleges Core-kiértékelés bemenete továbbra is 50 m / fineDepth=4.
+Ez dokumentált, elutasított próbálkozás; nem modelljavítás.
+
+### ND-182 — Képernyőn szélesített folyószalag kétoldalas raszterezése (ELUTASÍTVA)
+
+2026-10-03. Az eredeti kamerás teljes menetben a finom hálózat abszolút
+RGB-eltérése jelentősen visszaesett az áttekintés után. Hipotézis: a néhány század
+pixelenként mintavételezett finom út a vertex-shaderben 4 pixelre szélesedik;
+fordulóknál a rasztertérbeli háromszög-bejárás megfordulhat, miközben a
+fizikai szalag háromszöge helyes. A folyó saját anyaga ezért `Cull Off`-ot
+kap; a közös shader többi anyaga marad `Cull Back`. A mélységteszt érvényes,
+a bolygó túloldala nem látszik át. A Core-út/width modell változatlan.
+Ugyanazon teljes finom mesh-en Back/Off képpár: 106 / 108 eltérő pixel
+a bolygó belső körén belül. Nem oldja meg az eltűnést, ezért a kísérleti
+anyag- és Cull-beállítás visszavonva. Az eltérés nem kékfolyó-bizonyíték
+(ND-185); a Cull mód önmagában nem javította a közös shader megjelenítését.
+[Unity ShaderLab Cull](https://docs.unity3d.com/6000.0/Documentation/Manual/SL-Cull.html).
+
+### ND-181 — Korai bolygószintű folyó-áttekintés és távoli láthatóság
+
+2026-10-03. Új felhasználói elutasítás: közel és messziről sincs folyó.
+A `PerfLog_20261003_001543.txt` csak egy publikált finom ágat tartalmaz,
+a teljes hálózat nem készült el. A korábbi célzott, folyó fölé helyezett
+kamerás kép ezért nem igazolja a szokásos kezdő bolygónézet használhatóságát.
+
+A négyworker-es munka előbb 1000 m lépésközzel futtatja ugyanazt a Core
+folytonos követőt (nem a korábbi TileId-középpontos lépcsős konvertert).
+1/4/6/16/48 és a teljes hálózat állapotában publikál; a hat kezdeti
+forrás a nagy vízgyűjtők kezdő körét fedi. Utána ugyanazon workerkerettel
+lefut az eredeti finom követés. Az áttekintés megmarad a teljes finom
+hálózat elkészültéig, hogy néhány finom ág ne tüntesse el a többi folyót.
+A panel külön áttekintési és finom ágszámot jelez; nem mutat hamis kész
+állapotot. Generáció- és megszakításvédelem mindkét fázisban kötelező.
+A finom eredmény számai és hash-e változatlanok, nincs seed-/verzióváltás.
+
+Az eredeti kamerás első geometriai ellenőrzésnél a 6 ág pontjai a kamera
+ellentétes félgömbjén voltak: a legnagyobb vízgyűjtők forrásai nem
+garantálnak kamera felőli ágat. A láthatóság shaderoldali bizonyítéka ND-185.
+Ezért kizárólag az áttekintés forrássorrendjét a kamera felőli félgömbre
+priorizáljuk (forrásirány · kamerahelyi irány, determinisztikus TileId tie).
+A finom követés az eredeti kanonikus forrássorrendet használja. Az áttekintés
+nem bitazonos végleges világadat, hanem felbontás-/nézetfüggő modellkiértékelés.
+
+A minimális teljes szalagszélesség 2 → 4 képernyőpixel, közelről a nagyobb
+vízhozamfüggő geometriai szélesség megmarad. A scene kezdőnézete nagyrészt
+éjszakai; a kapcsolható folyóvonal ezért térképi modelljelölésként saját
+kategóriaszínét adja, nem sötétedik a Nap szerint. A fizikailag árnyalt
+tó-/óceánfelszín változatlan, a folyó mélységtesztje megmarad (nincs
+bolygón átlátszó vonal). A kamera kezdeti irányát a kamera inicializációja
+előtt is helyesen kell olvasni; a scene transformja eltérhet a futó nézettől.
+Elfogadási ellenőrzés: a scene eredeti kamerája, valamint
+annál távolabbi bolygónézet; a kamera folyóra igazítása nem helyettesíti
+ezt. A teljes áttekintés többletköltségét és az első 6 ág idejét külön mérjük.
+
+### ND-180 — Folyóalak: igazolt modellhiba, numerikus javítási kapu (NYITOTT)
+
+2026-10-02. A teljes aktuális t=0 CLI-hálózat bitazonos A8-hash-sel:
+48 879,793 km összhossz, ebből **58,77%** a 75 méternél hosszabb éleken;
+a normál lépés 50 m. A lokális escape 2 / 2,828 km-es rácséleket fűz
+hozzá közvetlenül, nem finomítja tovább őket. Ez cáfolja az ND-49 korábbi
+általánosítását, hogy az escape-szakaszok a látvány szempontjából mindig
+ritkák és rövidek. A legnagyobb összefolyási záróél **24,113 km** (29. ág):
+a `source.Level + DefaultFineDepth` itt L9; a claimed térkép egy egész
+ilyen cellához az első befogadó pontot tárolja, valódi közelségvizsgálat
+nélkül. Ez a rövid/hamis összefolyások külön oka. A nyolc irányra korlátozott
+normál lejtés további iránykvantálást okoz.
+
+**Opciók:** (A) viewer-spline: nem javítja a fizikai út vagy a túl korai
+összefolyás hibáját, ezért elvetve; (B) csak kisebb escape-cellák: költség
+négyzetesen nő, az összefolyást és iránykvantálást nem javítja; (C) modellben
+valódi térbeli közelségvizsgálat + terephez kötött folytonos lejtésirány +
+vízszint-/medencehű escape-kezelés. Javasolt: C, külön Python-orákulummal,
+szintetikus sík/völgy/medence/közeli és távoli meder tesztekkel, majd C# port.
+Elfogadási kapu: nincs többkilométeres összefolyási teleport; hurokmentesség,
+torkolat-/tókapcsolat és minden platformon párhuzamos/szekvenciális egyezés.
+
+Szakmai kiindulópont, nem már implementált algoritmus:
+[Tarboton 1997](https://hydrology.usu.edu/dtarb/dinf.pdf) háromszögfacettekből
+vezet le folytonos lejtésirányt, csökkentve a D8 iránytorzítását;
+[Barnes et al. 2014](https://doi.org/10.1016/j.cageo.2013.04.024) a medencék
+kitöltését és lefolyási kezelését tárgyalja. A bolygó folytonos nyomkövetője
+külön adaptációt és validációt igényel.
+
+**Kompatibilitás:** C új numerikus folyóhálózatot adna, ezért A8 régi
+hash-ének megtartása nem célja; ez B3 modelljavítás. Aktiválás előtt a
+generátor 8 → 9 emelése, explicit régi-worldpkg elutasítás és cache-
+érvénytelenítés ellenőrzése kötelező. E bejegyzés diagnózis és terv:
+a futó Core továbbra is változatlan, nincs csendes numerikus csere.
+Bizonyíték: `artifacts/a8-geometry-current/t0-geometry.csv`.
+
+### ND-179 — Folyómesh korlátos feltöltése és atomikus cseréje
+
+2026-10-02. Az ND-178 valódi Unity-menetében a végleges mesh feltöltése
+51,1 ms volt: a CPU-előkészítés szeletelése után ez még egyetlen nagy
+Unity-hívássor. Legfeljebb 16 384 vertexes részeket építünk, a határon
+a valódi modellpontpárt megismételve. Egy képkocka egy részt tölt fel;
+az új gyökér inaktív marad, amíg minden része kész. A teljes aktuális
+generáció egyetlen gyökércserével publikálódik, utána a régi saját mesh-ek
+felszabadulnak. Megszakítás a még rejtett részeket is felszabadítja.
+Nincs Core-/seed-változás vagy spline-simítás; a szögletes modellút
+külön, méréssel alátámasztott numerikus döntést igényel. A kisebb részek
+több draw callt jelentenek; a feltöltési csúcsot és az új geometria
+azonosságát Unityben ellenőrizni kell, nem tekintjük előre perf-PASS-nak.
+
+### ND-178 — Folyószalag minimális képernyőbeli szélessége
+
+2026-10-02. A 0,008 egységnyi fél-szélesség bolygónézetben szubpixeles:
+a folyómesh megléte nem biztosít látható folyót. A viewer a valódi modellág
+középvonala körül legalább 2 pixel teljes szélességet rajzol. A nagyobb,
+vízhozamfüggő geometriai szélességet megtartja; közelről nincs további
+vastagítás. A középvonal és a mélységteszt változatlan, nincs új folyóág,
+dekoratív toldás vagy Core-/seed-változás. A szalag középpontját UV1-ben
+adjuk a közös víz-shadernek; csak a megjelölt folyóvertexek szélesednek,
+a tavak és óceánok nem. A világítás továbbra is a közös vízmodellé.
+A felhasználói láthatósági elfogadás nyitott; a korábbi kép nem elegendő.
+
+### ND-177 — Kanonikus finom folyóágak progresszív publikálása (A8)
+
+2026-10-02. A rácsközéppontokat követő ND-145 előnézet vizuálisan
+elutasítva. Helyette a finom nyomkövető már véglegesített ágai jelennek
+meg: a spekulatív követés párhuzamos marad, a claimed commit továbbra
+is szigorúan forrásindex szerinti. A követés és commit átfedhet, mert
+a spekulatív utak nem olvassák a claimed térképet. Egyetlen zárolás
+védi a kész eredmények publikálását és a kanonikus commitot.
+A callback csak teljes, kanonikusan csonkolt ágat kap; az ágaival együtt
+a befogadó korábbi ág is már kész. A viewer 1/4/16/48 ágnál kér részleges
+megjelenítést, majd a teljes hálózat zárja a folyamatot. A generáció- és
+megszakításvédelem minden részletre is érvényes. Nincs új random,
+numerikus döntés vagy végleges pontmódosítás; az eredmény bitazonosságát
+a szekvenciális orákulumhoz és a callback nélküli úthoz mérjük.
+Ez a lépcsős ELŐNÉZET javítása; a Pit-ágak fizikai értelmezését nem oldja
+meg. Az utóbbihoz külön mért modell-döntés szükséges, nem dekoratív
+vonaltoldás.
+
+**Megvalósítás és ellenőrzés:** a rácsos konverter törölve. A meglévő
+Rivers objektum is minden mesh-publikációnál a közös víz-shadert kapja,
+vertexszínnel; a HDRP/Lit külön expozíciós útja helyett ugyanazon a
+világítási úton fut, mint a többi víz. A fél-szélesség 0,08 → 0,008
+Unity-egység a kódban és a PlanetView scene-ben. Ez szimbolikus
+megjelenítési szélesség, nem fizikai mederszélesség-becslés. A panel a
+finom ágak valódi darabszámát és a számítás/kirajzolás/kész állapotát írja.
+A teljes 96 ágú szekvenciális és progresszív Core-hash azonos; a 11 Pit
+végpont mind megjelenített L8 tóra esik a mért alapvilágban. Két tényleges
+Unity Play-menet elkészült (96 ág, 25 összefolyás), nappali HDRP-kép is
+van. A felhasználói vizuális elfogadás, kontrollált frame-/memóriaprofil és
+gyors deep-time-váltás átvétele továbbra is külön kapu.

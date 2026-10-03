@@ -41,6 +41,8 @@ namespace WorldGen.Cli
             public double OceanDepthM = 10.0;
             public double LandDepthM = 0.5;
             public double MeridionalTransportScale = 1.0;
+            public bool SeasonalEnergyBalance = true;
+            public int SeasonalPhases = 48;
 
             /// <summary>
             /// ND-159: a vizsgalando radiativ simitasi (beta) ertekek. Ures
@@ -171,12 +173,15 @@ namespace WorldGen.Cli
             foreach (double beta in betas)
             {
                 var parameters = new ThermalModelParameters(radiativeSmoothing: beta,
+                    useSeasonalEnergyBalance: options.SeasonalEnergyBalance, seasonalPhases: options.SeasonalPhases,
                     oceanDepthM: options.OceanDepthM, landDepthM: options.LandDepthM,
                     meridionalTransportScale: options.MeridionalTransportScale,
                     baselineAlbedo: options.BaselineAlbedo,
                     legacySurfaceBaselineAlbedo: options.LegacySurfaceBaselineAlbedo);
                 bool isDefault = beta == ThermalModelParameters.Default.RadiativeSmoothing;
-                Console.WriteLine($"--- beta = {beta:0.###}{(isDefault ? "  (a mai alapérték)" : "")}, " +
+                if (options.SeasonalEnergyBalance)
+                    Console.WriteLine($"--- ND-174 periodikus energiamérleg, {options.SeasonalPhases} fázis; óceán {options.OceanDepthM} m, talaj {options.LandDepthM} m, transzportskála {options.MeridionalTransportScale} ---");
+                else Console.WriteLine($"--- beta = {beta:0.###}{(isDefault ? "  (a történeti alapérték)" : "")}, " +
                                   $"óceánmélység = {options.OceanDepthM:0.###} m, " +
                                   $"talajmélység = {options.LandDepthM:0.###} m" +
                                   $", meridionális skála = {options.MeridionalTransportScale:0.###}" +
@@ -208,6 +213,13 @@ namespace WorldGen.Cli
                                   $"levegő: [{Min(climate.Refined.MeanAirK) - 273.15:F1}, " +
                                   $"{Max(climate.Refined.MeanAirK) - 273.15:F1}] °C");
                 ReportPhysicalClimate(grid, climate);
+                if(climate.RefinedPhysicalIce != null)
+                {
+                    var ice=climate.RefinedPhysicalIce;
+                    double area=grid.Area.Sum();
+                    double precipitation=Enumerable.Range(0,grid.CellCount).Sum(c=>grid.Area[c]*ice.PrecipitationM[c])/area;
+                    Console.WriteLine($"  ND-174/175: fizikai hó/fagyási mérleg, csapadék területi átlag={precipitation:F4} m vízegyenérték/év; max szezonális maradék={ice.MaxSeasonalResidualWm2:E3} W/m²");
+                }
                 foreach (int exposureDays in options.MeltExposureDays)
                 {
                     var exposureField = new SurfaceTemperatureField(grid, climate.RefinedKinds.ToArray(),
@@ -241,11 +253,16 @@ namespace WorldGen.Cli
                             $"magasság={elevation[hottest] - seaLevel:F1} m, nap={exposure.WarmestSampleDay[hottest]}");
                         Console.WriteLine($"      napi Ta={exposure.WarmestSampleDayMeanAirK[hottest] - 273.15:F4} °C = " +
                             $"bázis {meanBase - 273.15:F4} °C + anomália {exposure.WarmestSampleDayMeanAirAnomalyK[hottest]:F6} K");
+                        if (baseline.Seasonal != null)
+                            Console.WriteLine($"      ND-174 periodikus energiamérleg: {baseline.Seasonal.PhaseCount} fázis, max maradék={baseline.Seasonal.MaxResidualWm2:E4} W/m²");
+                        else
+                        {
                         Console.WriteLine($"      bázis tagjai: radiatív={radiative:F4} K, üvegház={baseline.GreenhouseK:F4} K, " +
                             $"éves transzport={transport:F4} K, magasság={-altitude:F4} K, ciklus={baseline.CycleK:F4} K");
                         ReportDailyTransportControl(exposureField, hottest, exposure.WarmestSampleDay[hottest]);
                         ReportDailyTransportControl(exposureField, hottest,
                             (long)((exposure.WarmestSampleDay[hottest] + orbit.OrbitalPeriodDays / 2) % orbit.OrbitalPeriodDays));
+                        }
                     }
                 }
 
@@ -282,7 +299,9 @@ namespace WorldGen.Cli
                     if (legacyClass[c] == climate.RefinedClass[c]) agreeBeta++;
                 Console.WriteLine($"  egyezés a régi jégosztállyal: {agreeBeta}/{grid.CellCount} " +
                                   $"({100.0 * agreeBeta / grid.CellCount:F1}%)");
-                Console.WriteLine($"  HASZNÁLT tartós-jég küszöb: " +
+                if (climate.RefinedPhysicalIce != null)
+                    Console.WriteLine("  HASZNÁLT tartós-jég feltétel: negatív hó/fagyási mérlegjel; nincs percentilis.");
+                else Console.WriteLine($"  HASZNÁLT tartós-jég küszöb: " +
                                   $"{climate.RefinedThresholds.PermanentIceMeanK - 273.15:F2} °C " +
                                   (options.PermanentIcePercentile.HasValue
                                       ? $"(percentilis, q = {options.PermanentIcePercentile.Value:0.###})"
@@ -675,6 +694,8 @@ namespace WorldGen.Cli
             if (iceClass != null)
                 for (int c = 0; c < tileOf.Length; c++)
                 {
+                    result[c] = BiomeClassification.ClassifyWithIce(temperatureK[c], isOceanic[c],
+                        precip.Precipitation[tileOf[c]], thresholds, iceClass[c] == LakesIceErosion.IceClass.PermanentIce);
                     if (iceClass[c] == LakesIceErosion.IceClass.PermanentIce)
                         result[c] = isOceanic[c] ? Biome.SeaIce : Biome.IceSheet;
                     else if (snowTundra && !isOceanic[c]
@@ -883,6 +904,7 @@ namespace WorldGen.Cli
             // A korrigált változat SAJÁT percentilis-küszöböt kap, a finom
             // eloszlásából - különben a durva küszöböt mérnénk össze egy
             // másik eloszlással, és nem a módszert, hanem az eltolódást.
+            if (fine.RefinedPhysicalIce != null) return; // Fizikai jéghez a magassággal korrigált éves átlag nem elegendő.
             ThermalIceClassification.IceThresholds correctedThresholds = options.PermanentIcePercentile.HasValue
                 ? ThermalIceClassification.ComputeThresholds(correctedMean, options.PermanentIcePercentile.Value)
                 : ThermalIceClassification.IceThresholds.Absolute;
@@ -930,6 +952,11 @@ namespace WorldGen.Cli
             var field = new SurfaceTemperatureField(grid, climate.RefinedKinds.ToArray(), elevation, seaLevel,
                 options.Seed, options.TimeMyr * 1.0e6, orbit, parameters);
             ThermalBaseline baseline = field.Baseline;
+            if (baseline.Seasonal != null)
+            {
+                Console.WriteLine($"  Szezonális teljes energiamérleg: max maradék {baseline.Seasonal.MaxResidualWm2:E6} W/m²; az éves korrekció külön nem adódik a bázishoz.");
+                return;
+            }
             ReportTransportBalance(grid, baseline, parameters);
 
             // A bázis időfüggő (napi faktor), ezért a mintanapok déli

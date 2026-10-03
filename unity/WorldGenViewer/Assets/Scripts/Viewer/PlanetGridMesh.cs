@@ -248,7 +248,8 @@ namespace WorldGen.Viewer
                  "futó lejtő-követéssel a FORRÁSTÓL a TERMÉSZETES végállapotig (óceán/pit) " +
                  "rajzolja ki a nyomvonalat, mesterséges lépésszám-vágás nélkül. HÁTTÉR-SZÁLON " +
                  "fut (nem blokkolja a Build()-et) - mérve: 12 referencia-folyóra összesen " +
-                 "kb. 6-10s 50m-es lépésköznél. Kisebb érték = finomabb, de lassabb.")]
+                 "A korai áttekintés 1000 m-es követésből készül; utána a kész finom " +
+                 "hálózat jelenik meg. Kisebb érték = finomabb, de lassabb.")]
         private double riverRefinementStepMeters = 50.0;
 
         [SerializeField]
@@ -283,8 +284,9 @@ namespace WorldGen.Viewer
                  "FELHASZNÁLÓI VISSZAJELZÉS (2026-09-06): \"a folyó-vonal szélessége nem " +
                  "korrelál azzal, mennyi vizet szállít\" - korábban MINDEN folyó azonos " +
                  "vékony vonal volt (MeshTopology.Lines), most mesh-szalag, torkolat felé " +
-                 "szélesedő.")]
-        private float riverBaseHalfWidth = 0.08f;
+                 "szélesedő. ND-181: távolról minimum 4 pixel teljes szélesség, " +
+                 "hogy a folyó ne tűnjön el szubpixelként.")]
+        private float riverBaseHalfWidth = 0.008f;
 
         [Header("M7: Tavak + jég")]
         [SerializeField]
@@ -815,6 +817,8 @@ namespace WorldGen.Viewer
         // tenyleges PermanentIce-dontes leaf-szinten, zajjal perturbalva
         // tortenik (IsAdaptiveIceTile), hogy a partvonal ne legyen blokkos.
         private Dictionary<TileId, double> _adaptiveIceMeanK;
+        private bool _physicalIceActive;
+        private Dictionary<TileId, double> _physicalIceMarginK;
 
         /// <summary>
         /// ND-162: a tartos-jeg kuszob, amit a MOSTANI jegmezohoz hasznalni
@@ -1122,19 +1126,22 @@ namespace WorldGen.Viewer
         private List<TileId> _riverSourceCache;
         private Stopwatch _riverRefinementStopwatch;
         private const int RiverRefinementWorkerCount = 4;
-        private sealed class PendingCoarseRiverNetwork
+        private const double RiverOverviewStepMeters = 1000.0;
+
+        private sealed class PendingRiverNetwork
         {
             public int Generation;
             public List<RiverPathTracing.ContinuousRiverPath> Paths;
-            public Exception Error;
+            public int FineCompletedCount;
         }
-        private PendingCoarseRiverNetwork _pendingCoarseRiverNetwork;
+        private PendingRiverNetwork _pendingRiverNetwork;
         private bool _adaptiveRiverPathsArePreview;
+        private int _riverFineCompletedCount;
 
         private void CancelRiverRefinement()
         {
-            System.Threading.Interlocked.Exchange(ref _pendingCoarseRiverNetwork, null);
-            _pendingRiverMesh = null;
+            System.Threading.Interlocked.Exchange(ref _pendingRiverNetwork, null);
+            DiscardPendingRiverMesh();
             System.Threading.CancellationTokenSource cancellation = _riverRefinementCancellation;
             System.Threading.Tasks.Task<List<RiverPathTracing.ContinuousRiverPath>> task = _riverRefinementTask;
             if (cancellation != null)
@@ -1171,6 +1178,25 @@ namespace WorldGen.Viewer
                 return;
 
             var sourceSnapshot = new List<TileId>(sources);
+            var overviewSources = new List<TileId>(sources);
+            Camera riverCamera = GetAdaptiveCamera();
+            if (riverCamera != null)
+            {
+                PlanetOrbitCamera orbit = riverCamera.GetComponent<PlanetOrbitCamera>();
+                Vector3 cameraDirection = orbit != null
+                    ? transform.InverseTransformDirection(orbit.CurrentViewDirection).normalized
+                    : transform.InverseTransformPoint(riverCamera.transform.position).normalized;
+                double VisibilityScore(TileId tile)
+                {
+                    TileGeometry.ToPosition(tile, out double x, out double y, out double z);
+                    return Vector3.Dot(BodyFrameConversion.ToUnity(x, y, z), cameraDirection);
+                }
+                overviewSources.Sort((a, b) =>
+                {
+                    int order = VisibilityScore(b).CompareTo(VisibilityScore(a));
+                    return order != 0 ? order : a.Value.CompareTo(b.Value);
+                });
+            }
             double stepMeters = riverRefinementStepMeters;
             // ND-136 (A19): a nyomvonalkoveto UGYANAZT a lemez-keretes
             // domborzatot lassa, mint a megjelenitett mezo. Pillanatkep, mert
@@ -1188,40 +1214,60 @@ namespace WorldGen.Viewer
             _pendingRiverRefinementGeneration = _riverRefinementGeneration;
             int generation = _pendingRiverRefinementGeneration;
             _riverRefinementStopwatch = Stopwatch.StartNew();
+            _riverFineCompletedCount = 0;
             _riverRefinementTask = System.Threading.Tasks.Task.Factory.StartNew(
                 () =>
                 {
-                    try
-                    {
-                        List<RiverPathTracing.RiverPath> coarse =
-                            RiverPathTracing.BuildRiverNetworkFromSources(
-                                seed, seeds, seaLevel, sourceSnapshot,
-                                RiverPathTracing.DefaultFineDepth,
-                                context: riverDeepTime);
-                        cancellation.ThrowIfCancellationRequested();
-                        var preview = new PendingCoarseRiverNetwork
-                        {
-                            Generation = generation,
-                            Paths = ConvertCoarseRiverPaths(coarse)
-                        };
-                        System.Threading.Interlocked.Exchange(ref _pendingCoarseRiverNetwork, preview);
-                    }
-                    catch (System.OperationCanceledException) when (cancellation.IsCancellationRequested)
-                    {
-                        throw;
-                    }
-                    catch (Exception error)
-                    {
-                        System.Threading.Interlocked.Exchange(ref _pendingCoarseRiverNetwork,
-                            new PendingCoarseRiverNetwork { Generation = generation, Error = error });
-                    }
                     cancellation.ThrowIfCancellationRequested();
+                    List<RiverPathTracing.ContinuousRiverPath> overview = null;
+                    if (stepMeters < RiverOverviewStepMeters)
+                    {
+                        var initial = new List<RiverPathTracing.ContinuousRiverPath>(sourceSnapshot.Count);
+                        overview = RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
+                            seed, seeds, seaLevel, overviewSources,
+                            RiverPathTracing.DefaultFineDepth, RiverOverviewStepMeters,
+                            cancellation: cancellation,
+                            maxDegreeOfParallelism: RiverRefinementWorkerCount,
+                            context: riverDeepTime,
+                            onRiverCompleted: river =>
+                            {
+                                initial.Add(river);
+                                int count = initial.Count;
+                                if (count != 1 && count != 4 && count != 6 && count != 16 && count != 48) return;
+                                System.Threading.Interlocked.Exchange(ref _pendingRiverNetwork,
+                                    new PendingRiverNetwork
+                                    {
+                                        Generation = generation,
+                                        Paths = new List<RiverPathTracing.ContinuousRiverPath>(initial)
+                                    });
+                            });
+                        cancellation.ThrowIfCancellationRequested();
+                        System.Threading.Interlocked.Exchange(ref _pendingRiverNetwork,
+                            new PendingRiverNetwork { Generation = generation, Paths = overview });
+                    }
+                    var progressive = new List<RiverPathTracing.ContinuousRiverPath>(sourceSnapshot.Count);
                     return RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
                         seed, seeds, seaLevel, sourceSnapshot,
                         RiverPathTracing.DefaultFineDepth, stepMeters,
                         cancellation: cancellation,
                         maxDegreeOfParallelism: RiverRefinementWorkerCount,
-                        context: riverDeepTime);
+                        context: riverDeepTime,
+                        onRiverCompleted: river =>
+                        {
+                            cancellation.ThrowIfCancellationRequested();
+                            progressive.Add(river);
+                            int count = progressive.Count;
+                            if (count != 1 && count != 4 && count != 6 && count != 16 && count != 48) return;
+                            // ND-181: az áttekintést nem cseréljük le néhány
+                            // finom ágra; a finom darabszám ettől külön halad.
+                            System.Threading.Interlocked.Exchange(ref _pendingRiverNetwork,
+                                new PendingRiverNetwork
+                                {
+                                    Generation = generation,
+                                    Paths = overview ?? new List<RiverPathTracing.ContinuousRiverPath>(progressive),
+                                    FineCompletedCount = count
+                                });
+                        });
                 },
                 cancellation, System.Threading.Tasks.TaskCreationOptions.LongRunning,
                 System.Threading.Tasks.TaskScheduler.Default);
@@ -1230,52 +1276,7 @@ namespace WorldGen.Viewer
                 + $"timeMyr={deepTimeMyr:F3} stepMeters={stepMeters:F1} afterBuild=True");
         }
 
-        private static List<RiverPathTracing.ContinuousRiverPath> ConvertCoarseRiverPaths(
-            IReadOnlyList<RiverPathTracing.RiverPath> coarse)
-        {
-            const double previewSegmentMeters = 4000.0;
-            var result = new List<RiverPathTracing.ContinuousRiverPath>(coarse.Count);
-            var claimed = new Dictionary<TileId, int>();
-            for (int i = 0; i < coarse.Count; i++)
-            {
-                RiverPathTracing.RiverPath source = coarse[i];
-                var path = new RiverPathTracing.ContinuousRiverPath
-                {
-                    SourceIndex = source.SourceIndex,
-                    Termination = source.Termination
-                };
-                if (source.Termination == RiverPathTracing.TerminationReason.Merged &&
-                    source.Path.Count > 0 &&
-                    claimed.TryGetValue(source.Path[source.Path.Count - 1], out int owner))
-                    path.MergedIntoRiverIndex = owner;
-                foreach (TileId tile in source.Path)
-                {
-                    TileGeometry.ToPosition(tile, out double x, out double y, out double z);
-                    if (path.Points.Count > 0)
-                    {
-                        (double X, double Y, double Z) previous = path.Points[path.Points.Count - 1];
-                        double dx = x - previous.X, dy = y - previous.Y, dz = z - previous.Z;
-                        double chordMeters = Math.Sqrt(dx * dx + dy * dy + dz * dz)
-                            * PlanetConstants.RadiusMeters;
-                        int segments = Math.Min(64,
-                            Math.Max(1, (int)Math.Ceiling(chordMeters / previewSegmentMeters)));
-                        for (int segment = 1; segment < segments; segment++)
-                        {
-                            double t = (double)segment / segments;
-                            double ix = previous.X + dx * t;
-                            double iy = previous.Y + dy * t;
-                            double iz = previous.Z + dz * t;
-                            double length = Math.Sqrt(ix * ix + iy * iy + iz * iz);
-                            path.Points.Add((ix / length, iy / length, iz / length));
-                        }
-                    }
-                    path.Points.Add((x, y, z));
-                    if (!claimed.ContainsKey(tile)) claimed[tile] = i;
-                }
-                result.Add(path);
-            }
-            return result;
-        }
+
         private double _adaptiveAxialTiltRad;
 
         // A22: a deep-time harmas EGY strukturaban (DeepTimeContext) -
@@ -1403,6 +1404,7 @@ namespace WorldGen.Viewer
 
         private void Start()
         {
+
             // ND-19 (A12/2): a jelenetben MEGADOTT Planet-pozicio, meg az
             // origo-eltolas elott - ehhez kepest tolunk el, es ehhez terunk
             // vissza bolygokozepu origonal.
@@ -1908,6 +1910,7 @@ namespace WorldGen.Viewer
 
         private void OnValidate()
         {
+
             MigrateSurfaceOverlay();
             SynchronizePhysicalReliefScale();
             _uploadConfigRevision++;
@@ -2263,7 +2266,7 @@ namespace WorldGen.Viewer
             // leptek egy masodik sorban fer el. Tartsuk a hatteret
             // ugyanabbol a sorszambol szamolva, hogy egyetlen vezerlo se
             // logjon ki a dobozbol.
-            const float panelRowCount = 6f;
+            const float panelRowCount = 8f;
             GUI.Box(new Rect(x - 6f, y - 6f, w + 12f, rowH * panelRowCount + 16f), "Deep time");
             y += rowH * 0.6f;
 
@@ -2327,6 +2330,18 @@ namespace WorldGen.Viewer
             }
             y += rowH;
 
+            int completedRiverCount = _riverFineCompletedCount;
+            string riverStatus = !showRivers ? "kikapcsolva"
+                : _pendingRiverMesh != null ? "kirajzolás"
+                : _riverRefinementTask != null ? "számítás fut"
+                : completedRiverCount > 0 && !_adaptiveRiverPathsArePreview ? "kész"
+                : "nem készült el";
+            GUI.Label(new Rect(x, y, w, rowH),
+                $"Folyók: {(_adaptiveRiverPathsArePreview ? "áttekintés" : "finom hálózat")} {_adaptiveRefinedRiverPaths?.Count ?? 0}");
+            y += rowH;
+            GUI.Label(new Rect(x, y, w, rowH),
+                $"Finom: {completedRiverCount}/{_riverSourceCache?.Count ?? 0} — {riverStatus}");
+            y += rowH;
             return (y - startY) + 10f;
         }
 
@@ -3030,21 +3045,30 @@ namespace WorldGen.Viewer
             // AZ az autoritativ jegforras, es az analitikus lanc ki sem fut.
             // Kulonben az analitikus ut rajzol ELONEZETET, es a hatterszal
             // (UpdateThermalClimate) keszulte utan ker egy ujabb Buildet.
+            // A bemenetet a fogyasztas ELOTT ellenorizzuk: egy uj seed/idopont/
+            // racsszint Buildje nem olvashatja az elozo vilag eghajlatat.
+            // A Build vegeig halasztott ervenytelenites hibas tile-kulcsokat
+            // es KeyNotFoundException-t is okozhatott.
+            CaptureThermalClimateInputs(field, isOceanField, lakeTiles, seaLevel, seed, axialTiltRad);
             Dictionary<TileId, double> climateMeanK = null;
             double climateThresholdK = LakesIceErosion.PermanentIceMeanThresholdK;
             bool climateIce = showLakesIce && TryGetThermalClimateIce(out climateMeanK, out climateThresholdK);
+            _physicalIceActive = climateIce && _climateApplied.UsesPhysicalIce;
+            _physicalIceMarginK = _physicalIceActive ? _climateApplied.IcePersistenceMarginK : null;
             _adaptiveIceThresholdK = climateIce ? climateThresholdK : LakesIceErosion.PermanentIceMeanThresholdK;
 
             if (showLakesIce && climateIce)
             {
                 foreach (KeyValuePair<TileId, double> kv in climateMeanK)
                 {
+                    if (_physicalIceActive && isOceanField.TryGetValue(kv.Key, out bool water) && water) continue;
                     iceMeanK[kv.Key] = kv.Value;
                     // ND-117: a regolit-modell a NYERS evi kozephomersekletet
                     // varja (eltolas nelkul) - a homodell utjan a deep-time
                     // eltolas a kuszobbel egyutt mar bent van, ezert itt
                     // levonjuk, hogy a talaj-lanc bemenete ugyanaz maradjon.
-                    landMeanTemperatureK[kv.Key] = kv.Value - glaciationOffsetK;
+                    landMeanTemperatureK[kv.Key] = _physicalIceActive
+                        ? _climateApplied.SurfaceAllK[kv.Key] : kv.Value - glaciationOffsetK;
                 }
             }
             else if (showLakesIce)
@@ -3164,6 +3188,9 @@ namespace WorldGen.Viewer
                         // es megszunik az ND-59 ota elo KET fuggetlen jegreteg.
                         if (climateBiome && !isOceanic && IsIceMaskTile(id, cx, cy, cz, iceMeanK, seed))
                             biome = Biome.IceSheet;
+                        if (_physicalIceActive)
+                            biome = BiomeClassification.ClassifyWithIce(temperatureK, isOceanic,
+                                PrecipitationAtCore(cx, cy, cz), _adaptiveBiomeThresholds, PhysicalIceAt(cx, cy, cz));
                         biomeOf[id] = biome;
 
                         // TELJESITMENY (2026-09-10, felhasznaloi keres, cel <1s
@@ -3205,10 +3232,10 @@ namespace WorldGen.Viewer
                         bool isIce = IsIceMaskTile(id, cx, cy, cz, iceMeanK, seed);
                         // ND-57: ugyanaz a jitter-minta, mint a fenti isIce-nal,
                         // a tengeri jeg (Ocean/SeaIce) hataranak - ld. IsAdaptiveSeaIce doksija.
-                        bool isSeaIceRendered = isOceanic && (temperatureK
+                        bool isSeaIceRendered = isOceanic && (_physicalIceActive ? PhysicalIceAt(cx, cy, cz) : (temperatureK
                             + IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
                                 seed, cx, cy, cz, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves)
-                            < BiomeClassification.OceanFreezingK);
+                            < BiomeClassification.OceanFreezingK));
                         // ND-59: a nyers `biome`-fallback helyett jitterelt
                         // valtozatot hasznalunk - ld. JitteredRenderBiome doksi
                         // (kulonben a szarazfoldi jeg/tundra hatar is
@@ -3354,10 +3381,6 @@ namespace WorldGen.Viewer
             _adaptiveIceMeanK = iceMeanK;
             _adaptiveAxialTiltRad = axialTiltRad;
 
-            // ND-162: a hatterszal vilag-pillanatkepe. Ha mar van ervenyes
-            // eghajlat ehhez a reviziohoz, ez nem csinal semmit.
-            CaptureThermalClimateInputs(field, isOceanField, lakeTiles, seaLevel, seed, axialTiltRad);
-
             // M5 csapadek-mezo (MoisturePrecipitation nedvesseg-advekcio) - a
             // csapadek-overlayhez, a dendritikus folyo-halozat forras-
             // kivalasztasahoz (RiverPathTracing.SelectRiverSources) ES a
@@ -3478,6 +3501,7 @@ namespace WorldGen.Viewer
             buildPhaseStopwatch.Restart();
 
             _adaptiveRefinedRiverPaths = null;
+            _riverFineCompletedCount = 0;
             _adaptiveRiverDischargeWeights = null;
             _riverRefinementGeneration++;
 
@@ -5366,6 +5390,7 @@ namespace WorldGen.Viewer
             Dictionary<TileId, double> iceMeanK, ulong seed)
         {
             if (iceMeanK == null || !iceMeanK.TryGetValue(id, out double referenceMeanK)) return false;
+            if (_physicalIceActive) return referenceMeanK < 0.0;
             double jitterK = IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
                 seed, cx, cy, cz, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves);
             return referenceMeanK + jitterK < _adaptiveIceThresholdK;
@@ -5373,6 +5398,12 @@ namespace WorldGen.Viewer
 
         private bool IsAdaptiveIceTile(TileId id)
         {
+            if (_physicalIceActive)
+            {
+                TileGeometry.ToPosition(id, out double px, out double py, out double pz);
+                return _adaptiveIceMeanK != null && _adaptiveIceMeanK.TryGetValue(
+                    TileGeometry.FromPosition(px, py, pz, level), out double landMargin) && landMargin < 0.0;
+            }
             if (!TryGetReferenceAncestorValue(id, _adaptiveIceMeanK, out double referenceMeanK))
                 return false;
 
@@ -5393,6 +5424,7 @@ namespace WorldGen.Viewer
         /// </summary>
         private bool IsAdaptiveSeaIce(double x, double y, double z, double temperatureK)
         {
+            if (_physicalIceActive) return PhysicalIceAt(x, y, z);
             double jitterK = IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
                 _adaptiveSeed, x, y, z, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves);
             return temperatureK + jitterK < BiomeClassification.OceanFreezingK;
@@ -5423,6 +5455,9 @@ namespace WorldGen.Viewer
         /// </summary>
         private Biome JitteredRenderBiome(double x, double y, double z, double temperatureK, bool isOceanic, ulong seed)
         {
+            if (_physicalIceActive)
+                return BiomeClassification.ClassifyWithIce(temperatureK, isOceanic, PrecipitationAtCore(x, y, z),
+                    _adaptiveBiomeThresholds, PhysicalIceAt(x, y, z));
             double jitterK = IceBoundaryJitterAmplitudeK * FractalNoise.Fbm(
                 seed, x, y, z, IceBoundaryJitterFrequency, IceBoundaryJitterOctaves);
             // ND-126: a jitter SZANDEKOSAN csak a homersekletre hat, a
@@ -5432,6 +5467,12 @@ namespace WorldGen.Viewer
             // koveti), azokat nem kell rongyolni.
             return BiomeClassification.Classify(
                 temperatureK + jitterK, isOceanic, PrecipitationAtCore(x, y, z), _adaptiveBiomeThresholds);
+        }
+
+        private bool PhysicalIceAt(double x, double y, double z)
+        {
+            return _physicalIceMarginK != null && _physicalIceMarginK.TryGetValue(
+                TileGeometry.FromPosition(x, y, z, level), out double margin) && margin < 0.0;
         }
 
         /// <summary>Ld. IsInReferenceLevelSet doksi - ugyanaz a minta, de erteket (nem csak tagsagot) ad vissza.</summary>
@@ -6426,6 +6467,9 @@ namespace WorldGen.Viewer
             // a panel-statisztikakba kerulo `biome` is a jegmaszkot kovesse, ne a
             // BiomeClassification elerhetetlen abszolut kuszobet.
             if (isIce && !isOceanic && _adaptiveClimateAirCorners != null) biome = Biome.IceSheet;
+            if (_physicalIceActive)
+                biome = BiomeClassification.ClassifyWithIce(temperatureK, isOceanic,
+                    PrecipitationAtCore(cx, cy, cz), _adaptiveBiomeThresholds, PhysicalIceAt(cx, cy, cz));
             // ND-59: ld. JitteredRenderBiome doksi - a nyers biome-fallback
             // jitter nelkul szabalyos kort adna a polusi jeg/tundra hataran.
             RenderCategory category = isCratered ? RenderCategory.Crater
@@ -7878,8 +7922,15 @@ namespace WorldGen.Viewer
         }
 
 
-        private Material _riverLineMaterial;
         private const double RiverMeshSliceBudgetMs = 4.0;
+        private const int RiverMeshChunkVertexLimit = 16384;
+
+        private sealed class RiverMeshChunk
+        {
+            public List<Vector3> Vertices;
+            public List<Vector3> Normals;
+            public List<int> Triangles;
+        }
 
         private sealed class RiverMeshBuildState
         {
@@ -7889,6 +7940,13 @@ namespace WorldGen.Viewer
             public int[] Weights;
             public int RiverIndex;
             public int PointIndex;
+            public int RibbonOffset;
+            public bool GeometryComplete;
+            public List<RiverMeshChunk> Chunks = new List<RiverMeshChunk>();
+            public GameObject StagingRoot;
+            public int UploadIndex;
+            public double UploadMs;
+            public double MaxUploadMs;
             public int ProjectedPoints;
             public double ActiveMs;
             public double MaxSliceMs;
@@ -7900,6 +7958,8 @@ namespace WorldGen.Viewer
         }
 
         private RiverMeshBuildState _pendingRiverMesh;
+        private readonly HashSet<Mesh> _ownedRiverMeshes = new HashSet<Mesh>();
+        private Material _riverDisplayMaterial;
 
         /// <summary>
         /// M9/M7 (ND-49) dendritikus folyó-hálózat mesh-SZALAGKÉNT (nem
@@ -7911,17 +7971,18 @@ namespace WorldGen.Viewer
         /// ld. Build()) eredményét használja: a felszín érintő-síkjában futó,
         /// kb. riverRefinementStepMeters felbontású pontsorozatot, a hozzá
         /// tartozó `_adaptiveRiverDischargeWeights`-ből levezetett
-        /// szélességgel. A finomítás alatt az aktuális állapot durva
-        /// modell-előnézete látható; más világállapot vonala nem maradhat.
+        /// szélességgel. A számítás alatt az aktuális állapot már
+        /// véglegesített finom ágai láthatók (ND-177); más világállapot
+        /// vonala nem maradhat.
         /// Egyetlen aktuális generációhoz készül, képkockákra bontva;
         /// a kamera-mozgás nem érinti.
         /// </summary>
         private void BuildRiverNetwork()
         {
+            DiscardPendingRiverMesh();
             Transform child = transform.Find("Rivers");
             if (!showRivers || _adaptiveRefinedRiverPaths == null || _adaptiveRefinedRiverPaths.Count == 0)
             {
-                _pendingRiverMesh = null;
                 if (child != null) child.gameObject.SetActive(false);
                 return;
             }
@@ -7942,7 +8003,52 @@ namespace WorldGen.Viewer
             if (!showRivers || state.Generation != _riverRefinementGeneration ||
                 !ReferenceEquals(state.Paths, _adaptiveRefinedRiverPaths))
             {
+                DiscardPendingRiverMesh();
+                return;
+            }
+
+            if (state.GeometryComplete)
+            {
+                // ND-179: egy korlátos rész/frame, rejtett gyökér alatt.
+                var uploadSlice = Stopwatch.StartNew();
+                if (state.StagingRoot == null)
+                {
+                    state.StagingRoot = new GameObject("RiversPending");
+                    state.StagingRoot.SetActive(false);
+                    state.StagingRoot.transform.SetParent(transform, false);
+                }
+                if (state.UploadIndex < state.Chunks.Count)
+                {
+                    GameObject target = state.UploadIndex == 0 ? state.StagingRoot
+                        : new GameObject("Chunk" + state.UploadIndex);
+                    if (target != state.StagingRoot)
+                        target.transform.SetParent(state.StagingRoot.transform, false);
+                    RiverMeshChunk chunk = state.Chunks[state.UploadIndex];
+                    BuildRiverChunk(target, chunk.Vertices, chunk.Normals, chunk.Triangles);
+                    state.Chunks[state.UploadIndex++] = null;
+                }
+                double uploadSliceMs = uploadSlice.Elapsed.TotalMilliseconds;
+                state.UploadMs += uploadSliceMs;
+                state.MaxUploadMs = Math.Max(state.MaxUploadMs, uploadSliceMs);
+                if (state.UploadIndex < state.Chunks.Count) return;
+
+                var publish = Stopwatch.StartNew();
+                Transform old = transform.Find("Rivers");
+                if (old != null)
+                {
+                    old.name = "RiversRetired";
+                    old.gameObject.SetActive(false);
+                }
+                state.StagingRoot.name = "Rivers";
+                state.StagingRoot.SetActive(true);
+                if (old != null) DestroyRiverRoot(old.gameObject);
+                state.StagingRoot = null;
                 _pendingRiverMesh = null;
+                PerfLog($"[ND-179 river upload] generation={state.Generation} "
+                    + $"chunks={state.UploadIndex} maxVertices={RiverMeshChunkVertexLimit} "
+                    + $"totalMs={state.UploadMs:F1} maxSliceMs={state.MaxUploadMs:F1} "
+                    + $"publishMs={publish.Elapsed.TotalMilliseconds:F1}");
+                LogCompletedRiverMesh(state);
                 return;
             }
 
@@ -7968,9 +8074,22 @@ namespace WorldGen.Viewer
                 int weight = state.Weights != null && state.RiverIndex < state.Weights.Length
                     ? state.Weights[state.RiverIndex] : 1;
                 float halfWidth = riverBaseHalfWidth * Mathf.Sqrt(weight);
+                int count = Math.Min((RiverMeshChunkVertexLimit - state.Vertices.Count) / 2,
+                    state.RibbonPoints.Count - state.RibbonOffset);
+                if (count < 2)
+                {
+                    FlushRiverMeshChunk(state);
+                    continue;
+                }
                 AddRiverRibbon(state.Vertices, state.Normals, state.Triangles,
-                    state.RibbonPoints, halfWidth);
+                    state.RibbonPoints, halfWidth, state.RibbonOffset, count);
+                if (state.RibbonOffset + count < state.RibbonPoints.Count)
+                {
+                    state.RibbonOffset += count - 1;
+                    continue;
+                }
                 state.RibbonPoints.Clear();
+                state.RibbonOffset = 0;
                 state.RiverIndex++;
                 state.PointIndex = 0;
             }
@@ -7979,16 +8098,49 @@ namespace WorldGen.Viewer
             if (sliceMs > state.MaxSliceMs) state.MaxSliceMs = sliceMs;
             if (state.RiverIndex < state.Paths.Count) return;
 
-            var upload = Stopwatch.StartNew();
-            BuildRivers(state.Vertices, state.Normals, state.Triangles);
-            double uploadMs = upload.Elapsed.TotalMilliseconds;
+            FlushRiverMeshChunk(state);
+            state.GeometryComplete = true;
+        }
+
+        private static void FlushRiverMeshChunk(RiverMeshBuildState state)
+        {
+            if (state.Vertices.Count == 0) return;
+            state.Chunks.Add(new RiverMeshChunk
+            {
+                Vertices = state.Vertices, Normals = state.Normals, Triangles = state.Triangles
+            });
+            state.Vertices = new List<Vector3>();
+            state.Normals = new List<Vector3>();
+            state.Triangles = new List<int>();
+        }
+
+        private void DiscardPendingRiverMesh()
+        {
+            if (_pendingRiverMesh?.StagingRoot != null)
+                DestroyRiverRoot(_pendingRiverMesh.StagingRoot);
             _pendingRiverMesh = null;
-            double meshMs = state.ActiveMs + uploadMs;
+        }
+
+        private void DestroyRiverRoot(GameObject root)
+        {
+            foreach (MeshFilter filter in root.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (filter.sharedMesh == null || !_ownedRiverMeshes.Remove(filter.sharedMesh)) continue;
+                if (Application.isPlaying) Destroy(filter.sharedMesh);
+                else DestroyImmediate(filter.sharedMesh);
+            }
+            if (Application.isPlaying) Destroy(root);
+            else DestroyImmediate(root);
+        }
+
+        private void LogCompletedRiverMesh(RiverMeshBuildState state)
+        {
+            double meshMs = state.ActiveMs + state.UploadMs;
             PerfLog($"[ND-147 river mesh staged] generation={state.Generation} "
                 + $"kind={(state.IsPreview ? "preview" : "fine")} rivers={state.Paths.Count} "
                 + $"points={state.ProjectedPoints} prepareWallMs={state.Wall.Elapsed.TotalMilliseconds:F1} "
                 + $"activeMs={state.ActiveMs:F1} maxSliceMs={state.MaxSliceMs:F1} "
-                + $"uploadMs={uploadMs:F1}");
+                + $"uploadMs={state.UploadMs:F1}");
             if (state.IsPreview)
             {
                 PerfLog($"[ND-145 river preview] generation={state.Generation} "
@@ -8017,9 +8169,9 @@ namespace WorldGen.Viewer
         /// </summary>
         private static void AddRiverRibbon(
             List<Vector3> vertices, List<Vector3> normals, List<int> triangles,
-            IReadOnlyList<Vector3> points, float halfWidth)
+            IReadOnlyList<Vector3> points, float halfWidth, int start = 0, int count = -1)
         {
-            int n = points.Count;
+            int n = count < 0 ? points.Count - start : count;
             if (n < 2 || halfWidth <= 0f) return;
 
             var leftVerts = new Vector3[n];
@@ -8028,10 +8180,13 @@ namespace WorldGen.Viewer
 
             for (int i = 0; i < n; i++)
             {
-                Vector3 p = points[i];
-                Vector3 tangent = i == 0 ? (points[1] - points[0])
-                    : i == n - 1 ? (points[n - 1] - points[n - 2])
-                    : (points[i + 1] - points[i - 1]);
+                int pointIndex = start + i;
+                Vector3 p = points[pointIndex];
+                // A rész határán is a teljes modellút szomszédait használjuk:
+                // a megismételt vertexpár bitre azonos, nem nyílik szalagrés.
+                Vector3 tangent = pointIndex == 0 ? (points[1] - points[0])
+                    : pointIndex == points.Count - 1 ? (points[pointIndex] - points[pointIndex - 1])
+                    : (points[pointIndex + 1] - points[pointIndex - 1]);
                 Vector3 radial = p.sqrMagnitude > 1e-12f ? p.normalized : Vector3.up;
                 Vector3 side = Vector3.Cross(radial, tangent);
                 if (side.sqrMagnitude < 1e-12f)
@@ -8730,26 +8885,21 @@ namespace WorldGen.Viewer
         /// ezért normálisokat is kap (a régi vonal-topológiának nem
         /// kellett, az `HDRP/Lit` anyag háromszögekhez viszont igen).
         /// </summary>
-        private void BuildRivers(List<Vector3> verts, List<Vector3> normals, List<int> triangles)
+        private void BuildRiverChunk(GameObject go, List<Vector3> verts, List<Vector3> normals, List<int> triangles)
         {
-            Transform child = transform.Find("Rivers");
-            GameObject go;
-            if (child == null)
-            {
-                go = new GameObject("Rivers");
-                go.transform.SetParent(transform, false);
-                go.AddComponent<MeshFilter>();
-                MeshRenderer mr = go.AddComponent<MeshRenderer>();
-                mr.shadowCastingMode = ShadowCastingMode.Off;
-                _riverLineMaterial ??= CreateFlatColorMaterial(CategoryColor(RenderCategory.River, 0));
-                mr.sharedMaterial = _riverLineMaterial;
-            }
-            else
-            {
-                go = child.gameObject;
-                go.SetActive(true);
-            }
+            go.AddComponent<MeshFilter>();
+            MeshRenderer mr = go.AddComponent<MeshRenderer>();
+            mr.shadowCastingMode = ShadowCastingMode.Off;
 
+            // ND-185: saját HDRP folyójelölő anyag; a tó-/óceánvilágítás külön marad.
+            if (_riverDisplayMaterial == null)
+            {
+                Shader shader = Shader.Find("WorldGen/RiverOverlay");
+                if (shader == null) throw new InvalidOperationException("WorldGen/RiverOverlay shader is missing.");
+                _riverDisplayMaterial = new Material(shader);
+                _riverDisplayMaterial.SetColor("_Color", CategoryColor(RenderCategory.River, 0));
+            }
+            go.GetComponent<MeshRenderer>().sharedMaterial = _riverDisplayMaterial;
             MeshFilter mf = go.GetComponent<MeshFilter>();
             Mesh mesh = mf.sharedMesh;
             if (mesh == null) mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
@@ -8757,6 +8907,23 @@ namespace WorldGen.Viewer
             mesh.indexFormat = IndexFormat.UInt32;
             mesh.SetVertices(verts);
             mesh.SetNormals(normals);
+            _ownedRiverMeshes.Add(mesh);
+            mf.sharedMesh = mesh;
+            var colors = new List<Color>(verts.Count);
+            Color riverColor = CategoryColor(RenderCategory.River, 0);
+            for (int i = 0; i < verts.Count; i++) colors.Add(riverColor);
+            mesh.SetColors(colors);
+            // ND-178: páros bal/jobb vertexek valódi középvonala. A shader
+            // kizárólag e jelölt vertexeket szélesíti minimum 4 pixelre.
+            var centers = new List<Vector4>(verts.Count);
+            for (int i = 0; i < verts.Count; i += 2)
+            {
+                Vector3 center = (verts[i] + verts[i + 1]) * 0.5f;
+                var encoded = new Vector4(center.x, center.y, center.z, 1f);
+                centers.Add(encoded);
+                centers.Add(encoded);
+            }
+            mesh.SetUVs(1, centers);
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateBounds();
             mf.sharedMesh = mesh;
@@ -10194,24 +10361,18 @@ namespace WorldGen.Viewer
         /// </summary>
         private void TryApplyCompletedRiverRefinement()
         {
-            PendingCoarseRiverNetwork preview =
-                System.Threading.Interlocked.Exchange(ref _pendingCoarseRiverNetwork, null);
+            PendingRiverNetwork preview =
+                System.Threading.Interlocked.Exchange(ref _pendingRiverNetwork, null);
             if (preview != null && _riverRefinementTask != null &&
                 preview.Generation == _riverRefinementGeneration && showRivers)
             {
-                if (preview.Error != null)
-                {
-                    Debug.LogWarning("PlanetGridMesh: a durva folyó-előnézet hibával zárult: "
-                        + preview.Error);
-                }
-                else
-                {
-                    _adaptiveRefinedRiverPaths = preview.Paths;
-                    _adaptiveRiverPathsArePreview = true;
-                    _adaptiveRiverDischargeWeights =
-                        RiverPathTracing.ComputeDischargeWeights(preview.Paths);
-                    BuildRiverNetwork();
-                }
+                bool geometryChanged = !ReferenceEquals(_adaptiveRefinedRiverPaths, preview.Paths);
+                _adaptiveRefinedRiverPaths = preview.Paths;
+                _riverFineCompletedCount = preview.FineCompletedCount;
+                _adaptiveRiverPathsArePreview = true;
+                _adaptiveRiverDischargeWeights =
+                    RiverPathTracing.ComputeDischargeWeights(preview.Paths);
+                if (geometryChanged) BuildRiverNetwork();
             }
             if (_riverRefinementTask == null || !_riverRefinementTask.IsCompleted)
                 return;
@@ -10239,10 +10400,11 @@ namespace WorldGen.Viewer
                 return; // elavult - egy ujabb Build() mar futott, amig ez a task dolgozott
 
             _adaptiveRefinedRiverPaths = task.Result;
+            _riverFineCompletedCount = task.Result.Count;
             _adaptiveRiverPathsArePreview = false;
-            _adaptiveRiverDischargeWeights = RiverPathTracing.ComputeDischargeWeights(_adaptiveRefinedRiverPaths);
-            PerfLog($"[ND-132 river ready] generation={_pendingRiverRefinementGeneration} elapsedMs={_riverRefinementStopwatch?.Elapsed.TotalMilliseconds:F1} rivers={_adaptiveRefinedRiverPaths.Count} workers={RiverRefinementWorkerCount}");
-            WarnIfAnyRiverHitMaxSteps(_adaptiveRefinedRiverPaths);
+            _adaptiveRiverDischargeWeights = RiverPathTracing.ComputeDischargeWeights(task.Result);
+            PerfLog($"[ND-132 river ready] generation={_pendingRiverRefinementGeneration} elapsedMs={_riverRefinementStopwatch?.Elapsed.TotalMilliseconds:F1} rivers={task.Result.Count} workers={RiverRefinementWorkerCount}");
+            WarnIfAnyRiverHitMaxSteps(task.Result);
             BuildRiverNetwork();
         }
 

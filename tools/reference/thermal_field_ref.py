@@ -71,7 +71,8 @@ from neighbor_ref import DIRECTIONS, neighbor
 from sphere_position_ref import position_from_face_uv, position_from_tile
 from temperature_ref import climate_cycle_temperature_k, greenhouse_temperature
 
-MODEL_VERSION = 5
+MODEL_VERSION = 6
+USE_SEASONAL_ENERGY_BALANCE = False  # A történeti ND-100/168 vektorok; az ND-174 orákulum explicit True-ra állítja.
 AIR_FEEDBACK_STRENGTH = 0.1  # ND-142: level-6 előfutási kontrollból kalibrálva.
 LEVEL = 6
 N = 1 << LEVEL
@@ -335,6 +336,9 @@ class Baseline:
         self.sea_level_m = sea_level_m
         self.constant = greenhouse_temperature()
         self.cycle = climate_cycle_temperature_k(world_seed, t_years)
+        if USE_SEASONAL_ENERGY_BALANCE:
+            from erosion_glaciation_deep_time_ref import global_temp_offset
+            self.cycle += global_temp_offset(t_years / 1.0e6)
         windows = annual_sample_windows()
         self.annual_factor = [0.0] * CELL_COUNT
         self.annual_mean = [0.0] * CELL_COUNT
@@ -358,7 +362,20 @@ class Baseline:
         self.transport_correction = solve_correction(
             grid.area, grid.edge_i, grid.edge_j,
             [v * meridional_scale for v in conductance(grid)], annual_target)
+        self.seasonal = None
+        if USE_SEASONAL_ENERGY_BALANCE:
+            from seasonal_energy_balance_ref import build
+            self.seasonal, forcing, _ = build(grid, kinds, elevation, sea_level_m, self.cycle)
+            self.transport_correction = [0.0] * CELL_COUNT  # Az új szél a teljes szezonális mezőt differenciázza.
         self.hour_cache = {}
+
+    def seasonal_at(self, day):
+        fraction = day / ORBITAL_PERIOD_DAYS
+        position = (fraction - math.floor(fraction)) * len(self.seasonal)
+        a = int(position) % len(self.seasonal)
+        b = (a + 1) % len(self.seasonal)
+        w = position - math.floor(position)
+        return [self.seasonal[a][c] + (self.seasonal[b][c]-self.seasonal[a][c])*w + 273.15 for c in range(CELL_COUNT)]
 
     def hour(self, h):
         """(f_napi[], Bs[]) a h óra-indexre."""
@@ -378,6 +395,8 @@ class Baseline:
                            - t_alt + self.cycle)
             if len(self.hour_cache) > 4:
                 self.hour_cache.pop(next(iter(self.hour_cache)))
+            if self.seasonal is not None:
+                base = self.seasonal_at(h / 24.0)
             self.hour_cache[h] = (factor, base)
         return self.hour_cache[h]
 
@@ -467,9 +486,10 @@ def wind_from_gradient(p, east, north, grad_e, grad_n):
 
 
 class WindField:
-    def __init__(self, grid, kinds, elevation, sea_level_m, correction):
+    def __init__(self, grid, kinds, elevation, sea_level_m, correction, baseline=None):
         self.grid, self.kinds, self.elevation, self.sea_level_m = grid, kinds, elevation, sea_level_m
         self.correction = correction
+        self.baseline = baseline
         self.correction_gradients = None
         windows = annual_sample_windows()
         self.edge_geom = []
@@ -567,6 +587,21 @@ class AirWindFeedback:
 
     def baseline_gradients(self, day):
         if day not in self.cache:
+            if self.wind.baseline is not None and self.wind.baseline.seasonal is not None:
+                gradients = self.gradients(self.wind.baseline.seasonal_at(day))
+                out = []
+                for e, (i,j) in enumerate(zip(self.grid.edge_i,self.grid.edge_j)):
+                    grad = tuple(0.5*(gradients[i][k]+gradients[j][k]) for k in range(3))
+                    geom = self.wind.edge_geom[e]
+                    out.append((dot(grad,geom[1]),dot(grad,geom[2])))
+                for c,grad in enumerate(gradients):
+                    # C# cellán is azonos-indexű átlagot képez.
+                    grad = tuple(0.5*(v+v) for v in grad)
+                    geom = self.wind.cell_geom[c]
+                    out.append((dot(grad,geom[1]),dot(grad,geom[2])))
+                if len(self.cache)>=2: self.cache.pop(next(iter(self.cache)))
+                self.cache[day]=out
+                return out
             samples = daily_sample_directions(day - 0.5)
             out = []
             geometry = self.wind.edge_geom + self.wind.cell_geom
@@ -623,7 +658,7 @@ class Field:
         self.baseline = Baseline(self.grid, self.kinds, self.elevation, sea_level_m,
                                  world_seed, t_years, meridional_scale)
         self.wind = WindField(self.grid, self.kinds, self.elevation, sea_level_m,
-                              self.baseline.transport_correction)
+                              self.baseline.transport_correction, self.baseline)
         self.feedback = AirWindFeedback(self.wind)
 
     def advect(self, theta_a, edge_u, dt):

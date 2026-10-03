@@ -13,11 +13,47 @@ internal static class Program
 {
     private const ulong Seed = 0xA7C944210000UL;
 
+    // Diagnosztika: a ritka escape-/összefolyási ugrások ne maradjanak
+    // rejtve a teljes pontszám mögött. Nem módosítja a követést.
+    private static void WriteGeometryReport(string prefix,
+        IReadOnlyList<RiverPathTracing.ContinuousRiverPath> rivers)
+    {
+        using var report = new StreamWriter(prefix + "-geometry.csv");
+        report.WriteLine("index,points,lengthKm,longEdges,longEdgeLengthKm,maxEdgeKm,mergeEdgeKm,sharpTurns");
+        double total = 0.0, longTotal = 0.0, maxMerge = 0.0;
+        foreach (var river in rivers)
+        {
+            double length = 0.0, longLength = 0.0, maxEdge = 0.0, lastEdge = 0.0;
+            int longEdges = 0, turns = 0;
+            for (int i = 1; i < river.Points.Count; i++)
+            {
+                var a = river.Points[i - 1]; var b = river.Points[i];
+                double dx = b.X-a.X, dy = b.Y-a.Y, dz = b.Z-a.Z;
+                double norm = Math.Sqrt(dx*dx+dy*dy+dz*dz);
+                double meters = norm * WorldGen.Core.PlanetConstants.RadiusMeters;
+                lastEdge = meters; length += meters; maxEdge = Math.Max(maxEdge, meters);
+                if (meters > 75.0) { longEdges++; longLength += meters; }
+                if (i > 1 && norm > 0.0)
+                {
+                    var p = river.Points[i - 2];
+                    double px=a.X-p.X, py=a.Y-p.Y, pz=a.Z-p.Z;
+                    double previousNorm=Math.Sqrt(px*px+py*py+pz*pz);
+                    if(previousNorm>0.0 && (dx*px+dy*py+dz*pz)/(norm*previousNorm)<Math.Cos(Math.PI/6.0)) turns++;
+                }
+            }
+            double mergeEdge = river.Termination == RiverPathTracing.TerminationReason.Merged ? lastEdge : 0.0;
+            total += length; longTotal += longLength; maxMerge = Math.Max(maxMerge, mergeEdge);
+            report.WriteLine(FormattableString.Invariant($"{river.SourceIndex},{river.Points.Count},{length/1000.0:R},{longEdges},{longLength/1000.0:R},{maxEdge/1000.0:R},{mergeEdge/1000.0:R},{turns}"));
+        }
+        Console.WriteLine(FormattableString.Invariant($"geometry: lengthKm={total/1000.0:F3} longEdgePercent={100.0*longTotal/Math.Max(total,1.0):F2} maxMergeEdgeKm={maxMerge/1000.0:F3}"));
+    }
+
     private static int Main(string[] args)
     {
         double timeMyr = args.Length > 0 ? double.Parse(args[0], CultureInfo.InvariantCulture) : 0.0;
         string output = args.Length > 1 ? args[1] : "artifacts/a8-river-baseline";
-        int limit = args.Length > 2 && args[2] != "independent" && args[2] != "coarse" && args[2] != "parallel" && args[2] != "parallel2" && args[2] != "parallel4"
+        double traceStep = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 50.0;
+        int limit = args.Length > 2 && args[2] != "endcheck" && args[2] != "independent" && args[2] != "coarse" && args[2] != "parallel" && args[2] != "parallel2" && args[2] != "parallel4"
             ? int.Parse(args[2], CultureInfo.InvariantCulture) : 96;
         Directory.CreateDirectory(output);
         var preparation = Stopwatch.StartNew();
@@ -37,6 +73,29 @@ internal static class Program
             sourceFile.WriteLine($"{i},{i / 6},{sources[i].Value:X16}");
         sourceFile.Flush();
         Console.WriteLine($"seed={Seed:X16} timeMyr={timeMyr:R} seaLevel={precipitation.SeaLevel:R} sources={sources.Count} preparationMs={preparation.Elapsed.TotalMilliseconds:F1} cores={Environment.ProcessorCount}");
+        if (args.Length > 2 && args[2] == "endcheck")
+        {
+            var terrain = SeaLevelCalibration.ComputeElevationFieldAtTime(Seed, 20, 8, DeepTimeContext.AtPlateTime(timeMyr));
+            var ocean = FlowNetwork.ComputeOceanField(terrain, precipitation.SeaLevel);
+            var drainage = FlowNetwork.PriorityFlood(terrain, ocean);
+            var lakes = LakesIceErosion.IdentifyLakes(terrain, drainage.Filled, ocean);
+            var accepted = new HashSet<TileId>();
+            foreach (var lake in lakes.Lakes)
+                if (lake.TileCount >= 6 && lake.MaxDepth >= 40.0)
+                    foreach (var tile in lake.Tiles) accepted.Add(tile);
+            using var report = new StreamWriter(prefix + "-pit-lakes.csv");
+            report.WriteLine("index,lengthKm,terrainM,filledM,depthM,visibleLake");
+            foreach (var row in File.ReadAllLines(prefix + "-parallel-endpoints.csv"))
+            {
+                var columns = row.Split(',');
+                if (columns[1] != "Pit") continue;
+                double Parse(int i) => double.Parse(columns[i], CultureInfo.InvariantCulture);
+                var tile = TileGeometry.FromPosition(Parse(5), Parse(6), Parse(7), 8);
+                var line = FormattableString.Invariant($"{columns[0]},{columns[4]},{terrain[tile]:R},{drainage.Filled[tile]:R},{drainage.Filled[tile]-terrain[tile]:R},{accepted.Contains(tile)}");
+                report.WriteLine(line); Console.WriteLine(line);
+            }
+            return 0;
+        }
         if (args.Length > 2 && args[2] == "coarse")
         {
             var coarseTimer = Stopwatch.StartNew();
@@ -98,8 +157,9 @@ internal static class Program
             List<RiverPathTracing.ContinuousRiverPath> parallel =
                 RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
                     Seed, movedSeeds, precipitation.SeaLevel, sources,
-                    RiverPathTracing.DefaultFineDepth, stepMeters: 50.0,
-                    maxDegreeOfParallelism: workers, context: DeepTimeContext.AtPlateTime(timeMyr));
+                    RiverPathTracing.DefaultFineDepth, stepMeters: traceStep,
+                    maxDegreeOfParallelism: workers, context: DeepTimeContext.AtPlateTime(timeMyr),
+                    onRiverCompleted: river => Console.WriteLine($"committed={river.SourceIndex + 1} elapsedMs={parallelTimer.Elapsed.TotalMilliseconds:F1} end={river.Termination} merge={river.MergedIntoRiverIndex}"));
             double elapsedMs = parallelTimer.Elapsed.TotalMilliseconds;
             double cpuMs = (process.TotalProcessorTime - cpuBefore).TotalMilliseconds;
             int[] parallelWeights = RiverPathTracing.ComputeDischargeWeights(parallel);
@@ -107,6 +167,23 @@ internal static class Program
             long pointCount = 0;
             foreach (var river in parallel) pointCount += river.Points.Count;
             long peakWorkingSet = process.PeakWorkingSet64;
+            WriteGeometryReport(prefix, parallel);
+            using (var endpoints = new StreamWriter(prefix + "-parallel-endpoints.csv"))
+            {
+                endpoints.WriteLine("index,termination,mergedInto,points,lengthKm,endX,endY,endZ");
+                foreach (var river in parallel)
+                {
+                    double lengthM = 0.0;
+                    for (int p = 1; p < river.Points.Count; p++)
+                    {
+                        var a = river.Points[p - 1]; var b = river.Points[p];
+                        double dx = a.X-b.X, dy = a.Y-b.Y, dz = a.Z-b.Z;
+                        lengthM += Math.Sqrt(dx*dx+dy*dy+dz*dz) * WorldGen.Core.PlanetConstants.RadiusMeters;
+                    }
+                    var end = river.Points[river.Points.Count - 1];
+                    endpoints.WriteLine(FormattableString.Invariant($"{river.SourceIndex},{river.Termination},{river.MergedIntoRiverIndex},{river.Points.Count},{lengthM/1000.0:R},{end.X:R},{end.Y:R},{end.Z:R}"));
+                }
+            }
             File.WriteAllText(prefix + (workers < 0 ? "-parallel" : "-parallel" + workers) + "-fingerprint.txt",
                 $"sha256={parallelFingerprint}{Environment.NewLine}" +
                 $"rivers={parallel.Count}{Environment.NewLine}" +

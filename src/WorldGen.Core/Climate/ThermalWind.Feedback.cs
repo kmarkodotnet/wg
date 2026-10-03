@@ -155,6 +155,28 @@ namespace WorldGen.Core.Climate
 
             private void BaselineDay(long day, double[] east, double[] north)
             {
+                if (_owner._seasonal != null)
+                {
+                    var temperature = new double[_owner._grid.CellCount];
+                    _owner._seasonal.Sample(day, temperature);
+                    Gradient(temperature);
+                    int edgeCount = _owner._grid.EdgeCount;
+                    for (int k = 0; k < east.Length; k++)
+                    {
+                        bool edge = k < edgeCount;
+                        int index = edge ? k : k - edgeCount;
+                        int c = edge ? _owner._grid.EdgeI[index] : index;
+                        int neighbor = edge ? _owner._grid.EdgeJ[index] : c;
+                        double gx = 0.5 * (_gx[c] + _gx[neighbor]);
+                        double gy = 0.5 * (_gy[c] + _gy[neighbor]);
+                        double gz = 0.5 * (_gz[c] + _gz[neighbor]);
+                        double[] geometry = edge ? _owner._edgeGeometry : _owner._cellGeometry;
+                        int offset = index * GeometryStride;
+                        east[k] = gx * geometry[offset] + gy * geometry[offset + 1] + gz * geometry[offset + 2];
+                        north[k] = gx * geometry[offset + 3] + gy * geometry[offset + 4] + gz * geometry[offset + 5];
+                    }
+                    return;
+                }
                 var samples = DailyInsolationSampleDirections.Create(day - 0.5,
                     _owner._orbit.OrbitalPeriodDays, _owner._orbit.RotationPeriodDays, _owner._orbit.AxialTiltRad);
                 int edges = _owner._grid.EdgeCount;

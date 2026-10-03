@@ -1,0 +1,818 @@
+[
+  {
+    "temperature": [
+      263.15,
+      263.15,
+      263.15,
+      263.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.0,
+    "kind": 0,
+    "expected": {
+      "snow": 0.0,
+      "melt": 0.0,
+      "margin": 0.0,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      263.15,
+      263.15,
+      263.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.1,
+    "kind": 0,
+    "expected": {
+      "snow": 0.1,
+      "melt": 0.0,
+      "margin": -0.09126169290440338,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      263.15,
+      263.15,
+      263.15
+    ],
+    "period": 365.25,
+    "precipitation": 1.0,
+    "kind": 0,
+    "expected": {
+      "snow": 1.0,
+      "melt": 0.0,
+      "margin": -0.9126169290440338,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      263.15,
+      263.15,
+      263.15
+    ],
+    "period": 365.25,
+    "precipitation": 3.0,
+    "kind": 0,
+    "expected": {
+      "snow": 3.0,
+      "melt": 0.0,
+      "margin": -2.737850787132101,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      263.15,
+      263.15,
+      263.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.0,
+    "kind": 1,
+    "expected": {
+      "snow": 0.0,
+      "melt": 0.0,
+      "margin": -8.200000000000045,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      263.15,
+      263.15,
+      263.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.1,
+    "kind": 1,
+    "expected": {
+      "snow": 0.1,
+      "melt": 0.0,
+      "margin": -8.200000000000045,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      263.15,
+      263.15,
+      263.15
+    ],
+    "period": 365.25,
+    "precipitation": 1.0,
+    "kind": 1,
+    "expected": {
+      "snow": 1.0,
+      "melt": 0.0,
+      "margin": -8.200000000000045,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      263.15,
+      263.15,
+      263.15
+    ],
+    "period": 365.25,
+    "precipitation": 3.0,
+    "kind": 1,
+    "expected": {
+      "snow": 3.0,
+      "melt": 0.0,
+      "margin": -8.200000000000045,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      263.15,
+      263.15,
+      263.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.0,
+    "kind": 2,
+    "expected": {
+      "snow": 0.0,
+      "melt": 0.0,
+      "margin": -10.0,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      263.15,
+      263.15,
+      263.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.1,
+    "kind": 2,
+    "expected": {
+      "snow": 0.1,
+      "melt": 0.0,
+      "margin": -10.0,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      263.15,
+      263.15,
+      263.15
+    ],
+    "period": 365.25,
+    "precipitation": 1.0,
+    "kind": 2,
+    "expected": {
+      "snow": 1.0,
+      "melt": 0.0,
+      "margin": -10.0,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      263.15,
+      263.15,
+      263.15
+    ],
+    "period": 365.25,
+    "precipitation": 3.0,
+    "kind": 2,
+    "expected": {
+      "snow": 3.0,
+      "melt": 0.0,
+      "margin": -10.0,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      283.15,
+      283.15,
+      283.15,
+      283.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.0,
+    "kind": 0,
+    "expected": {
+      "snow": 0.0,
+      "melt": 10.9575,
+      "margin": 10.0,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      283.15,
+      283.15,
+      283.15,
+      283.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.1,
+    "kind": 0,
+    "expected": {
+      "snow": 0.0,
+      "melt": 10.9575,
+      "margin": 10.0,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      283.15,
+      283.15,
+      283.15,
+      283.15
+    ],
+    "period": 365.25,
+    "precipitation": 1.0,
+    "kind": 0,
+    "expected": {
+      "snow": 0.0,
+      "melt": 10.9575,
+      "margin": 10.0,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      283.15,
+      283.15,
+      283.15,
+      283.15
+    ],
+    "period": 365.25,
+    "precipitation": 3.0,
+    "kind": 0,
+    "expected": {
+      "snow": 0.0,
+      "melt": 10.9575,
+      "margin": 10.0,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      283.15,
+      283.15,
+      283.15,
+      283.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.0,
+    "kind": 1,
+    "expected": {
+      "snow": 0.0,
+      "melt": 10.9575,
+      "margin": 11.799999999999955,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      283.15,
+      283.15,
+      283.15,
+      283.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.1,
+    "kind": 1,
+    "expected": {
+      "snow": 0.0,
+      "melt": 10.9575,
+      "margin": 11.799999999999955,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      283.15,
+      283.15,
+      283.15,
+      283.15
+    ],
+    "period": 365.25,
+    "precipitation": 1.0,
+    "kind": 1,
+    "expected": {
+      "snow": 0.0,
+      "melt": 10.9575,
+      "margin": 11.799999999999955,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      283.15,
+      283.15,
+      283.15,
+      283.15
+    ],
+    "period": 365.25,
+    "precipitation": 3.0,
+    "kind": 1,
+    "expected": {
+      "snow": 0.0,
+      "melt": 10.9575,
+      "margin": 11.799999999999955,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      283.15,
+      283.15,
+      283.15,
+      283.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.0,
+    "kind": 2,
+    "expected": {
+      "snow": 0.0,
+      "melt": 10.9575,
+      "margin": 10.0,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      283.15,
+      283.15,
+      283.15,
+      283.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.1,
+    "kind": 2,
+    "expected": {
+      "snow": 0.0,
+      "melt": 10.9575,
+      "margin": 10.0,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      283.15,
+      283.15,
+      283.15,
+      283.15
+    ],
+    "period": 365.25,
+    "precipitation": 1.0,
+    "kind": 2,
+    "expected": {
+      "snow": 0.0,
+      "melt": 10.9575,
+      "margin": 10.0,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      283.15,
+      283.15,
+      283.15,
+      283.15
+    ],
+    "period": 365.25,
+    "precipitation": 3.0,
+    "kind": 2,
+    "expected": {
+      "snow": 0.0,
+      "melt": 10.9575,
+      "margin": 10.0,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      275.15,
+      277.15,
+      265.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.0,
+    "kind": 0,
+    "expected": {
+      "snow": 0.0,
+      "melt": 1.6436250000000001,
+      "margin": 1.5,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      275.15,
+      277.15,
+      265.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.1,
+    "kind": 0,
+    "expected": {
+      "snow": 0.05,
+      "melt": 1.6436250000000001,
+      "margin": 1.4543691535477983,
+      "classification": 1
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      275.15,
+      277.15,
+      265.15
+    ],
+    "period": 365.25,
+    "precipitation": 1.0,
+    "kind": 0,
+    "expected": {
+      "snow": 0.5,
+      "melt": 1.6436250000000001,
+      "margin": 1.0436915354779832,
+      "classification": 1
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      275.15,
+      277.15,
+      265.15
+    ],
+    "period": 365.25,
+    "precipitation": 3.0,
+    "kind": 0,
+    "expected": {
+      "snow": 1.5,
+      "melt": 1.6436250000000001,
+      "margin": 0.13107460643394944,
+      "classification": 1
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      275.15,
+      277.15,
+      265.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.0,
+    "kind": 1,
+    "expected": {
+      "snow": 0.0,
+      "melt": 1.6436250000000001,
+      "margin": 5.7999999999999545,
+      "classification": 1
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      275.15,
+      277.15,
+      265.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.1,
+    "kind": 1,
+    "expected": {
+      "snow": 0.05,
+      "melt": 1.6436250000000001,
+      "margin": 5.7999999999999545,
+      "classification": 1
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      275.15,
+      277.15,
+      265.15
+    ],
+    "period": 365.25,
+    "precipitation": 1.0,
+    "kind": 1,
+    "expected": {
+      "snow": 0.5,
+      "melt": 1.6436250000000001,
+      "margin": 5.7999999999999545,
+      "classification": 1
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      275.15,
+      277.15,
+      265.15
+    ],
+    "period": 365.25,
+    "precipitation": 3.0,
+    "kind": 1,
+    "expected": {
+      "snow": 1.5,
+      "melt": 1.6436250000000001,
+      "margin": 5.7999999999999545,
+      "classification": 1
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      275.15,
+      277.15,
+      265.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.0,
+    "kind": 2,
+    "expected": {
+      "snow": 0.0,
+      "melt": 1.6436250000000001,
+      "margin": 4.0,
+      "classification": 1
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      275.15,
+      277.15,
+      265.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.1,
+    "kind": 2,
+    "expected": {
+      "snow": 0.05,
+      "melt": 1.6436250000000001,
+      "margin": 4.0,
+      "classification": 1
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      275.15,
+      277.15,
+      265.15
+    ],
+    "period": 365.25,
+    "precipitation": 1.0,
+    "kind": 2,
+    "expected": {
+      "snow": 0.5,
+      "melt": 1.6436250000000001,
+      "margin": 4.0,
+      "classification": 1
+    }
+  },
+  {
+    "temperature": [
+      263.15,
+      275.15,
+      277.15,
+      265.15
+    ],
+    "period": 365.25,
+    "precipitation": 3.0,
+    "kind": 2,
+    "expected": {
+      "snow": 1.5,
+      "melt": 1.6436250000000001,
+      "margin": 4.0,
+      "classification": 1
+    }
+  },
+  {
+    "temperature": [
+      270.15,
+      270.15,
+      270.15,
+      270.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.0,
+    "kind": 0,
+    "expected": {
+      "snow": 0.0,
+      "melt": 0.0,
+      "margin": 0.0,
+      "classification": 0
+    }
+  },
+  {
+    "temperature": [
+      270.15,
+      270.15,
+      270.15,
+      270.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.1,
+    "kind": 0,
+    "expected": {
+      "snow": 0.1,
+      "melt": 0.0,
+      "margin": -0.09126169290440338,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      270.15,
+      270.15,
+      270.15,
+      270.15
+    ],
+    "period": 365.25,
+    "precipitation": 1.0,
+    "kind": 0,
+    "expected": {
+      "snow": 1.0,
+      "melt": 0.0,
+      "margin": -0.9126169290440338,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      270.15,
+      270.15,
+      270.15,
+      270.15
+    ],
+    "period": 365.25,
+    "precipitation": 3.0,
+    "kind": 0,
+    "expected": {
+      "snow": 3.0,
+      "melt": 0.0,
+      "margin": -2.737850787132101,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      270.15,
+      270.15,
+      270.15,
+      270.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.0,
+    "kind": 1,
+    "expected": {
+      "snow": 0.0,
+      "melt": 0.0,
+      "margin": -1.2000000000000455,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      270.15,
+      270.15,
+      270.15,
+      270.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.1,
+    "kind": 1,
+    "expected": {
+      "snow": 0.1,
+      "melt": 0.0,
+      "margin": -1.2000000000000455,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      270.15,
+      270.15,
+      270.15,
+      270.15
+    ],
+    "period": 365.25,
+    "precipitation": 1.0,
+    "kind": 1,
+    "expected": {
+      "snow": 1.0,
+      "melt": 0.0,
+      "margin": -1.2000000000000455,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      270.15,
+      270.15,
+      270.15,
+      270.15
+    ],
+    "period": 365.25,
+    "precipitation": 3.0,
+    "kind": 1,
+    "expected": {
+      "snow": 3.0,
+      "melt": 0.0,
+      "margin": -1.2000000000000455,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      270.15,
+      270.15,
+      270.15,
+      270.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.0,
+    "kind": 2,
+    "expected": {
+      "snow": 0.0,
+      "melt": 0.0,
+      "margin": -3.0,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      270.15,
+      270.15,
+      270.15,
+      270.15
+    ],
+    "period": 365.25,
+    "precipitation": 0.1,
+    "kind": 2,
+    "expected": {
+      "snow": 0.1,
+      "melt": 0.0,
+      "margin": -3.0,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      270.15,
+      270.15,
+      270.15,
+      270.15
+    ],
+    "period": 365.25,
+    "precipitation": 1.0,
+    "kind": 2,
+    "expected": {
+      "snow": 1.0,
+      "melt": 0.0,
+      "margin": -3.0,
+      "classification": 2
+    }
+  },
+  {
+    "temperature": [
+      270.15,
+      270.15,
+      270.15,
+      270.15
+    ],
+    "period": 365.25,
+    "precipitation": 3.0,
+    "kind": 2,
+    "expected": {
+      "snow": 3.0,
+      "melt": 0.0,
+      "margin": -3.0,
+      "classification": 2
+    }
+  }
+]

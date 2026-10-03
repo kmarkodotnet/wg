@@ -16,9 +16,11 @@ namespace WorldGen.Core.Climate
     /// </summary>
     public sealed class ThermalModelParameters
     {
-        public const int ModelVersion = 5;
+        public const int ModelVersion = 6;
 
+        // ND-174/175: az aktív bázis szezonális EBM; a régi beta/albedó-proxy csak Legacy módban hat.
         public static readonly ThermalModelParameters Default = new ThermalModelParameters();
+        public static readonly ThermalModelParameters Legacy = new ThermalModelParameters(useSeasonalEnergyBalance: false);
 
         private readonly double[] _albedo;
         private readonly double[] _emissivity;
@@ -43,6 +45,8 @@ namespace WorldGen.Core.Climate
         /// meridionális hőszállítás.
         /// </summary>
         public double MeridionalTransportScale { get; }
+        public bool UseSeasonalEnergyBalance { get; }
+        public int SeasonalPhases { get; }
 
         /// <summary>
         /// A BÁZIS radiatív tagjának albedója. <c>null</c> (az alapértelmezés)
@@ -97,7 +101,9 @@ namespace WorldGen.Core.Climate
             double airFeedbackStrength = 0.1,
             double? baselineAlbedo = null,
             bool legacySurfaceBaselineAlbedo = false,
-            double meridionalTransportScale = 1.0)
+            double meridionalTransportScale = 1.0,
+            bool useSeasonalEnergyBalance = true,
+            int seasonalPhases = SeasonalEnergyBalance.DefaultPhases)
         {
             RequirePositive(seawaterDensity, nameof(seawaterDensity));
             RequirePositive(seawaterSpecificHeat, nameof(seawaterSpecificHeat));
@@ -122,6 +128,8 @@ namespace WorldGen.Core.Climate
             RequireUnit(radiativeSmoothing, nameof(radiativeSmoothing));
             RequireUnit(airFeedbackStrength, nameof(airFeedbackStrength));
             RequireUnit(meridionalTransportScale, nameof(meridionalTransportScale));
+            if (seasonalPhases < 4 || seasonalPhases % 2 != 0 || seasonalPhases > 384)
+                throw new ArgumentOutOfRangeException(nameof(seasonalPhases));
             if (baselineAlbedo.HasValue) RequireUnit(baselineAlbedo.Value, nameof(baselineAlbedo));
 
             double oceanCs = seawaterDensity * seawaterSpecificHeat * oceanDepthM;
@@ -140,6 +148,8 @@ namespace WorldGen.Core.Climate
             RadiativeSmoothing = radiativeSmoothing;
             AirFeedbackStrength = airFeedbackStrength;
             MeridionalTransportScale = meridionalTransportScale;
+            UseSeasonalEnergyBalance = useSeasonalEnergyBalance;
+            SeasonalPhases = seasonalPhases;
             BaselineAlbedo = baselineAlbedo;
             LegacySurfaceBaselineAlbedo = legacySurfaceBaselineAlbedo;
         }

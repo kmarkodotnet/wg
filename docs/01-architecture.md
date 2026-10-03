@@ -1479,3 +1479,57 @@ javaslatok, a végleges alak a core-dev döntése.
 | C# (`WorldGen.Core`) | `Terrain/RegolithProfile.cs`, `Terrain/RegolithModel.cs` | **Kész** (2026-09-19). A tiszta `ComputeProfile` 500/500 vektoron BITPONTOSAN egyezik a Pythonnal (tolerancia nélküli `Assert.Equal`); a teljes-rács `ComputeField` 1e-6-tal, mert az upstream `Math.Sin/Cos/Exp/Pow` láncok nem bitpontosak (mért maximum: 2,994838e-09). 15 teszt. |
 | Folytonos "Soil fertility" metrika | `Features/FeatureMetrics.SoilFertility` | **Kész** (2026-09-19): a régió szárazföld-tile-jain vett átlaga a `min(1, Depth/DepthAbsoluteCapM) × WaterRetention` szorzatnak. A `minerality` tag kimarad (ld. 13.6). A normalizálás monoton, ezért az ordinális sávra nincs hatása — csak a panelen megjelenő folytonos értéket teszi dimenziómentessé. |
 | Ordinális "Soil fertility" kalibráció | `tools/WorldGen.Cli` `calibrate-ordinals --soil true` | Mintavétel **kész** (vízgyűjtő-régiónként, min. 5 tile); a küszöbök az N=500 futás után kerülnek az `OrdinalQuantization`-be. A kapcsoló azért külön, mert a regolit-lánc MÉRVE ~3,2 s/világ level=6-on, szemben a másik két metrika töredék-másodpercével. |
+
+## 2026-10-02 — A24 aktív klíma-adatút (ND-165/174/175)
+
+`SurfaceTemperatureField` alapértelmezett bázisa a `SeasonalEnergyBalance`:
+48 fázisú periodikus hőtárolás + konzervatív rács-transzport. A `ThermalWind`
+ugyanennek a mezőnek a gradiensét használja, napi levegő-visszacsatolással.
+A `ThermalClimateCalculator` két rögzített menete fizikai hó/fagyási mérleget
+számol; a percentilis csak explicit `ThermalModelParameters.Legacy` módban él.
+
+A `PhysicalIceBudget.PersistenceMarginK` előjeles fennmaradási jel, nem
+hőmérséklet. A viewer jégmaszkja és a fizikai biome-hidegvég ezt fogyasztja;
+a talaj, párolgás és biome-hőtengely továbbra is a valódi éves K mezőt.
+A `ThermalClimateDiskCache` v3 külön tárolja a jelet és a módjelzőt.
+Az éves csapadék fizikai kalibrációja külön adatút, nem írja át a meglévő
+csapadékproxy egységét. A deep-time eltolás már a Core forcing része.
+
+Kompatibilitás: generátor 8, hőmodell 6. Régi mentés/cache explicit elutasítással
+válik el az új modelltől. Az analitikus előnézet bolygó-albedója javítva;
+a teljes fizikai mező helyett továbbra sem használható elfogadási orákulumként.
+A mérések és a csökkentett modell pontos határai:
+[A24 lezárási napló](../history/2026-10-02-a24-seasonal-physical-ice.md).
+
+### A8 progresszív folyómegjelenítés (ND-177)
+
+A finom Core-követő teljes, kanonikusan véglegesített ágakat adhat át
+callbackkel a viewernek a többi ág számítása közben. A modell topológiája
+és végleges pontjai változatlanok. A viewer immutábilis listapillanatképet
+tesz a főszálra; a részleges mesh is generációvédett és képkockákra
+bontva épül. A korábbi négyirányú, durva folyó-előnézet megszűnik.
+
+ND-178/185: a folyószalag UV1 csatornája a modellközépvonalat és egy jelzőt
+tartalmaz. A saját `WorldGen/RiverOverlay` HDRP shader legalább 2 pixelre
+növeli a vetített fél-szélességet; a modellpontok és mélységteszt megmaradnak.
+A közös terep-/vízshader nem tartalmaz folyóspecifikus szélesítést.
+
+ND-179: a folyószalag legfeljebb 16 384 vertexes részekre oszlik. A részek
+határán a teljes modellútból számolt vertexpár megismétlődik, a háromszögek
+és normálok változatlanok. A viewer képkockánként egy részt tölt fel rejtett
+gyökér alatt, majd a teljes aktuális generáció gyökerét atomikusan cseréli.
+A megszakított és lecserélt saját mesh-ek felszabadulnak.
+
+ND-181: a finom hálózat előtt 1000 m-es, ugyanazon Core-követővel készített
+áttekintés fut. Csak ennek forrássorrendje kamera-prioritásos; a végleges
+finom követés kanonikus sorrendje megmarad. A teljes áttekintés a finom
+számítás végéig látható, a panel külön jelzi a két ágdarabszámot. A kamera
+kezdeti iránya már Start előtt érvényes. A minimum 4 pixel széles folyóvonal
+modellből származó, éjjel is olvasható térképi kategóriajelölés; a fizikai
+tó-/óceánvilágítás és a bolygó általi mélységi takarás változatlan.
+
+ND-185: a folyó saját, felszabadított anyagot használ, HDRP ForwardOnly
+passzal, ZWrite Off és ZTest LEqual beállítással. A színe térképi
+kategóriajelölés, éjjel is olvasható. A finom számítás végén a kanonikus
+50 m / fineDepth=4 hálózat átveszi az áttekintés helyét. A tartós áttekintés
+(ND-184) és a követési paraméterpróbák (ND-183) visszavonva.

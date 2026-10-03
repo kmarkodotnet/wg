@@ -143,7 +143,7 @@ def temperature_kelvin(
         tile_position, day_t, orbital_period, rotation_period, axial_tilt,
         orbital_phase0, rotation_phase0,
     )
-    albedo = ALBEDO_OCEAN if is_oceanic else ALBEDO_LAND
+    albedo = 0.30  # ND-165: bolygó-albedó a radiatív + üvegház mérleghez.
     raw = radiative_equilibrium_temperature(avg_factor, albedo, f_peak)
     t_eq = raw ** 0.25 if raw > 0.0 else 0.0
 
@@ -305,7 +305,7 @@ def temperature_kelvin_full(
         tile_position, day_t, orbital_period, rotation_period, axial_tilt,
         orbital_phase0, rotation_phase0,
     )
-    albedo = ALBEDO_OCEAN if is_oceanic else ALBEDO_LAND
+    albedo = 0.30  # ND-165: bolygó-albedó a radiatív + üvegház mérleghez.
     raw = radiative_equilibrium_temperature(avg_factor, albedo, f_peak)
     t_radiative = raw ** 0.25 if raw > 0.0 else 0.0
 

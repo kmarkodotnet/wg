@@ -55,17 +55,17 @@ public sealed class ThermalAnnualFixture
     }
 
     public SurfaceTemperatureField CreateField(SurfaceThermalKind[] kinds)
-        => new SurfaceTemperatureField(Grid, kinds, Elevation, 0.0, Seed, 0.0, Orbit);
+        => new SurfaceTemperatureField(Grid, kinds, Elevation, 0.0, Seed, 0.0, Orbit, ThermalModelParameters.Legacy);
 
     /// <summary>A RÉGI, abszolút küszöbű klíma (a `permanentIcePercentile: null` út).</summary>
     public ThermalClimate ComputeClimate()
         => ThermalClimateCalculator.Compute(Grid, IceFreeKinds, Elevation, 0.0, Seed, 0.0, Orbit,
-            sampleDays: SampleDays, permanentIcePercentile: null);
+            parameters: ThermalModelParameters.Legacy, sampleDays: SampleDays, permanentIcePercentile: null);
 
-    /// <summary>Az ND-159 PERCENTILIS küszöbű klíma — ez az alapértelmezett út.</summary>
+    /// <summary>Az ND-159 történeti, PERCENTILIS küszöbű klímája, explicit Legacy módban.</summary>
     public ThermalClimate ComputePercentileClimate()
         => ThermalClimateCalculator.Compute(Grid, IceFreeKinds, Elevation, 0.0, Seed, 0.0, Orbit,
-            sampleDays: SampleDays);
+            parameters: ThermalModelParameters.Legacy, sampleDays: SampleDays);
 
     public double Percentile => Vectors.GetProperty("permanentIcePercentile").GetDouble();
 }
@@ -87,6 +87,7 @@ public class ThermalAnnualStatisticsTests : IClassFixture<ThermalAnnualFixture>
     [Fact]
     public void OracleWorldMatchesTheReferenceInputs()
     {
+        Assert.Equal(ThermalModelParameters.ModelVersion, _fx.Vectors.GetProperty("modelVersion").GetInt32());
         JsonElement baseKinds = _fx.Vectors.GetProperty("baseKinds");
         JsonElement elevation = _fx.Vectors.GetProperty("elevationM");
         Assert.Equal(_fx.Grid.CellCount, baseKinds.GetArrayLength());
@@ -393,7 +394,7 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
         for (int c = 0; c < kinds.Length; c++) { kinds[c] = SurfaceThermalKind.Ocean; elevation[c] = -3000.0; }
 
         ThermalClimate climate = ThermalClimateCalculator.Compute(_fx.Grid, kinds, elevation, 0.0,
-            ThermalAnnualFixture.Seed, 0.0, _fx.Orbit, sampleDays: _fx.SampleDays,
+            ThermalAnnualFixture.Seed, 0.0, _fx.Orbit, parameters: ThermalModelParameters.Legacy, sampleDays: _fx.SampleDays,
             permanentIcePercentile: null);
 
         Assert.Equal(0, climate.CountRefined(LakesIceErosion.IceClass.PermanentIce));
@@ -412,7 +413,7 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
         // második menet, mert a küszöb konstrukció szerint talál jeget.
         // Ez az ND-159 vállalt ára — a rövidzár gyakorlatilag kiesik.
         ThermalClimate pct = ThermalClimateCalculator.Compute(_fx.Grid, kinds, elevation, 0.0,
-            ThermalAnnualFixture.Seed, 0.0, _fx.Orbit, sampleDays: _fx.SampleDays);
+            ThermalAnnualFixture.Seed, 0.0, _fx.Orbit, parameters: ThermalModelParameters.Legacy, sampleDays: _fx.SampleDays);
         Assert.False(pct.SecondPassSkipped);
         Assert.True(pct.CountRefined(LakesIceErosion.IceClass.PermanentIce) > 0);
     }
@@ -445,7 +446,7 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
         // A klíma-ciklus (ND-44) a seedből és a geológiai időből jön, ezért a
         // másik seed másik modellazonosítót és másik mezőt ad.
         ThermalClimate other = ThermalClimateCalculator.Compute(_fx.Grid, _fx.IceFreeKinds, _fx.Elevation,
-            0.0, ThermalAnnualFixture.Seed + 1, 0.0, _fx.Orbit, sampleDays: _fx.SampleDays);
+            0.0, ThermalAnnualFixture.Seed + 1, 0.0, _fx.Orbit, parameters: ThermalModelParameters.Legacy, sampleDays: _fx.SampleDays);
         Assert.NotEqual(a.Refined.ModelIdentity, other.Refined.ModelIdentity);
     }
 
@@ -562,7 +563,7 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
     [Fact]
     public void BaselineUsesPlanetaryAlbedoAndTheLegacyHookReproducesTheOldMix()
     {
-        var defaults = new ThermalModelParameters();
+        var defaults = new ThermalModelParameters(useSeasonalEnergyBalance: false);
         Assert.Null(defaults.BaselineAlbedo);
         Assert.False(defaults.LegacySurfaceBaselineAlbedo);
         foreach (SurfaceThermalKind kind in new[] { SurfaceThermalKind.Land, SurfaceThermalKind.Ocean,
@@ -570,25 +571,25 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
             Assert.Equal(Temperature.AlbedoPlanet, defaults.BaselineAlbedoFor(kind));
 
         // Egyedi FELSZÍNI albedó: a bázis NEM mozdul (a solver anomália-tagja igen).
-        var custom = new ThermalModelParameters(landAlbedo: 0.55, oceanAlbedo: 0.44);
+        var custom = new ThermalModelParameters(useSeasonalEnergyBalance: false, landAlbedo: 0.55, oceanAlbedo: 0.44);
         Assert.Equal(Temperature.AlbedoPlanet, custom.BaselineAlbedoFor(SurfaceThermalKind.Land));
         Assert.Equal(Temperature.AlbedoPlanet, custom.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
         Assert.Equal(0.55, custom.Albedo(SurfaceThermalKind.Land));
 
         // A/B-kampó: pontosan az ND-160 ELŐTTI kevert albedó.
-        var legacy = new ThermalModelParameters(legacySurfaceBaselineAlbedo: true);
+        var legacy = new ThermalModelParameters(useSeasonalEnergyBalance: false, legacySurfaceBaselineAlbedo: true);
         Assert.Equal(Temperature.AlbedoOcean, legacy.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
         Assert.Equal(Temperature.AlbedoLand, legacy.BaselineAlbedoFor(SurfaceThermalKind.Land));
         Assert.Equal(Temperature.AlbedoLand, legacy.BaselineAlbedoFor(SurfaceThermalKind.Ice));
         Assert.Equal(Temperature.AlbedoLand, legacy.BaselineAlbedoFor(SurfaceThermalKind.Freshwater));
 
         // Az explicit érték MINDKETTŐT felülírja, a legacy ágat is.
-        var explicitAlbedo = new ThermalModelParameters(baselineAlbedo: 0.42, legacySurfaceBaselineAlbedo: true);
+        var explicitAlbedo = new ThermalModelParameters(useSeasonalEnergyBalance: false, baselineAlbedo: 0.42, legacySurfaceBaselineAlbedo: true);
         Assert.Equal(0.42, explicitAlbedo.BaselineAlbedoFor(SurfaceThermalKind.Land));
         Assert.Equal(0.42, explicitAlbedo.BaselineAlbedoFor(SurfaceThermalKind.Ocean));
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(baselineAlbedo: 1.5));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(baselineAlbedo: -0.1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(useSeasonalEnergyBalance: false, baselineAlbedo: 1.5));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(useSeasonalEnergyBalance: false, baselineAlbedo: -0.1));
     }
 
     /// <summary>
@@ -601,12 +602,12 @@ public class ThermalClimateTests : IClassFixture<ThermalAnnualFixture>
     {
         var legacy = new ThermalBaseline(_fx.Grid, _fx.IceFreeKinds, _fx.Elevation, 0.0,
             ThermalAnnualFixture.Seed, 0.0, _fx.Orbit,
-            new ThermalModelParameters(legacySurfaceBaselineAlbedo: true));
+            new ThermalModelParameters(useSeasonalEnergyBalance: false, legacySurfaceBaselineAlbedo: true));
         var planet = new ThermalBaseline(_fx.Grid, _fx.IceFreeKinds, _fx.Elevation, 0.0,
-            ThermalAnnualFixture.Seed, 0.0, _fx.Orbit);
+            ThermalAnnualFixture.Seed, 0.0, _fx.Orbit, ThermalModelParameters.Legacy);
         var explicitPlanet = new ThermalBaseline(_fx.Grid, _fx.IceFreeKinds, _fx.Elevation, 0.0,
             ThermalAnnualFixture.Seed, 0.0, _fx.Orbit,
-            new ThermalModelParameters(baselineAlbedo: Temperature.AlbedoPlanet));
+            new ThermalModelParameters(useSeasonalEnergyBalance: false, baselineAlbedo: Temperature.AlbedoPlanet));
 
         int count = _fx.Grid.CellCount;
         var legacyBase = new double[count];

@@ -123,6 +123,8 @@ namespace WorldGen.Viewer
             public bool FromCache;
             public double ComputeMs;
             public double PermanentIceThresholdK;
+            public bool UsesPhysicalIce;
+            public Dictionary<TileId, double> IcePersistenceMarginK = new Dictionary<TileId, double>();
 
             /// <summary>A SZARAZFOLDI eves felszini atlag - a jegmaszk bemenete (ND-162).</summary>
             public Dictionary<TileId, double> MeanSurfaceK = new Dictionary<TileId, double>();
@@ -186,13 +188,14 @@ namespace WorldGen.Viewer
                 _climateApplied = completed;
 
             if (_climateApplied == null || _climateApplied.Revision != _climateRevision) return false;
-            meanSurfaceK = _climateApplied.MeanSurfaceK;
+            meanSurfaceK = _climateApplied.UsesPhysicalIce
+                ? _climateApplied.IcePersistenceMarginK : _climateApplied.MeanSurfaceK;
             thresholdK = _climateApplied.PermanentIceThresholdK;
             return true;
         }
 
         /// <summary>
-        /// A Build vegen hivjuk, a mar kiszamolt bemenetekkel: ez rogziti a
+        /// A Buildben, a klima fogyasztasa elott hivjuk: ez rogziti a
         /// vilag-pillanatkepet a hatterszal szamara. A JEGMENTES felszintipus-
         /// terkep itt keszul (ND-158: a jeg a homodell KIMENETE).
         ///
@@ -452,6 +455,7 @@ namespace WorldGen.Viewer
             // homodell eves atlagara adodik - ld. a fajl fejlecet.
             double glaciationOffsetK = WorldGen.Core.Tectonics.DeepTimeErosionGlaciation.GlobalTempOffset(
                 inputs.TYears / 1.0e6);
+            if (payload.UsesPhysicalIce) glaciationOffsetK = 0.0; // A Core energiamérlegében már szerepel.
 
             var result = new ThermalClimateResult
             {
@@ -460,6 +464,7 @@ namespace WorldGen.Viewer
                 FromCache = fromCache,
                 ComputeMs = timer.Elapsed.TotalMilliseconds,
                 PermanentIceThresholdK = payload.RefinedThresholdK + glaciationOffsetK,
+                UsesPhysicalIce = payload.UsesPhysicalIce,
                 SeaLevelM = inputs.SeaLevelM,
             };
             int side = grid.Side;
@@ -482,6 +487,7 @@ namespace WorldGen.Viewer
                             payload.Refined.MeanWindX[index], payload.Refined.MeanWindY[index],
                             payload.Refined.MeanWindZ[index], payload.Refined.MeanWindSpeedMs[index]);
                         result.ElevationM[id] = inputs.ElevationM[index];
+                        if (payload.UsesPhysicalIce) result.IcePersistenceMarginK[id] = payload.IcePersistenceMarginK[index];
                         if (inputs.IceFreeKinds[index] == SurfaceThermalKind.Ocean) continue; // SeaIce a biome-bol
                         result.MeanSurfaceK[id] = payload.Refined.MeanSurfaceK[index] + glaciationOffsetK;
                     }

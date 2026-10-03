@@ -155,6 +155,61 @@ public class ParallelRiverNetworkTests
                 maxDegreeOfParallelism: workers));
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4)]
+    public void ProgressiveCallbacksContainCanonicalCompletedBranches(int workers)
+    {
+        const ulong seed = 0xA7C944210000UL;
+        var seeds = PlateGeneration.GenerateSeeds(seed, 20);
+        var sources = new[]
+        {
+            TileId.FromFaceLevelUV(0, 5, 10, 10),
+            TileId.FromFaceLevelUV(0, 5, 10, 10),
+            TileId.FromFaceLevelUV(2, 5, 16, 18),
+        };
+        var completed = new List<RiverPathTracing.ContinuousRiverPath>();
+        var sequential = RiverPathTracing.BuildContinuousRiverNetworkFromSources(
+            seed, seeds, -100000.0, sources, fineDepth: 2,
+            escapeNodeBudget: 32, maxSteps: 16);
+        var progressive = RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
+            seed, seeds, -100000.0, sources, fineDepth: 2,
+            escapeNodeBudget: 32, maxSteps: 16, maxDegreeOfParallelism: workers,
+            onRiverCompleted: river =>
+            {
+                Assert.Equal(completed.Count, river.SourceIndex);
+                if (river.Termination == RiverPathTracing.TerminationReason.Merged)
+                {
+                    Assert.InRange(river.MergedIntoRiverIndex, 0, completed.Count - 1);
+                    Assert.Contains(river.Points[^1], completed[river.MergedIntoRiverIndex].Points);
+                }
+                completed.Add(river);
+            });
+        AssertSameNetwork(sequential, progressive);
+        AssertSameNetwork(sequential, completed);
+    }
+
+    [Fact]
+    public void CancellationFromProgressiveCallbackDoesNotReturnPartialNetwork()
+    {
+        const ulong seed = 0xA7C944210000UL;
+        var seeds = PlateGeneration.GenerateSeeds(seed, 20);
+        var sources = new[]
+        {
+            TileId.FromFaceLevelUV(0, 5, 10, 10),
+            TileId.FromFaceLevelUV(0, 5, 10, 10),
+        };
+        using var cancellation = new CancellationTokenSource();
+        int callbacks = 0;
+        Assert.ThrowsAny<OperationCanceledException>(() =>
+            RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
+                seed, seeds, -100000.0, sources, fineDepth: 2,
+                escapeNodeBudget: 32, maxSteps: 16, maxDegreeOfParallelism: 2,
+                cancellation: cancellation.Token,
+                onRiverCompleted: river => { callbacks++; cancellation.Cancel(); }));
+        Assert.Equal(1, callbacks);
+    }
+
     private sealed class CancellingSources : IReadOnlyList<TileId>
     {
         private readonly CancellationTokenSource _cancellation;

@@ -14,7 +14,7 @@ public class ThermalFeedbackTests
     {
         var grid = DenseGridMetrics.Build(level);
         var (kinds, elevation) = ThermalFieldFixture.SyntheticWorld(grid);
-        return new SurfaceTemperatureField(grid, kinds, elevation, 0, ThermalFieldFixture.Seed, 0, ThermalFieldFixture.Orbit, parameters);
+        return new SurfaceTemperatureField(grid, kinds, elevation, 0, ThermalFieldFixture.Seed, 0, ThermalFieldFixture.Orbit, parameters ?? ThermalModelParameters.Legacy);
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public class ThermalFeedbackTests
     public void FeedbackStrengthChangesTheIntegratedTemperature()
     {
         var coupled = Field(2);
-        var control = Field(2, new ThermalModelParameters(airFeedbackStrength: 0));
+        var control = Field(2, new ThermalModelParameters(useSeasonalEnergyBalance: false, airFeedbackStrength: 0));
         var a = new ThermalSnapshot(coupled.Grid.CellCount);
         var b = new ThermalSnapshot(control.Grid.CellCount);
         a.Reset(330); b.Reset(330);
@@ -102,7 +102,7 @@ public class ThermalFeedbackTests
     [Fact]
     public void ZeroFeedbackStrengthRemovesOnlyTheAnomalyInfluence()
     {
-        var field = Field(2, new ThermalModelParameters(airFeedbackStrength: 0));
+        var field = Field(2, new ThermalModelParameters(useSeasonalEnergyBalance: false, airFeedbackStrength: 0));
         var theta = Enumerable.Range(0, field.Grid.CellCount).Select(c => 100.0 * field.Grid.CenterX[c]).ToArray();
         var zero = new double[theta.Length];
         var u = new double[field.Grid.EdgeCount]; var v = new double[u.Length];
@@ -112,8 +112,8 @@ public class ThermalFeedbackTests
         Assert.Equal(v, u);
         Assert.Equal(t, s);
         Assert.Contains(s, speed => speed > 1.0);
-        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(airFeedbackStrength: -0.01));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(airFeedbackStrength: 1.01));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(useSeasonalEnergyBalance: false, airFeedbackStrength: -0.01));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(useSeasonalEnergyBalance: false, airFeedbackStrength: 1.01));
     }
 
     [Fact]

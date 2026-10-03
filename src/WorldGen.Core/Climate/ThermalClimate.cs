@@ -27,6 +27,8 @@ namespace WorldGen.Core.Climate
 
         /// <summary>A B menet felszíntípusai (az A menet bemenete + <see cref="SurfaceThermalKind.Ice"/>).</summary>
         public ReadOnlyCollection<SurfaceThermalKind> RefinedKinds { get; }
+        public PhysicalIceBudget? IceFreePhysicalIce { get; }
+        public PhysicalIceBudget? RefinedPhysicalIce { get; }
 
         /// <summary>
         /// Azoknak a celláknak a száma, ahol a két menet jégosztálya ELTÉR.
@@ -54,7 +56,8 @@ namespace WorldGen.Core.Climate
             LakesIceErosion.IceClass[] iceFreeClass, LakesIceErosion.IceClass[] refinedClass,
             SurfaceThermalKind[] refinedKinds, int reclassifiedCells, bool secondPassSkipped,
             ThermalIceClassification.IceThresholds iceFreeThresholds,
-            ThermalIceClassification.IceThresholds refinedThresholds)
+            ThermalIceClassification.IceThresholds refinedThresholds,
+            PhysicalIceBudget? iceFreePhysicalIce = null, PhysicalIceBudget? refinedPhysicalIce = null)
         {
             SecondPassSkipped = secondPassSkipped;
             IceFreeThresholds = iceFreeThresholds;
@@ -65,6 +68,7 @@ namespace WorldGen.Core.Climate
             RefinedClass = Array.AsReadOnly(refinedClass);
             RefinedKinds = Array.AsReadOnly(refinedKinds);
             ReclassifiedCells = reclassifiedCells;
+            IceFreePhysicalIce = iceFreePhysicalIce; RefinedPhysicalIce = refinedPhysicalIce;
         }
 
         /// <summary>Hány cella esik az adott jégosztályba a VÉGLEGES (B menet) maszkban.</summary>
@@ -78,6 +82,10 @@ namespace WorldGen.Core.Climate
     }
 
     /// <summary>
+    /// ND-174/175: az alapértelmezett út periodikus energiamérleget és fizikai
+    /// hó/fagyási feltételt használ; a percentilis csak Legacy paraméterezéssel él.
+    /// Az éves szél a fizikai csapadékhoz includeRefinedWind=false esetén is elkészül.
+    /// Az alábbi történeti ND-158/159 leírás a Legacy ágra vonatkozik.
     /// A 6. fázis fogyasztói adatútja (ND-158): éves éghajlat a hőmodellből,
     /// KÉT RÖGZÍTETT MENETBEN.
     ///
@@ -150,6 +158,10 @@ namespace WorldGen.Core.Climate
                         $"Az A menet bemenete nem tartalmazhat jeget (a(z) {c}. cella Ice) — a jég a hőmodell " +
                         "KIMENETE, nem bemenete. Használd az IceFreeKinds() metódust.", nameof(iceFreeKinds));
 
+            if ((parameters ?? ThermalModelParameters.Default).UseSeasonalEnergyBalance)
+                return ComputePhysical(grid, iceFreeKinds, elevationM, seaLevelM, worldSeed, tYears, orbit,
+                    parameters ?? ThermalModelParameters.Default, sampleDays, firstDay, useParallelLocalStep);
+
             ThermalAnnualStatistics iceFreeStats = RunPass(grid, iceFreeKinds, elevationM, seaLevelM,
                 worldSeed, tYears, orbit, parameters, sampleDays, firstDay, useParallelLocalStep,
                 includeRefinedWind);
@@ -190,6 +202,35 @@ namespace WorldGen.Core.Climate
 
             return new ThermalClimate(iceFreeStats, refinedStats, iceFreeClass, refinedClass,
                 refinedKinds, reclassified, !anyPermanentIce, iceFreeThresholds, refinedThresholds);
+        }
+
+        private static ThermalClimate ComputePhysical(DenseGridMetrics grid, SurfaceThermalKind[] original,
+            double[] elevation, double seaLevel, ulong seed, double tYears, ThermalOrbit orbit,
+            ThermalModelParameters parameters, int sampleDays, long firstDay, bool parallel)
+        {
+            (ThermalAnnualStatistics stats, PhysicalIceBudget ice) Pass(SurfaceThermalKind[] kinds)
+            {
+                var field = new SurfaceTemperatureField(grid, kinds, elevation, seaLevel, seed, tYears, orbit, parameters);
+                field.UseParallelLocalStep = parallel;
+                var stats = ThermalAnnualStatisticsCalculator.Compute(field, new ThermalSnapshot(grid.CellCount), sampleDays, firstDay, true);
+                return (stats, PhysicalIceBudget.Compute(grid, original, elevation, seaLevel, seed, orbit, field.Baseline.Seasonal!, stats));
+            }
+            var a = Pass(original);
+            var refined = (SurfaceThermalKind[])original.Clone();
+            var ac = new LakesIceErosion.IceClass[grid.CellCount];
+            bool any = false;
+            for (int c = 0; c < refined.Length; c++)
+            {
+                ac[c] = a.ice.Classes[c];
+                if (ac[c] == LakesIceErosion.IceClass.PermanentIce) { refined[c] = SurfaceThermalKind.Ice; any = true; }
+            }
+            var b = any ? Pass(refined) : a;
+            var bc = new LakesIceErosion.IceClass[grid.CellCount];
+            int changed = 0;
+            for (int c = 0; c < bc.Length; c++) { bc[c] = b.ice.Classes[c]; if (bc[c] != ac[c]) changed++; }
+            // Küszöb itt a külön mérlegjel 0 K határa, nem felszíni hőmérséklet.
+            var thresholds = new ThermalIceClassification.IceThresholds(0, 273.15);
+            return new ThermalClimate(a.stats, b.stats, ac, bc, refined, changed, !any, thresholds, thresholds, a.ice, b.ice);
         }
 
         private static ThermalAnnualStatistics RunPass(DenseGridMetrics grid, SurfaceThermalKind[] kinds,
@@ -286,7 +327,7 @@ namespace WorldGen.Core.Climate
         /// </summary>
         public static Biome[] ClassifyBiomes(ThermalAnnualStatistics annual, bool[] isOceanic,
             double[] precipitation, BiomeClassification.PrecipitationThresholds thresholds,
-            IReadOnlyList<LakesIceErosion.IceClass> iceClass)
+            IReadOnlyList<LakesIceErosion.IceClass> iceClass, bool physicalIce = false)
         {
             if (iceClass == null) throw new ArgumentNullException(nameof(iceClass));
             Biome[] result = ClassifyBiomes(annual, isOceanic, precipitation, thresholds);
@@ -294,7 +335,10 @@ namespace WorldGen.Core.Climate
                 throw new ArgumentException("A jégosztály mérete a cellaszámmal egyezzen.", nameof(iceClass));
 
             for (int c = 0; c < result.Length; c++)
-                if (iceClass[c] == LakesIceErosion.IceClass.PermanentIce)
+                if (physicalIce)
+                    result[c] = BiomeClassification.ClassifyWithIce(annual.MeanAirK[c], isOceanic[c],
+                        precipitation[c], thresholds, iceClass[c] == LakesIceErosion.IceClass.PermanentIce);
+                else if (iceClass[c] == LakesIceErosion.IceClass.PermanentIce)
                     result[c] = isOceanic[c] ? Biome.SeaIce : Biome.IceSheet;
             return result;
         }

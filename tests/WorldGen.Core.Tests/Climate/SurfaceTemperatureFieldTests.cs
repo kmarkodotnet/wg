@@ -31,7 +31,8 @@ public sealed class ThermalFieldFixture
     }
 
     public SurfaceTemperatureField CreateField(ThermalModelParameters? parameters = null)
-        => new SurfaceTemperatureField(Grid, Kinds, Elevation, 0.0, Seed, 0.0, Orbit, parameters);
+        // Az ND-100/168 történeti orákulumot explicit legacy módban őrizzük.
+        => new SurfaceTemperatureField(Grid, Kinds, Elevation, 0.0, Seed, 0.0, Orbit, parameters ?? ThermalModelParameters.Legacy);
 
     /// <summary>A Python-referencia <c>synthetic_world</c> szabálya.</summary>
     public static (SurfaceThermalKind[] kinds, double[] elevation) SyntheticWorld(DenseGridMetrics grid)
@@ -433,19 +434,19 @@ public class SurfaceTemperatureFieldBehaviourTests : IClassFixture<ThermalFieldF
         ThermalSnapshot reference = Run(_fx.CreateField(), 330, 4);
         var variants = new (string name, ThermalModelParameters p)[]
         {
-            ("landAlbedo", new ThermalModelParameters(landAlbedo: 0.25)),
-            ("oceanAlbedo", new ThermalModelParameters(oceanAlbedo: 0.08)),
-            ("freshwaterAlbedo", new ThermalModelParameters(freshwaterAlbedo: 0.1)),
-            ("iceAlbedo", new ThermalModelParameters(iceAlbedo: 0.7)),
-            ("waterEmissivity", new ThermalModelParameters(waterEmissivity: 0.99)),
-            ("landEmissivity", new ThermalModelParameters(landEmissivity: 0.9)),
-            ("oceanDepthM", new ThermalModelParameters(oceanDepthM: 20.0)),
-            ("landDepthM", new ThermalModelParameters(landDepthM: 0.2)),
-            ("airColumnM", new ThermalModelParameters(airColumnM: 800.0)),
-            ("transferCoefficient", new ThermalModelParameters(transferCoefficient: 1.0e-3)),
-            ("airRelaxationDays", new ThermalModelParameters(airRelaxationDays: 2.0)),
-            ("minExchangeWindMs", new ThermalModelParameters(minExchangeWindMs: 30.0)),
-            ("radiativeSmoothing", new ThermalModelParameters(radiativeSmoothing: 0.3)),
+            ("landAlbedo", new ThermalModelParameters(useSeasonalEnergyBalance: false, landAlbedo: 0.25)),
+            ("oceanAlbedo", new ThermalModelParameters(useSeasonalEnergyBalance: false, oceanAlbedo: 0.08)),
+            ("freshwaterAlbedo", new ThermalModelParameters(useSeasonalEnergyBalance: false, freshwaterAlbedo: 0.1)),
+            ("iceAlbedo", new ThermalModelParameters(useSeasonalEnergyBalance: false, iceAlbedo: 0.7)),
+            ("waterEmissivity", new ThermalModelParameters(useSeasonalEnergyBalance: false, waterEmissivity: 0.99)),
+            ("landEmissivity", new ThermalModelParameters(useSeasonalEnergyBalance: false, landEmissivity: 0.9)),
+            ("oceanDepthM", new ThermalModelParameters(useSeasonalEnergyBalance: false, oceanDepthM: 20.0)),
+            ("landDepthM", new ThermalModelParameters(useSeasonalEnergyBalance: false, landDepthM: 0.2)),
+            ("airColumnM", new ThermalModelParameters(useSeasonalEnergyBalance: false, airColumnM: 800.0)),
+            ("transferCoefficient", new ThermalModelParameters(useSeasonalEnergyBalance: false, transferCoefficient: 1.0e-3)),
+            ("airRelaxationDays", new ThermalModelParameters(useSeasonalEnergyBalance: false, airRelaxationDays: 2.0)),
+            ("minExchangeWindMs", new ThermalModelParameters(useSeasonalEnergyBalance: false, minExchangeWindMs: 30.0)),
+            ("radiativeSmoothing", new ThermalModelParameters(useSeasonalEnergyBalance: false, radiativeSmoothing: 0.3)),
         };
         foreach (var (name, p) in variants)
         {
@@ -535,9 +536,9 @@ public class SurfaceTemperatureFieldBehaviourTests : IClassFixture<ThermalFieldF
     [Fact]
     public void InvalidInputsAreRejected()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(oceanDepthM: 0.0));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(iceAlbedo: 1.5));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(radiativeSmoothing: -0.1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(useSeasonalEnergyBalance: false, oceanDepthM: 0.0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(useSeasonalEnergyBalance: false, iceAlbedo: 1.5));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalModelParameters(useSeasonalEnergyBalance: false, radiativeSmoothing: -0.1));
         Assert.Throws<ArgumentOutOfRangeException>(() => new ThermalOrbit(0.0, 1.0, 0.0));
         Assert.Throws<ArgumentOutOfRangeException>(() => DenseGridMetrics.Build(0));
         Assert.Throws<ArgumentException>(() =>

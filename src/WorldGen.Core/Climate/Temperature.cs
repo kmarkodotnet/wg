@@ -132,7 +132,7 @@ namespace WorldGen.Core.Climate
             double fPeak, double greenhouseK)
         {
 
-            double albedo = isOceanic ? AlbedoOcean : AlbedoLand;
+            double albedo = AlbedoPlanet; // ND-165: az üvegház-tag bolygó-mérlegéhez.
             double absorbed = fPeak * avgFactor * (1.0 - albedo);
             // x^0.25 = sqrt(sqrt(x)) - EGZAKT (nem közelítés), mert mindkét
             // Math.Sqrt IEEE-754 korrekt kerekítésű - jobb, mint akár a
@@ -277,7 +277,7 @@ namespace WorldGen.Core.Climate
         {
             double avgFactor = DailyAverageInsolationFactor(
                 x, y, z, dayT, orbitalPeriod, rotationPeriod, axialTilt, orbitalPhase0, rotationPhase0);
-            double albedo = isOceanic ? AlbedoOcean : AlbedoLand;
+            double albedo = AlbedoPlanet; // ND-165: az üvegház-tag bolygó-mérlegéhez.
             double raw = RadiativeRaw(avgFactor, albedo, fPeak);
             double tRadiative = raw > 0.0 ? Math.Sqrt(Math.Sqrt(raw)) : 0.0;
 

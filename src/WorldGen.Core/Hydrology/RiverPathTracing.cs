@@ -998,7 +998,8 @@ namespace WorldGen.Core.Hydrology
             long maxSteps = DefaultContinuousMaxSteps,
             System.Threading.CancellationToken cancellation = default,
             int maxDegreeOfParallelism = -1,
-            DeepTimeContext context = default)
+            DeepTimeContext context = default,
+            Action<ContinuousRiverPath>? onRiverCompleted = null)
         {
             if (sources == null) throw new ArgumentNullException(nameof(sources));
             if (maxDegreeOfParallelism == 0 || maxDegreeOfParallelism < -1)
@@ -1013,75 +1014,84 @@ namespace WorldGen.Core.Hydrology
                 CancellationToken = cancellation,
                 MaxDegreeOfParallelism = maxDegreeOfParallelism,
             };
+            // 2. FÁZIS: csonkolás FORRÁS-SORRENDBEN - ez reprodukálja a
+            // szekvenciális `claimed` szemantikát.
+            var claimed = new Dictionary<TileId, ClaimedTileInfo>();
+            var rivers = new List<ContinuousRiverPath>(sources.Count);
+            void CommitReady()
+            {
+                while (rivers.Count < sources.Count && traced[rivers.Count] != null)
+                {
+                    int i = rivers.Count;
+                    cancellation.ThrowIfCancellationRequested();
+                    ContinuousRiverPath full = traced[i];
+                    int fineLevel = sources[i].Level + fineDepth;
+
+                    var river = new ContinuousRiverPath { SourceIndex = i };
+                    int mergeAt = -1;
+                    ClaimedTileInfo mergeOwner = default;
+                    // CSAK azokon a pontokon ellenorzunk, ahol a szekvencialis
+                    // koveto is ellenorzott volna (ld. ClaimCheckIndices) - az
+                    // elso (step == 0) kihagyva, ahogy ott is.
+                    for (int c = 1; c < full.ClaimCheckIndices.Count; c++)
+                    {
+                        int index = full.ClaimCheckIndices[c];
+                        if ((uint)index >= (uint)full.Points.Count) break;
+                        (double X, double Y, double Z) point = full.Points[index];
+                        TileId fineTile = TileGeometry.FromPosition(point.X, point.Y, point.Z, fineLevel);
+                        if (claimed.TryGetValue(fineTile, out ClaimedTileInfo owner))
+                        {
+                            mergeAt = index;
+                            mergeOwner = owner;
+                            break;
+                        }
+                    }
+
+                    if (mergeAt >= 0)
+                    {
+                        // A szekvencialis ag a MAR FELVETT pontokat megtartja
+                        // (Points[0..mergeAt]), majd a befogado folyo TENYLEGES
+                        // pontjat fuzi a vegere - igy nem marad res a
+                        // talalkozasnal.
+                        for (int k = 0; k <= mergeAt; k++) river.Points.Add(full.Points[k]);
+                        river.Points.Add(mergeOwner.Position);
+                        river.MergedIntoRiverIndex = mergeOwner.RiverIndex;
+                        river.Termination = TerminationReason.Merged;
+                    }
+                    else
+                    {
+                        river.Points.AddRange(full.Points);
+                        river.ClaimCheckIndices.AddRange(full.ClaimCheckIndices);
+                        river.Termination = full.Termination;
+                    }
+
+                    foreach ((double X, double Y, double Z) p in river.Points)
+                    {
+                        TileId t = TileGeometry.FromPosition(p.X, p.Y, p.Z, fineLevel);
+                        if (!claimed.ContainsKey(t)) claimed[t] = new ClaimedTileInfo(i, p);
+                    }
+                    rivers.Add(river);
+                    traced[i] = null!;
+                    onRiverCompleted?.Invoke(river);
+                }
+            }
+            var commitGate = new object();
             System.Threading.Tasks.Parallel.For(0, sources.Count, parallelOptions, i =>
             {
-                // URES `claimed`: a kovetes ilyenkor sosem all meg
-                // "Merged"-kent, tehat a teljes nyomvonalat megkapjuk. (A
-                // parameter nem nullable, es a nyomvonal-koveto CSAK OLVASSA
-                // ezt a szotarat - a lefoglalas a 2. fazisban tortenik.)
-                traced[i] = TraceRiverPathContinuous(
+                ContinuousRiverPath full = TraceRiverPathContinuous(
                     worldSeed, seeds, seaLevel, sources[i], i, fineDepth,
                     new Dictionary<TileId, ClaimedTileInfo>(),
                     stepMeters, sensingRadiusMeters, ringDirections,
                     escapeCellMeters, escapeNodeBudget, maxSteps,
                     DefaultVisitedGridLevel, cancellation, context: context);
+                // ND-177: kesz utak atadasa es commit kizárólag e kapu alatt.
+                // A koveto nem olvas claimed-et, igy a ket fazis atfedhet.
+                lock (commitGate)
+                {
+                    traced[i] = full;
+                    CommitReady();
+                }
             });
-
-            // 2. FÁZIS: csonkolás FORRÁS-SORRENDBEN - ez reprodukálja a
-            // szekvenciális `claimed` szemantikát.
-            var claimed = new Dictionary<TileId, ClaimedTileInfo>();
-            var rivers = new List<ContinuousRiverPath>(sources.Count);
-            for (int i = 0; i < sources.Count; i++)
-            {
-                cancellation.ThrowIfCancellationRequested();
-                ContinuousRiverPath full = traced[i];
-                int fineLevel = sources[i].Level + fineDepth;
-
-                var river = new ContinuousRiverPath { SourceIndex = i };
-                int mergeAt = -1;
-                ClaimedTileInfo mergeOwner = default;
-                // CSAK azokon a pontokon ellenorzunk, ahol a szekvencialis
-                // koveto is ellenorzott volna (ld. ClaimCheckIndices) - az
-                // elso (step == 0) kihagyva, ahogy ott is.
-                for (int c = 1; c < full.ClaimCheckIndices.Count; c++)
-                {
-                    int index = full.ClaimCheckIndices[c];
-                    if ((uint)index >= (uint)full.Points.Count) break;
-                    (double X, double Y, double Z) point = full.Points[index];
-                    TileId fineTile = TileGeometry.FromPosition(point.X, point.Y, point.Z, fineLevel);
-                    if (claimed.TryGetValue(fineTile, out ClaimedTileInfo owner))
-                    {
-                        mergeAt = index;
-                        mergeOwner = owner;
-                        break;
-                    }
-                }
-
-                if (mergeAt >= 0)
-                {
-                    // A szekvencialis ag a MAR FELVETT pontokat megtartja
-                    // (Points[0..mergeAt]), majd a befogado folyo TENYLEGES
-                    // pontjat fuzi a vegere - igy nem marad res a
-                    // talalkozasnal.
-                    for (int k = 0; k <= mergeAt; k++) river.Points.Add(full.Points[k]);
-                    river.Points.Add(mergeOwner.Position);
-                    river.MergedIntoRiverIndex = mergeOwner.RiverIndex;
-                    river.Termination = TerminationReason.Merged;
-                }
-                else
-                {
-                    river.Points.AddRange(full.Points);
-                    river.ClaimCheckIndices.AddRange(full.ClaimCheckIndices);
-                    river.Termination = full.Termination;
-                }
-
-                foreach ((double X, double Y, double Z) p in river.Points)
-                {
-                    TileId t = TileGeometry.FromPosition(p.X, p.Y, p.Z, fineLevel);
-                    if (!claimed.ContainsKey(t)) claimed[t] = new ClaimedTileInfo(i, p);
-                }
-                rivers.Add(river);
-            }
             return rivers;
         }
 

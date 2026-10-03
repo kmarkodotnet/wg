@@ -168,11 +168,19 @@ namespace WorldGen.Core.Climate
             return sorted[idx];
         }
 
+        /// <summary>ND-175: a jégosztály kizárólag a fizikai mérlegből származik.</summary>
+        public static Biome ClassifyWithIce(double temperatureK, bool isOceanic, double precipitation,
+            PrecipitationThresholds thresholds, bool permanentIce)
+        {
+            if (permanentIce) return isOceanic ? Biome.SeaIce : Biome.IceSheet;
+            if (isOceanic) return Biome.Ocean;
+            Biome result = Classify(temperatureK, false, precipitation, thresholds);
+            return result == Biome.IceSheet ? Biome.Tundra : result;
+        }
+
         /// <summary>
-        /// Biome egy pontra. A <paramref name="thresholds"/>-ot a hívó
-        /// <see cref="ComputeThresholds"/>-szal állítja elő EGYSZER, a teljes
-        /// szárazföldi mezőből — így az osztályozás tiszta függvény marad, és
-        /// nem függ attól, milyen sorrendben kérdezzük a tile-okat.
+        /// Biome egy pontra. A küszöböket a hívó egyszer állítja elő a teljes
+        /// szárazföldi mezőből; az osztályozás így lekérdezési sorrendtől független.
         /// </summary>
         public static Biome Classify(
             double temperatureK, bool isOceanic, double precipitation, PrecipitationThresholds thresholds)

@@ -11,7 +11,7 @@
    "isOceanic": true,
    "elevationM": 5847.0,
    "seaLevelM": 0.0,
-   "temperatureK": 287.4910071560599
+   "temperatureK": 266.71228583360033
   },
   {
    "x": 0.16487665175949864,
@@ -24,7 +24,7 @@
    "isOceanic": true,
    "elevationM": 5255.0,
    "seaLevelM": 0.0,
-   "temperatureK": 246.76596183616343
+   "temperatureK": 229.47205076215104
   },
   {
    "x": 0.2333874974779684,
@@ -37,7 +37,7 @@
    "isOceanic": true,
    "elevationM": 5497.0,
    "seaLevelM": 0.0,
-   "temperatureK": 235.38580415707537
+   "temperatureK": 219.34608022538532
   },
   {
    "x": 0.20012679982883946,
@@ -50,7 +50,7 @@
    "isOceanic": true,
    "elevationM": -665.0,
    "seaLevelM": 0.0,
-   "temperatureK": 243.89236694866412
+   "temperatureK": 231.49434442688676
   },
   {
    "x": 0.9538977529752775,
@@ -76,7 +76,7 @@
    "isOceanic": true,
    "elevationM": -3859.0,
    "seaLevelM": 0.0,
-   "temperatureK": 354.40216781962823
+   "temperatureK": 333.21710501464133
   },
   {
    "x": 0.003882437258127427,
@@ -89,7 +89,7 @@
    "isOceanic": true,
    "elevationM": -1615.0,
    "seaLevelM": 0.0,
-   "temperatureK": 378.8445843543668
+   "temperatureK": 357.0782863738074
   },
   {
    "x": 0.37917706647478727,
@@ -102,7 +102,7 @@
    "isOceanic": true,
    "elevationM": -1043.0,
    "seaLevelM": 0.0,
-   "temperatureK": 211.91074962987736
+   "temperatureK": 200.9472792580401
   },
   {
    "x": -0.734753806774309,
@@ -115,7 +115,7 @@
    "isOceanic": true,
    "elevationM": 2465.0,
    "seaLevelM": 0.0,
-   "temperatureK": 307.39213332085467
+   "temperatureK": 286.923355351589
   },
   {
    "x": 0.5553624589256793,
@@ -128,7 +128,7 @@
    "isOceanic": true,
    "elevationM": 24.0,
    "seaLevelM": 0.0,
-   "temperatureK": 289.96621891766625
+   "temperatureK": 272.0311890021903
   },
   {
    "x": 0.19860576768223992,
@@ -193,7 +193,7 @@
    "isOceanic": true,
    "elevationM": -809.0,
    "seaLevelM": 0.0,
-   "temperatureK": 321.22353680093386
+   "temperatureK": 302.9754143748138
   },
   {
    "x": 0.5803129600509788,
@@ -219,7 +219,7 @@
    "isOceanic": true,
    "elevationM": 1097.0,
    "seaLevelM": 0.0,
-   "temperatureK": 316.6146850093549
+   "temperatureK": 295.9588089418233
   },
   {
    "x": 0.4941763581478251,
@@ -323,7 +323,7 @@
    "isOceanic": true,
    "elevationM": -662.0,
    "seaLevelM": 0.0,
-   "temperatureK": 154.11171550640927
+   "temperatureK": 148.33280772499523
   },
   {
    "x": 0.5353649414630821,
@@ -336,7 +336,7 @@
    "isOceanic": true,
    "elevationM": -2682.0,
    "seaLevelM": 0.0,
-   "temperatureK": 310.28524545154704
+   "temperatureK": 291.0954616063895
   },
   {
    "x": -0.25828134376003825,
@@ -362,7 +362,7 @@
    "isOceanic": true,
    "elevationM": 1964.0,
    "seaLevelM": 0.0,
-   "temperatureK": 271.5331274411688
+   "temperatureK": 253.85261962156156
   },
   {
    "x": 0.3739769557712577,
@@ -427,7 +427,7 @@
    "isOceanic": true,
    "elevationM": 3459.0,
    "seaLevelM": 0.0,
-   "temperatureK": 300.6251383597107
+   "temperatureK": 280.01309068307114
   },
   {
    "x": -0.2964048597094237,
@@ -440,7 +440,7 @@
    "isOceanic": true,
    "elevationM": 5104.0,
    "seaLevelM": 0.0,
-   "temperatureK": 310.4063847430032
+   "temperatureK": 289.4056386365862
   },
   {
    "x": -0.5894468880840392,
@@ -453,7 +453,7 @@
    "isOceanic": true,
    "elevationM": -2742.0,
    "seaLevelM": 0.0,
-   "temperatureK": 307.65758241165565
+   "temperatureK": 288.2621483087119
   },
   {
    "x": -0.01988551594800577,
@@ -479,7 +479,7 @@
    "isOceanic": true,
    "elevationM": -62.0,
    "seaLevelM": 0.0,
-   "temperatureK": 348.37865906477964
+   "temperatureK": 327.31535192391226
   },
   {
    "x": -0.3031152695726554,
@@ -505,7 +505,7 @@
    "isOceanic": true,
    "elevationM": -1823.0,
    "seaLevelM": 0.0,
-   "temperatureK": 301.96797842359837
+   "temperatureK": 282.9473041753527
   },
   {
    "x": -0.8328029720699966,
@@ -518,7 +518,7 @@
    "isOceanic": true,
    "elevationM": -214.0,
    "seaLevelM": 0.0,
-   "temperatureK": 332.37697901101035
+   "temperatureK": 311.1713964827469
   },
   {
    "x": -0.44075618524296045,
@@ -544,7 +544,7 @@
    "isOceanic": true,
    "elevationM": 492.0,
    "seaLevelM": 0.0,
-   "temperatureK": 257.34709835013166
+   "temperatureK": 242.98339135366484
   },
   {
    "x": 0.9921809590796349,
@@ -557,7 +557,7 @@
    "isOceanic": true,
    "elevationM": 873.0,
    "seaLevelM": 0.0,
-   "temperatureK": 316.8909143148299
+   "temperatureK": 296.31744822396644
   },
   {
    "x": -9.549245598584056e-05,
@@ -570,7 +570,7 @@
    "isOceanic": true,
    "elevationM": -3788.0,
    "seaLevelM": 0.0,
-   "temperatureK": 309.4867291949106
+   "temperatureK": 292.68382331151133
   },
   {
    "x": 0.6887093569620248,
@@ -583,7 +583,7 @@
    "isOceanic": true,
    "elevationM": 4214.0,
    "seaLevelM": 0.0,
-   "temperatureK": 277.2578311787582
+   "temperatureK": 258.5491434878773
   },
   {
    "x": 0.6230831294838958,
@@ -752,7 +752,7 @@
    "isOceanic": true,
    "elevationM": -3430.0,
    "seaLevelM": 0.0,
-   "temperatureK": 327.82386058599474
+   "temperatureK": 306.8942287464085
   },
   {
    "x": 0.13773285706064003,
@@ -817,7 +817,7 @@
    "isOceanic": true,
    "elevationM": 4643.0,
    "seaLevelM": 0.0,
-   "temperatureK": 262.2300494821344
+   "temperatureK": 244.79880619211556
   },
   {
    "x": -0.9710915863334565,
@@ -843,7 +843,7 @@
    "isOceanic": true,
    "elevationM": -2315.0,
    "seaLevelM": 0.0,
-   "temperatureK": 293.3791787416616
+   "temperatureK": 276.50207625064047
   },
   {
    "x": 0.2935707816724246,
@@ -934,7 +934,7 @@
    "isOceanic": true,
    "elevationM": -1080.0,
    "seaLevelM": 0.0,
-   "temperatureK": 304.21990570942813
+   "temperatureK": 284.96007469729426
   },
   {
    "x": -0.5671309132903865,
@@ -947,7 +947,7 @@
    "isOceanic": true,
    "elevationM": 5833.0,
    "seaLevelM": 0.0,
-   "temperatureK": 281.0576227196992
+   "temperatureK": 261.1665096421853
   },
   {
    "x": -0.20985405918146405,
@@ -986,7 +986,7 @@
    "isOceanic": true,
    "elevationM": 4934.0,
    "seaLevelM": 0.0,
-   "temperatureK": 228.1351243023444
+   "temperatureK": 212.9089071055574
   },
   {
    "x": 0.7960719778801358,
@@ -999,7 +999,7 @@
    "isOceanic": true,
    "elevationM": 4911.0,
    "seaLevelM": 0.0,
-   "temperatureK": 261.02998754758414
+   "temperatureK": 242.92520520660932
   },
   {
    "x": 0.5013751184800581,
@@ -1025,7 +1025,7 @@
    "isOceanic": true,
    "elevationM": 3122.0,
    "seaLevelM": 0.0,
-   "temperatureK": 281.94975478984503
+   "temperatureK": 263.350263409214
   },
   {
    "x": 0.8522731601195493,
@@ -1051,7 +1051,7 @@
    "isOceanic": true,
    "elevationM": 2529.0,
    "seaLevelM": 0.0,
-   "temperatureK": 331.30742557474457
+   "temperatureK": 311.35020914325656
   },
   {
    "x": -0.7406313910217716,
@@ -1064,7 +1064,7 @@
    "isOceanic": true,
    "elevationM": 5393.0,
    "seaLevelM": 0.0,
-   "temperatureK": 294.7580008036675
+   "temperatureK": 274.24528281847955
   },
   {
    "x": 0.9181238152788521,
@@ -1077,7 +1077,7 @@
    "isOceanic": true,
    "elevationM": 1332.0,
    "seaLevelM": 0.0,
-   "temperatureK": 290.87286919451475
+   "temperatureK": 271.959670110384
   },
   {
    "x": -0.302331384616575,
@@ -1129,7 +1129,7 @@
    "isOceanic": true,
    "elevationM": 4832.0,
    "seaLevelM": 0.0,
-   "temperatureK": 302.7596905333164
+   "temperatureK": 281.4976761523323
   },
   {
    "x": -0.7969561957873196,
@@ -1155,7 +1155,7 @@
    "isOceanic": true,
    "elevationM": 4616.0,
    "seaLevelM": 0.0,
-   "temperatureK": 265.21111668539305
+   "temperatureK": 246.65739605859474
   },
   {
    "x": -0.4946334037228556,
@@ -1168,7 +1168,7 @@
    "isOceanic": true,
    "elevationM": -504.0,
    "seaLevelM": 0.0,
-   "temperatureK": 285.386043234468
+   "temperatureK": 269.07446059915645
   },
   {
    "x": 0.23373828949614464,
@@ -1194,7 +1194,7 @@
    "isOceanic": true,
    "elevationM": 1926.0,
    "seaLevelM": 0.0,
-   "temperatureK": 294.4949745063147
+   "temperatureK": 275.47502860045046
   },
   {
    "x": -0.38441262328363407,
@@ -1207,7 +1207,7 @@
    "isOceanic": true,
    "elevationM": 1755.0,
    "seaLevelM": 0.0,
-   "temperatureK": 325.93570871655936
+   "temperatureK": 306.32815724291834
   },
   {
    "x": 0.26978863848893836,
@@ -1246,7 +1246,7 @@
    "isOceanic": true,
    "elevationM": 5170.0,
    "seaLevelM": 0.0,
-   "temperatureK": 303.7730314838286
+   "temperatureK": 282.5743216761475
   },
   {
    "x": -0.3018668086055691,
@@ -1272,7 +1272,7 @@
    "isOceanic": true,
    "elevationM": 2250.0,
    "seaLevelM": 0.0,
-   "temperatureK": 314.17399797101046
+   "temperatureK": 293.20984348766046
   },
   {
    "x": 0.7188272393651521,
@@ -1285,7 +1285,7 @@
    "isOceanic": true,
    "elevationM": 5695.0,
    "seaLevelM": 0.0,
-   "temperatureK": 295.67376103513243
+   "temperatureK": 274.48614589529325
   },
   {
    "x": -0.746587864956359,
@@ -1311,7 +1311,7 @@
    "isOceanic": true,
    "elevationM": -1979.0,
    "seaLevelM": 0.0,
-   "temperatureK": 193.7902803195434
+   "temperatureK": 184.17394991060547
   },
   {
    "x": -0.21941247966429758,
@@ -1324,7 +1324,7 @@
    "isOceanic": true,
    "elevationM": -60.0,
    "seaLevelM": 0.0,
-   "temperatureK": 345.8567591641662
+   "temperatureK": 325.7181562085603
   },
   {
    "x": 0.37015081899362706,
@@ -1363,7 +1363,7 @@
    "isOceanic": true,
    "elevationM": 4809.0,
    "seaLevelM": 0.0,
-   "temperatureK": 285.63559609936954
+   "temperatureK": 265.5168845464949
   },
   {
    "x": 0.04990675000989544,
@@ -1389,7 +1389,7 @@
    "isOceanic": true,
    "elevationM": -2238.0,
    "seaLevelM": 0.0,
-   "temperatureK": 327.94621912964766
+   "temperatureK": 307.0137094213669
   },
   {
    "x": 0.31609056593889445,
@@ -1454,7 +1454,7 @@
    "isOceanic": true,
    "elevationM": 2445.0,
    "seaLevelM": 0.0,
-   "temperatureK": 310.8317853471234
+   "temperatureK": 290.2232253566604
   },
   {
    "x": -0.2189013893262263,
@@ -1480,7 +1480,7 @@
    "isOceanic": true,
    "elevationM": 715.0,
    "seaLevelM": 0.0,
-   "temperatureK": 285.1451645205074
+   "temperatureK": 267.2893756329589
   },
   {
    "x": 0.046879754945394564,
@@ -1493,7 +1493,7 @@
    "isOceanic": true,
    "elevationM": 3392.0,
    "seaLevelM": 0.0,
-   "temperatureK": 262.62083730291135
+   "temperatureK": 246.03427973994718
   },
   {
    "x": 0.9580008097795338,
@@ -1519,7 +1519,7 @@
    "isOceanic": true,
    "elevationM": 4600.0,
    "seaLevelM": 0.0,
-   "temperatureK": 285.2470345901318
+   "temperatureK": 265.42603299728216
   },
   {
    "x": -0.6944052169635355,
@@ -1532,7 +1532,7 @@
    "isOceanic": true,
    "elevationM": -43.0,
    "seaLevelM": 0.0,
-   "temperatureK": 327.9964825164305
+   "temperatureK": 307.07742506564415
   },
   {
    "x": -0.186886865331232,
@@ -1545,7 +1545,7 @@
    "isOceanic": true,
    "elevationM": 2651.0,
    "seaLevelM": 0.0,
-   "temperatureK": 237.25397959973114
+   "temperatureK": 223.18741623942952
   },
   {
    "x": -0.06585618213033861,
@@ -1558,7 +1558,7 @@
    "isOceanic": true,
    "elevationM": -1203.0,
    "seaLevelM": 0.0,
-   "temperatureK": 323.8419475920414
+   "temperatureK": 303.1777563272693
   },
   {
    "x": 0.5548448706445978,
@@ -1584,7 +1584,7 @@
    "isOceanic": true,
    "elevationM": -99.0,
    "seaLevelM": 0.0,
-   "temperatureK": 183.60797257455982
+   "temperatureK": 174.64704622541814
   },
   {
    "x": 0.0052361112309059245,
@@ -1610,7 +1610,7 @@
    "isOceanic": true,
    "elevationM": 3657.0,
    "seaLevelM": 0.0,
-   "temperatureK": 295.52643301796945
+   "temperatureK": 276.51928127311317
   },
   {
    "x": -0.12851536191371582,
@@ -1623,7 +1623,7 @@
    "isOceanic": true,
    "elevationM": -3232.0,
    "seaLevelM": 0.0,
-   "temperatureK": 243.86657242304895
+   "temperatureK": 229.81241379484965
   },
   {
    "x": -0.4729460872517261,
@@ -1636,7 +1636,7 @@
    "isOceanic": true,
    "elevationM": -2879.0,
    "seaLevelM": 0.0,
-   "temperatureK": 275.9947581676864
+   "temperatureK": 259.0294320861685
   },
   {
    "x": 0.7261472208940908,
@@ -1649,7 +1649,7 @@
    "isOceanic": true,
    "elevationM": -2265.0,
    "seaLevelM": 0.0,
-   "temperatureK": 278.95170953083056
+   "temperatureK": 261.69137954256365
   },
   {
    "x": -0.5241050541699956,
@@ -1675,7 +1675,7 @@
    "isOceanic": true,
    "elevationM": 1298.0,
    "seaLevelM": 0.0,
-   "temperatureK": 326.83146264524765
+   "temperatureK": 307.34226662001333
   },
   {
    "x": -0.04026695046849344,
@@ -1714,7 +1714,7 @@
    "isOceanic": true,
    "elevationM": -1202.0,
    "seaLevelM": 0.0,
-   "temperatureK": 299.6881029371291
+   "temperatureK": 280.91071307592176
   },
   {
    "x": 0.9791488140999064,
@@ -1727,7 +1727,7 @@
    "isOceanic": true,
    "elevationM": -3245.0,
    "seaLevelM": 0.0,
-   "temperatureK": 324.8135761617771
+   "temperatureK": 304.08485610416653
   },
   {
    "x": 0.7072782589173969,
@@ -1740,7 +1740,7 @@
    "isOceanic": true,
    "elevationM": 4423.0,
    "seaLevelM": 0.0,
-   "temperatureK": 310.17988967747186
+   "temperatureK": 288.92631790949787
   },
   {
    "x": -0.6664081939732039,
@@ -1766,7 +1766,7 @@
    "isOceanic": true,
    "elevationM": 5716.0,
    "seaLevelM": 0.0,
-   "temperatureK": 278.924870458495
+   "temperatureK": 259.2288825201275
   },
   {
    "x": 0.09749618276387778,
@@ -1779,7 +1779,7 @@
    "isOceanic": true,
    "elevationM": -977.0,
    "seaLevelM": 0.0,
-   "temperatureK": 281.6780479751771
+   "temperatureK": 265.78783981860727
   },
   {
    "x": 0.8761116190724144,
@@ -1792,7 +1792,7 @@
    "isOceanic": true,
    "elevationM": -1737.0,
    "seaLevelM": 0.0,
-   "temperatureK": 324.54954261690835
+   "temperatureK": 303.8364543069663
   },
   {
    "x": 0.08999276081788324,
@@ -1805,7 +1805,7 @@
    "isOceanic": true,
    "elevationM": 1395.0,
    "seaLevelM": 0.0,
-   "temperatureK": 358.38805219207677
+   "temperatureK": 336.9266318421214
   },
   {
    "x": 0.69630291404402,
@@ -1818,7 +1818,7 @@
    "isOceanic": true,
    "elevationM": 4143.0,
    "seaLevelM": 0.0,
-   "temperatureK": 235.9692231649926
+   "temperatureK": 220.38925119332174
   },
   {
    "x": 0.672470948129548,
@@ -1831,7 +1831,7 @@
    "isOceanic": true,
    "elevationM": 1317.0,
    "seaLevelM": 0.0,
-   "temperatureK": 297.505645197868
+   "temperatureK": 278.1292762840366
   },
   {
    "x": -0.9105543223002636,
@@ -1844,7 +1844,7 @@
    "isOceanic": true,
    "elevationM": -1627.0,
    "seaLevelM": 0.0,
-   "temperatureK": 309.0351040373691
+   "temperatureK": 289.4606999746044
   },
   {
    "x": -0.8635307048823095,
@@ -1857,7 +1857,7 @@
    "isOceanic": true,
    "elevationM": 2203.0,
    "seaLevelM": 0.0,
-   "temperatureK": 316.0765038894981
+   "temperatureK": 294.9963712262544
   },
   {
    "x": -0.14122793170822373,
@@ -1883,7 +1883,7 @@
    "isOceanic": true,
    "elevationM": 3828.0,
    "seaLevelM": 0.0,
-   "temperatureK": 157.47695468711208
+   "temperatureK": 148.6298873025328
   },
   {
    "x": -0.005971526127804323,
@@ -1909,7 +1909,7 @@
    "isOceanic": true,
    "elevationM": -2283.0,
    "seaLevelM": 0.0,
-   "temperatureK": 326.20653093557115
+   "temperatureK": 305.42037667869175
   },
   {
    "x": 0.5350773655156664,
@@ -1922,7 +1922,7 @@
    "isOceanic": true,
    "elevationM": -1346.0,
    "seaLevelM": 0.0,
-   "temperatureK": 321.7708703338395
+   "temperatureK": 301.25383279315173
   },
   {
    "x": 0.40622763299073694,
@@ -1948,7 +1948,7 @@
    "isOceanic": true,
    "elevationM": 3774.0,
    "seaLevelM": 0.0,
-   "temperatureK": 321.04554044791655
+   "temperatureK": 300.489087449223
   }
  ]
 }

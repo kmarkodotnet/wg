@@ -184,6 +184,8 @@ namespace WorldGen.Cli
             if (opts.TryGetValue("meridional-scale", out string? ms))
                 options.MeridionalTransportScale = double.Parse(ms);
             if (opts.TryGetValue("decompose", out string? dc)) options.Decompose = bool.Parse(dc);
+            if (opts.TryGetValue("seasonal-energy", out string? se)) options.SeasonalEnergyBalance = bool.Parse(se);
+            if (opts.TryGetValue("seasonal-phases", out string? sp)) options.SeasonalPhases = int.Parse(sp);
             if (opts.TryGetValue("melt-exposure-days", out string? med))
                 options.MeltExposureDays = Array.ConvertAll(med.Split(','), int.Parse);
             if (opts.TryGetValue("precip", out string? pr)) options.Precipitation = bool.Parse(pr);
@@ -278,6 +280,7 @@ namespace WorldGen.Cli
                 "  worldgen calibrate-ordinals [--count <n>] [--plates <n>] [--level <n>] [--water <0..1>]\n" +
                 "  worldgen thermal-climate --seed <hex> --plates <n> --level <n> [--time <myr>]\n" +
                 "                           [--days <n>] [--water <0..1>] [--orbital <nap>] [--tilt <fok>]\n" +
+                "                           [--seasonal-energy <true|false>] [--seasonal-phases <páros n>]\n" +
                 "                           [--parallel <true|false>] [--beta <b1,b2,...>]\n" +
                 "                           [--ice-percentile <q|absolute>] [--decompose true]\n" +
                 "                           [--climate-level <L1,L2,...>] [--precip true] [--biome true]\n" +
@@ -285,7 +288,7 @@ namespace WorldGen.Cli
                  "                           [--ocean-depth <m>] [--land-depth <m>] (A24 mérőkampók)\n" +
                 "                           [--meridional-scale <0..1>] (ND-168 diffúziós skála)\n" +
                 "                           [--melt-exposure-days <12,24,48>] (ND-172 hóolvadási potenciál)\n" +
-                "                           (ND-158 koltsegmeres es ND-159 beta-sopres, nem CI-lepes)\n");
+                "                           (beta/albedó/percentilis: csak --seasonal-energy false történeti módban)\n");
         }
     }
 }
