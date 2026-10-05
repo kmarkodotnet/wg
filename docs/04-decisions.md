@@ -10539,6 +10539,123 @@ mért), nem a megjelenítés kapuja.
 fog egybeesni. Ha a tó-réteg egyszer a követő felbontására kerül, a vágás
 visszatérhet a span-okra — az új, önálló döntés lesz.
 
+### ND-196 — A folyók a SZÁRAZ biome-okban gazdagodnak, mert a medence-kvóta nem küszöböl csapadékra (NYITOTT)
+
+2026-10-05, felhasználói visszajelzés: „a folyók gyakran sárga biomon
+láthatóak, a zöld biomban nem vettem észre… azt kértem, hogy a csapadékos
+területeken legyen folyók inkább". MEGMÉRVE: a megfigyelés helyes, és
+mennyiségileg igazolt.
+
+#### 1. A nyomvonal mérve (ezt LÁTJA a felhasználó)
+
+Friss `PlanetGridMesh` példány, level 5, a kész folytonos hálózat: 96 folyó,
+484 096 nyomvonal-pont, 210 érintett tile (198 szárazföldi, 12 óceáni a
+torkolatoknál). A „folyóhossz%" pont-súlyozott (minden nyomvonal-pont egy
+minta), a „szárazföldi alap%" a biome-térkép szárazföldi megoszlása:
+
+| biome | folyóhossz% | érintett tile% | szárazföldi alap% | gazdagodás |
+|---|---|---|---|---|
+| **Desert** (homokszín) | **28,9** | 28,3 | 11,8 | **2,45×** |
+| Tundra (szürkebarna) | 44,1 | 43,4 | 41,2 | 1,07× |
+| TemperateForest (zöld) | 7,3 | 6,6 | 9,5 | 0,77× |
+| Savanna (olívzöld) | 4,8 | 4,5 | 8,1 | 0,59× |
+| **Rainforest** (mélyzöld) | **7,5** | 6,6 | 14,7 | **0,51×** |
+| Grassland | 7,5 | 10,6 | 14,7 | 0,51× |
+
+A legszárazabb osztály **2,45-szeresen** felülreprezentált, a legnedvesebb
+**feleannyira** van jelen, mint a szárazföldi arány indokolná. A felhasználó
+kérése (ND-124 óta: csapadékos területen legyenek a folyók) tehát NEM
+teljesül.
+
+#### 2. A gyökérok: a medence-kvótának nincs globális csapadék-kapuja
+
+A `SelectRiverSourcesPerBasin` (ND-180/186 óta ez az aktív út) a csapadékot
+KIZÁRÓLAG **medencén belüli rendezési kulcsként** használja:
+
+```csharp
+candidates.Sort((x, y) => precipField[y].CompareTo(precipField[x]) ...);
+```
+
+A `DefaultPrecipPercentile = 0,80` **csak a régi, globális
+`SelectRiverSources` paramétere** — a medencénkénti változat soha nem olvassa.
+Következmény: a 16 legnagyobb vízgyűjtő MINDEGYIKE megkapja a 6 forrását akkor
+is, ha a medencében egyetlen csapadékos tile sincs.
+
+Mérve, medencénként a 6 forrás globális szárazföldi csapadék-percentilise:
+
+```
+medence  2:  93,4  92,9  91,9  91,7  91,1  87,8      <- nedves, helyes
+medence 16:  98,5  98,3  96,7  95,9  93,3  91,2      <- nedves, helyes
+medence  3:  81,5  79,6  77,9  77,8  77,7  77,3
+medence  4:   0,0   0,0   0,0   0,0   0,0   0,0      <- MIND nulla csapadeku
+medence  5:   0,0   0,0   0,0   0,0   0,0   0,0
+medence  6:   0,0   0,0   0,0   0,0   0,0   0,0
+medence  8:   0,0   0,0   0,0   0,0   0,0   0,0
+medence  9:   0,0   0,0   0,0   0,0   0,0   0,0
+medence 13:   0,0   0,0   0,0   0,0   0,0   0,0
+medence 14:   0,0   0,0   0,0   0,0   0,0   0,0
+medence  1:  52,6  52,5   0,0   0,0   0,0   0,0
+medence 15:  60,7  56,6  55,9  52,8   0,0   0,0
+```
+
+**7 medence mind a 6 forrása nulla csapadékú tile-on indul**, kettő pedig
+részben: összesen **48 / 96 forrás (50%) olyan tile-ról indul, ahol a
+csapadék PONTOSAN NULLA.** Ez nem a 150 km-es forrás-szeparáció és nem a
+választási rang hibája: már az ELSŐ (azaz a medence legnedvesebb) választott
+forrás is 7/16 esetben nulla csapadékú. A forrás-biome gazdagodás ugyanezt
+mutatja: `Desert` 1,94×, `Rainforest` 0,57×.
+
+#### 3. A háttér, ami ezt felerősíti: a szárazföld fele csapadékmentes
+
+Ugyanazon a világon, szárazföldi tile-okra (2151):
+
+| csapadék-mező | nulla csapadékú szárazföld | medián | maximum |
+|---|---|---|---|
+| analitikus (az előnézet) | 640 (**29,8%**) | 0,0957 | 30,87 |
+| hőmodell-párolgással (a mai kép) | 1124 (**52,3%**) | **0,0000** | 67,61 |
+
+A hőmodell párolgás-bemenetével a szárazföld **több mint felén pontosan nulla**
+a csapadék, és a medián is 0. Ezért van olyan sok teljesen száraz medence. Ez
+ugyanaz a nyitott kalibrációs kérdés, amit az ND-195 is hagyott maga után, és
+az A24 / ND-165 körébe tartozik — de most már konkrét számmal.
+
+A forrás a NYERS `precipField.Precipitation`-t látja, a biome az INTERPOLÁLT
+`PrecipitationAtCore`-t; ezért lehet egy nulla-nyers-csapadékú forrás-tile
+biome-ja mégis zöldes. A két oldal tehát nem is UGYANAZT a csapadék-értéket
+nézi, de a fenti 48/96 ettől független.
+
+#### 4. Opciók
+
+**(a) Globális csapadék-kapu a medence-kvóta FÖLÉ.** Egy jelölt csak akkor
+forrás, ha a globális szárazföldi eloszlásban a P-percentilis fölött van (a
+meglévő `DefaultPrecipPercentile = 0,80`, vagy lazábban). A kapun elbukó
+medencék forrás NÉLKÜL maradnak. Kockázat: a 16 medencéből 7–9 kiesik, tehát
+~48–60 forrás marad, és csökkenhet az a 42%-os összefolyás-arány, amiért a
+medence-kvóta egyáltalán készült (ND-180 mérés). **Meg kell mérni.**
+
+**(b) Csapadék-arányos kvóta.** A 96 forrás szétosztása a medencék TELJES
+csapadékával arányosan, a fix 6/medence helyett, egy abszolút alsó kapuval
+(nulla összcsapadékú medence sosem kap forrást). A nedves medencék több folyót
+kapnak, a számuk marad, a kétszintű hálózat megmarad. **Javaslat: ez.**
+
+**(c) Marad így,** és a dokumentáció rögzíti, hogy a folyó-elhelyezés
+domborzat-/medence-vezérelt, nem csapadék-vezérelt. Nincs költség, de a
+felhasználó kérése teljesítetlen marad.
+
+**Javaslat: (b)**, mert megtartja a forrás-számot és a kétszintű hálózatot
+(ami az ND-180 mért nyeresége volt), ÉS teljesíti a csapadék-preferenciát.
+Az (a) ugyanazt a célt egy olyan mellékhatással éri el, amit az ND-180
+kifejezetten javítani akart.
+
+**SEED-TÖRŐ.** Bármelyik változat új forráslistát ad, tehát minden
+folyóhálózat új → generátorverzió-emelés (10 → 11) és a döntés rögzítése kell,
+ugyanúgy, mint az ND-189-nél.
+
+**Amit ez NEM dönt el:** hogy a csapadék-mező nulla-aránya (52,3%) helyes-e. Ha
+az A24 / ND-165 körében a párolgás kalibrációja változik, a (b) automatikusan
+jobb elhelyezést ad — a két kérdés független, és a sorrend szabadon
+választható.
+
 ### ND-195 — Az indítás utáni biome-átrendeződés (zöld → sárga) és a nem perzisztens éghajlat-kulcs (LEZÁRVA 2026-10-05, az (a) opció; viewer-oldali gyorsítótár: nincs verzió-emelés)
 
 2026-10-05, felhasználói visszajelzés: „az indításkor adott biom pár másodperc
