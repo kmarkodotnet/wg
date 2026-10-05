@@ -52,6 +52,17 @@ számítási lánca — lásd `docs/01-architecture.md` §2.
 Ha transzcendens függvényre van szükség a szimulációban, az ND-23 döntést
 igényel — ne kerüld meg csendben.
 
+**Mért tanulság (ND-186, 2026-10-03): ez a hibaosztály CSENDBEN átcsúszott.**
+A folytonos folyó-nyomkövető két helyen sértette ezt a táblát a *kritikus
+úton*: `Math.Cos`/`Math.Sin`-nel építette a jelölt-irányokat, és minden
+lépésben `TileGeometry.FromPosition`-t hívott, ami `Math.Atan`-t használ —
+holott az **ND-24 kimondottan megtiltja** a `TileGeometry` futásidejű
+használatát a szimulációban. Egyik sem bukott el tesztben, mert egy platformon
+futunk. Tanulság a következő körre: **ha egy modul minden lépésben hív egy
+`Grid`-beli vagy trigonometrikus függvényt, nézd meg, mi van benne** — a
+pótlás kézenfekvő volt (szögfelezett iránytábla a `RiverDirectionTable`-ben,
+atan-mentes `CubeFaceLattice` a térbeli hasheléshez).
+
 **Burst (az ND-01 Unity-döntése miatt élő):** a Burst compiler alapból
 `FloatMode.Default` módban fordít, ami engedélyezi a lebegőpontos műveletek
 átrendezését. Minden szimulációs kódra `[BurstCompile(FloatMode = FloatMode.Strict)]`
@@ -156,6 +167,40 @@ Seed-/világadat-töréskor ezt emeld; az app- és fájlformátum-verzió ettől
 független. Bitazonos optimalizálás nem igényel generátorverzió-emelést.
 
 ## Állapot
+
+**A8 LEZÁRVA — a felhasználó 2026-10-05-én ELFOGADTA** (B3 is). Az utolsó
+kör az ND-193 volt; a hosszú, egyenes medence-átvágó („escape") szakaszok
+kérdése külön, mérendő modellkérdésként nyitva marad.
+
+**A8 folyó-megjelenítés (2026-10-05, ND-193):** a folyószalag mostantól a
+RENDERELT terep-háromszögekre vetül, a KIRAJZOLT vízvonalnál vágódik, és
+minden LOD-alkalmazás után újravetül. A mért ok, ami miatt a felhasználó
+„összevissza" és „nem éri el a tavat / belenyúlik" hibát látott: a
+`riverLineRadialBias = 0,5` Unity-egység a RÉGI `elevationScale = 0,01`-hez
+készült („~50 m"), a mai lánccal 334 világ-méter, kirajzolva **37,1 km**
+sugár-irányú lebegés → 9,87 átlagos / 22,7 maximális KÉPPONT parallaxis.
+**Tanulság a következő körökre: ha egy megjelenítési konstans egy MEZŐ
+léptékéhez van kalibrálva, a konstansot a mező láncán keresztül kell
+megadni** (itt: világ-méter × relief × elevationScale), különben a lépték
+következő változása csendben elszabadítja. Utána mérve: 10,00 világ-méter,
+0,30 / 0,69 px, nulla víz fölé rajzolt vertex.
+
+**A8 folyóhálózat (2026-10-03, ND-186…189, generátor 8 → 10):** a folyó
+nyomvonala, megjelenítése és a forrás-kiválasztás is MÉRÉSSEL javítva. Két
+tanulság, ami a következő körökre is érvényes:
+
+1. **A megjelenítés kapuja az legyen, amit a felhasználó LÁT.** A Core saját
+   „víz alatti" jelölése (`SubmergedSpans`) a hossz 55,80%-át fedi, a
+   megjelenített tavak viszont csak 40,58%-ot — mert a követő 2 km-es
+   escape-rácsa minden mélyedést medencének lát, a tó-réteg meg level 7-8-as
+   tile-okon készül. A folyószalag vágása ezért a TÓ-RÉTEGRE épül.
+   Következmény: ha egy modell-réteg és egy megjelenítési réteg ugyanarról a
+   jelenségről szól, a felbontásuk különbségét MEG KELL MÉRNI, mielőtt az
+   egyiket a másik kapujának használjuk.
+2. **Egy javítást akkor is meg kell mérni, ha „nyilvánvalóan" jó.** Az
+   ND-189 második körében megírt forrásszűrő a valódi hálózaton BITRE
+   ugyanazt adta — egyetlen forrást sem utasított el. Visszavontam: nem
+   tartunk fenn mérhetetlen hatású kódot a kritikus úton.
 
 **Kész:** M1 — determinisztikus random réteg. M2 rács-matek — `TileId`,
 Morton-kódolás, koordináta-konverzió, szomszédsági tábla

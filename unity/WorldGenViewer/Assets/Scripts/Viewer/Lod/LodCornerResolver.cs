@@ -90,6 +90,16 @@ namespace WorldGen.Viewer.Lod
         /// <summary>ND-77: ugyanaz a sarokgazda, mint a feloldásnál; nincs modellmintavétel.</summary>
         public TileId CornerOwner(int face, int level, uint u, uint v) => FindOwner(face,level,u,v);
 
+        /// <summary>
+        /// ND-193: CSAK a mar feloldott sarok - szamitas nelkul. A folyoszalag
+        /// a FO szalon vetit a mar kirajzolt felszinre, miközben egy worker
+        /// mar a kovetkezo LOD-ot epitheti; a <see cref="Corner"/> hianyzo
+        /// saroknal a viewer MEGOSZTOTT sarok-gyorsitotarat irna, ami adat-
+        /// versenyt jelentene. Ezert a vetites csak a mar meglevot kerdezi le.
+        /// </summary>
+        public bool TryGetResolvedCorner(int face, int level, uint u, uint v, out SurfacePoint point)
+            => _corners.TryGetValue((face, level, u, v), out point);
+
         public SurfacePoint Corner(int face, int level, uint u, uint v)
         {
             var key = (face, level, u, v);

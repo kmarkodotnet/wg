@@ -282,28 +282,161 @@ public class ParallelRiverNetworkTests
     /// A vízhozam-fa is azonos. Ez erősebb, mint a `MergedIntoRiverIndex`
     /// egyenkénti egyezése: a súlyok a TELJES fán halmozódnak, tehát egyetlen
     /// elcsúszott összefolyás is meglátszik itt.
+    ///
+    /// ND-186 MÉRÉSI TANULSÁG, amiért a teszt KÉT toleranciával fut. A régi
+    /// (v1) összefolyás "ugyanabban a 13-18 km-es finom tile-ban" dőlt el, és
+    /// EBBEN a 16 forrásos világban így adott fát. A VALÓDI térbeli
+    /// közelségvizsgálat mellett ugyanez a KICSI világ 0-1 összefolyást ad: a
+    /// 16, egymástól távoli forrás nyomvonala gyakorlatilag soha nem kerül
+    /// néhány száz méterre egymástól.
+    ///
+    /// FONTOS, hogy ez a kis világ sajátossága, NEM általános összeomlás: a
+    /// valódi, 96 forrásos t=0 hálózaton az összefolyások száma 19 -> 18, a
+    /// zsákutcák száma pedig változatlanul 11 (ND-186 mérés). A fa tehát
+    /// megmaradt; csak a 24,113 km-es záróél tűnt el. A fa MÉLYSÉGE külön
+    /// kérdés, és annak oka a forrás-kiválasztás (ND-124), nem a követő.
+    ///
+    /// MÉRVE ebben a világban: 500 m-en 0 összefolyás, és 2000 m-en SEM lesz
+    /// több (0) - vagyis nem a tolerancia a szűk keresztmetszet, hanem az, hogy
+    /// 16 globálisan szétszórt forrás nyomvonala soha nem fut egy mederbe.
+    /// Ezért a teszt NEM próbál fát kikényszeríteni: két toleranciával
+    /// ellenőrzi a szekvenciális/párhuzamos EGYEZÉST és a záróélek
+    /// korlátosságát. A súly-akkumuláció LÁNC-logikáját külön, szintetikus
+    /// fán méri a <see cref="DischargeWeightsAccumulateMultiLevelChains"/> -
+    /// az nem múlik a domborzat szerencséjén, és azonnal lefut.
     /// </summary>
     [Fact]
     public void DischargeWeightsAreIdentical()
     {
         World w = BuildWorld(0xA7C944210000UL, 20, 6, 16);
 
-        int[] sequential = RiverPathTracing.ComputeDischargeWeights(
-            RiverPathTracing.BuildContinuousRiverNetworkFromSources(
-                0xA7C944210000UL, w.Seeds, w.SeaLevel, w.Sources, fineDepth: 2));
-        int[] parallel = RiverPathTracing.ComputeDischargeWeights(
-            RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
-                0xA7C944210000UL, w.Seeds, w.SeaLevel, w.Sources, fineDepth: 2));
+        AssertWeightsMatch(w, ClaimedRiverPoints.DefaultMergeRadiusMeters);
 
+        // 4x a tolerancia: ha az összefolyás a TOLERANCIÁN múlna, itt
+        // megjelenne. MÉRVE nem jelenik meg (0 marad), tehát az ok a
+        // forrás-kiválasztás (ND-124), nem a követő - és a két futás
+        // egyezését ez a kontroll is ellenőrzi.
+        AssertWeightsMatch(w, 4.0 * ClaimedRiverPoints.DefaultMergeRadiusMeters);
+    }
+
+    private void AssertWeightsMatch(World w, double mergeRadiusMeters)
+    {
+        List<RiverPathTracing.ContinuousRiverPath> sequentialRivers =
+            RiverPathTracing.BuildContinuousRiverNetworkFromSources(
+                0xA7C944210000UL, w.Seeds, w.SeaLevel, w.Sources, fineDepth: 2,
+                mergeRadiusMeters: mergeRadiusMeters);
+        List<RiverPathTracing.ContinuousRiverPath> parallelRivers =
+            RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
+                0xA7C944210000UL, w.Seeds, w.SeaLevel, w.Sources, fineDepth: 2,
+                mergeRadiusMeters: mergeRadiusMeters);
+
+        AssertSameNetwork(sequentialRivers, parallelRivers);
+
+        int[] sequential = RiverPathTracing.ComputeDischargeWeights(sequentialRivers);
+        int[] parallel = RiverPathTracing.ComputeDischargeWeights(parallelRivers);
         Assert.Equal(sequential.Length, parallel.Length);
-        int maxWeight = 0;
+        int maxWeight = 0, merges = 0;
         for (int i = 0; i < sequential.Length; i++)
         {
             Assert.Equal(sequential[i], parallel[i]);
             if (sequential[i] > maxWeight) maxWeight = sequential[i];
+            if (sequentialRivers[i].MergedIntoRiverIndex >= 0) merges++;
         }
-        _out.WriteLine($"{sequential.Length} folyó, legnagyobb vízhozam-súly={maxWeight}");
-        Assert.True(maxWeight > 1, "Egyetlen összefolyás sincs - a teszt a fát nem méri.");
+        _out.WriteLine($"mergeRadius={mergeRadiusMeters:F0} m: {sequential.Length} folyó, "
+            + $"{merges} összefolyás, legnagyobb vízhozam-súly={maxWeight}");
+
+        // Minden összefolyási záróél a toleranciával korlátos (ND-186).
+        foreach (RiverPathTracing.ContinuousRiverPath river in sequentialRivers)
+        {
+            if (river.MergedIntoRiverIndex < 0 || river.Points.Count < 2) continue;
+            double closing = SphereWalk.ChordMeters(river.Points[^2], river.Points[^1]);
+            Assert.True(closing <= mergeRadiusMeters + 1e-6,
+                $"A {river.SourceIndex}. ág záróéle {closing:F1} m a {mergeRadiusMeters:F0} m-es tolerancia felett.");
+        }
+
+        // A súlyok összege FÜGGETLENÜL is kiszámolható: egy ág súlya
+        // 1 + a leszármazottainak száma, tehát az összeg = ágszám + az
+        // ŐSÖK összes száma. Ez LÁNCOKRA is igaz (a puszta
+        // "ágszám + összefolyás" csak egyszintű fára lenne az).
+        Assert.Equal(sequential.Length + TotalAncestorCount(sequentialRivers), SumOf(sequential));
+        Assert.True(maxWeight >= 1);
+    }
+
+    /// <summary>
+    /// A vízhozam-súly LÁNC-akkumulációja (A &lt;- B &lt;- C), szintetikus fán.
+    ///
+    /// MIÉRT KÜLÖN TESZT (ND-186). Korábban ezt a logikát egy valódi,
+    /// domborzatból számolt hálózat mellékhatásaként mértük - de a
+    /// <see cref="DischargeWeightsAreIdentical"/> világában MÉRVE nulla
+    /// összefolyás van (bármilyen értelmes toleranciával), tehát ott a
+    /// lánc-logika NEM futott le. Egy akkumulációs szabály tesztje nem múlhat
+    /// azon, hogy a terep ad-e éppen mellékfolyót: itt a fát közvetlenül
+    /// építjük fel, és a visszafelé (utolsótól elsőig) haladó összegzés
+    /// helyességét mérjük - azt, hogy egy UNOKA-ág súlya is eljut a nagyszülőig.
+    /// </summary>
+    [Fact]
+    public void DischargeWeightsAccumulateMultiLevelChains()
+    {
+        static RiverPathTracing.ContinuousRiverPath Branch(int index, int mergedInto) =>
+            new RiverPathTracing.ContinuousRiverPath
+            {
+                SourceIndex = index,
+                MergedIntoRiverIndex = mergedInto,
+                Termination = mergedInto >= 0
+                    ? RiverPathTracing.TerminationReason.Merged
+                    : RiverPathTracing.TerminationReason.Ocean,
+            };
+
+        // 0 <- 1 <- 2 <- 3 lánc, plusz egy önálló (4) és egy második
+        // mellékfolyó a törzsön (5 -> 0).
+        var rivers = new List<RiverPathTracing.ContinuousRiverPath>
+        {
+            Branch(0, -1), Branch(1, 0), Branch(2, 1), Branch(3, 2), Branch(4, -1), Branch(5, 0),
+        };
+
+        int[] weights = RiverPathTracing.ComputeDischargeWeights(rivers);
+
+        // 3 önmaga = 1; 2 = 1 + 3 súlya = 2; 1 = 1 + 2 súlya = 3;
+        // 0 = 1 + 1. ág (3) + 5. ág (1) = 5; 4 önálló = 1.
+        Assert.Equal(new[] { 5, 3, 2, 1, 1, 1 }, weights);
+
+        // Az összeg FÜGGETLEN ellenőrzése: egy ág súlya 1 + a leszármazottai,
+        // tehát Σ súly = ágszám + az ŐSÖK összes száma (itt 0+1+2+3+0+1 = 7).
+        Assert.Equal(7, TotalAncestorCount(rivers));
+        Assert.Equal(rivers.Count + 7, SumOf(weights));
+
+        // Üres és egyelemű bemenet.
+        Assert.Empty(RiverPathTracing.ComputeDischargeWeights(
+            new List<RiverPathTracing.ContinuousRiverPath>()));
+        Assert.Equal(new[] { 1 }, RiverPathTracing.ComputeDischargeWeights(
+            new List<RiverPathTracing.ContinuousRiverPath> { Branch(0, -1) }));
+    }
+
+    /// <summary>
+    /// Az összes ág ŐSEINEK összesített száma - a vízhozam-súlyok összegének
+    /// független ellenőrzéséhez (ld. a két hívási helyet). Ciklusra nem
+    /// védekszik, mert a `MergedIntoRiverIndex` mindig KISEBB indexre mutat.
+    /// </summary>
+    private static int TotalAncestorCount(IReadOnlyList<RiverPathTracing.ContinuousRiverPath> rivers)
+    {
+        int total = 0;
+        for (int i = 0; i < rivers.Count; i++)
+        {
+            int parent = rivers[i].MergedIntoRiverIndex;
+            while (parent >= 0 && parent < rivers.Count)
+            {
+                total++;
+                parent = rivers[parent].MergedIntoRiverIndex;
+            }
+        }
+        return total;
+    }
+
+    private static int SumOf(int[] values)
+    {
+        int sum = 0;
+        foreach (int value in values) sum += value;
+        return sum;
     }
 
     /// <summary>

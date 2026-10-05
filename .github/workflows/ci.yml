@@ -110,6 +110,11 @@ jobs:
             python "${name}_ref.py"
             diff "${name}_vectors.json" "../../tests/WorldGen.Core.Tests/testdata/${name}_vectors.json"
           done
+      - name: Folytonos folyo-nyomkoveto v2 oracle (ND-186)
+        working-directory: tools/reference
+        run: |
+          python river_continuous_ref.py
+          diff river_continuous_vectors.json ../../tests/WorldGen.Core.Tests/testdata/river_continuous_vectors.json
       - name: Analitikus bolygoalbedo es fogyasztoi oracle (ND-165)
         working-directory: tools/reference
         run: |

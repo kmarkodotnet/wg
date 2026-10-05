@@ -1,5 +1,164 @@
 # Felhasználói ellenőrzési lista
 
+## ✅ A8 ELFOGADVA (2026-10-05)
+
+A felhasználó az ND-193 kör után elfogadta a folyóhálózatot
+(*„A8-at elfogadom, regisztráld"*). Az A8 és a B3 sor lezárva.
+Az alábbi A8-szakaszok TÖRTÉNETIEK, nem nyitott kérés.
+
+Ami az elfogadás ellenére NYITOTT modellkérdés marad: a hosszú, egyenes
+medence-átvágó („escape") folyószakaszok, amik nem követik a terep kis
+völgyeit. Ez külön, mérendő kör lesz.
+
+## A8 ZÁRÓ ÁTVÉTEL (történeti, 2026-10-03)
+
+Az A8 minden olyan tétele kész, amit én el tudok végezni; ami maradt, az a
+TE ítéleted. A teljes lista és a számok lentebb, a szakaszokban.
+
+**Mielőtt elindítod:** a generátorverzió **9 → 10**, tehát a régi mentések
+elutasításra kerülnek, és a hőmodell gyorsítótára érvénytelen — az első menet
+ezért hosszabb. A `runInBackground` be van kapcsolva, tehát a Play akkor is
+számol, ha átkattintasz egy másik ablakra.
+
+**Időzítés, amit látnod kell (mérve, szünet nélküli menet):**
+
+| Mikor | Mi történik |
+|---|---|
+| ~1-2 s | megjelenik az ELSŐ kék ág |
+| ~20-60 s | az áttekintő hálózat kitölti a féltekét (panel: „áttekintés N", N nő 96-ig) |
+| ~100 s | az áttekintés kész, a mesh EGY darabban (14 126 vertex) |
+| ~250-400 s | átvált „finom hálózat"-ra, a vonalak felbontása nő |
+
+1. **Tavon nincs folyóvonal.** Zoomolj rá egy nagy tóra. A szalag a parton
+   megszakad, a tó felszíne tiszta. Ha vonalat látsz egy tavon, az hiba.
+2. **Nincs 0 km-es folyó**, és a hálózat 96 ágból áll.
+3. **A folyók rövidebbek lettek, mint korábban** — ez SZÁNDÉKOS: a korábbi
+   hossz 40,6%-a tófelület volt. 13 ág szinte teljesen eltűnik (5 362 km),
+   mert >90%-ban tavon futott. Azt kérem, mondd meg, hogy az így maradt
+   hálózat OLVASHATÓ-e, vagy túl szaggatott.
+4. **Alak:** a 45 fokos lépcsők eltűntek-e, az összefolyásoknál nincs-e
+   kilométeres ugrás (mérve: legnagyobb él 24,113 → 0,499 km, 30 fok feletti
+   irányváltás 93 404 → 673).
+5. **Zoom:** a vonal a felszínen marad-e közeli nézetben, nincs-e akadás.
+6. **Deep-time:** told előre az időt (pl. 200 Myr). A folyók újraszámolnak,
+   nincs piros kivétel a Console-ban.
+7. **Console:** nulla piros hiba.
+
+**Natív képek a végleges állapotról** (ezeket én mentettem ki ugyanabból a
+szünet nélküli menetből, hogy legyen mihez hasonlítanod):
+
+| Fájl | Mit mutat |
+|---|---|
+| `pics/a8-final-continent.png` | kontinens-nézet: tavak és köztük a kék folyóvonalak |
+| `pics/a8-final-river-region.png` | kanyargó folyó hegyvidéken, regionális nézet |
+| `pics/a8-final-lake-fine.png` | egy nagy tó közelről, finom hálózattal — a tó TISZTA |
+| `pics/a8-final-lake-overview.png` | ugyanaz a tó az áttekintő hálózattal |
+| `pics/a8-final-overview-planet.png` | bolygónézet az áttekintés elkészültekor |
+
+Ha ezek rendben vannak, az A8 lezárható. Ha nem, írd le, melyik pontnál és
+milyen nézetben — a mérőeszközök (`lakecross`, `endcheck`) megvannak hozzá.
+
+## A8 / ND-187 + ND-189 — tavak és folyóforrások (2026-10-03, SEED-TÖRŐ)
+
+A visszajelzésed („látványosan átfolynak a tavakon a folyók, illetve arra is
+van példa, hogy szárazföldön kezdődik és ott is van vége a folyónak") alapján
+két javítás ment be. Mindkettőt MÉRÉS előzte meg — a számok a
+`docs/04-decisions.md` ND-187 / ND-189 bejegyzésekben vannak.
+
+**Amit mértem (t=0, 96 ág, 46 641 km):** a folyóhossz **41,34%-a** látható
+tavakon futott, a leghosszabb egyetlen tó-átvágás **512,9 km**, 13 ágnak a
+hossza több mint 90%-ban tavon volt. 17 ág egy tó alól indult, 2 pedig a
+tengerszint alól — ez utóbbi kettő adta a 0,00 km hosszú „folyókat".
+
+**Amit most látnod kell:**
+
+- **Tavon nincs folyóvonal.** A szalag a tó partján megszakad, és a tó túlsó
+  oldalán folytatódik. A tó marad, amilyen volt. Ha MÉGIS látsz vonalat egy
+  tófelületen, az hiba — jelezd, melyik nézetben.
+- **Nincs 0 km-es folyó.** A források ellenőrzötten a tengerszint felett
+  vannak a nyomkövető saját (finom) domborzatán.
+- **A folyók összhossza nőtt** (46 641 → 47 713 km), mert a kiszűrt
+  források helyére használható forrás lépett. A hálózat 96 ág maradt.
+- **Egy ág még mindig kezdődhet tó mellett.** Mérve 15 ilyen van; a tóban
+  futó szakaszuk nem látszik, tehát a képen a tó partjánál kezdődnek. Ha ez
+  zavaró marad, a forrás-szűrést finomabb tó-mezőre kell vinni (nyitott).
+- **A generátorverzió 9 → 10:** a régi mentések elutasításra kerülnek, és a
+  hőmodell gyorsítótára érvénytelen — az első menet ezért újra hosszú.
+
+**Amit továbbra sem javít ez a kör:** a folyók a tó alatt FOLYTATÓDNAK a
+modellben (a víz tényleg átfolyik rajtuk), csak nem rajzoljuk. Ha azt
+szeretnéd, hogy a tó kifolyásánál ténylegesen ÚJ ág induljon, az külön,
+nagyobb munka (az ND-187 (B) opciója).
+
+## ELŐSZÖR EZT OLVASD EL (2026-10-03) — miért nem látszott egyetlen folyó sem
+
+A visszajelzésed („nincsenek folyók, semmit nem tudok ellenőrizni") helyes
+volt, és KÉT, a folyómodelltől független okot találtam rá az élő Editorban
+mérve. A 96 ágú hálózat mindkét esetben ELKÉSZÜLT — csak nem jutott ki a
+képre. Részletek és számok: `docs/04-decisions.md` ND-181 kiegészítés.
+
+1. **A Play-menet megállt, amint a Unity ablak elvesztette a fókuszt.**
+   A `runInBackground` ki volt kapcsolva. A folyó-számítás háttérszálon
+   fut, tehát ment tovább, de a kész hálózat átvétele a fő szálon történik:
+   frame nélkül nincs átvétel. Mérve: `Time.time` = 50,9 s, miközben a
+   folyó-stopper 306,8 s-on állt; a kész 96 ág ott várt a sorban.
+   **Javítva:** `runInBackground: 1`. Mostantól akkor is számol és frissül,
+   ha átkattintasz egy másik ablakra.
+
+2. **A megjelenítés 6 ágon ragadt 19,5 másodpercre.** A régi, fix
+   ágszám-küszöbök (1/4/6/16/48) a mért commit-időkkel: 6. ág 1,6 s,
+   16. ág **21,1 s**. Közben semmi nem változott a képen.
+   **Javítva:** másodpercenkénti frissítés, tehát a hálózat szemmel
+   láthatóan NŐ. A számok bitre ugyanazok, csak az ütemezés változott.
+
+**Így tudod most ellenőrizni (ebben a sorrendben):**
+
+- Play indítás után ~1-2 s: megjelenik az ELSŐ kék ág (nem biztos, hogy a
+  nézetedben — az első források nem a kamera felé esnek).
+- ~20-40 s: az áttekintő hálózat kitölti a féltekét (a panel első sora
+  „áttekintés N"-t mutat, N nő 96-ig).
+- ~60-100 s: átvált „finom hálózat"-ra, és a vonalak felbontása nő
+  (a mesh felépítése ezután még 2-3 perc — a vonalak szakaszosan
+  bővülnek, ez nem hiba).
+- Közelről: zoomolj rá egy szárazföldre vagy egy nagy tóra. A 2026-10-03-i
+  natív Unity-képeken (`pics/a8-river-close.png`) a vonalak, az elágazások
+  és az összefolyások tisztán látszanak.
+- **A kezdőnézet közepén nagy az óceán.** Ha semmit nem látsz, forgasd a
+  bolygót a szárazföldek felé, vagy várd meg a 20-40 s-os állapotot.
+
+Amit továbbra is TŐLED kérek (ezt én nem tudom eldönteni): a folyók ALAKJA
+jó-e (lásd a lenti A8/ND-186 szakaszt), és hogy a tavakon átvágó vonalak
+(ND-187) zavarnak-e.
+
+
+## A8 / ND-186 — a folyó ALAKJA változott (2026-10-03, seed-törő)
+
+**Ez más, mint a lentebbi láthatósági kör.** Ott a kérdés az volt, hogy
+LÁTSZIK-e a folyó; itt az, hogy JÓL FUT-e. Az ND-180 három mért modellhibáját
+javítottuk (iránykvantálás, összefolyási „teleport", finomítatlan
+medence-átvágás), tehát **minden folyónyomvonal új**. A generátorverzió 8 → 9:
+a régi mentések elutasításra kerülnek, és a hőmodell lemez-gyorsítótára
+érvénytelen (az első menet ezért újra hosszú lesz — ez nem hiba).
+
+Amit érdemes megnézni, ha lesz rá idő:
+
+- **Szögletesség.** A 45 fokos lépcsők eltűntek-e. Mérve: a teljes hálózat
+  30 fok felett számolt irányváltásai 93 404 → 690 (a 0. ágon 1422 → 9).
+- **Összefolyások.** Nincs-e többé több kilométeres „ugrás" ott, ahol egy ág
+  belefolyik a másikba. Mérve: a legnagyobb összefolyási záróél 24,113 km →
+  a tolerancia (0,1-0,5 km) alatt.
+- **Medence-átvágás.** Ahol a folyó egy zárt medencén megy át, most sima,
+  egyenes vonal fut (a 2 km-es rácslépcső helyett). Ha ez egy nagy tó
+  helyén folyóvonalnak LÁTSZIK, az nem hiba, hanem a tudatosan nyitva
+  hagyott **ND-187** (medence = folyó vagy tó?) — pont ezt a visszajelzést
+  keresem hozzá.
+- **Az összefolyás-fa MEGMARADT.** Ez külön megnyugtató mérés: a 96 ágból
+  korábban 19 folyt össze, most 18 — a zsákutcák (Pit) száma pontosan
+  ugyanannyi (11). Vagyis a teleport megszüntetése nem szedte szét a fát.
+  Ha a fa mégis túl szegényesnek látszik, az a forrás-kiválasztás kérdése
+  (ND-124), nem a nyomkövetőé — jelezd, és azt vesszük elő.
+- Piros kivétel a Console-ban (különösen a mentés/cache verzióváltás körül).
+
 ## A8 — új folyóellenőrzés (2026-10-03)
 
 **2026-10-03:** a felhasználó újra tesztelt, a folyó továbbra sem látszott

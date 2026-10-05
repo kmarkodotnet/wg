@@ -7,7 +7,29 @@ namespace WorldGen.Core.Persistence
     /// </summary>
     public static class WorldGeneratorVersion
     {
-        // ND-168/169: az éves bázis meridionális szállítása energiamegmaradó
+        // ND-189 (SEED-TÖRŐ, 2026-10-03): a folyó-FORRÁS nem indulhat olyan
+        // pontból, ami a nyomkövető FINOM mezőjén a tengerszint alatt van,
+        // és nem eshet a durva mezőn látható TÓ alá. MÉRVE a t=0 hálózaton:
+        // 96 forrásból 17 tó alatt, 2 a tengerszint alatt volt (ez a kettő
+        // adta a 0,00 km hosszú "folyókat"). A forráslista, és így MINDEN
+        // folyóhálózat új. (A víz alatti szakaszok jelölése — ND-187 — ettől
+        // független és NEM seed-törő: származtatott adat a változatlan
+        // nyomvonal-geometriából.)
+        // Előzmény — ND-186 (az ND-180 "C" opciója, 1. kör): a FOLYTONOS folyó-nyomkövető
+        // három mért modellhibája javítva, mindhárom numerikus:
+        //   (1) a lépésirány már nem a 8 jelölt-irány egyikére kvantált, hanem
+        //       a jelölt-kör első harmonikusából számolt folytonos lejtésirány;
+        //   (2) az összefolyás VALÓDI térbeli közelségvizsgálat (<= 100 m),
+        //       nem "ugyanabban a 13-18 km-es finom tile-ban" - a mért
+        //       24,113 km-es összefolyási teleport ezzel strukturálisan kizárt;
+        //   (3) az escape-szakasz "víz alatti" egyenesekre van összevonva és a
+        //       lépésközre mintavételezve, tehát a 2,0 / 2,828 km-es rácsélek
+        //       eltűnnek a nyomvonalból.
+        // Ugyanitt szűnt meg két csendes I1-sértés a folyó kritikus útján: a
+        // jelölt-irányok `Math.Cos`/`Math.Sin`-je (ND-23) és a hurok-védelem
+        // `TileGeometry.FromPosition`-je, ami `Math.Atan`-t hív (ND-24).
+        // MINDEN folyóhálózat (nyomvonal, összefolyás-fa, vízhozam-súly) új.
+        // Előzmény — ND-168/169: az éves bázis meridionális szállítása energiamegmaradó
         // élfluxus, a végleges B menet éves szele a csapadékot is táplálja.
         // Előzmény — ND-160: a hőmodell BÁZISÁNAK radiatív tagja BOLYGÓ-albedóval számol
         // (a felszíni albedó a tickenkénti anomália-tagban marad). A bázis és a
@@ -27,6 +49,6 @@ namespace WorldGen.Core.Persistence
         // Előzmény — ND-142: a pillanatnyi levegőanomália visszahat a termikus szélre.
         // ND-165/174/175: analitikus bolygó-albedó, periodikus szezonális energiamérleg
         // és fizikai hó/jégbesorolás.
-        public const string Current = "8";
+        public const string Current = "10";
     }
 }

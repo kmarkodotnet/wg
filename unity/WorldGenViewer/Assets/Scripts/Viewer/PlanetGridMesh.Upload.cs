@@ -80,10 +80,10 @@ namespace WorldGen.Viewer
                             ?? throw new InvalidOperationException("Hiányzó előkészített terepmesh.")), job.Key));
                 }
                 stages.Add(new TerrainUploadStage("legacyWater", () => MeasureAuxiliaryStage(buffers, () =>
-                    buffers.StagedLegacyWater = owner.StageWaterUpload("LegacyWater", buffers.PreparedLegacyWater!))));
+                    buffers.StagedLegacyWater = owner.StageWaterUpload(buffers, "LegacyWater", buffers.PreparedLegacyWater!))));
                 if (buffers.PreparedIndependentWater != null)
                     stages.Add(new TerrainUploadStage("oceanWater", () => MeasureAuxiliaryStage(buffers, () =>
-                        buffers.StagedIndependentWater = owner.StageWaterUpload("IndependentWater", buffers.PreparedIndependentWater))));
+                        buffers.StagedIndependentWater = owner.StageWaterUpload(buffers, "IndependentWater", buffers.PreparedIndependentWater))));
                 stages.Add(new TerrainUploadStage("borders", () => MeasureAuxiliaryStage(buffers,
                     () => buffers.StagedBorders = owner.StageBorderUpload(buffers))));
                 stages.Add(new TerrainUploadStage("terrainMask", () => owner.StageTerrainCoverage(buffers)));
@@ -126,6 +126,11 @@ namespace WorldGen.Viewer
                 double maxJobMs = 0;
                 string maxJobType = "none";
                 TileId maxJobKey = default;
+                // ND-190 MERES: a szelet GPU-oldali koltsege. A CPU-ido (lent,
+                // `elapsed`) 1-2 ms, de a tenyleges VBO-letrehozas a render
+                // szalon es a GPU-n tortenik - azt CSAK a feltoltott vertexek
+                // szamaval tudjuk fekezni, ezert itt kulon merjuk.
+                int sliceStartVertices = pending.Buffers.UploadStagedVertices;
                 int staged = pending.Batch.StageSlice(stage =>
                 {
                     long started = Stopwatch.GetTimestamp();
@@ -139,7 +144,10 @@ namespace WorldGen.Viewer
                 pending.Buffers.UploadStageFrames++;
                 pending.Buffers.UploadStageMs += elapsed;
                 pending.Buffers.UploadMaxSliceMs = Math.Max(pending.Buffers.UploadMaxSliceMs, elapsed);
+                int sliceVertices = pending.Buffers.UploadStagedVertices - sliceStartVertices;
+                pending.Buffers.UploadMaxSliceVertices = Math.Max(pending.Buffers.UploadMaxSliceVertices, sliceVertices);
                 PerfLog($"[ND-85 upload slice] pipeline=ND94 frame={Time.frameCount} jobs={staged} " +
+                    $"sliceVertices={sliceVertices} " +
                     $"done={pending.Batch.CompletedCount}/{pending.Batch.Count} elapsed={elapsed:F2}ms " +
                     $"maxJobType={maxJobType} maxJobMs={maxJobMs:F3} maxJobKey={maxJobKey.Value:X16} " +
                     $"ready={pending.Batch.ReadyToCommit}; published=False");

@@ -21,6 +21,8 @@ internal static class Program
         using var report = new StreamWriter(prefix + "-geometry.csv");
         report.WriteLine("index,points,lengthKm,longEdges,longEdgeLengthKm,maxEdgeKm,mergeEdgeKm,sharpTurns");
         double total = 0.0, longTotal = 0.0, maxMerge = 0.0;
+        int merges = 0, totalTurns = 0;
+        long totalPoints = 0;
         foreach (var river in rivers)
         {
             double length = 0.0, longLength = 0.0, maxEdge = 0.0, lastEdge = 0.0;
@@ -42,10 +44,12 @@ internal static class Program
                 }
             }
             double mergeEdge = river.Termination == RiverPathTracing.TerminationReason.Merged ? lastEdge : 0.0;
+            if (river.Termination == RiverPathTracing.TerminationReason.Merged) merges++;
+            totalTurns += turns; totalPoints += river.Points.Count;
             total += length; longTotal += longLength; maxMerge = Math.Max(maxMerge, mergeEdge);
             report.WriteLine(FormattableString.Invariant($"{river.SourceIndex},{river.Points.Count},{length/1000.0:R},{longEdges},{longLength/1000.0:R},{maxEdge/1000.0:R},{mergeEdge/1000.0:R},{turns}"));
         }
-        Console.WriteLine(FormattableString.Invariant($"geometry: lengthKm={total/1000.0:F3} longEdgePercent={100.0*longTotal/Math.Max(total,1.0):F2} maxMergeEdgeKm={maxMerge/1000.0:F3}"));
+        Console.WriteLine(FormattableString.Invariant($"geometry: lengthKm={total/1000.0:F3} longEdgePercent={100.0*longTotal/Math.Max(total,1.0):F2} maxMergeEdgeKm={maxMerge/1000.0:F3} merges={merges} sharpTurns={totalTurns} points={totalPoints}"));
     }
 
     private static int Main(string[] args)
@@ -53,7 +57,12 @@ internal static class Program
         double timeMyr = args.Length > 0 ? double.Parse(args[0], CultureInfo.InvariantCulture) : 0.0;
         string output = args.Length > 1 ? args[1] : "artifacts/a8-river-baseline";
         double traceStep = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 50.0;
-        int limit = args.Length > 2 && args[2] != "endcheck" && args[2] != "independent" && args[2] != "coarse" && args[2] != "parallel" && args[2] != "parallel2" && args[2] != "parallel4"
+        // ND-186: az osszefolyasi terbeli tolerancia soporheto, hogy a
+        // "mennyi valodi osszefolyas van" kerdes MERT legyen, ne feltetelezett.
+        double mergeRadius = args.Length > 4
+            ? double.Parse(args[4], CultureInfo.InvariantCulture)
+            : ClaimedRiverPoints.DefaultMergeRadiusMeters;
+        int limit = args.Length > 2 && args[2] != "endcheck" && args[2] != "independent" && args[2] != "coarse" && args[2] != "lakecross" && args[2] != "parallel" && args[2] != "parallel2" && args[2] != "parallel4"
             ? int.Parse(args[2], CultureInfo.InvariantCulture) : 96;
         Directory.CreateDirectory(output);
         var preparation = Stopwatch.StartNew();
@@ -63,9 +72,14 @@ internal static class Program
             Seed, 20, 5, 10.0, 365.25, 1.0, 23.44,
             targetWaterFraction: 0.65);
         var flood = FlowNetwork.PriorityFlood(precipitation.Elevation, precipitation.IsOcean);
+        // ND-189: a forras-szures a KOVETO finom mezojen (worldSeed + seeds +
+        // context) es a durva to-mezon (flood.Filled) tortenik.
         var sources = RiverPathTracing.SelectRiverSourcesPerBasin(
             precipitation.Elevation, precipitation.Precipitation,
-            precipitation.IsOcean, flood.Parent, precipitation.SeaLevel);
+            precipitation.IsOcean, flood.Parent, precipitation.SeaLevel,
+            worldSeed: Seed, seeds: movedSeeds,
+            context: DeepTimeContext.AtPlateTime(timeMyr),
+            floodFilled: flood.Filled);
         string prefix = Path.Combine(output, "t" + timeMyr.ToString("0.###", CultureInfo.InvariantCulture));
         using var sourceFile = new StreamWriter(prefix + "-sources.csv");
         sourceFile.WriteLine("index,basinRound,tileIdHex");
@@ -137,7 +151,7 @@ internal static class Program
                 var unclaimed = RiverPathTracing.TraceRiverPathContinuous(
                     Seed, movedSeeds, precipitation.SeaLevel, sources[index], index,
                     RiverPathTracing.DefaultFineDepth,
-                    new Dictionary<TileId, RiverPathTracing.ClaimedTileInfo>(),
+                    claimed: null,
                     stepMeters: 50.0, context: DeepTimeContext.AtPlateTime(timeMyr));
                 int extraSteps = unclaimed.ClaimCheckIndices.Count - claimedSteps;
                 tailRows.WriteLine(string.Join(",", index, claimedSteps,
@@ -148,6 +162,133 @@ internal static class Program
             }
             return 0;
         }
+        // ND-187 MERES (2026-10-03, felhasznaloi visszajelzes): mennyire
+        // vagnak at a folyok a LATHATO tavakon, es hany ag indul/vegzodik
+        // olyan ponton, ami a megjelenitett vizfelszin alatt van. A
+        // TileGeometry hasznalata itt DIAGNOSZTIKA (ND-24 a SZIMULACIOS
+        // kritikus utra szol), a kimenet nem megy vissza a modellbe.
+        if (args.Length > 2 && args[2] == "lakecross")
+        {
+            // ND-187: a to-jeloles melyseg-kuszobe SOPORHETO, hogy mert
+            // alapon valasszuk, ne becslesbol.
+            double submergedMinDepth = args.Length > 5
+                ? double.Parse(args[5], CultureInfo.InvariantCulture)
+                : RiverPathTracing.DefaultSubmergedMinDepthMeters;
+            // ND-188: az escape-szakasz PONTSURUSEGE is soporheto - ez donti
+            // el, hogy az "attekintes" tenyleg olcsobb-e a veglegesnel.
+            double escapeEmit = args.Length > 6
+                ? double.Parse(args[6], CultureInfo.InvariantCulture)
+                : RiverPathTracing.DefaultContinuousEscapeEmitMeters;
+            var lakeTimer = Stopwatch.StartNew();
+            var network = RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
+                Seed, movedSeeds, precipitation.SeaLevel, sources,
+                RiverPathTracing.DefaultFineDepth, stepMeters: traceStep,
+                maxDegreeOfParallelism: 4, context: DeepTimeContext.AtPlateTime(timeMyr),
+                mergeRadiusMeters: mergeRadius, submergedMinDepthMeters: submergedMinDepth,
+                escapeEmitMeters: escapeEmit);
+            long networkPoints = 0;
+            foreach (var r in network) networkPoints += r.Points.Count;
+            using (var self = Process.GetCurrentProcess())
+                Console.WriteLine(FormattableString.Invariant(
+                    $"networkMs={lakeTimer.Elapsed.TotalMilliseconds:F1} rivers={network.Count} points={networkPoints} stepM={traceStep:F1} escapeEmitM={escapeEmit:F1} submergedMinDepthM={submergedMinDepth:F1} peakWorkingSetBytes={self.PeakWorkingSet64}"));
+
+            // UGYANAZ a terep- es tolanc, amit az "endcheck" hasznal, hogy a
+            // ket mereset ossze lehessen vetni.
+            var terrain = SeaLevelCalibration.ComputeElevationFieldAtTime(
+                Seed, 20, 8, DeepTimeContext.AtPlateTime(timeMyr));
+            var ocean = FlowNetwork.ComputeOceanField(terrain, precipitation.SeaLevel);
+            var drainage = FlowNetwork.PriorityFlood(terrain, ocean);
+            var lakeResult = LakesIceErosion.IdentifyLakes(terrain, drainage.Filled, ocean);
+            var lakeOfTile = new Dictionary<TileId, int>();
+            int visibleLakes = 0;
+            double visibleLakeTiles = 0;
+            foreach (var lake in lakeResult.Lakes)
+            {
+                if (lake.TileCount < 6 || lake.MaxDepth < 40.0) continue;
+                visibleLakes++;
+                visibleLakeTiles += lake.TileCount;
+                foreach (TileId t in lake.Tiles) lakeOfTile[t] = lake.Id;
+            }
+            Console.WriteLine(FormattableString.Invariant(
+                $"visibleLakes={visibleLakes} lakeTiles={visibleLakeTiles:F0} (level 8)"));
+
+            using var report = new StreamWriter(prefix + "-lakecross.csv");
+            report.WriteLine("index,termination,lengthKm,lakeLengthKm,lakePercent,lakeSegments,crossings,longestCrossingKm,endsInLake,startsBelowSea,startsInLake,spanKm,spanPercent,spanCount,spanInLakeKm,lakeNotSpanKm");
+            double totalLength = 0.0, totalLakeLength = 0.0, longestCrossingAll = 0.0;
+            int riversWithCrossing = 0, riversEndingInLake = 0, riversStartingInLake = 0, riversStartingBelowSea = 0;
+            int totalCrossings = 0;
+            // ND-187: a Core SAJAT jelolese (SubmergedSpans) vs a LATHATO tavak.
+            double totalSpanLength = 0.0, totalSpanInLake = 0.0, totalLakeNotSpan = 0.0;
+            int totalSpanCount = 0;
+            foreach (var river in network)
+            {
+                double length = 0.0, lakeLength = 0.0, longestCrossing = 0.0, currentSegment = 0.0;
+                int segments = 0, crossings = 0;
+                bool inLake = false;
+                var first = river.Points[0];
+                TileId firstTile = TileGeometry.FromPosition(first.X, first.Y, first.Z, 8);
+                bool startsInLake = lakeOfTile.ContainsKey(firstTile);
+                bool startsBelowSea = terrain[firstTile] < precipitation.SeaLevel;
+                for (int i = 1; i < river.Points.Count; i++)
+                {
+                    var a = river.Points[i - 1]; var b = river.Points[i];
+                    double dx = b.X-a.X, dy = b.Y-a.Y, dz = b.Z-a.Z;
+                    double meters = Math.Sqrt(dx*dx+dy*dy+dz*dz) * WorldGen.Core.PlanetConstants.RadiusMeters;
+                    length += meters;
+                    TileId tile = TileGeometry.FromPosition(b.X, b.Y, b.Z, 8);
+                    bool nowInLake = lakeOfTile.ContainsKey(tile);
+                    if (nowInLake)
+                    {
+                        lakeLength += meters;
+                        currentSegment += meters;
+                        if (!inLake) { segments++; inLake = true; }
+                    }
+                    else if (inLake)
+                    {
+                        // KILEPETT a tobol, tehat ATVAGTA - nem ott ert veget.
+                        crossings++;
+                        if (currentSegment > longestCrossing) longestCrossing = currentSegment;
+                        currentSegment = 0.0;
+                        inLake = false;
+                    }
+                }
+                // A Core jelolese: mely ELEK esnek egy SubmergedSpans tartomanyba.
+                var submerged = new bool[river.Points.Count];
+                foreach ((int Start, int End) span in river.SubmergedSpans)
+                    for (int i = span.Start; i <= span.End && i < submerged.Length; i++) submerged[i] = true;
+                double spanLength = 0.0, spanInLake = 0.0, lakeNotSpan = 0.0;
+                for (int i = 1; i < river.Points.Count; i++)
+                {
+                    var a = river.Points[i - 1]; var b = river.Points[i];
+                    double dx = b.X-a.X, dy = b.Y-a.Y, dz = b.Z-a.Z;
+                    double meters = Math.Sqrt(dx*dx+dy*dy+dz*dz) * WorldGen.Core.PlanetConstants.RadiusMeters;
+                    bool inSpan = submerged[i - 1] && submerged[i];
+                    bool inLakeTile = lakeOfTile.ContainsKey(TileGeometry.FromPosition(b.X, b.Y, b.Z, 8));
+                    if (inSpan) spanLength += meters;
+                    if (inSpan && inLakeTile) spanInLake += meters;
+                    if (!inSpan && inLakeTile) lakeNotSpan += meters;
+                }
+                totalSpanLength += spanLength; totalSpanInLake += spanInLake; totalLakeNotSpan += lakeNotSpan;
+                totalSpanCount += river.SubmergedSpans.Count;
+                var last = river.Points[river.Points.Count - 1];
+                bool endsInLake = lakeOfTile.ContainsKey(TileGeometry.FromPosition(last.X, last.Y, last.Z, 8));
+                totalLength += length; totalLakeLength += lakeLength;
+                if (crossings > 0) riversWithCrossing++;
+                if (endsInLake) riversEndingInLake++;
+                if (startsInLake) riversStartingInLake++;
+                if (startsBelowSea) riversStartingBelowSea++;
+                totalCrossings += crossings;
+                if (longestCrossing > longestCrossingAll) longestCrossingAll = longestCrossing;
+                report.WriteLine(FormattableString.Invariant(
+                    $"{river.SourceIndex},{river.Termination},{length/1000.0:R},{lakeLength/1000.0:R},{100.0*lakeLength/Math.Max(length,1.0):R},{segments},{crossings},{longestCrossing/1000.0:R},{endsInLake},{startsBelowSea},{startsInLake},{spanLength/1000.0:R},{100.0*spanLength/Math.Max(length,1.0):R},{river.SubmergedSpans.Count},{spanInLake/1000.0:R},{lakeNotSpan/1000.0:R}"));
+            }
+            Console.WriteLine(FormattableString.Invariant(
+                $"lakecross: totalKm={totalLength/1000.0:F3} lakeKm={totalLakeLength/1000.0:F3} lakePercent={100.0*totalLakeLength/Math.Max(totalLength,1.0):F2} riversWithCrossing={riversWithCrossing}/{network.Count} crossings={totalCrossings} longestCrossingKm={longestCrossingAll/1000.0:F3} endsInLake={riversEndingInLake} startsInLake={riversStartingInLake} startsBelowSea={riversStartingBelowSea}"));
+            Console.WriteLine(FormattableString.Invariant(
+                $"spans: spanKm={totalSpanLength/1000.0:F3} spanPercent={100.0*totalSpanLength/Math.Max(totalLength,1.0):F2} spanCount={totalSpanCount} spanInLakeKm={totalSpanInLake/1000.0:F3} spanInLakePercent={100.0*totalSpanInLake/Math.Max(totalSpanLength,1.0):F2} lakeNotCoveredKm={totalLakeNotSpan/1000.0:F3} lakeCoveredPercent={100.0*(totalLakeLength-totalLakeNotSpan)/Math.Max(totalLakeLength,1.0):F2}"));
+            return 0;
+        }
+
         if (args.Length > 2 && (args[2] == "parallel" || args[2] == "parallel2" || args[2] == "parallel4"))
         {
             int workers = args[2] == "parallel2" ? 2 : args[2] == "parallel4" ? 4 : -1;
@@ -159,6 +300,7 @@ internal static class Program
                     Seed, movedSeeds, precipitation.SeaLevel, sources,
                     RiverPathTracing.DefaultFineDepth, stepMeters: traceStep,
                     maxDegreeOfParallelism: workers, context: DeepTimeContext.AtPlateTime(timeMyr),
+                    mergeRadiusMeters: mergeRadius,
                     onRiverCompleted: river => Console.WriteLine($"committed={river.SourceIndex + 1} elapsedMs={parallelTimer.Elapsed.TotalMilliseconds:F1} end={river.Termination} merge={river.MergedIntoRiverIndex}"));
             double elapsedMs = parallelTimer.Elapsed.TotalMilliseconds;
             double cpuMs = (process.TotalProcessorTime - cpuBefore).TotalMilliseconds;
@@ -196,7 +338,7 @@ internal static class Program
             return 0;
         }
 
-        var claimed = new Dictionary<TileId, RiverPathTracing.ClaimedTileInfo>();
+        var claimed = new ClaimedRiverPoints(mergeRadius);
         var rivers = new List<RiverPathTracing.ContinuousRiverPath>();
         using var rows = new StreamWriter(prefix + "-profile.csv");
         rows.AutoFlush = true;
@@ -213,13 +355,8 @@ internal static class Program
                 stepMeters: 50.0, onPitEscape: () => pitCalls++, context: DeepTimeContext.AtPlateTime(timeMyr));
             double traceMs = timer.Elapsed.TotalMilliseconds;
             timer.Restart();
-            int fineLevel = sources[i].Level + RiverPathTracing.DefaultFineDepth;
             foreach (var point in river.Points)
-            {
-                TileId tile = TileGeometry.FromPosition(point.X, point.Y, point.Z, fineLevel);
-                if (!claimed.ContainsKey(tile))
-                    claimed[tile] = new RiverPathTracing.ClaimedTileInfo(i, point);
-            }
+                claimed.Add(point, i);
             double claimMs = timer.Elapsed.TotalMilliseconds;
             rivers.Add(river);
             int mergePointIndex = river.Termination == RiverPathTracing.TerminationReason.Merged

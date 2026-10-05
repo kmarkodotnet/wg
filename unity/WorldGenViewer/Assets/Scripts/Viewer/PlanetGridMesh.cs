@@ -253,26 +253,22 @@ namespace WorldGen.Viewer
         private double riverRefinementStepMeters = 50.0;
 
         [SerializeField]
-        [Tooltip("A folyó-VONALAK sugár-irányú kiemelése a felszín fölé (z-fighting ellen). " +
-                 "A folyók vékony vonal-hálózatként (a tényleges lefolyás-fa mentén) " +
-                 "renderelődnek, nem tile-kitöltésként (BuildRiverNetwork). " +
-                 "FELHASZNÁLÓI VISSZAJELZÉS (2026-09-06): \"a folyók továbbra is " +
-                 "szaggatottak... kirajzolási probléma\" - GYÖKÉROK: a folyó-vonal minden " +
-                 "pontja a FOLYTONOS (finom, ~50m lépésközű) elevációmezőt olvassa ki " +
-                 "(RiverPositionOnSurface -> ComputeDisplacedRadius), de a ténylegesen " +
-                 "RENDERELT terep egy DARABOSAN LINEÁRIS háromszög-mesh, aminek csúcsai a " +
-                 "sokkal DURVÁBB adaptív LOD-tile-határokon vannak. A domborzat-zaj " +
-                 "amplitúdója (CrustElevation.NoiseAmplitudeMeters = 3000 m) sok " +
-                 "nagyságrenddel meghaladja a korábbi 0.02 (elevationScale=0.01 mellett " +
-                 "mindössze ~2 méteres) sugár-eltolást - a két felület (folytonos vs. " +
-                 "darabos-lineáris) eltérése tipikus terepen simán meghaladhatja ezt, ezért " +
-                 "a folyó-vonal helyenként a terep-mesh ALÁ süllyed (Z-fighting/takarás), " +
-                 "ami szaggatottnak LÁTSZIK, pedig a nyomvonal-ADAT folytonos. 0.5-re " +
-                 "emelve (~50 m ekvivalens) - ez csak enyhíti (a legdurvább LOD-szinteken " +
-                 "továbbra is előfordulhat), a teljes megoldás a folyó-pont terep-mesh " +
-                 "TÉNYLEGES lokális magasságára vetítését igényelné, nem csak a folytonos " +
-                 "mezőre.")]
-        private float riverLineRadialBias = 0.5f;
+        [Tooltip("A folyó-SZALAG kiemelése a RENDERELT terep fölé, VILÁG-MÉTERBEN " +
+                 "(ND-193). A megjelenítési lánc: biasUnits = ez * " +
+                 "terrainReliefExaggeration * elevationScale - tehát a domborzati " +
+                 "túlrajzolás és a lépték változásakor is UGYANAZT a fizikai " +
+                 "magasságot tartja. " +
+                 "MIÉRT VILÁG-MÉTER ÉS NEM UNITY-EGYSÉG: korábban 0,5 Unity-egység " +
+                 "volt, a doksija szerint \"~50 m ekvivalens\" - az viszont a RÉGI " +
+                 "elevationScale=0,01 mellett volt igaz. A mai lánccal " +
+                 "(elevationScale=1,3477e-5, terrainReliefExaggeration=111) ugyanaz a " +
+                 "0,5 egység 334 VILÁG-MÉTER, kirajzolva 37,1 km sugár-irányú " +
+                 "lebegés - MÉRVE (2026-10-05, 988 km kameramagasság): a folyóvonal " +
+                 "átlagosan 9,9, legfeljebb 22,7 KÉPPONTTAL csúszott el a völgyétől " +
+                 "(parallaxis), ezért folyt bele a tavakba és ezért nem ért el " +
+                 "másutt a partig. Ez a hibaosztály csendben keletkezett: a " +
+                 "konstans maradt, a lépték változott.")]
+        private double riverLineBiasWorldMeters = 10.0;
 
         [SerializeField]
         [Tooltip("A folyó-SZALAG (nem vékony vonal, hanem a vízhozammal arányosan " +
@@ -831,6 +827,11 @@ namespace WorldGen.Viewer
         // Szurt tavak: tile -> lapos to-felszin (feltoltesi) elevacio, a
         // BuildLakeSurface lapos vizfelszin-rajzaehoz.
         private Dictionary<TileId, double> _adaptiveLakeSurface;
+
+        // ND-193: a BuildLakeSurface altal TENYLEGESEN kirajzolt vizszintek,
+        // a parti gyuruvel egyutt - a folyoszalag vagasa ezt hasznalja,
+        // mert a felhasznalo ezt a vizfelszint LATJA.
+        private Dictionary<TileId, double> _adaptiveLakeSurfaceWithRing;
         // Referencia-szintu csapadek-mezo (MoisturePrecipitation) a csapadek-overlayhez.
         private Dictionary<TileId, double> _adaptivePrecip;
 
@@ -1128,6 +1129,46 @@ namespace WorldGen.Viewer
         private const int RiverRefinementWorkerCount = 4;
         private const double RiverOverviewStepMeters = 1000.0;
 
+        /// <summary>
+        /// ND-188 (2026-10-03, MERT): az ATTEKINTO menet escape-emisszioja.
+        ///
+        /// A meres szerint az attekintes IDEJET az emisszio surusege NEM
+        /// befolyasolja - a koltseg a lokalis priority-floodban van, nem a
+        /// pontok kiirasaban (seed 0xA7C944210000, t=0, 96 ag, 4 worker,
+        /// 1 km lepeskoz): 250 m -> 40,3 s / 127 514 pont; 5 km -> 44,5 s /
+        /// 25 715 pont; 20 km -> 42,4 s / 22 263 pont. A PONTSZAM viszont
+        /// otodere esik, es azt a VIEWER fizeti meg: minden pontot a
+        /// megjelenitett felszinre kell vetiteni es szalagga epiteni.
+        ///
+        /// Az attekintes szerepe az, hogy a felhasznalo HAMARABB lasson
+        /// teljes halozatot; a pontos alakot a finom menet adja. Ezert itt a
+        /// durvabb emisszio a helyes valasztas. 5 km = 5x a lepeskoz; 20 km-nel
+        /// a pontszam mar alig csokken (telitodes), viszont az attekinto vonal
+        /// jobban elszakadna a domborzattol.
+        /// </summary>
+        private const double RiverOverviewEscapeEmitMeters = 5000.0;
+
+        /// <summary>
+        /// ND-181 kiegeszites (2026-10-03, MERT): milyen surun publikaljuk a
+        /// hatterszalon elkeszult folyo-agakat a fo szalra elonezetkent.
+        ///
+        /// MIERT NEM FIX AGSZAM-KUSZOBOK (a korabbi 1/4/6/16/48). A
+        /// <see cref="RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel"/>
+        /// a kesz agakat SZIGORUAN FORRAS-SORRENDBEN commitalja (a `claimed`
+        /// szemantika reprodukalasa miatt - ez determinizmus-kovetelmeny,
+        /// nem valtoztathato). Ezert a commit-idopontok NEM egyenletesek: a
+        /// 2026-10-03-i meresben (seed 0xA7C944210000, level 5, 4 worker,
+        /// 1 km-es attekintes) az UTOLSO 18 ag ugyanazon a 37,67 s-on
+        /// commitalt. A fix kuszobok igy nem haladast mutattak, hanem
+        /// veletlen pillanatokat - a felhasznalo 6 agnal ragadt.
+        ///
+        /// Az idoalapu publikalas ettol fuggetlen: ahogy a commit-sorrend
+        /// elorehalad, legalabb ennyi idonkent a TENYLEGES allapot latszik.
+        /// A hálózat kimenete ettol bitre valtozatlan - ez kizarolag
+        /// megjelenitesi utemezes.
+        /// </summary>
+        private const double RiverPreviewPublishIntervalSeconds = 1.0;
+
         private sealed class PendingRiverNetwork
         {
             public int Generation;
@@ -1219,6 +1260,10 @@ namespace WorldGen.Viewer
                 () =>
                 {
                     cancellation.ThrowIfCancellationRequested();
+                    // Az `onRiverCompleted` a Core commit-kapuja alatt fut
+                    // (lock), tehat szekvencialis - egy sima Stopwatch eleg.
+                    var previewPublish = Stopwatch.StartNew();
+                    var finePublish = Stopwatch.StartNew();
                     List<RiverPathTracing.ContinuousRiverPath> overview = null;
                     if (stepMeters < RiverOverviewStepMeters)
                     {
@@ -1229,11 +1274,17 @@ namespace WorldGen.Viewer
                             cancellation: cancellation,
                             maxDegreeOfParallelism: RiverRefinementWorkerCount,
                             context: riverDeepTime,
+                            escapeEmitMeters: RiverOverviewEscapeEmitMeters,
                             onRiverCompleted: river =>
                             {
                                 initial.Add(river);
                                 int count = initial.Count;
-                                if (count != 1 && count != 4 && count != 6 && count != 16 && count != 48) return;
+                                // Az ELSO ag azonnal (legyen mit latni), utana
+                                // idoalapon - ld. RiverPreviewPublishIntervalSeconds.
+                                if (count != 1 && count != sourceSnapshot.Count &&
+                                    previewPublish.Elapsed.TotalSeconds < RiverPreviewPublishIntervalSeconds)
+                                    return;
+                                previewPublish.Restart();
                                 System.Threading.Interlocked.Exchange(ref _pendingRiverNetwork,
                                     new PendingRiverNetwork
                                     {
@@ -1257,7 +1308,10 @@ namespace WorldGen.Viewer
                             cancellation.ThrowIfCancellationRequested();
                             progressive.Add(river);
                             int count = progressive.Count;
-                            if (count != 1 && count != 4 && count != 6 && count != 16 && count != 48) return;
+                            if (count != 1 && count != sourceSnapshot.Count &&
+                                finePublish.Elapsed.TotalSeconds < RiverPreviewPublishIntervalSeconds)
+                                return;
+                            finePublish.Restart();
                             // ND-181: az áttekintést nem cseréljük le néhány
                             // finom ágra; a finom darabszám ettől külön halad.
                             System.Threading.Interlocked.Exchange(ref _pendingRiverNetwork,
@@ -1687,6 +1741,54 @@ namespace WorldGen.Viewer
             }
         }
 
+        [SerializeField, Tooltip("ND-192 MÉRÉS (alapból ki): a Build végén a statikus alapréteg " +
+            "POZÍCIÓ- és SZÍN-hashe külön a PerfLogba. Azért külön, mert a deep-time léptetés KÉT " +
+            "teljes Buildet futtat (az első analitikus jég-előnézettel, a második a kész hőmodellel), " +
+            "és a kérdés az, hogy a második Build geometriája változik-e egyáltalán, vagy csak a " +
+            "színezése. A mérés a mesh CPU-oldali visszaolvasása, tehát NEM ingyenes - csak mérésre.")]
+        private bool logBuildIdentity;
+
+        /// <summary>
+        /// ND-192: a statikus alapréteg identitása a Build végén. A pozíció és a
+        /// szín KÜLÖN hash-t kap: ha két egymást követő Build pozíció-hashe
+        /// egyezik és csak a szín tér el, akkor a második Build geometria-építése
+        /// (a mért 6935-7251 ms) elkerülhető lenne.
+        /// </summary>
+        private void LogBuildIdentity()
+        {
+            if (!logBuildIdentity)
+                return;
+            var timer = Stopwatch.StartNew();
+            ulong posHash = 1469598103934665603UL;
+            ulong colorHash = 1469598103934665603UL;
+            int vertexCount = 0, colorCount = 0;
+            var filter = GetComponent<MeshFilter>();
+            Mesh mesh = filter != null ? filter.sharedMesh : null;
+            if (mesh != null)
+            {
+                Vector3[] positions = mesh.vertices;
+                Color[] colors = mesh.colors;
+                vertexCount = positions.Length;
+                colorCount = colors.Length;
+                for (int i = 0; i < positions.Length; i++)
+                {
+                    posHash = MixIdentity(posHash, (ulong)(uint)BitConverter.SingleToInt32Bits(positions[i].x));
+                    posHash = MixIdentity(posHash, (ulong)(uint)BitConverter.SingleToInt32Bits(positions[i].y));
+                    posHash = MixIdentity(posHash, (ulong)(uint)BitConverter.SingleToInt32Bits(positions[i].z));
+                }
+                for (int i = 0; i < colors.Length; i++)
+                {
+                    colorHash = MixIdentity(colorHash, (ulong)(uint)BitConverter.SingleToInt32Bits(colors[i].r));
+                    colorHash = MixIdentity(colorHash, (ulong)(uint)BitConverter.SingleToInt32Bits(colors[i].g));
+                    colorHash = MixIdentity(colorHash, (ulong)(uint)BitConverter.SingleToInt32Bits(colors[i].b));
+                }
+            }
+            PerfLog($"[ND-192 build identity] timeMyr={deepTimeMyr:R} seaLevel={_adaptiveSeaLevel:R} "
+                + $"staticVertices={vertexCount} staticColors={colorCount} "
+                + $"posHash={posHash:X16} colorHash={colorHash:X16} "
+                + $"climateApplied={_climateApplied != null} measureMs={timer.Elapsed.TotalMilliseconds:F1}");
+        }
+
         private void PerfLog(string line)
         {
             EnsurePerfLogPath();
@@ -1971,7 +2073,7 @@ namespace WorldGen.Viewer
 
         // FELHASZNALOI IGENY (2026-09-06, code-review-ban feltarva): a
         // felho-fixhez hasonloan a folyo-vonal SUGAR-IRANYU eltolasa
-        // (riverLineRadialBias, csak z-fighting elleni vizualis trukk) is
+        // (riverLineBiasWorldMeters, csak z-fighting elleni vizualis trukk) is
         // KORABBAN a teljes WorldConfigChangedSinceBuild-en ment at - MOST
         // KULON figyeljuk, es CSAK a folyo-vonal-reteget epitjuk ujra a MAR
         // meglevo cache-elt adatokbol (BuildRiverNetwork nem indit uj
@@ -1990,13 +2092,13 @@ namespace WorldGen.Viewer
         private void SnapshotRiverLineConfig()
         {
             _hasRiverLineConfigSnapshot = true;
-            _wcRiverLineBias = riverLineRadialBias;
+            _wcRiverLineBias = riverLineBiasWorldMeters;
         }
 
         private bool RiverLineConfigChangedSinceBuild()
         {
             if (!_hasRiverLineConfigSnapshot) return true;
-            return _wcRiverLineBias != riverLineRadialBias;
+            return _wcRiverLineBias != riverLineBiasWorldMeters;
         }
 
         private bool WorldConfigChangedSinceBuild()
@@ -3050,6 +3152,10 @@ namespace WorldGen.Viewer
             // A Build vegeig halasztott ervenytelenites hibas tile-kulcsokat
             // es KeyNotFoundException-t is okozhatott.
             CaptureThermalClimateInputs(field, isOceanField, lakeTiles, seaLevel, seed, axialTiltRad);
+            // ND-192: ha ez a vilag mar a lemez-gyorsitotarban van ES a kulcsot
+            // session-memoriabol tudjuk, MOST toltjuk be (nehany ms) - igy nem kell
+            // elonezet, es elmarad a masodik, teljes Build (MERVE 9,0-12,4 s).
+            TryLoadThermalClimateDuringBuild();
             Dictionary<TileId, double> climateMeanK = null;
             double climateThresholdK = LakesIceErosion.PermanentIceMeanThresholdK;
             bool climateIce = showLakesIce && TryGetThermalClimateIce(out climateMeanK, out climateThresholdK);
@@ -3107,6 +3213,71 @@ namespace WorldGen.Viewer
             _adaptiveClimateWind = climateBiome ? climateWind : null;
             PerfLog($"Build() ice(iceTiles={iceMeanK.Count}, source={(climateIce ? "thermal" : "analytic-preview")}, "
                 + $"biomeAxis={(climateBiome ? "thermal" : "analytic")})"
+                + $"={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
+            buildPhaseStopwatch.Restart();
+
+            // A23 (ND-194): EZ A BLOKK A GEOMETRIA-CIKLUS ELOTT ALL, es itt kell
+            // allnia. Korabban a Build() VEGE fele volt, a biome-osztalyozas
+            // viszont a lenti geometria-ciklusban tortenik - tehat minden Build
+            // az ELOZO Build csapadek-mezojevel es vagopontjaival osztalyozott.
+            // Az ELSO Build utan ez (0,0,0) vagopont es 0 csapadek volt, ami a
+            // szarazfold 100%-at `Desert`-nek mutatta a panelen (MERVE: Desert
+            // 1672 / IceSheet 224 / Tundra 255, a tenyleges csapadek-median 1,64
+            // volt a 0,41-es arid vagopont mellett) - I4-sertes, amit csak a
+            // masodik Build hozott helyre. Ha ide uj fazist szursz be, a
+            // csapadek-mezo ES a vagopontok MARADJANAK a biome-osztalyozas elott.
+            //
+            // M5 csapadek-mezo (MoisturePrecipitation nedvesseg-advekcio) - a
+            // csapadek-overlayhez, a dendritikus folyo-halozat forras-
+            // kivalasztasahoz (RiverPathTracing.SelectRiverSources) ES a
+            // felho-reteghez (BuildClouds) EGYARANT kell, ezert MOST BARMELYIK
+            // felhasznalasi mod eseten kiszamoljuk (draga: per-tile szel + 24
+            // advekcios iteracio a referencia-szinten). A Core-fuggveny a
+            // sajat (t=0, krater/erozio nelkuli) mezojen szamol - klima-
+            // kozelites, nem a deepTime-eltolt domborzatbol; ez egy vizualis/
+            // forras-kivalasztasi reteg, nem a vilagmodell resze.
+            // ND-126 ota a csapadek-mezo MINDIG kell: a biome-osztalyozas
+            // bemenete lett (korabban csak az overlay/folyok/felhok kertek).
+            // A gyorsitotar miatt ez cache-talalatnal 0,0 ms, hidegen
+            // 300-400 ms - a Build() tobbi reszehez kepest kicsi, es
+            // enelkul a szarazfoldi biome-ok nem szamolhatok ki.
+            const bool needsPrecipField = true;
+            MoisturePrecipitation.PrecipitationField precipField = needsPrecipField
+                ? GetOrComputePrecipitationField(seed, plateCount, level, targetWaterFraction,
+                    _adaptiveEvaporationTemperatureK, _adaptiveClimateWind)
+                : null;
+            _adaptivePrecip = precipField?.Precipitation;
+            // ND-130: a sarok-tabla MEG a vagopontok elott - a kuszoboket
+            // UGYANABBOL a (mar interpolalt) fuggvenybol kell szamolni, amivel
+            // kesobb osztalyozunk, kulonben a 20/45/75 percentilis mas
+            // eloszlasra vonatkozna, mint amit a biome-dontes lat.
+            BuildPrecipitationCornerTable(precipField);
+
+            // ND-126: a vagopontok CSAK a VEGETALT szarazfoldbol - az oceani
+            // ertekek benne torzitanak (a nedvesseg az ocean folott
+            // keletkezik), a hideg szarazfoldeket pedig a homerseklet donti
+            // el, a csapadekuk viszont 0 koruli. Ld.
+            // ComputeThresholdsForVegetatedLand doksi a mert indoklassal.
+            if (precipField != null)
+            {
+                var landSamples = new List<(double TemperatureK, double Precipitation)>(
+                    precipField.Precipitation.Count);
+                foreach (KeyValuePair<TileId, double> pkv in precipField.Precipitation)
+                {
+                    if (precipField.IsOcean[pkv.Key]) continue;
+                    TileGeometry.ToPosition(pkv.Key, out double px, out double py, out double pz);
+                    double pt = BiomeTemperatureKelvinAt(px, py, pz, axialTiltRad, false,
+                        precipField.Elevation[pkv.Key], precipField.SeaLevel);
+                    // ND-130: a NYERS `pkv.Value` helyett az INTERPOLALT ertek a
+                    // tile kozepen - ez az, amit a biome-osztalyozas is latni fog.
+                    landSamples.Add((pt, PrecipitationAtCore(px, py, pz)));
+                }
+                _adaptiveBiomeThresholds =
+                    BiomeClassification.ComputeThresholdsForVegetatedLand(landSamples);
+            }
+            _lastPrecipField = precipField;
+            PerfLog($"Build() precipitation(enabled={needsPrecipField}, "
+                + $"cacheHit={(needsPrecipField ? _precipCacheHit.ToString() : "n/a")})"
                 + $"={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
             buildPhaseStopwatch.Restart();
 
@@ -3381,60 +3552,6 @@ namespace WorldGen.Viewer
             _adaptiveIceMeanK = iceMeanK;
             _adaptiveAxialTiltRad = axialTiltRad;
 
-            // M5 csapadek-mezo (MoisturePrecipitation nedvesseg-advekcio) - a
-            // csapadek-overlayhez, a dendritikus folyo-halozat forras-
-            // kivalasztasahoz (RiverPathTracing.SelectRiverSources) ES a
-            // felho-reteghez (BuildClouds) EGYARANT kell, ezert MOST BARMELYIK
-            // felhasznalasi mod eseten kiszamoljuk (draga: per-tile szel + 24
-            // advekcios iteracio a referencia-szinten). A Core-fuggveny a
-            // sajat (t=0, krater/erozio nelkuli) mezojen szamol - klima-
-            // kozelites, nem a deepTime-eltolt domborzatbol; ez egy vizualis/
-            // forras-kivalasztasi reteg, nem a vilagmodell resze.
-            // ND-126 ota a csapadek-mezo MINDIG kell: a biome-osztalyozas
-            // bemenete lett (korabban csak az overlay/folyok/felhok kertek).
-            // A gyorsitotar miatt ez cache-talalatnal 0,0 ms, hidegen
-            // 300-400 ms - a Build() tobbi reszehez kepest kicsi, es
-            // enelkul a szarazfoldi biome-ok nem szamolhatok ki.
-            const bool needsPrecipField = true;
-            MoisturePrecipitation.PrecipitationField precipField = needsPrecipField
-                ? GetOrComputePrecipitationField(seed, plateCount, level, targetWaterFraction,
-                    _adaptiveEvaporationTemperatureK, _adaptiveClimateWind)
-                : null;
-            _adaptivePrecip = precipField?.Precipitation;
-            // ND-130: a sarok-tabla MEG a vagopontok elott - a kuszoboket
-            // UGYANABBOL a (mar interpolalt) fuggvenybol kell szamolni, amivel
-            // kesobb osztalyozunk, kulonben a 20/45/75 percentilis mas
-            // eloszlasra vonatkozna, mint amit a biome-dontes lat.
-            BuildPrecipitationCornerTable(precipField);
-
-            // ND-126: a vagopontok CSAK a VEGETALT szarazfoldbol - az oceani
-            // ertekek benne torzitanak (a nedvesseg az ocean folott
-            // keletkezik), a hideg szarazfoldeket pedig a homerseklet donti
-            // el, a csapadekuk viszont 0 koruli. Ld.
-            // ComputeThresholdsForVegetatedLand doksi a mert indoklassal.
-            if (precipField != null)
-            {
-                var landSamples = new List<(double TemperatureK, double Precipitation)>(
-                    precipField.Precipitation.Count);
-                foreach (KeyValuePair<TileId, double> pkv in precipField.Precipitation)
-                {
-                    if (precipField.IsOcean[pkv.Key]) continue;
-                    TileGeometry.ToPosition(pkv.Key, out double px, out double py, out double pz);
-                    double pt = BiomeTemperatureKelvinAt(px, py, pz, axialTiltRad, false,
-                        precipField.Elevation[pkv.Key], precipField.SeaLevel);
-                    // ND-130: a NYERS `pkv.Value` helyett az INTERPOLALT ertek a
-                    // tile kozepen - ez az, amit a biome-osztalyozas is latni fog.
-                    landSamples.Add((pt, PrecipitationAtCore(px, py, pz)));
-                }
-                _adaptiveBiomeThresholds =
-                    BiomeClassification.ComputeThresholdsForVegetatedLand(landSamples);
-            }
-            _lastPrecipField = precipField;
-            PerfLog($"Build() precipitation(enabled={needsPrecipField}, "
-                + $"cacheHit={(needsPrecipField ? _precipCacheHit.ToString() : "n/a")})"
-                + $"={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
-            buildPhaseStopwatch.Restart();
-
             // HIBAJAVITAS (code-review-ban feltart hianyossag, 2026-09-06): a
             // Build() korabban SOHA nem novelte a `_cloudRebuildGeneration`-t,
             // szemben a folyo-finomitas `_riverRefinementGeneration`-jevel,
@@ -3489,9 +3606,14 @@ namespace WorldGen.Viewer
                 {
                     FlowNetwork.FloodResult riverSourceFlood = FlowNetwork.PriorityFlood(
                         precipField.Elevation, precipField.IsOcean);
+                    // ND-189: a forras a KOVETO finom mezojen is legyen
+                    // tengerszint felett, es ne essen latható to ala.
                     riverSources = RiverPathTracing.SelectRiverSourcesPerBasin(
                         precipField.Elevation, precipField.Precipitation,
-                        precipField.IsOcean, riverSourceFlood.Parent, precipField.SeaLevel);
+                        precipField.IsOcean, riverSourceFlood.Parent, precipField.SeaLevel,
+                        worldSeed: seed, seeds: seeds,
+                        context: _adaptiveDeepTime,
+                        floodFilled: riverSourceFlood.Filled);
                     _riverSourceCache = riverSources;
                     _riverSourcePrecipField = precipField;
                 }
@@ -3532,13 +3654,14 @@ namespace WorldGen.Viewer
                 }
             }
 
-            // Folyo-VONAL-reteg (referencia-szintu, statikus) - egyszer, a
-            // kamera-mozgas nem erinti. A tile-fill folyo-kategoria helyett.
-            BuildRiverNetwork();
-
             // Lapos to-vizfelszin (szurt tavak feltoltesi szintjen) - a blokkos
             // sotet tile-kitoltes helyett sima kek vizfelulet.
+            // ND-193: a folyoszalag ELOTT kell lefutnia, mert a szalag vagasa
+            // a KIRAJZOLT to-reteg vizszintjeire (gyuruvel egyutt) epul.
             BuildLakeSurface();
+
+            // Folyo-VONAL-reteg - a RENDERELT felszinre vetitve (ND-193).
+            BuildRiverNetwork();
             PerfLog($"Build() riverNetwork+lakeSurface={buildPhaseStopwatch.Elapsed.TotalMilliseconds:F1}ms");
 
             // A vilag most ezekre a parameterekre epult fel - a kovetkezo
@@ -3547,6 +3670,7 @@ namespace WorldGen.Viewer
             SnapshotOverlayConfig();
             SnapshotCloudConfig();
             SnapshotRiverLineConfig();
+            LogBuildIdentity();
             Built.Invoke();
             buildTotalStopwatch.Stop();
             PerfLog($"Build() TELJES = {buildTotalStopwatch.Elapsed.TotalMilliseconds:F1}ms");
@@ -4511,6 +4635,7 @@ namespace WorldGen.Viewer
                 buffers.SkippedSelectionBases, buffers.SkippedOceanicCount);
             _appliedSelectionTrace = buffers.SelectionTrace;
             _appliedDiagnosticCoverage = buffers.DiagnosticCoverage;
+            AdoptRenderedSurface(buffers.SurfaceCoverage, buffers.SurfaceResolver);
             _appliedTraceView = _requestedProjectedView;
             _appliedTraceThreshold = _currentTargetAngularRadiusRadians;
             _appliedTraceBaseThreshold = _currentBaseTargetAngularRadiusRadians;
@@ -4535,6 +4660,7 @@ namespace WorldGen.Viewer
             PerfLog($"  [async apply ND-76] mesh-feltoltes={stopwatch.Elapsed.TotalMilliseconds:F2}ms " +
                 $"uploadMode={(buffers.StagedTerrain != null ? "ND85" : "single")} stageFrames={buffers.UploadStageFrames} " +
                 $"stageTotal={buffers.UploadStageMs:F2}ms maxSlice={buffers.UploadMaxSliceMs:F2}ms stagedVertices={buffers.UploadStagedVertices} " +
+                $"maxSliceVertices={buffers.UploadMaxSliceVertices} " +
                 $"auxPipeline={(buffers.StagedLegacyWater != null ? "ND86" : "single")} auxPack={buffers.AuxiliaryPackMs:F2}ms " +
                 $"auxStage={buffers.AuxiliaryStageMs:F2}ms auxJobs={buffers.AuxiliaryStageJobs} " +
                 $"terrainPublish={buffers.TerrainPublishMs:F2}ms legacyAuxPublish={buffers.LegacyAuxPublishMs:F2}ms " +
@@ -4623,6 +4749,8 @@ namespace WorldGen.Viewer
             public int WaterColorSamples;
             public Dictionary<TileId, StagedTerrainMesh>? StagedTerrain;
             public int UploadStageFrames, UploadStagedVertices;
+            // ND-190: a LEGNAGYOBB egy frame-ben feltoltott vertex-szam.
+            public int UploadMaxSliceVertices;
             public double UploadStageMs, UploadMaxSliceMs;
             public WaterMeshData? PreparedLegacyWater, PreparedIndependentWater;
             public bool PreparedBordersEnabled;
@@ -4664,6 +4792,10 @@ namespace WorldGen.Viewer
             public double GroupingMs;
             public LodSelectionTrace? SelectionTrace;
             public LodCoverage? DiagnosticCoverage;
+            // ND-193: a RENDERELT felszin pillanatkepe (a folyoszalag erre
+            // vetul). A DiagnosticCoverage-dzsel szemben MINDIG kitoltjuk.
+            public LodCoverage? SurfaceCoverage;
+            public LodCornerResolver? SurfaceResolver;
             public Dictionary<TileId, CachedLodChunk> ChunkCache = new();
             public bool HasNadirDiagnostic, NadirOceanBlocked, NadirUnderWater;
             public int NadirTerrainLevel;
@@ -4867,6 +4999,10 @@ namespace WorldGen.Viewer
                 }
 
                 b.EmitMs = phaseStopwatch.Elapsed.TotalMilliseconds;
+                // ND-193: a folyoszalag ugyanerre a feloldott sarok-keszletre
+                // vetul, amibol a terep-mesh keszult.
+                b.SurfaceCoverage = coverage;
+                b.SurfaceResolver = _activeCornerResolver;
                 CaptureGeometryFeedback(b, cancellation);
                 var diagnosticStopwatch = Stopwatch.StartNew();
                 CaptureNadirDiagnostic(b, coverage);
@@ -5078,7 +5214,10 @@ namespace WorldGen.Viewer
             if (_currentCut == null)
                 return;
 
-            ApplyAdaptiveMeshBuffers(ComputeAdaptiveMeshBuffersCpu(_currentCut));
+            AdaptiveMeshBuffers syncBuffers = ComputeAdaptiveMeshBuffersCpu(_currentCut);
+            ApplyAdaptiveMeshBuffers(syncBuffers);
+            // ND-193: a szinkron tartalekuton is friss a kirajzolt felszin.
+            AdoptRenderedSurface(syncBuffers.SurfaceCoverage, syncBuffers.SurfaceResolver);
         }
 
         /// <summary>
@@ -6619,6 +6758,11 @@ namespace WorldGen.Viewer
             _requestedTerrainLodProxy = null;
             _terrainIndexMask = null;
             _activeCornerResolver = null;
+            // ND-193: a kirajzolt felszin pillanatkepe is elavul.
+            _renderedSurfaceCoverage = null;
+            _renderedSurfaceResolver = null;
+            _renderedSurfaceMaxLeafLevel = -1;
+            _renderedSurfaceRevision++;
             _persistentCornerCache.Clear();
             _persistentCornerColorCache.Clear();
             _persistentCornerNormalCache.Clear();
@@ -7941,6 +8085,20 @@ namespace WorldGen.Viewer
             public int RiverIndex;
             public int PointIndex;
             public int RibbonOffset;
+            // ND-187: hanyadik viz alatti (to-)tartomanynal tartunk az
+            // AKTUALIS agon, es kell-e most lezarni a felhalmozott szalagot
+            // (mert a kovetkezo pontok mar a to felszine alatt vannak).
+            public bool FlushRibbonNow;
+            // ND-187: a MEGJELENITETT to-reteg (ugyanaz a HashSet, amit a
+            // LakeSurface rajzol) es annak tile-szintje. CSAK a tartalek-uton
+            // (ND-193: amig nincs renderelt felszin-pillanatkep) kapu.
+            public HashSet<TileId> LakeTiles;
+            public int LakeLevel = -1;
+            // ND-193: melyik renderelt felszin-pillanatkepre vetitunk, es
+            // vetitunk-e egyaltalan (false = a regi, folytonos-mezos ut).
+            public bool ProjectOntoRenderedSurface;
+            public int SurfaceRevision = -1;
+            public int SubmergedPoints, ProjectionMisses, ProjectionFallbacks;
             public bool GeometryComplete;
             public List<RiverMeshChunk> Chunks = new List<RiverMeshChunk>();
             public GameObject StagingRoot;
@@ -7955,6 +8113,163 @@ namespace WorldGen.Viewer
             public List<Vector3> Normals = new List<Vector3>();
             public List<int> Triangles = new List<int>();
             public List<Vector3> RibbonPoints = new List<Vector3>();
+        }
+
+        /// <summary>
+        /// ND-193: a <see cref="riverLineBiasWorldMeters"/> Unity-egysegben.
+        /// A lanc UGYANAZ, mint a terep sugar-eltolasae
+        /// (<see cref="DisplayElevation"/> -> <see cref="elevationScale"/>),
+        /// ezert a tulrajzolas/leptekvaltas nem valtoztatja meg a tenyleges
+        /// fizikai magassagot.
+        /// </summary>
+        private double RiverLineBiasUnits
+            => riverLineBiasWorldMeters * terrainReliefExaggeration * elevationScale;
+
+        // ND-193: a MEGJELENITETT (renderelt) felszin pillanatkepe - ugyanaz a
+        // LodCoverage + LodCornerResolver par, amibol az eppen kirajzolt
+        // terep-mesh csucsai keszultek. A folyoszalag EZEKRE a haromszogekre
+        // vetul, nem a folytonos elevaciomezore: igy a vonal ott fut, ahol a
+        // felhasznalo a volgyet LATJA, es ott all meg, ahol a KIRAJZOLT
+        // vizfelszint eri el.
+        private LodCoverage _renderedSurfaceCoverage;
+        private LodCornerResolver _renderedSurfaceResolver;
+        private int _renderedSurfaceMaxLeafLevel = -1;
+        private int _renderedSurfaceRevision;
+        private int _riverMeshSurfaceRevision = -1;
+        private float _renderedSurfaceChangedAt = float.NegativeInfinity;
+
+        /// <summary>
+        /// ND-193: a LOD-ujraepites utan a folyoszalagot ujra kell vetiteni -
+        /// de NEM azonnal. Folyamatos zoom/forgatas kozben a LOD akar 0,1
+        /// masodpercenkent is ujraepul (minSecondsBetweenAdaptiveRebuilds),
+        /// a folyomesh viszont kepkockakra osztva, ~1-2 masodperc alatt
+        /// keszul el - azonnali ujrainditassal SOHA nem fejezodne be. Ezert
+        /// a vetites a LOD MEGALLAPODASA utan indul.
+        /// </summary>
+        private const float RiverSurfaceReprojectDelaySeconds = 0.4f;
+
+        private void AdoptRenderedSurface(LodCoverage coverage, LodCornerResolver resolver)
+        {
+            if (coverage == null || resolver == null) return;
+            int maxLeafLevel = adaptiveBaseLevel;
+            foreach (TileId leaf in coverage.Leaves)
+                if (leaf.Level > maxLeafLevel) maxLeafLevel = leaf.Level;
+            _renderedSurfaceCoverage = coverage;
+            _renderedSurfaceResolver = resolver;
+            _renderedSurfaceMaxLeafLevel = maxLeafLevel;
+            _renderedSurfaceRevision++;
+            _renderedSurfaceChangedAt = Time.unscaledTime;
+        }
+
+        /// <summary>
+        /// ND-193: ha a kirajzolt felszin azota valtozott, hogy a jelenlegi
+        /// folyoszalag keszult, es a LOD mar megallapodott, ujravetitunk.
+        /// </summary>
+        private void MaintainRiverSurfaceProjection()
+        {
+            if (!showRivers || _renderedSurfaceCoverage == null) return;
+            if (_riverMeshSurfaceRevision == _renderedSurfaceRevision) return;
+            if (_adaptiveRefinedRiverPaths == null || _adaptiveRefinedRiverPaths.Count == 0) return;
+            if (Time.unscaledTime - _renderedSurfaceChangedAt < RiverSurfaceReprojectDelaySeconds) return;
+            BuildRiverNetwork();
+        }
+
+        /// <summary>
+        /// ND-193: egy modell-pont (Core-keret, egyseghosszu irany) a RENDERELT
+        /// terep-feluleten. Megkeresi a pontot tartalmazo renderelt levelet
+        /// (<see cref="LodCoverage.FindRenderedLeaf"/>), es a level NEGY
+        /// feloldott sarkabol ugyanazzal a haromszogeleses interpolacioval
+        /// (<see cref="SurfaceQuad.At"/>) adja vissza a feluleti pontot, mint
+        /// amivel a mesh maga keszult. Igy a folyovonal nem sullyed a terep
+        /// ala es nem lebeg folotte - MERVE (2026-10-05) a folytonos mezo es a
+        /// renderelt mesh elterese level 8-on atlag 21,5 m / max 147,9 m,
+        /// level 10-11-en 0,5-0,9 m.
+        /// </summary>
+        private bool TryRenderedSurfacePoint(
+            double x, double y, double z, out SurfacePoint surface, out int leafLevel, out bool fallback)
+        {
+            surface = default;
+            leafLevel = -1;
+            fallback = false;
+            LodCoverage coverage = _renderedSurfaceCoverage;
+            LodCornerResolver resolver = _renderedSurfaceResolver;
+            if (coverage == null || resolver == null) return false;
+            int sampleLevel = _renderedSurfaceMaxLeafLevel < adaptiveBaseLevel
+                ? adaptiveBaseLevel : _renderedSurfaceMaxLeafLevel;
+            TileId leaf = coverage.FindRenderedLeaf(
+                TileGeometry.FromPosition(x, y, z, sampleLevel), adaptiveBaseLevel);
+            TileGeometry.ToFaceUV(x, y, z, out int face, out double uc, out double vc);
+            if (face != leaf.Face) return false;
+            if (!TryRenderedLeafQuad(resolver, leaf, out SurfaceQuad quad))
+            {
+                // A finomitott level sarkai nincsenek a pillanatkepben (ritka):
+                // az alap-szintu os STATIKUS, mindig olvashato sarkaira esunk
+                // vissza. Ez a geomorph miatt pozicio-folytonos felulet.
+                fallback = true;
+                leaf = leaf.Level > adaptiveBaseLevel ? AncestorAtLevel(leaf, adaptiveBaseLevel) : leaf;
+                if (!TryRenderedLeafQuad(resolver, leaf, out quad)) return false;
+            }
+            TileGeometry.GetContinuousBounds(leaf, out double uMin, out double uMax, out double vMin, out double vMax);
+            double lu = (uc - uMin) / (uMax - uMin);
+            double lv = (vc - vMin) / (vMax - vMin);
+            if (lu < 0.0) lu = 0.0; else if (lu > 1.0) lu = 1.0;
+            if (lv < 0.0) lv = 0.0; else if (lv > 1.0) lv = 1.0;
+            surface = quad.At(lu, lv);
+            leafLevel = leaf.Level;
+            return true;
+        }
+
+        private static TileId AncestorAtLevel(TileId id, int level)
+        {
+            while (id.Level > level) id = id.Parent();
+            return id;
+        }
+
+        /// <summary>
+        /// ND-193: a renderelt level negy sarka ADATVERSENY NELKUL - az
+        /// alap-szinten a statikus, csak-olvasott sarok-tomb, a finomitott
+        /// szinteken kizarolag a mar feloldott (emit kozben kiszamolt) sarok.
+        /// </summary>
+        private bool TryRenderedLeafQuad(LodCornerResolver resolver, TileId leaf, out SurfaceQuad quad)
+        {
+            quad = default;
+            leaf.GetUV(out uint u, out uint v);
+            if (!TryRenderedCorner(resolver, leaf.Face, leaf.Level, u, v, out SurfacePoint p00)) return false;
+            if (!TryRenderedCorner(resolver, leaf.Face, leaf.Level, u + 1, v, out SurfacePoint p10)) return false;
+            if (!TryRenderedCorner(resolver, leaf.Face, leaf.Level, u + 1, v + 1, out SurfacePoint p11)) return false;
+            if (!TryRenderedCorner(resolver, leaf.Face, leaf.Level, u, v + 1, out SurfacePoint p01)) return false;
+            quad = new SurfaceQuad(p00, p10, p11, p01);
+            return true;
+        }
+
+        private bool TryRenderedCorner(
+            LodCornerResolver resolver, int face, int level, uint u, uint v, out SurfacePoint point)
+        {
+            if (TryGetStaticCornerIndex(face, level, u, v, _staticCornerPositions.Length, out int staticIndex))
+            {
+                point = ToSurfacePoint(_staticCornerPositions[staticIndex]);
+                return true;
+            }
+            return resolver.TryGetResolvedCorner(face, level, u, v, out point);
+        }
+
+        /// <summary>
+        /// ND-193: a KIRAJZOLT vizfelszin sugara a pont helyen, vagy NaN, ha
+        /// ott nincs viz. Tavaknal a <see cref="BuildLakeSurface"/> ALTAL
+        /// hasznalt (gyuruvel kiterjesztett) feltoltesi szint, egyebkent a
+        /// tengerszint. A finomitott (level > adaptiveBaseLevel) reteg vize
+        /// <see cref="dynamicLayerRadialBias"/>-szal feljebb rajzolodik -
+        /// ugyanazt a tolast kapja a kuszob is.
+        /// </summary>
+        private double RenderedWaterRadius(TileId referenceTile, int leafLevel)
+        {
+            double level = _adaptiveSeaLevel;
+            if (_adaptiveLakeSurfaceWithRing != null
+                && _adaptiveLakeSurfaceWithRing.TryGetValue(referenceTile, out double lakeLevel))
+                level = lakeLevel;
+            double r = radius + DisplayElevation(level) * elevationScale;
+            if (leafLevel > adaptiveBaseLevel) r += dynamicLayerRadialBias;
+            return r;
         }
 
         private RiverMeshBuildState _pendingRiverMesh;
@@ -7987,12 +8302,28 @@ namespace WorldGen.Viewer
                 return;
             }
 
+            // ND-187: a to-reteg PILLANATKEPE - a mesh-epites kepkockakra van
+            // osztva, kozben egy ujabb Build() lecserelhetne a halmazt.
+            HashSet<TileId> lakeTiles = _adaptiveLakeTiles;
+            int lakeLevel = -1;
+            if (lakeTiles != null && lakeTiles.Count > 0)
+                foreach (TileId first in lakeTiles) { lakeLevel = first.Level; break; }
+            // ND-193: a RENDERELT felszin pillanatkepe - a kepkockakra osztott
+            // epites alatt is ugyanaz marad, mert a `_renderedSurface*` mezoket
+            // csak egy uj LOD-alkalmazas csereli le, azt pedig a revizio-szam
+            // alapjan ujrainditjuk (MaintainRiverSurfaceProjection).
+            bool projectOntoSurface = _renderedSurfaceCoverage != null && _renderedSurfaceResolver != null;
+            _riverMeshSurfaceRevision = projectOntoSurface ? _renderedSurfaceRevision : -1;
             _pendingRiverMesh = new RiverMeshBuildState
             {
                 Generation = _riverRefinementGeneration,
                 IsPreview = _adaptiveRiverPathsArePreview,
                 Paths = _adaptiveRefinedRiverPaths,
-                Weights = _adaptiveRiverDischargeWeights
+                Weights = _adaptiveRiverDischargeWeights,
+                LakeTiles = lakeTiles,
+                LakeLevel = lakeLevel,
+                ProjectOntoRenderedSurface = projectOntoSurface,
+                SurfaceRevision = _riverMeshSurfaceRevision
             };
         }
 
@@ -8063,9 +8394,67 @@ namespace WorldGen.Viewer
                     state.PointIndex = 0;
                     continue;
                 }
-                if (state.PointIndex < path.Count)
+                if (state.PointIndex < path.Count && !state.FlushRibbonNow)
                 {
+                    if (state.ProjectOntoRenderedSurface)
+                    {
+                        // ND-193: a szalag a RENDERELT terepre vetul, es ott
+                        // szakad meg, ahol a KIRAJZOLT vizfelszin ala kerul.
+                        // Igy nincs sem parallaxis-csuszas (korabban 37,1 km
+                        // sugar-iranyu lebeges), sem tile-granularitasu vagas
+                        // (a to-tile level 8 = ~39 km).
+                        (double X, double Y, double Z) p = path[state.PointIndex++];
+                        if (!TryRenderedSurfacePoint(p.X, p.Y, p.Z, out SurfacePoint sp, out int leafLevel, out bool coarseFallback))
+                        {
+                            state.ProjectionMisses++;
+                            CutRiverRibbonHere(state);
+                            continue;
+                        }
+                        if (coarseFallback) state.ProjectionFallbacks++;
+                        TileId reference = TileGeometry.FromPosition(p.X, p.Y, p.Z, adaptiveBaseLevel);
+                        if (sp.Magnitude < RenderedWaterRadius(reference, leafLevel))
+                        {
+                            state.SubmergedPoints++;
+                            CutRiverRibbonHere(state);
+                            continue;
+                        }
+                        SurfacePoint lifted = sp.Normalized * (sp.Magnitude + RiverLineBiasUnits);
+                        state.RibbonPoints.Add(new Vector3((float)lifted.X, (float)lifted.Y, (float)lifted.Z));
+                        state.ProjectedPoints++;
+                        continue;
+                    }
+
+                    // ND-187 (felhasznaloi visszajelzes, 2026-10-03: "latvanyosan
+                    // atfolynak a tavakon a folyok"). A MEGJELENITETT tavakon
+                    // allovíz van, nem folyomeder - ott nem rajzolunk szalagot:
+                    // a vonal a to partjan megall, es a tulso oldalon folytatodik.
+                    //
+                    // MIERT A MEGJELENITETT TO-RETEG a kapu, es nem a Core sajat
+                    // `SubmergedSpans` jelolese: mindketto a modellbol jon, de
+                    // MERVE (2026-10-03, t=0, 96 ag) a Core jelolese a hossz
+                    // 71,80%-at fedi (a koveto 2 km-es escape-racsan MINDEN kis
+                    // melyedes medence), a LATHATO tavak viszont csak 41,34%-ot.
+                    // A felhasznalo azt latja, ami ki van rajzolva; a to-reteg
+                    // alapjan vagva pontosan az a vonal tunik el, ami a tavon
+                    // futott - es nem szakad meg a folyo ott, ahol nincs to.
                     (double X, double Y, double Z) point = path[state.PointIndex++];
+                    if (state.LakeTiles != null && state.LakeLevel >= 0
+                        && state.LakeTiles.Contains(TileGeometry.FromPosition(
+                            point.X, point.Y, point.Z, state.LakeLevel)))
+                    {
+                        // A mar felhalmozott (szarazfoldi) szakaszt le KELL
+                        // zarni, kulonben a szalag atugrana a to felett.
+                        if (state.RibbonPoints.Count - state.RibbonOffset >= 2)
+                        {
+                            state.FlushRibbonNow = true;
+                        }
+                        else
+                        {
+                            state.RibbonPoints.Clear();
+                            state.RibbonOffset = 0;
+                        }
+                        continue;
+                    }
                     state.RibbonPoints.Add(RiverPositionOnSurface(point.X, point.Y, point.Z));
                     state.ProjectedPoints++;
                     continue;
@@ -8074,8 +8463,29 @@ namespace WorldGen.Viewer
                 int weight = state.Weights != null && state.RiverIndex < state.Weights.Length
                     ? state.Weights[state.RiverIndex] : 1;
                 float halfWidth = riverBaseHalfWidth * Mathf.Sqrt(weight);
-                int count = Math.Min((RiverMeshChunkVertexLimit - state.Vertices.Count) / 2,
-                    state.RibbonPoints.Count - state.RibbonOffset);
+                // ND-187: a to-szakaszok kihagyasa miatt a felhalmozott
+                // szalag LEHET 0-1 pontos (pl. az ag utolso pontjai mind to
+                // ala estek). Ebbol nincs szalag - es a regi `count < 2 ->
+                // FlushRiverMeshChunk; continue;` ag ilyenkor VEGTELEN
+                // CIKLUSBA fordult (merve: 43 s aktiv munka az 1. agon, 1738
+                // vetitett pont, a RiverIndex nem haladt). Ezert a ket esetet
+                // szet kell valasztani: ures szalag -> TOVABBLEPES, tele
+                // chunk -> feltoltes.
+                int remaining = state.RibbonPoints.Count - state.RibbonOffset;
+                if (remaining < 2)
+                {
+                    state.RibbonPoints.Clear();
+                    state.RibbonOffset = 0;
+                    if (state.FlushRibbonNow)
+                    {
+                        state.FlushRibbonNow = false;
+                        continue;
+                    }
+                    state.RiverIndex++;
+                    state.PointIndex = 0;
+                    continue;
+                }
+                int count = Math.Min((RiverMeshChunkVertexLimit - state.Vertices.Count) / 2, remaining);
                 if (count < 2)
                 {
                     FlushRiverMeshChunk(state);
@@ -8090,6 +8500,13 @@ namespace WorldGen.Viewer
                 }
                 state.RibbonPoints.Clear();
                 state.RibbonOffset = 0;
+                if (state.FlushRibbonNow)
+                {
+                    // Csak a to ELOTTI szakaszt zartuk le; az ag tovabb tart a
+                    // to tulso oldalan (state.PointIndex mar ott all).
+                    state.FlushRibbonNow = false;
+                    continue;
+                }
                 state.RiverIndex++;
                 state.PointIndex = 0;
             }
@@ -8100,6 +8517,22 @@ namespace WorldGen.Viewer
 
             FlushRiverMeshChunk(state);
             state.GeometryComplete = true;
+        }
+
+        /// <summary>
+        /// ND-193: a felhalmozott (szarazfoldi) szalagot lezarja, mert a
+        /// kovetkezo pont mar viz alatt van (vagy nem vetitheto). Ha meg
+        /// nincs kirajzolhato szakasz, egyszeruen eldobja.
+        /// </summary>
+        private static void CutRiverRibbonHere(RiverMeshBuildState state)
+        {
+            if (state.RibbonPoints.Count - state.RibbonOffset >= 2)
+            {
+                state.FlushRibbonNow = true;
+                return;
+            }
+            state.RibbonPoints.Clear();
+            state.RibbonOffset = 0;
         }
 
         private static void FlushRiverMeshChunk(RiverMeshBuildState state)
@@ -8138,7 +8571,9 @@ namespace WorldGen.Viewer
             double meshMs = state.ActiveMs + state.UploadMs;
             PerfLog($"[ND-147 river mesh staged] generation={state.Generation} "
                 + $"kind={(state.IsPreview ? "preview" : "fine")} rivers={state.Paths.Count} "
-                + $"points={state.ProjectedPoints} prepareWallMs={state.Wall.Elapsed.TotalMilliseconds:F1} "
+                + $"points={state.ProjectedPoints} surface={(state.ProjectOntoRenderedSurface ? "rendered" : "continuous")} "
+                + $"surfaceRevision={state.SurfaceRevision} submergedPoints={state.SubmergedPoints} "
+                + $"projectionMisses={state.ProjectionMisses} projectionFallbacks={state.ProjectionFallbacks} prepareWallMs={state.Wall.Elapsed.TotalMilliseconds:F1} "
                 + $"activeMs={state.ActiveMs:F1} maxSliceMs={state.MaxSliceMs:F1} "
                 + $"uploadMs={state.UploadMs:F1}");
             if (state.IsPreview)
@@ -8231,7 +8666,7 @@ namespace WorldGen.Viewer
         {
             var displacedRadius = (float)ComputeDisplacedRadius(x, y, z, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters);
             Vector3 p = BodyFrameConversion.ToUnity(x, y, z) * displacedRadius;
-            return p + p.normalized * riverLineRadialBias;
+            return p + p.normalized * (float)RiverLineBiasUnits;
         }
 
         /// <summary>Uniform Catmull-Rom spline-pont a [p1,p2] szakaszon, t in [0,1] (p0/p3 az irányítótangensek).</summary>
@@ -8253,7 +8688,7 @@ namespace WorldGen.Viewer
             double uc = (u + 0.5) / n * 2.0 - 1.0;
             double vc = (v + 0.5) / n * 2.0 - 1.0;
             Vector3 p = ToDisplacedVector3(tile.Face, uc, vc, _adaptiveSeed, _adaptiveSeeds, _adaptiveCraters);
-            return p + p.normalized * riverLineRadialBias;
+            return p + p.normalized * (float)RiverLineBiasUnits;
         }
 
         private Material _lakeSurfaceMaterial;
@@ -8414,6 +8849,11 @@ namespace WorldGen.Viewer
                 ringUnfinished = next.Count;
                 if (next.Count == 0) break;
             }
+
+            // ND-193: a folyoszalag vagasa ezt a halmazt hasznalja - a vizszint
+            // a parti gyurun is ervenyes, es a tenyleges partvonalat a
+            // RENDERELT terep es e szint metszete adja.
+            _adaptiveLakeSurfaceWithRing = surfaceByTile;
 
             // 3. Tile-onkénti besorolás: kihagyott / lapos (1 quad) / al-osztott.
             //    A "kihagyott" az a tile, aminek MIND a négy sarka a vízszint
@@ -10320,6 +10760,7 @@ namespace WorldGen.Viewer
             // TryApplyCompletedRiverRefinement doksija.
             TryApplyCompletedRiverRefinement();
             AdvanceRiverMeshBuild();
+            MaintainRiverSurfaceProjection();
 
             // Felhasznaloi visszajelzes (2026-09-06): a periodikus felho-
             // sodrodas frame-hitchet okozott - a hatter-szalon futo

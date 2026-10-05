@@ -212,7 +212,13 @@ namespace WorldGen.Core.Hydrology
             int sourcesPerBasin = DefaultSourcesPerBasin,
             double minElevAboveSeaM = DefaultMinElevAboveSeaM,
             double minSeparationMeters = DefaultSourceSeparationMeters,
-            int minBasinTiles = DefaultMinBasinTiles)
+            int minBasinTiles = DefaultMinBasinTiles,
+            ulong worldSeed = 0UL,
+            (double X, double Y, double Z)[]? seeds = null,
+            DeepTimeContext context = default,
+            int fineDepth = DefaultFineDepth,
+            Dictionary<TileId, double>? floodFilled = null,
+            double lakeDepthMeters = DefaultSubmergedMinDepthMeters)
         {
             if (elevField == null) throw new ArgumentNullException(nameof(elevField));
             if (precipField == null) throw new ArgumentNullException(nameof(precipField));
@@ -263,6 +269,22 @@ namespace WorldGen.Core.Hydrology
                 var chosen = new List<(double X, double Y, double Z)>(sourcesPerBasin);
                 for (int c = 0; c < candidates.Count && chosen.Count < sourcesPerBasin; c++)
                 {
+                    // ND-189 (SEED-TORO, 2026-10-03): a jelolt a DURVA mezon
+                    // felelt meg, de a nyomkoveto a FINOM mezot latja. MERVE a
+                    // t=0 halozaton: 96 forrasbol 17 egy LATHATO to alatt, 2
+                    // pedig a tengerszint ALATT volt - az utobbi ketto adta a
+                    // 0,00 km hosszu agakat (#72, #81). Itt ugyanazt a pontot
+                    // ellenorizzuk, amibol a koveto INDUL.
+                    if (seeds != null && !FineSourceIsUsable(
+                            worldSeed, seeds, context, fineDepth, candidates[c], seaLevel))
+                        continue;
+                    // A durva mezon latszo TO sem lehet forras (ott allovíz
+                    // van, nem forrasvidek).
+                    if (floodFilled != null
+                        && floodFilled.TryGetValue(candidates[c], out double filledHere)
+                        && elevField.TryGetValue(candidates[c], out double rawHere)
+                        && filledHere - rawHere >= lakeDepthMeters)
+                        continue;
                     TileGeometry.ToPosition(candidates[c], out double x, out double y, out double z);
                     bool tooClose = false;
                     for (int k = 0; k < chosen.Count; k++)
@@ -276,6 +298,30 @@ namespace WorldGen.Core.Hydrology
                 }
             }
             return sources;
+        }
+
+        /// <summary>
+        /// ND-189: hasznalhato-e a jelolt FORRASKENT azon a FINOM ponton,
+        /// ahonnan a <see cref="TraceRiverPathContinuous"/> ténylegesen indul?
+        /// A szamitas BITRE ugyanaz a lanc, mint ott (ugyanaz a finom TileId,
+        /// ugyanaz a sampler) - kulonben a szures masik pontot ellenorizne,
+        /// mint amibol a koveto indul.
+        ///
+        /// A feltetel: a forraspont a TENGERSZINT FELETT legyen. Enelkul a
+        /// koveto az elso lepesnel `Ocean` terminaciot ad, es nulla hosszu
+        /// "folyot" kapunk (merve: 2 ilyen ag a 96-bol).
+        /// </summary>
+        private static bool FineSourceIsUsable(
+            ulong worldSeed, (double X, double Y, double Z)[] seeds, in DeepTimeContext context,
+            int fineDepth, TileId source, double seaLevel)
+        {
+            int fineLevel = source.Level + fineDepth;
+            source.GetUV(out uint su, out uint sv);
+            TileId fineSource = TileId.FromFaceLevelUV(
+                source.Face, fineLevel, su << fineDepth, sv << fineDepth);
+            TileGeometry.ToPosition(fineSource, out double x, out double y, out double z);
+            var sampler = new WorldElevationSampler(worldSeed, seeds, context);
+            return sampler.Sample(x, y, z) >= seaLevel;
         }
 
         /// <summary>Memoizált pontszerű elevációkiértékelés - a nyomvonalkövetés és a pit-escape keresés gyakran ugyanazokat a finom tile-okat kérdezi le.</summary>
@@ -514,14 +560,67 @@ namespace WorldGen.Core.Hydrology
         public const int DefaultContinuousEscapeNodeBudget = 30_000;
         /// <summary>Tisztan biztonsagi felso korlat (vegtelen ciklus ellen) - a normal mukodesben SOSEM er el ide, ld. doksi.</summary>
         public const long DefaultContinuousMaxSteps = 500_000;
+
         /// <summary>
-        /// A HUROK-VEDELEM racsfelbontasa (ld. TraceRiverPathContinuous
-        /// "PATHVISITED" megjegyzes) - egy tile ezen a szinten kb 14 m,
-        /// finomabb mint a alapertelmezett 50 m-es lepeskoz, hogy ket
-        /// KULONBOZO, kozeli (de nem azonos) lepest ne kezeljen tevesen
-        /// ugyanannak a helynek.
+        /// A hurok-vedelem bucket-racsanak szintje a BITPONTOS
+        /// <see cref="CubeFaceLattice"/>-en (ND-186). Level 20-on a cella
+        /// 7,1-14,2 m - finomabb, mint az alapertelmezett 50 m-es lepeskoz,
+        /// tehat ket KULONBOZO, kozeli lepes nem olvad ossze, a folyo SAJAT
+        /// medret viszont megbizhatoan felismeri.
+        ///
+        /// MIERT NEM <see cref="TileGeometry.FromPosition"/> (a korabbi
+        /// megoldas): az `Math.Atan`-t hiv, ami az ND-23b/ND-24 szerint NEM
+        /// bitpontos platformok kozott - azaz a kirajzolt folyohalozat
+        /// topologiaja egy nem bitpontos fuggvenyen mult (I1-serules).
         /// </summary>
-        public const int DefaultVisitedGridLevel = 20;
+        public const int DefaultVisitedLatticeLevel = 20;
+
+        /// <summary>
+        /// Az osszefolyas terbeli toleranciaja - ld.
+        /// <see cref="ClaimedRiverPoints.DefaultMergeRadiusMeters"/>.
+        /// </summary>
+        public const double DefaultMergeRadiusMeters = ClaimedRiverPoints.DefaultMergeRadiusMeters;
+
+        /// <summary>
+        /// Az escape-szakasz "viz alatti" egyenes-osszevonasat legfeljebb ennyi
+        /// durva cellan at probaljuk. Tisztan KOLTSEGKORLAT (a probalkozas
+        /// kvadratikus a szakasz hosszaban), a DONTEST nem befolyasolja:
+        /// nagyobb ertek csak hosszabb egyenes szakaszokat engedne.
+        /// </summary>
+        public const int DefaultEscapeShortcutCells = 64;
+
+        /// <summary>
+        /// Az escape-szakasz PONTSURUSEGE meterben.
+        ///
+        /// MERT INDOK (ND-186). Az escape-szakaszt eloszor a normal lepeskozre
+        /// (50 m) mintaveteleztuk, es a t=0 halozat pontszama 415 293 -> 954 598
+        /// lett (+130%), a csucs-memoria 117 -> 255 MB - vagyis a mesh-elokeszites
+        /// 2,3-szorosara nyult. Holott az escape-szakasz ALAKJAROL a 2000 m-es
+        /// dontesi racsnal finomabb mintavetel NEM ad uj modell-informaciot: az a
+        /// szakasz "viz alatti", azaz SIMA. 250 m meg mindig 8x finomabb, mint a
+        /// dontesi racs, es eleg suru ahhoz, hogy a kirajzolt vonal a
+        /// megjelenitett felszinen maradjon (a viewer minden pontot a domborzatra
+        /// ultet, tehat a tul hosszu szakasz bevagna a reliefbe).
+        /// </summary>
+        public const double DefaultContinuousEscapeEmitMeters = 250.0;
+
+        /// <summary>
+        /// ND-187: egy zart medence MILYEN MELY legyen ahhoz, hogy a benne
+        /// futo szakaszt TO-nak (viz alattinak) jeloljuk - ld.
+        /// <see cref="ContinuousRiverPath.SubmergedSpans"/>.
+        ///
+        /// MIERT KELL KUSZOB (MERVE, 2026-10-03). Kuszob nelkul a jeloles a
+        /// t=0 halozat hosszanak 71,80%-at (33 490 km) fedte, holott a
+        /// LATHATO tavakra (LakesIceErosion + TileCount &gt;= 6 és MaxDepth &gt;= 40)
+        /// csak 41,34% (19 283 km) esik. A kulonbseget apro, nehany meteres
+        /// lokalis melyedesek adjak: azokon a viz valoban ATFOLYIK, ott
+        /// FOLYO van, nem to. A kuszob ezeket kizarja.
+        ///
+        /// Az ertek a megjelenitett to-reteg melyseg-kuszobevel egyezik
+        /// (`minLakeDepthMeters` a viewerben, `MaxDepth &gt;= 40` az
+        /// `endcheck`-ben), hogy a ket reteg ugyanazt a vilagot mutassa.
+        /// </summary>
+        public const double DefaultSubmergedMinDepthMeters = 40.0;
 
         public sealed class ContinuousRiverPath
         {
@@ -532,7 +631,7 @@ namespace WorldGen.Core.Hydrology
             /// <summary>
             /// Ha <see cref="Termination"/> == Merged, annak a folyónak a
             /// SourceIndex-e, amibe ez a folyó beleolvadt (ld.
-            /// <see cref="ClaimedTileInfo.RiverIndex"/>) - egyébként -1.
+            /// <see cref="ClaimedRiverPoint.RiverIndex"/>) - egyébként -1.
             /// Ez adja a dendritikus "kinél folyik bele" fát, amiből a
             /// vízhozam-arányos vonal-szélesség (ld. RiverDischargeWeights)
             /// levezethető - I3-kompatibilis (a szélesség a TÉNYLEGES
@@ -558,34 +657,41 @@ namespace WorldGen.Core.Hydrology
             /// adna.
             /// </summary>
             public List<int> ClaimCheckIndices = new List<int>();
+
+            /// <summary>
+            /// ND-187: azok a <see cref="Points"/>-tartomanyok (zart
+            /// [Start, End] indexparok), amelyek egy ZART MEDENCE feltoltesi
+            /// szintje ALATT futnak - vagyis fizikailag TO-felszin alatt,
+            /// nem folyomeder.
+            ///
+            /// MIERT KELL. A 2026-10-03-i meres szerint a t=0 halozat
+            /// hosszanak 41,34%-a (19 283 km a 46 641-bol) latható tavakon
+            /// fut, a leghosszabb egyetlen atvagas 512,9 km. A nyomvonal
+            /// GEOMETRIAJA helyes (a viz tenylegesen atfolyik a tavon), de
+            /// FOLYOKENT megjelenitve hamis kepet ad - a felhasznaloi
+            /// visszajelzes is ezt jelezte. A viewer ezeket a szakaszokat
+            /// nem rajzolja folyoszalagkent.
+            ///
+            /// A tartomany a BEERESZKEDESSEL kezdodik (az a pont, ahonnan a
+            /// nyomvonal mar vegig a feltoltesi szint alatt maradt) es az
+            /// escape-szakasz utolso pontjaval zarul. A tartomanyok
+            /// DISZJUNKTAK es NOVEKVOK; egymasba ero medencek osszevonodnak.
+            ///
+            /// Ez SZARMAZTATOTT adat: a <see cref="Points"/> geometriajat nem
+            /// befolyasolja, ezert nem seed-toro es nem valtoztat
+            /// generatorverziot.
+            /// </summary>
+            public List<(int Start, int End)> SubmergedSpans = new List<(int Start, int End)>();
         }
 
         /// <summary>
-        /// Egy finom-tile "lefoglalásának" adatai a folytonos dendritikus
-        /// összefolyáshoz (ld. <see cref="TraceRiverPathContinuous"/>
-        /// "Merged" ága) - a folyó-INDEXEN kívül a TÉNYLEGES (folytonos
-        /// térbeli) pontot is tárolja, amivel a lefoglaló folyó áthaladt
-        /// ezen a tile-on. FELHASZNÁLÓI VISSZAJELZÉS (2026-09-06, backlog:
-        /// "az útvonal a felületen helyenként megszakadni tűnik"):
-        /// korábban csak a folyó-INDEX volt tárolva, ezért egy összefolyásnál
-        /// a MEGSZAKADÓ folyó egyszerűen megállt "valahol EBBEN a
-        /// fine-tile-ban" (akár több száz méterre a befogadó folyó
-        /// TÉNYLEGES vonalától) - ez adta a vizuálisan megszakadó
-        /// összefolyási pontokat. A pozíció tárolásával a megszakadó folyó
-        /// utolsó pontja PONTOSAN a befogadó folyó egyik valódi pontjára
-        /// zárható (ld. lent), a két vonal ténylegesen összeér.
+        /// A folytonos dendritikus osszefolyas lefoglalt pontjai MOSTANTOL a
+        /// <see cref="ClaimedRiverPoints"/> terbeli indexben vannak (ND-186).
+        /// A korabbi `ClaimedTileInfo` + `Dictionary&lt;TileId, ...&gt;` par
+        /// szandekosan megszunt: egy TELJES finom tile-ra tarolt EGYETLEN pont
+        /// adta az ND-180-ban mert 24,113 km-es osszefolyasi "teleportot" es a
+        /// racs-illeszkedestol fuggo, hamis/kimarado osszefolyasokat.
         /// </summary>
-        public readonly struct ClaimedTileInfo
-        {
-            public readonly int RiverIndex;
-            public readonly (double X, double Y, double Z) Position;
-
-            public ClaimedTileInfo(int riverIndex, (double X, double Y, double Z) position)
-            {
-                RiverIndex = riverIndex;
-                Position = position;
-            }
-        }
 
         /// <summary>
         /// Felhasznaloi visszajelzes utan HARMADSZOR ujragondolt finomitas
@@ -675,63 +781,124 @@ namespace WorldGen.Core.Hydrology
         public static ContinuousRiverPath TraceRiverPathContinuous(
             ulong worldSeed, (double X, double Y, double Z)[] seeds, double seaLevel,
             TileId source, int sourceIndex, int fineDepth,
-            Dictionary<TileId, ClaimedTileInfo> claimed,
+            ClaimedRiverPoints? claimed,
             double stepMeters = DefaultContinuousStepMeters,
             double sensingRadiusMeters = DefaultContinuousSensingRadiusMeters,
             int ringDirections = DefaultContinuousRingDirections,
             double escapeCellMeters = DefaultContinuousEscapeCellMeters,
             int escapeNodeBudget = DefaultContinuousEscapeNodeBudget,
             long maxSteps = DefaultContinuousMaxSteps,
-            int visitedGridLevel = DefaultVisitedGridLevel,
+            int visitedLatticeLevel = DefaultVisitedLatticeLevel,
             System.Threading.CancellationToken cancellation = default,
             Action? onPitEscape = null,
-            DeepTimeContext context = default)
+            DeepTimeContext context = default,
+            int escapeShortcutCells = DefaultEscapeShortcutCells,
+            double escapeEmitMeters = DefaultContinuousEscapeEmitMeters,
+            double submergedMinDepthMeters = DefaultSubmergedMinDepthMeters)
         {
-            cancellation.ThrowIfCancellationRequested();
             int fineLevel = source.Level + fineDepth;
             source.GetUV(out uint su, out uint sv);
             TileId fineSource = TileId.FromFaceLevelUV(source.Face, fineLevel, su << fineDepth, sv << fineDepth);
             TileGeometry.ToPosition(fineSource, out double sx, out double sy, out double sz);
+            var sampler = new WorldElevationSampler(worldSeed, seeds, context);
+            return TraceContinuousFrom(sampler, (sx, sy, sz), sourceIndex, seaLevel, claimed,
+                stepMeters, sensingRadiusMeters, ringDirections, escapeCellMeters,
+                escapeNodeBudget, maxSteps, visitedLatticeLevel, escapeShortcutCells,
+                escapeEmitMeters, submergedMinDepthMeters, cancellation, onPitEscape);
+        }
+
+        /// <summary>
+        /// Pontszeru elevacio-kiertekelo. A kovetot EZEN keresztul
+        /// parameterezzuk, hogy a Python-orakulum SZINTETIKUS, analitikus
+        /// domborzatai (sik / volgy / medence / ket meder) UGYANAZT a kodot
+        /// merjek, amit a termek futtat. Generikus, `struct`-ra kotott
+        /// megvalositas: a JIT devirtualizalja, tehat a lepesenkent tobbszori
+        /// hivas nem jar delegate-koltseggel.
+        /// </summary>
+        public interface IElevationSampler
+        {
+            double Sample(double x, double y, double z);
+        }
+
+        /// <summary>A termek elevacio-kiertekeloje (ld. <see cref="ElevationAtPosition"/>).</summary>
+        public readonly struct WorldElevationSampler : IElevationSampler
+        {
+            private readonly ulong _worldSeed;
+            private readonly (double X, double Y, double Z)[] _seeds;
+            private readonly DeepTimeContext _context;
+
+            public WorldElevationSampler(
+                ulong worldSeed, (double X, double Y, double Z)[] seeds, in DeepTimeContext context)
+            {
+                _worldSeed = worldSeed;
+                _seeds = seeds;
+                _context = context;
+            }
+
+            public double Sample(double x, double y, double z) =>
+                ElevationAtPosition(_worldSeed, x, y, z, _seeds, _context);
+        }
+
+        /// <summary>
+        /// A v2 folytonos koveto MAGJA, barmilyen elevacio-kiertekelovel.
+        /// A harom ND-186 javitas itt el:
+        ///   (1) a lepesirany a jelolt-kor ELSO HARMONIKUSABOL szamolt
+        ///       FOLYTONOS lejtesirany (<see cref="DescentDirection"/>);
+        ///   (2) az osszefolyas VALODI terbeli kozelsegvizsgalat
+        ///       (<see cref="ClaimedRiverPoints"/>);
+        ///   (3) az escape-szakasz "viz alatti" egyenesekre van osszevonva es
+        ///       `stepMeters` surusegre mintavetelezve
+        ///       (<see cref="RefineEscapePath{TSampler}"/>).
+        /// </summary>
+        public static ContinuousRiverPath TraceContinuousFrom<TSampler>(
+            TSampler sampler, (double X, double Y, double Z) sourcePosition, int sourceIndex,
+            double seaLevel, ClaimedRiverPoints? claimed,
+            double stepMeters = DefaultContinuousStepMeters,
+            double sensingRadiusMeters = DefaultContinuousSensingRadiusMeters,
+            int ringDirections = DefaultContinuousRingDirections,
+            double escapeCellMeters = DefaultContinuousEscapeCellMeters,
+            int escapeNodeBudget = DefaultContinuousEscapeNodeBudget,
+            long maxSteps = DefaultContinuousMaxSteps,
+            int visitedLatticeLevel = DefaultVisitedLatticeLevel,
+            int escapeShortcutCells = DefaultEscapeShortcutCells,
+            double escapeEmitMeters = DefaultContinuousEscapeEmitMeters,
+            double submergedMinDepthMeters = DefaultSubmergedMinDepthMeters,
+            System.Threading.CancellationToken cancellation = default,
+            Action? onPitEscape = null)
+            where TSampler : struct, IElevationSampler
+        {
+            cancellation.ThrowIfCancellationRequested();
+            (double X, double Y)[] directions = RiverDirectionTable.Build(ringDirections);
 
             var result = new ContinuousRiverPath { SourceIndex = sourceIndex };
-            (double X, double Y, double Z) current = (sx, sy, sz);
+            (double X, double Y, double Z) current = sourcePosition;
             result.Points.Add(current);
 
-            // HUROK-VEDELEM (code-review-ban feltart hianyossag, 2026-09-06):
-            // a durva `TraceRiverPath`/`FindLocalSpillway` egy `pathVisited`
-            // halmazzal strukturalisan kizarja, hogy a folyo visszalepjen
-            // sajat korabban bejart utjara - a folytonos valtozat ELSO
-            // verzioja ezt NEM oroktolte (a FindContinuousLocalSpillway
-            // sajat `visited` halmaza csak az EGY escape-hivas LOKALIS
-            // racsara vonatkozott, nem a folyo teljes utjara). Mivel
-            // folytonos terben nincs egzakt tile-egyenloseg, egy FINOM
-            // (level=`visitedGridLevel`, alapertelmezetten kb. 14 m/tile)
-            // racsra kepezzuk le minden bejart pontot - ez eleg finom ahhoz,
-            // hogy ket KULONBOZO, kozeli lepest ne kezeljen tevesen
-            // azonosnak, de eleg durva ahhoz, hogy a folyo SAJAT medret
-            // (amit korabban mar bejart) megbizhatoan felismerje.
-            var pathVisited = new HashSet<TileId> { TileGeometry.FromPosition(current.X, current.Y, current.Z, visitedGridLevel) };
+            // ND-187: pontonkenti elevacio - KIZAROLAG a viz alatti
+            // tartomanyok visszamenoleges megjelolesehez (ld. az escape-ag
+            // span-szamitasat). Egyetlen lepes-dontest sem befolyasol, es a
+            // nyomvonal befejezesevel eldobodik.
+            var pointElevations = new List<double>
+            {
+                sampler.Sample(current.X, current.Y, current.Z),
+            };
+
+            // HUROK-VEDELEM: minden bejart pontot egy FINOM (kb. 7-14 m)
+            // bucket-racsra kepezunk. ND-186: ez a racs a BITPONTOS
+            // CubeFaceLattice, nem a Math.Atan-t hivo TileGeometry.
+            var pathVisited = new HashSet<long>
+            {
+                CubeFaceLattice.KeyFromPosition(current.X, current.Y, current.Z, visitedLatticeLevel),
+            };
 
             double stepAngular = stepMeters / PlanetConstants.RadiusMeters;
-            // Az erzekelesi sugar SOSEM lehet kisebb, mint a tenyleges
-            // lepeskoz - kulonben az irany-erzekeles a lepeskoznel kisebb
-            // hullamhosszu zajra is erzekeny lenne, ami PONTOSAN az a
-            // lengeshiba, amit az erzekelesi sugar bevezetese eredetileg
-            // megoldott (ld. osztaly-doksi, "LATOTAV A ZAJTOL FUGGETLENUL").
-            // `sensingRadiusMeters` nincs kulon Inspector-mezokent
-            // exponalva (csak `stepMeters`), de MERT `stepMeters` IGEN, egy
-            // felhasznaloi ertek (pl. 1000m) `DefaultContinuousSensingRadiusMeters`
-            // (500m) fole vihetne a lepeskozt e nelkul a Math.Max nelkul.
             double sensingAngular = Math.Max(stepAngular, sensingRadiusMeters / PlanetConstants.RadiusMeters);
-            double elev = ElevationAtPosition(worldSeed, current.X, current.Y, current.Z, seeds, context);
+            double elev = pointElevations[0];
+            var sensed = new double[ringDirections];
 
             for (long step = 0; step < maxSteps; step++)
             {
                 cancellation.ThrowIfCancellationRequested();
-                // A ciklus teteje: EZ az a pozicio, amit a `claimed`
-                // ellenorzes lat (ld. ClaimCheckIndices doksija). A
-                // rogzites a tengerszint-ellenorzes ELOTT tortenik, hogy az
-                // "Ocean"-nal zarult nyomvonalnal is teljes legyen a lista.
                 result.ClaimCheckIndices.Add(result.Points.Count - 1);
 
                 if (elev < seaLevel)
@@ -740,78 +907,238 @@ namespace WorldGen.Core.Hydrology
                     return result;
                 }
 
-                if (claimed != null && step > 0)
+                if (claimed != null && step > 0
+                    && claimed.TryFindNearest(current, out ClaimedRiverPoint owner))
                 {
-                    TileId fineTile = TileGeometry.FromPosition(current.X, current.Y, current.Z, fineLevel);
-                    if (claimed.TryGetValue(fineTile, out ClaimedTileInfo owner))
-                    {
-                        // A megszakado folyo utolso pontjat PONTOSAN a
-                        // befogado folyo tenyleges pontjara zarjuk (ld.
-                        // ClaimedTileInfo doksi) - enelkul a ket vonal csak
-                        // "ugyanabban a durva fine-tile-ban" erne veget,
-                        // vizualisan rest hagyva a talalkozasnal.
-                        result.Points.Add(owner.Position);
-                        result.MergedIntoRiverIndex = owner.RiverIndex;
-                        result.Termination = TerminationReason.Merged;
-                        return result;
-                    }
+                    // A megszakado folyo utolso pontjat PONTOSAN a befogado
+                    // folyo LEGKOZELEBBI valodi pontjara zarjuk - a zaroel
+                    // igy strukturalisan <= a tolerancia (ND-186).
+                    result.Points.Add(owner.Position);
+                    pointElevations.Add(sampler.Sample(
+                        owner.Position.X, owner.Position.Y, owner.Position.Z));
+                    result.MergedIntoRiverIndex = owner.RiverIndex;
+                    result.Termination = TerminationReason.Merged;
+                    return result;
                 }
 
-                GetTangentBasis(current, out (double X, double Y, double Z) t1, out (double X, double Y, double Z) t2);
+                SphereWalk.GetTangentBasis(current, out (double X, double Y, double Z) t1, out (double X, double Y, double Z) t2);
 
-                // Csak akkor lepunk, ha a jelolt-korben van SZIGORUAN a
-                // jelenlegi pontnal alacsonyabb pont - ez a donto elteres a
-                // korabbi ("korozon beluli relative legjobb") valtozathoz
-                // kepest, ld. osztaly-doksi.
+                // A LEPES-KAPU valtozatlan: csak akkor lepunk, ha a
+                // jelolt-korben van SZIGORUAN alacsonyabb pont.
                 double bestElev = elev;
-                double bestDx = 0.0, bestDy = 0.0;
-                bool found = false;
+                int bestIndex = -1;
                 for (int k = 0; k < ringDirections; k++)
                 {
-                    double angle = 2.0 * Math.PI * k / ringDirections;
-                    double dx = Math.Cos(angle), dy = Math.Sin(angle);
-                    (double X, double Y, double Z) sensed = StepInTangentDirection(current, t1, t2, dx, dy, sensingAngular);
-                    double sensedElev = ElevationAtPosition(worldSeed, sensed.X, sensed.Y, sensed.Z, seeds, context);
-                    if (sensedElev < bestElev)
+                    (double X, double Y, double Z) probe = SphereWalk.StepInTangentDirection(
+                        current, t1, t2, directions[k].X, directions[k].Y, sensingAngular);
+                    double probeElev = sampler.Sample(probe.X, probe.Y, probe.Z);
+                    sensed[k] = probeElev;
+                    if (probeElev < bestElev)
                     {
-                        bestElev = sensedElev;
-                        bestDx = dx;
-                        bestDy = dy;
-                        found = true;
+                        bestElev = probeElev;
+                        bestIndex = k;
                     }
                 }
 
-                if (found)
+                if (bestIndex >= 0)
                 {
-                    current = StepInTangentDirection(current, t1, t2, bestDx, bestDy, stepAngular);
-                    elev = ElevationAtPosition(worldSeed, current.X, current.Y, current.Z, seeds, context);
+                    (double X, double Y) direction = DescentDirection(sensed, directions, ringDirections, bestIndex);
+                    (double X, double Y, double Z) candidate = SphereWalk.StepInTangentDirection(
+                        current, t1, t2, direction.X, direction.Y, stepAngular);
+                    double candidateElev = sampler.Sample(candidate.X, candidate.Y, candidate.Z);
+                    if (candidateElev >= elev
+                        && (direction.X != directions[bestIndex].X || direction.Y != directions[bestIndex].Y))
+                    {
+                        // A folytonos irany nem lejt: visszaesunk a legjobb
+                        // jelolt-iranyra (a v1 viselkedese), hogy a szigoru
+                        // lejtes-kapu ne gyenguljon.
+                        direction = directions[bestIndex];
+                        candidate = SphereWalk.StepInTangentDirection(
+                            current, t1, t2, direction.X, direction.Y, stepAngular);
+                        candidateElev = sampler.Sample(candidate.X, candidate.Y, candidate.Z);
+                    }
+                    current = candidate;
+                    elev = candidateElev;
                     result.Points.Add(current);
-                    pathVisited.Add(TileGeometry.FromPosition(current.X, current.Y, current.Z, visitedGridLevel));
+                    pointElevations.Add(candidateElev);
+                    pathVisited.Add(CubeFaceLattice.KeyFromPosition(current.X, current.Y, current.Z, visitedLatticeLevel));
                     continue;
                 }
 
-                // Diagnosztikai számláló; a lejtő- és összefolyás-döntést nem módosítja.
+                // Diagnosztikai szamlalo; a lejto- es osszefolyas-dontest nem modositja.
                 onPitEscape?.Invoke();
                 var escape = FindContinuousLocalSpillway(
-                    worldSeed, seeds, current, elev, escapeCellMeters,
-                    escapeNodeBudget, pathVisited, visitedGridLevel, cancellation, context);
+                    sampler, current, elev, escapeCellMeters,
+                    escapeNodeBudget, pathVisited, visitedLatticeLevel, cancellation);
                 if (escape == null)
                 {
                     result.Termination = TerminationReason.Pit;
                     return result;
                 }
 
-                foreach ((double X, double Y, double Z) p in escape.Value.Path)
+                List<(double X, double Y, double Z)> coarsePath = escape.Value.Path;
+                double lakeLevel = elev;
+                for (int i = 0; i < coarsePath.Count; i++)
                 {
-                    result.Points.Add(p);
-                    pathVisited.Add(TileGeometry.FromPosition(p.X, p.Y, p.Z, visitedGridLevel));
+                    double cellElev = sampler.Sample(coarsePath[i].X, coarsePath[i].Y, coarsePath[i].Z);
+                    if (cellElev > lakeLevel) lakeLevel = cellElev;
                 }
-                current = escape.Value.Path[escape.Value.Path.Count - 1];
+                List<(double X, double Y, double Z)> refined = RefineEscapePath(
+                    sampler, coarsePath, lakeLevel, escapeEmitMeters, escapeCellMeters * 0.5, escapeShortcutCells);
+                // ND-187: a span a BEERESZKEDESSEL kezdodik - a mar felvett
+                // pontokon visszafele addig, amig a pont a feltoltesi szint
+                // (`lakeLevel`) alatt van. Ez az a szakasz, ami a feltoltodes
+                // utan TO-felszin alatt marad.
+                int spanStart = result.Points.Count - 1;
+                while (spanStart > 0 && pointElevations[spanStart - 1] < lakeLevel) spanStart--;
+                for (int i = 0; i < refined.Count; i++)
+                {
+                    result.Points.Add(refined[i]);
+                    pointElevations.Add(lakeLevel);
+                    pathVisited.Add(CubeFaceLattice.KeyFromPosition(refined[i].X, refined[i].Y, refined[i].Z, visitedLatticeLevel));
+                }
+                int spanEnd = result.Points.Count - 1;
+                // ND-187 melyseg-kapu: csak a VALODI medencet jeloljuk tonak.
+                // A melyseg a feltoltesi szint es a medence melypontja (a pit
+                // aktualis elevacioja) kozti kulonbseg.
+                double basinDepth = lakeLevel - elev;
+                if (spanEnd > spanStart && basinDepth >= submergedMinDepthMeters)
+                {
+                    int last = result.SubmergedSpans.Count - 1;
+                    if (last >= 0 && result.SubmergedSpans[last].End >= spanStart)
+                    {
+                        // Egymasba ero medencek: osszevonjuk, hogy a
+                        // tartomanyok diszjunktak es novekvok maradjanak.
+                        result.SubmergedSpans[last] = (result.SubmergedSpans[last].Start, spanEnd);
+                    }
+                    else
+                    {
+                        result.SubmergedSpans.Add((spanStart, spanEnd));
+                    }
+                }
+                current = coarsePath[coarsePath.Count - 1];
                 elev = escape.Value.SpillwayElevation;
             }
 
             result.Termination = TerminationReason.MaxSteps;
             return result;
+        }
+
+        /// <summary>
+        /// FOLYTONOS lejtesirany a jelolt-kor ELSO HARMONIKUSABOL (ND-186, az
+        /// ND-180 (1) hibaosztaly javitasa).
+        ///
+        /// A HIBA. A v1 a `ringDirections` (8) jelolt irany KOZUL a legjobbat
+        /// valasztotta, es ABBA lepett - azaz a lepesirany 45 fokos racsra
+        /// volt kvantalva. Merve: a 0. agon 1422 darab 30 foknal nagyobb
+        /// iranyvaltas, es a Python-orakulum szintetikus volgyeben a kvantalt
+        /// koveto a MEDRET SEM talalta meg (vegig a volgy mellett futott, 565
+        /// km-es uton, a folytonos irany 560 km-es utjaval szemben).
+        ///
+        /// A JAVITAS. Egy `r` sugaru koron egyenletesen mintavett `e_k`
+        /// magassagokra a legkisebb-negyzetes sikillesztes gradiense aranyos a
+        /// `g = sum_k (e_k - atlag) * d_k` vektorral (a kor elso harmonikusa).
+        /// A lejtesirany ennek az ellentettje, normalizalva - ez FOLYTONOS
+        /// fuggvenye a domborzatnak, nincs benne tablara kerekites. Teljesen
+        /// sima kornel (g = 0) a legjobb jelolt-irany marad, mert akkor nincs
+        /// ertelmes gradiens.
+        ///
+        /// Az atlag kivonasa numerikus okokbol van: a szogfelezett tabla
+        /// EGZAKTUL szimmetrikus (ld. <see cref="RiverDirectionTable"/>), tehat
+        /// egzakt aritmetikaban a konstans tag kiesne - lebegopontban viszont a
+        /// nagy, kozel egyenlo magassagok kivonasa jelentosen javitja a
+        /// kondicionalast.
+        /// </summary>
+        public static (double X, double Y) DescentDirection(
+            double[] sensed, (double X, double Y)[] directions, int count, int bestIndex)
+        {
+            double total = 0.0;
+            for (int k = 0; k < count; k++) total += sensed[k];
+            double mean = total / count;
+            double gx = 0.0, gy = 0.0;
+            for (int k = 0; k < count; k++)
+            {
+                double weight = sensed[k] - mean;
+                gx += weight * directions[k].X;
+                gy += weight * directions[k].Y;
+            }
+            double length = Math.Sqrt(gx * gx + gy * gy);
+            if (length == 0.0) return directions[bestIndex];
+            return (-gx / length, -gy / length);
+        }
+
+        /// <summary>
+        /// Az escape-szakasz finomitasa (ND-186, az ND-180 (3) hibaosztaly
+        /// javitasa).
+        ///
+        /// A HIBA. A lokalis priority-flood a `escapeCellMeters` (2000 m)
+        /// cellameretu racson talalja meg a tulcsordulasi pontot, es a v1 a
+        /// racsutvonalat KOZVETLENUL fuzte a nyomvonalhoz - igy 2,0 / 2,828
+        /// km-es elek kerultek bele (a normal lepes 50 m). Merve: a t=0 halozat
+        /// teljes hosszanak 58,77%-a 75 m-nel hosszabb eleken van, es a
+        /// 8-szomszedos racs 45 fokos lepcsoje adta a "szogletes utat".
+        ///
+        /// MIERT EZ A HELYES JAVITAS (es miert nem dekorativ simitas). A
+        /// priority-flood utvonala definicio szerint a `lakeLevel` (az utvonal
+        /// legnagyobb nyers elevacioja) ALATT marad, vagyis a medence
+        /// feltoltodese utan VIZ ALATT van. Egy ilyen teruleten a fizikai
+        /// vizfelszin SIMA: a racs lepcsoje NEM modell-tartalom, hanem a racs
+        /// mellekterméke. Ezert ahol egy EGYENES (nagykor) szakasz MINDEN
+        /// mintapontja `lakeLevel` alatt marad, ott az egyenes a HELYESEBB
+        /// nyomvonal. Ahol az egyenes KIBUKKANNA a vizbol, ott a racsutvonal
+        /// reszletei megmaradnak - a dontes tehat MERT, nem feltetelezett.
+        ///
+        /// A mintavetel surusege `probeMeters` (a durva cellameret fele): a
+        /// domborzati dontes maga is a durva racson keszult, ennel finomabb
+        /// probalgatas nem ad uj informaciot, viszont kvadratikusan draga. A
+        /// KIIRT pontok surusege kulon parameter (`emitMeters`, ld.
+        /// <see cref="DefaultContinuousEscapeEmitMeters"/> meresi indoklasat).
+        ///
+        /// A kimenet a `coarsePath` ELSO pontjat (a pit-et) KIHAGYJA - azt a
+        /// hivo mar felvette. (A v1 ezt duplan vette fel, nulla hosszu ellel.)
+        /// </summary>
+        public static List<(double X, double Y, double Z)> RefineEscapePath<TSampler>(
+            TSampler sampler, List<(double X, double Y, double Z)> coarsePath,
+            double lakeLevel, double emitMeters, double probeMeters, int maxShortcutCells)
+            where TSampler : struct, IElevationSampler
+        {
+            var output = new List<(double X, double Y, double Z)>();
+            int count = coarsePath.Count;
+            int anchorIndex = 0;
+            while (anchorIndex < count - 1)
+            {
+                (double X, double Y, double Z) anchor = coarsePath[anchorIndex];
+                int best = anchorIndex + 1;
+                int limit = Math.Min(count - 1, anchorIndex + maxShortcutCells);
+                for (int candidate = anchorIndex + 2; candidate <= limit; candidate++)
+                {
+                    if (!IsSegmentSubmerged(sampler, anchor, coarsePath[candidate], lakeLevel, probeMeters))
+                        break;
+                    best = candidate;
+                }
+                (double X, double Y, double Z) target = coarsePath[best];
+                double span = SphereWalk.ChordMeters(anchor, target);
+                int pieces = Math.Max(1, (int)(span / emitMeters));
+                for (int k = 1; k <= pieces; k++)
+                    output.Add(SphereWalk.GeodesicPoint(anchor, target, (double)k / pieces));
+                anchorIndex = best;
+            }
+            return output;
+        }
+
+        private static bool IsSegmentSubmerged<TSampler>(
+            TSampler sampler, (double X, double Y, double Z) a, (double X, double Y, double Z) b,
+            double lakeLevel, double probeMeters)
+            where TSampler : struct, IElevationSampler
+        {
+            double span = SphereWalk.ChordMeters(a, b);
+            int probes = Math.Max(1, (int)(span / probeMeters));
+            for (int k = 1; k < probes; k++)
+            {
+                (double X, double Y, double Z) p = SphereWalk.GeodesicPoint(a, b, (double)k / probes);
+                if (sampler.Sample(p.X, p.Y, p.Z) > lakeLevel) return false;
+            }
+            return true;
         }
 
         /// <summary>
@@ -839,27 +1166,28 @@ namespace WorldGen.Core.Hydrology
         /// vagy szelso esetben a `maxSteps` biztonsagi korlatig futva
         /// termeszetes Ocean/Pit helyett.
         /// </summary>
-        private static (List<(double X, double Y, double Z)> Path, double SpillwayElevation)? FindContinuousLocalSpillway(
-            ulong worldSeed, (double X, double Y, double Z)[] seeds,
+        private static (List<(double X, double Y, double Z)> Path, double SpillwayElevation)? FindContinuousLocalSpillway<TSampler>(
+            TSampler sampler,
             (double X, double Y, double Z) pit, double pitElevation,
             double cellMeters, int nodeBudget,
-            HashSet<TileId> pathVisited, int visitedGridLevel,
-            System.Threading.CancellationToken cancellation, DeepTimeContext context)
+            HashSet<long> pathVisited, int visitedLatticeLevel,
+            System.Threading.CancellationToken cancellation)
+            where TSampler : struct, IElevationSampler
         {
             cancellation.ThrowIfCancellationRequested();
-            GetTangentBasis(pit, out (double X, double Y, double Z) t1, out (double X, double Y, double Z) t2);
+            SphereWalk.GetTangentBasis(pit, out (double X, double Y, double Z) t1, out (double X, double Y, double Z) t2);
             double cellAngular = cellMeters / PlanetConstants.RadiusMeters;
 
-            (double X, double Y, double Z) CellPos(int i, int j) => StepInTangentDirection(pit, t1, t2, i, j, cellAngular);
+            (double X, double Y, double Z) CellPos(int i, int j) => SphereWalk.StepInTangentDirection(pit, t1, t2, i, j, cellAngular);
             double CellElev(int i, int j)
             {
                 (double X, double Y, double Z) p = CellPos(i, j);
-                return ElevationAtPosition(worldSeed, p.X, p.Y, p.Z, seeds, context);
+                return sampler.Sample(p.X, p.Y, p.Z);
             }
             bool IsPathVisited(int i, int j)
             {
                 (double X, double Y, double Z) p = CellPos(i, j);
-                return pathVisited.Contains(TileGeometry.FromPosition(p.X, p.Y, p.Z, visitedGridLevel));
+                return pathVisited.Contains(CubeFaceLattice.KeyFromPosition(p.X, p.Y, p.Z, visitedLatticeLevel));
             }
 
             var visited = new HashSet<(int I, int J)> { (0, 0) };
@@ -934,11 +1262,12 @@ namespace WorldGen.Core.Hydrology
             int escapeNodeBudget = DefaultContinuousEscapeNodeBudget,
             long maxSteps = DefaultContinuousMaxSteps,
             System.Threading.CancellationToken cancellation = default,
-            DeepTimeContext context = default)
+            DeepTimeContext context = default,
+            double mergeRadiusMeters = DefaultMergeRadiusMeters)
         {
             if (sources == null) throw new ArgumentNullException(nameof(sources));
             cancellation.ThrowIfCancellationRequested();
-            var claimed = new Dictionary<TileId, ClaimedTileInfo>();
+            var claimed = new ClaimedRiverPoints(mergeRadiusMeters);
             var rivers = new List<ContinuousRiverPath>(sources.Count);
             for (int i = 0; i < sources.Count; i++)
             {
@@ -947,12 +1276,8 @@ namespace WorldGen.Core.Hydrology
                     stepMeters, sensingRadiusMeters, ringDirections, escapeCellMeters, escapeNodeBudget, maxSteps,
                     cancellation: cancellation, context: context);
 
-                int fineLevel = sources[i].Level + fineDepth;
                 foreach ((double X, double Y, double Z) p in river.Points)
-                {
-                    TileId t = TileGeometry.FromPosition(p.X, p.Y, p.Z, fineLevel);
-                    if (!claimed.ContainsKey(t)) claimed[t] = new ClaimedTileInfo(i, p);
-                }
+                    claimed.Add(p, i);
                 rivers.Add(river);
             }
             return rivers;
@@ -999,7 +1324,10 @@ namespace WorldGen.Core.Hydrology
             System.Threading.CancellationToken cancellation = default,
             int maxDegreeOfParallelism = -1,
             DeepTimeContext context = default,
-            Action<ContinuousRiverPath>? onRiverCompleted = null)
+            Action<ContinuousRiverPath>? onRiverCompleted = null,
+            double mergeRadiusMeters = DefaultMergeRadiusMeters,
+            double submergedMinDepthMeters = DefaultSubmergedMinDepthMeters,
+            double escapeEmitMeters = DefaultContinuousEscapeEmitMeters)
         {
             if (sources == null) throw new ArgumentNullException(nameof(sources));
             if (maxDegreeOfParallelism == 0 || maxDegreeOfParallelism < -1)
@@ -1016,7 +1344,7 @@ namespace WorldGen.Core.Hydrology
             };
             // 2. FÁZIS: csonkolás FORRÁS-SORRENDBEN - ez reprodukálja a
             // szekvenciális `claimed` szemantikát.
-            var claimed = new Dictionary<TileId, ClaimedTileInfo>();
+            var claimed = new ClaimedRiverPoints(mergeRadiusMeters);
             var rivers = new List<ContinuousRiverPath>(sources.Count);
             void CommitReady()
             {
@@ -1025,11 +1353,10 @@ namespace WorldGen.Core.Hydrology
                     int i = rivers.Count;
                     cancellation.ThrowIfCancellationRequested();
                     ContinuousRiverPath full = traced[i];
-                    int fineLevel = sources[i].Level + fineDepth;
 
                     var river = new ContinuousRiverPath { SourceIndex = i };
                     int mergeAt = -1;
-                    ClaimedTileInfo mergeOwner = default;
+                    ClaimedRiverPoint mergeOwner = default;
                     // CSAK azokon a pontokon ellenorzunk, ahol a szekvencialis
                     // koveto is ellenorzott volna (ld. ClaimCheckIndices) - az
                     // elso (step == 0) kihagyva, ahogy ott is.
@@ -1038,8 +1365,7 @@ namespace WorldGen.Core.Hydrology
                         int index = full.ClaimCheckIndices[c];
                         if ((uint)index >= (uint)full.Points.Count) break;
                         (double X, double Y, double Z) point = full.Points[index];
-                        TileId fineTile = TileGeometry.FromPosition(point.X, point.Y, point.Z, fineLevel);
-                        if (claimed.TryGetValue(fineTile, out ClaimedTileInfo owner))
+                        if (claimed.TryFindNearest(point, out ClaimedRiverPoint owner))
                         {
                             mergeAt = index;
                             mergeOwner = owner;
@@ -1057,19 +1383,27 @@ namespace WorldGen.Core.Hydrology
                         river.Points.Add(mergeOwner.Position);
                         river.MergedIntoRiverIndex = mergeOwner.RiverIndex;
                         river.Termination = TerminationReason.Merged;
+                        // ND-187: a viz alatti tartomanyokat UGYANOTT vagjuk el,
+                        // ahol az agat. A hozzafuzott befogado pont (mergeAt + 1)
+                        // mar a MASIK folyo pontja - azt nem jeloljuk.
+                        for (int k = 0; k < full.SubmergedSpans.Count; k++)
+                        {
+                            (int Start, int End) span = full.SubmergedSpans[k];
+                            if (span.Start > mergeAt) break;
+                            int end = span.End < mergeAt ? span.End : mergeAt;
+                            if (end > span.Start) river.SubmergedSpans.Add((span.Start, end));
+                        }
                     }
                     else
                     {
                         river.Points.AddRange(full.Points);
                         river.ClaimCheckIndices.AddRange(full.ClaimCheckIndices);
+                        river.SubmergedSpans.AddRange(full.SubmergedSpans);
                         river.Termination = full.Termination;
                     }
 
                     foreach ((double X, double Y, double Z) p in river.Points)
-                    {
-                        TileId t = TileGeometry.FromPosition(p.X, p.Y, p.Z, fineLevel);
-                        if (!claimed.ContainsKey(t)) claimed[t] = new ClaimedTileInfo(i, p);
-                    }
+                        claimed.Add(p, i);
                     rivers.Add(river);
                     traced[i] = null!;
                     onRiverCompleted?.Invoke(river);
@@ -1080,10 +1414,12 @@ namespace WorldGen.Core.Hydrology
             {
                 ContinuousRiverPath full = TraceRiverPathContinuous(
                     worldSeed, seeds, seaLevel, sources[i], i, fineDepth,
-                    new Dictionary<TileId, ClaimedTileInfo>(),
+                    claimed: null,
                     stepMeters, sensingRadiusMeters, ringDirections,
                     escapeCellMeters, escapeNodeBudget, maxSteps,
-                    DefaultVisitedGridLevel, cancellation, context: context);
+                    DefaultVisitedLatticeLevel, cancellation, context: context,
+                    escapeEmitMeters: escapeEmitMeters,
+                    submergedMinDepthMeters: submergedMinDepthMeters);
                 // ND-177: kesz utak atadasa es commit kizárólag e kapu alatt.
                 // A koveto nem olvas claimed-et, igy a ket fazis atfedhet.
                 lock (commitGate)
@@ -1135,35 +1471,10 @@ namespace WorldGen.Core.Hydrology
             return weights;
         }
 
-        private static double AngularDistance((double X, double Y, double Z) a, (double X, double Y, double Z) b)
-        {
-            double dot = a.X * b.X + a.Y * b.Y + a.Z * b.Z;
-            return Math.Acos(Math.Max(-1.0, Math.Min(1.0, dot)));
-        }
-
-        /// <summary>Két, a `p` egységvektorra merőleges, egymásra is merőleges érintő-irány (Gram-Schmidt egy tetszőleges referenciából).</summary>
-        private static void GetTangentBasis(
-            (double X, double Y, double Z) p, out (double X, double Y, double Z) t1, out (double X, double Y, double Z) t2)
-        {
-            (double X, double Y, double Z) reference = Math.Abs(p.Z) < 0.9 ? (0.0, 0.0, 1.0) : (0.0, 1.0, 0.0);
-            double dot = p.X * reference.X + p.Y * reference.Y + p.Z * reference.Z;
-            double rx = reference.X - dot * p.X, ry = reference.Y - dot * p.Y, rz = reference.Z - dot * p.Z;
-            double len = Math.Sqrt(rx * rx + ry * ry + rz * rz);
-            t1 = (rx / len, ry / len, rz / len);
-            t2 = (p.Y * t1.Z - p.Z * t1.Y, p.Z * t1.X - p.X * t1.Z, p.X * t1.Y - p.Y * t1.X); // p x t1
-        }
-
-        /// <summary>Kis szögű lépés a `p` egységgömb-ponttól a (t1,t2) érintő-bázisban a (dx,dy) irányba, `angularStep` radián nagyságban - utána egzakt vissza-normalizálás a gömbre.</summary>
-        private static (double X, double Y, double Z) StepInTangentDirection(
-            (double X, double Y, double Z) p, (double X, double Y, double Z) t1, (double X, double Y, double Z) t2,
-            double dx, double dy, double angularStep)
-        {
-            double nx = p.X + angularStep * (dx * t1.X + dy * t2.X);
-            double ny = p.Y + angularStep * (dx * t1.Y + dy * t2.Y);
-            double nz = p.Z + angularStep * (dx * t1.Z + dy * t2.Z);
-            double len = Math.Sqrt(nx * nx + ny * ny + nz * nz);
-            return (nx / len, ny / len, nz / len);
-        }
+        // A gombi erintobazis es a lepes-kepletek atkerultek a
+        // `SphereWalk` osztalyba (ND-186), BIT-SEMLEGESEN - igy az
+        // osszefolyasi terbeli index es az escape-finomitas is UGYANAZT a
+        // kepletet hasznalja.
 
         /// <summary>
         /// A teljes lánc: forrás-kiválasztás -> nyomvonal-követés minden

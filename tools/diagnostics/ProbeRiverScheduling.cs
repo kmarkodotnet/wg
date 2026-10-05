@@ -23,7 +23,8 @@ internal static class Program
         var flood = FlowNetwork.PriorityFlood(precipitation.Elevation, precipitation.IsOcean);
         var sources = RiverPathTracing.SelectRiverSourcesPerBasin(
             precipitation.Elevation, precipitation.Precipitation,
-            precipitation.IsOcean, flood.Parent, precipitation.SeaLevel);
+            precipitation.IsOcean, flood.Parent, precipitation.SeaLevel,
+            worldSeed: Seed, seeds: seeds, floodFilled: flood.Filled);
         Console.WriteLine("mode={0} cores={1} sources={2}", mode, Environment.ProcessorCount, sources.Count);
         _sun = DailyInsolationSampleDirections.Create(0.0, 365.25, 1.0, 23.44 * Math.PI / 180.0);
         _basis = new TerrainPointBasis[393216];

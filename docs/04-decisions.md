@@ -10268,6 +10268,856 @@ Build-regresszió külön projektmásolaton zöld (L5/0 → L4/22 Myr, régi
 fizikai klímával). A felhasználói Play-jelenet és a folyólátvány új
 ellenőrzése ettől még hátra van.
 
+### ND-186 — Folytonos folyó-nyomkövető v2: az ND-180 „C" opciójának 1. köre
+
+2026-10-03. Az ND-180 három MÉRT modellhibát azonosított a megjelenített
+(folytonos) folyóhálózatban, és a „C" opciót javasolta: valódi térbeli
+közelségvizsgálat + terephez kötött folytonos lejtésirány + medencehű
+escape-kezelés, külön Python-orákulummal, majd C# porttal. Ez a bejegyzés az
+1. kör: **mindhárom HIBAOSZTÁLY javítva**, a módszer a projekt munkarendje
+szerint (referencia → verifikálás → tesztvektorok → C#).
+
+**Amit ez a kör NEM tartalmaz, kimondva:** a „C" opció harmadik mechanizmusát
+(„vízszint-/medencehű escape-kezelés") csak GEOMETRIAILAG valósítja meg — a
+nyomvonal a feltöltési szint alatt futó sima vonal lesz a rácslépcső helyett.
+Azt, hogy egy feltöltődő medence helyén TAVAT kellene rajzolni és a folyót a
+kifolyásnál folytatni, szándékosan nem döntöttem el: ez az **ND-187**.
+
+**Új Python-orákulum.** `tools/reference/river_continuous_ref.py` — a
+folytonos követőnek 2026-10-02-ig NEM volt orákuluma (a `river_path_ref.py` a
+durva, TileId-rácson futó változatot írja le). Az orákulum SZINTETIKUS,
+analitikus domborzatokon fut (lejtő sík, parabolikus falú völgy, zárt medence
+számolt peremmel, két párhuzamos meder közeli és távoli távolságon) — a valódi
+elevációs láncot (domain warp + lemezkeret + erózió) a Python nem tudja bitre
+reprodukálni, a hibaosztályok viszont ezeken a terepeken pontosan előállnak.
+A C# követő ezért `IElevationSampler`-rel paraméterezhető (generikus,
+`struct`-ra kötött — a JIT devirtualizálja, nincs delegate-költség), tehát az
+orákulum UGYANAZT a kódot méri, amit a termék futtat.
+
+**(1) Iránykvantálás → folytonos lejtésirány.** A v1 a `ringDirections` (8)
+jelölt irány közül a legjobbat választotta, és abba lépett: a lépésirány 45
+fokos rácsra volt kvantálva (mérve: 1422 darab 30 foknál nagyobb irányváltás a
+0. ágon). A v2 a jelölt-kör ELSŐ HARMONIKUSÁBÓL számol gradienst
+(`g = Σ_k (e_k − átlag)·d_k`), és annak ellentettjébe lép. Ha a folytonos irány
+nem lejt, visszaesik a legjobb jelölt-irányra — a szigorú lejtés-kapu tehát nem
+gyengül, és a `maxSteps`-mentes, természetes lezárás (Ocean/Pit/Merged) megmarad.
+Mérve az orákulumban: a kvantált követő a szintetikus völgy MEDRÉT SEM találta
+meg (565 km-es út a völgy mellett), a folytonos irány bekonvergál a mederbe
+(560 km), a laterális eltérés lépésenként kb. negyedére csökken.
+
+**(2) Hamis összefolyás → valódi térbeli közelségvizsgálat.** A `claimed`
+térkép EGY pontot tárolt egy TELJES finom tile-ra (level 9, 13–18 km), és a
+beleolvadó folyót erre zárta. Ebből két független hiba jött: a mért **24,113
+km-es** összefolyási „teleport", és a RÁCS-LOTTÓ (az összefolyás a cella
+illeszkedésén múlt, nem a távolságon — az orákulumban mérve: két, egymástól
+2968 m-re futó párhuzamos meder NEM kapcsolódott össze, mert a cellahatár épp
+közéjük esett). Az új `ClaimedRiverPoints` cellánként a pontok LISTÁJÁT tárolja,
+és csak `mergeRadiusMeters`-en belüli valódi pontra zár, a LEGKÖZELEBBIRE. A
+záróél hossza így strukturálisan korlátos, nem mérési tapasztalat. A
+bucket-rács szintjét nem a hívó adja meg, hanem a toleranciából számoljuk,
+hogy a 9 próbapontos keresés lefedése bizonyíthatóan álljon (ld. az osztály
+doksijának lefedettségi érvelését).
+
+A tolerancia értékét **MÉRÉS** döntötte el, nem becslés: a valódi t=0
+hálózaton söpörve 100 m → 14 összefolyás, 250 m → 14, **500 m → 18**,
+2000 m → 18 — a szám tehát **500 m-nél telítődik**, fölötte már csak a záróél
+nyúlik. Ez egybeesik egy fizikai érvvel is: 500 m a követő saját érzékelési
+sugara, vagyis az a lépték, amin a modell a domborzatot megítéli. Kimondott
+következmény: a záróél legfeljebb ~500 m (mérve 0,499 km) — ez a tracer
+érzékelési léptékén belül van, a javítás előtti 24,113 km-hez képest viszont
+nagyságrendekkel kisebb.
+
+**(3) Finomítatlan escape → „víz alatti" egyenesek.** A lokális
+priority-flood 2000 m-es rácson találja meg a túlcsordulási pontot, és a v1 a
+rácsútvonalat KÖZVETLENÜL fűzte a nyomvonalhoz: 2,0 / 2,828 km-es élek, 45
+fokos lépcsők (a t=0 hálózat hosszának **58,77%-a** 75 m-nél hosszabb éleken).
+A javítás NEM dekoratív simítás: a flood útvonala definíció szerint a
+`lakeLevel` (az útvonal legnagyobb nyers elevációja) alatt marad, vagyis a
+medence feltöltődése után VÍZ ALATT van — ott a fizikai vízfelszín sima, a rács
+lépcsője a rács mellékterméke. Ezért ahol egy egyenes (nagykör) szakasz MINDEN
+mintapontja a `lakeLevel` alatt marad, ott az egyenest emittáljuk; ahol az
+egyenes kibukkanna a vízből, ott a rácsútvonal részletei megmaradnak. A döntés
+tehát mért, nem feltételezett. Mellékhatásként megszűnt egy nulla hosszú él is
+(a v1 a pit pontot kétszer vette fel).
+
+A kiírt pontok SŰRŰSÉGE külön, szintén mért paraméter (`escapeEmitMeters`,
+250 m). Először a normál lépésközre (50 m) mintavételeztem: a t=0 hálózat
+pontszáma **415 293 → 954 598 (+130%)**, a csúcsmemória **117 → 255 MB**, azaz
+a mesh-előkészítés 2,3-szorosára nyúlt volna — holott az escape-szakasz
+ALAKJÁRÓL a 2000 m-es döntési rácsnál finomabb mintavétel nem ad új
+modell-információt (az a szakasz „víz alatti", azaz sima), és az ALAK
+mérőszáma (30° feletti irányváltások) 250 m-en ugyanolyan jó: 686 vs 690.
+250 m-rel a pontszám 504 060 (+21,4%) és a hálózatidő a v1 ALÁ került.
+**Ezzel egy ND-180-as mérőszámot visszavonok:** a „75 m-nél hosszabb élek
+hossz-aránya" (58,77%) 250 m-es emisszióval definíció szerint visszatér
+(57,37%), de ez most a szándékolt viselkedést jelzi, nem lépcsőt — az alak
+mérőszáma innentől a 30° feletti irányváltások száma és a legnagyobb él.
+
+**Két csendes I1-sértés is megszűnt a folyó kritikus útján.** (a) A
+jelölt-irányokat a v1 `Math.Cos`/`Math.Sin`-nel állította elő, ami az ND-23
+táblázata szerint nem garantáltan bitpontos; a v2 `RiverDirectionTable`-je
+szögfelezéssel (`normalize(a+b)`, csak `+`, `/`, `sqrt`) építi a táblát, ami
+ráadásul bitre szimmetrikus (a k. és a k+n/2. irány egymás pontos ellentettje).
+(b) A hurok-védelem és a `claimed` keresés minden lépésben
+`TileGeometry.FromPosition`-t hívott, ami `Math.Atan`-t használ — az ND-24
+EXPLICITEN kizárja a szimuláció kritikus útjáról. A v2 helyette a
+`CubeFaceLattice`-t használja: nyers kocka-projekció, kizárólag osztás és
+összehasonlítás, tehát bitpontos. Terület-kiegyenlítésre egy hash-rácsnak nincs
+szüksége, a garantált ALSÓ cellaméret (`R / 2^level`) viszont ismert, és erre
+épül a (2) lefedettségi érvelése.
+
+**MÉRVE a valódi t=0 hálózaton** (96 ág, level 5, 4 worker; a „v1" oszlop az
+ND-180 alapvonala ugyanerre a seedre):
+
+| Mérőszám | v1 | v2 | változás |
+|---|---|---|---|
+| legnagyobb él | **24,113 km** | **0,499 km** | −98,0% |
+| legnagyobb összefolyási záróél | **24,113 km** | **0,499 km** | −98,0% |
+| 30° feletti irányváltás (mind a 96 ág) | **93 404** | **673** | −99,3% |
+| legrosszabb egyetlen ág | 3 292 | 26 | −99,2% |
+| 0. ág irányváltásai | 1 422 | **9** | — |
+| összefolyás / Ocean / Pit | 19 / 66 / 11 | **18 / 67 / 11** | ~változatlan |
+| teljes hossz | 48 879,793 km | 46 641,008 km | −4,6% |
+| pontszám | 415 293 | 504 060 | +21,4% |
+| hálózatidő (4 worker) | 71 950 ms | **60 831 ms** | −15,4% |
+| csúcs working set | 116,9 MB | 136,0 MB | +16,3% |
+
+**A fa MEGMARADT**, és ezt szándékosan külön ellenőriztem, mert a valódi
+távolságvizsgálat elvileg szétszedhette volna: az összefolyások száma 19 → 18,
+a zsákutcák száma pontosan ugyanannyi (11). (A `todo2.md`-ben szereplő
+„43 → 32 összefolyás" egy KORÁBBI, más kísérlet száma volt; a tényleges v1
+alapvonal az endpoint-fájlból 19.) A fa MÉLYSÉGE külön kérdés, és annak oka a
+forrás-kiválasztás — ezt már az ND-124 is kimondta.
+
+A javítás egy tesztet elbuktatott, és ez tanulságos: a `DischargeWeightsAreIdentical`
+16 forrásos KICSI világában a valódi közelségvizsgálattal NULLA összefolyás van
+— és MÉRVE 2000 m-en sem lesz több, tehát nem a tolerancia a szűk
+keresztmetszet, hanem az, hogy 16 globálisan szétszórt forrás nyomvonala soha
+nem fut egy mederbe. A tesztet nem lazítottam, hanem szétválasztottam: az
+egyezést és a záróélek korlátosságát két toleranciával mérem (a súlyok összegét
+egy független azonossággal, ami LÁNCOKRA is igaz), a lánc-akkumulációt pedig
+egy ÚJ, szintetikus fán futó teszt (`DischargeWeightsAccumulateMultiLevelChains`)
+— egy akkumulációs szabály tesztje ne múljon azon, hogy a terep ad-e éppen
+mellékfolyót.
+
+Tisztességesen jelezve: a `MoreSourcesProduceMoreConfluences` világában (level 6,
+GLOBÁLIS forrás-kiválasztás) az összefolyás 12 forrásnál 1 → 0, 48-nál 15 → 10.
+A teszt zöld (10 > 0), de ott a fa ritkább lett. A termék útján (per-medence
+forrás-kiválasztás, 96 ág) viszont 19 → 18 — a különbség maga is az ND-124
+melletti érv: a per-medence kvóta azért ad fát, mert a forrásokat közös torkolat
+felé tartó ágakra teszi.
+
+**Kompatibilitás.** Mindhárom javítás numerikus, tehát minden folyóhálózat
+(nyomvonal, összefolyás-fa, vízhozam-súly) új. A generátorverzió **8 → 9**;
+a régi `worldpkg` elutasítása és a hőmodell-gyorsítótár érvénytelenítése
+ugyanezen a verzión múlik (a cachekulcs a generátorverziót tartalmazza).
+Folyó-specifikus lemez-cache nincs. Ez NEM A8-teljesítmény-optimalizálás: az
+A8 bitazonossági állításai a v1-re szóltak, a v2 szándékosan más hálózat.
+
+**Ami tudatosan NYITOTT marad (ND-187).** A mért 58,77%-os escape-arány azt
+jelenti, hogy a folyók a hosszuk több mint felét zárt medencéken átvágva
+töltik. Az ND-186 ezt GEOMETRIAILAG kezeli (sima, víz alatti vonal a lépcső
+helyett), de a MODELLKÉRDÉST nem dönti el: egy ilyen medence fizikailag TÓ
+lenne, és akkor nem folyót, hanem tavat kellene rajzolni, a folyót pedig a tó
+kifolyásától folytatni. Ez külön, mért döntés (tófelület-modell, part, a
+LakesIceErosion-nal való összevetés), nem oldjuk meg csendben ebben a körben.
+
+### ND-187 — Zárt medence: folyó vagy tó? (LEZÁRVA 2026-10-03: A+ jelölt tavi szakasz)
+
+2026-10-03. Az ND-180 mérése szerint a t=0 hálózat hosszának **58,77%-a** 75
+m-nél hosszabb (escape-) éleken van, vagyis a folyók a hosszuk több mint felét
+zárt medencéken átvágva töltik. Az ND-186 ezt GEOMETRIAILAG kezelte: a 2 km-es
+rácslépcső helyére sima, a feltöltési szint alatt futó vonal került — ez
+indokolt, mert az a terület a feltöltődés után víz alatt van. A MODELLKÉRDÉS
+viszont nyitva van: ha egy medence feltöltődik, akkor fizikailag **TÓ**, és
+akkor nem egy folyóvonalat kellene átvezetni rajta, hanem tófelületet rajzolni,
+a folyót pedig a tó kifolyásától folytatni.
+
+**Amit el kell dönteni:** (a) a medence feltöltési szintjét ugyanaz a modell
+adja-e, mint a `LakesIceErosion.IdentifyLakes` (ami a durva rácson már számol
+tavakat), vagy a folytonos escape saját szintjét kell-e visszacsatolni oda;
+(b) a tófelület megjelenítése (part, vízszint, I3-kompatibilis szín) a
+meglévő vízrétegbe illeszkedik-e; (c) a folyóág topológiája (a tóba érkező
+ág + a kifolyó ág két külön ág-e, vagy egy, tavon átvezetett ág).
+
+**Opciók:** (A) marad a mostani, geometriailag sima átvezetés — a leghűbb a
+mai adathoz, de egy nagy tó helyén folyóvonalat mutat; (B) a medence tóként
+jelenik meg, a folyó a tóparton megáll és a kifolyásnál újraindul — fizikailag
+helyes, de új ág-topológiát és új vízfelület-geometriát igényel; (C) hibrid: a
+tó megjelenik, de a folyó vonala is átvezet rajta (mint a valós térképeken a
+tavon áthúzott folyóvonal). Javaslat: előbb MÉRÉS — hány medence, mekkora
+felülettel és mélységgel, és hány egyezik a `LakesIceErosion` már meglévő
+tavaival; a döntés enélkül csak vizuális preferencia lenne.
+
+**Kompatibilitás:** (B) és (C) is seed-/világadat-törő (új folyó-topológia),
+tehát a generátorverzió emelését igényli. Addig a (A) a futó állapot, és ez
+NEM tekinthető a B3 látványítélet lezárásának.
+
+**MÉRÉS (2026-10-03) — a döntéshez kért számok.** Új `lakecross` mód a
+`RiverBaseline`-ban (a folyópontokat level 8-as tile-ra képezi és a
+`LakesIceErosion.IdentifyLakes` + `TileCount>=6 && MaxDepth>=40` szűrővel
+vetett LÁTHATÓ tavakkal metszi — ugyanaz a tó-definíció, amit a viewer
+használ). Seed 0xA7C944210000, t=0, 96 ág, 46 641,008 km, 531 látható tó
+(11 505 tile):
+
+| Mérőszám | Érték |
+|---|---|
+| tó-tile-okon futó hossz | **19 283,466 km = 41,34%** |
+| ágak, amik ÁTVÁGNAK legalább egy tavon | 27 / 96 (51 átvágás) |
+| leghosszabb egyetlen tó-átvágás | **512,937 km** (#33) |
+| ágak, amiknek a hosszuk >90%-a tavon fut | **13** |
+| ágak, amiknek a hosszuk >50%-a tavon fut | 34 |
+| tóban VÉGZŐDŐ ágak | 32 (a 11 `Pit` mind valódi, látható tóban — `endcheck`) |
+| tóban KEZDŐDŐ ágak | **17** |
+| tengerszint alatt kezdődő ágak | 2 (ezek a 0,00 km hosszú ágak) |
+
+Vagyis a jelenség nem kivételes eset: a megjelenített „folyó” 41%-a valójában
+tófelület. Bizonyíték: `artifacts/a8-nd187/t0-lakecross.csv`.
+
+**FELHASZNÁLÓI VISSZAJELZÉS (2026-10-03), ami lezárta a döntést.** „Látványosan
+átfolynak a tavakon a folyók, illetve arra is van példa, hogy szárazföldön
+kezdődik és ott is van vége a folyónak.” A felhasználó a fenti mérés
+ismeretében az (A) opció JELÖLT változatát választotta, és külön a
+forrás-szűrést (ND-189).
+
+**DÖNTÉS: (A+) — a geometria marad, a tavi szakasz JELÖLVE lesz, és nem
+folyóvonalként jelenik meg.** A nyomkövető már ma is tudja, mely pontok
+vannak a medence feltöltési szintje alatt (`RefineEscapePath` a `lakeLevel`
+alatti egyeneseket vonja össze), csak nem adja ki ezt az információt. Ezért:
+
+1. a `ContinuousRiverPath` új mezőt kap (`SubmergedSpans`): azok a
+   `Points`-tartományok, amelyek egy medence feltöltési szintje alatt futnak;
+2. a párhuzamos csonkolás (`CommitReady`) a tartományokat is elvágja ott,
+   ahol az ágat;
+3. a viewer ezeket a szakaszokat NEM rajzolja folyószalagként — a vonal a
+   tó partján megáll, és a tó túloldalán folytatódik.
+
+**Miért ez, és nem (B).** A (B) (külön tó-kifolyás ág-topológia) a teljes
+fizikai megoldás, de seed-törő és nagyságrenddel nagyobb munka; a mérés
+szerint a látványhiba 100%-át a tavi szakaszok RAJZOLÁSA okozza, nem a
+geometriájuk. Az (A+) a HELYES képet adja a mai adatból: a víz a tavon át
+folyik tovább, de a tó nem folyó. A geometria bitre változatlan, tehát
+**nincs generátorverzió-emelés** — a `SubmergedSpans` származtatott adat,
+a fingerprint a `Points`-ból számol.
+
+**Várható kimenet (mért alapon):** 27 358 km látható folyóvonal, ~147
+darabban, átlagosan 186 km/darab. A 13 „majdnem teljesen tavi” ág szinte
+eltűnik — ez nem veszteség, hanem a tény.
+
+**MÉRÉS A MEGVALÓSÍTÁS UTÁN (2026-10-03) — a vágás kapuja NEM a Core
+jelölése lett.** A `SubmergedSpans` elkészült (Python-orákulum + bitre egyező
+C# port, `ContinuousRiverV2Tests`), és ezzel mérhetővé vált, mennyire fedi a
+Core saját „víz alatti” fogalma a MEGJELENÍTETT tavakat. A mélység-küszöböt
+(`DefaultSubmergedMinDepthMeters`) söpörtem a valódi t=0 hálózaton:
+
+| küszöb | jelölt hossz | a hossz %-a | tartományok | ebből látható tavon | a tó-hossz hány %-át fedi |
+|---|---|---|---|---|---|
+| 0 m | 33 490 km | 71,80% | 309 | 16 100 km | 83,49% |
+| 10 m | 32 015 km | 68,64% | 214 | 15 924 km | 82,58% |
+| **40 m** | **26 025 km** | **55,80%** | **110** | **15 402 km** | **79,87%** |
+| 100 m | 16 986 km | 36,42% | 46 | 11 177 km | 57,96% |
+
+A Core jelölése tehát MÉG 40 m-es küszöbbel is 55,8%-ot fed, miközben a
+látható tavakra csak 41,34% esik. Az ok MÉRT és szerkezeti: a követő a 2 km-es
+escape-rácson MINDEN lokális mélyedést medencének lát, a megjelenített
+tó-réteg viszont level 7-8-as tile-okon és a `TileCount >= 6 && MaxDepth >= 40`
+szűrővel készül. **Ha a span alapján vágtunk volna, a folyóhossz 55-72%-a
+eltűnt volna a képről** — jóval több, mint amit a felhasználó tavakként lát
+(„a folyók mennyisége kb. ok” volt a visszajelzése).
+
+Ezért a viewer vágása a MEGJELENÍTETT tó-rétegre épül (`_adaptiveLakeTiles`,
+ugyanaz a halmaz, amit a `LakeSurface` rajzol): a folyószalag ott szakad meg,
+ahol a felhasználó TAVAT LÁT, és nem szakad meg ott, ahol nincs kirajzolt tó.
+A 40 m-es küszöb azért marad a Core-ban, mert az apró mélyedéseket (309 → 110
+tartomány) kiszűri, és a legtöbb látható tavat még fedi (79,87%) — a
+`SubmergedSpans` így a modell-oldali igazság marad (tesztelt, orákulumhoz
+mért), nem a megjelenítés kapuja.
+
+**Ami ezzel NEM dől el:** a Core escape-`lakeLevel`-je és a
+`LakesIceErosion` tószintje NEM ugyanaz a felbontás (ld. a fenti 55,80% vs
+41,34%). Amíg a tó-réteg durvább, mint a követő escape-rácsa, a kettő nem
+fog egybeesni. Ha a tó-réteg egyszer a követő felbontására kerül, a vágás
+visszatérhet a span-okra — az új, önálló döntés lesz.
+
+### ND-195 — Az indítás utáni biome-átrendeződés (zöld → sárga) és a nem perzisztens éghajlat-kulcs (LEZÁRVA 2026-10-05, az (a) opció; viewer-oldali gyorsítótár: nincs verzió-emelés)
+
+2026-10-05, felhasználói visszajelzés: „az indításkor adott biom pár másodperc
+után változik zöld → sárga". MEGVIZSGÁLVA ÉS MEGMÉRVE; nem új hiba, hanem az
+ND-162 előnézet-váltása, amit az ND-192 szinkron betöltési útja INDÍTÁSKOR nem
+tud megelőzni.
+
+#### 1. Mi történik (mérve)
+
+Az első `Build()` szándékosan az ANALITIKUS előnézetet rajzolja (ND-162), majd
+amikor a háttérszálas éves éghajlat megjön, `_climateRebuildRequested` → egy
+TELJES második Build fut, hőmodell-tengellyel. Mérőpad: friss
+`PlanetGridMesh` példány a jelenet Planetjéről `CopySerialized`-elt
+beállításokkal (level 5, 6144 tile), Build#1 (analitikus) → háttérszál →
+Build#2 (hőmodell), tile-szintű összevetéssel.
+
+**1402 / 6144 tile biome-ja változik** (a szárazföld 2151 tile-jából 1280).
+A legnagyobb átmenetek:
+
+```
+IceSheet        -> Tundra            224      Savanna   -> Grassland        79
+Desert          -> Tundra            169      Rainforest-> Savanna          78
+SeaIce          -> Ocean             122      Savanna   -> Tundra           71
+Grassland       -> Desert            114      Desert    -> Grassland        68
+Grassland       -> Tundra             99      TempForest-> Tundra           64
+Savanna         -> TemperateForest    86      Grassland -> TemperateForest  39
+```
+
+Szín-csoportokra vetítve (a `BiomeColor` tényleges értékeivel: zöld =
+TemperateForest/Rainforest, olívzöld = Savanna, sárga = Desert/Grassland,
+szürkebarna = Tundra):
+
+```
+sarga     -> szurkebarna  268     zold      -> olivzold      78
+jeg       -> szurkebarna  224     zold      -> szurkebarna   75
+olivzold  -> zold         122     zold      -> sarga         33
+jeg       -> viz          122     sarga     -> olivzold      19
+olivzold  -> sarga        115     szurkebarna -> sarga         7
+```
+
+A felhasználó által látott „zöld → sárga" tehát a `zold → olivzold` (78),
+`zold → szurkebarna` (75) és `zold → sarga` (33) = **186 tile**, plusz a
+mellettük futó `olivzold → sarga` (115) — összesen 301 tile sötétzöldből
+sárgás/szürkés irányba.
+
+#### 2. Miért ilyen nagy a váltás: nem csak a hőmérséklet-tengely vált
+
+A `_adaptiveEvaporationTemperatureK` `null` → hőmodell-felszín váltása ÚJ
+csapadék-mezőt ad (a `GetOrComputePrecipitationField` kulcsának kilencedik
+eleme), tehát a biome MINDHÁROM bemenete egyszerre más:
+
+| | analitikus (Build#1) | hőmodell (Build#2) |
+|---|---|---|
+| csapadék-mező megváltozott tile | — | **5275 / 6144** |
+| csapadék-medián | 0,7539 | **0,2282** |
+| csapadék-maximum | 105,678 | **199,132** |
+| arid / semiArid / moist vágópont | 0,1536 / 0,4933 / 1,4554 | **0,0315 / 0,1724 / 1,1527** |
+
+A vágópontok percentilisek, tehát magukban követik az eloszlást — a váltás
+mégis nagy, mert a mező ALAKJA változik (a medián harmadára esik, a maximum
+majdnem duplázódik), nem csak a léptéke.
+
+#### 3. Miért „pár másodperc": a kulcs nem perzisztens
+
+Az ND-192 szinkron, Build-beli betöltése (`TryLoadThermalClimateDuringBuild`)
+azonnal kiváltaná az előnézetet — de a `TryGetCachedClimateKey` kapun elbukik,
+mert a `_climateKeyMemory` **példány-mező, nem perzisztens**: minden
+indításnál (Play start / domain reload) üres. A lemez-gyorsítótár közben MEGVAN.
+Három független menet PerfLogja:
+
+```
+[ND-192 climate job] fromCache=True keyFromMemory=False totalMs=6662.3 grid=8.5  field=6234.4 fingerprint=411.6 disk=5.7   compute=0.0 unpack=2.2
+[ND-192 climate job] fromCache=True keyFromMemory=False totalMs=7119.0 grid=11.2 field=6327.4 fingerprint=618.2 disk=115.4 compute=0.0 unpack=44.6
+[ND-192 climate job] fromCache=True keyFromMemory=False totalMs=7871.8 grid=9.4  field=7359.0 fingerprint=487.2 disk=10.3  compute=0.0 unpack=4.4
+```
+
+`compute = 0,0 ms` — az éghajlat teljes egészében a lemezről jön. A
+**6,2–7,4 s a `field` fázis**, vagyis a `SurfaceTemperatureField` felépítése,
+ami KIZÁRÓLAG a gyorsítótár-kulcshoz (`ComputeSolverFingerprint`) kell. A
+tényleges lemez-olvasás 5,7–115 ms, a kipakolás 2,2–44,6 ms. A várakozás
+**~90%-a olyan munka, aminek nincs tartalmi eredménye** — csak azért fut, mert
+a kulcsot nem tudjuk a lemezről.
+
+#### 4. Kapcsolat az ND-194-gyel (A23)
+
+A váltás maga (1402 tile) az ND-194 ELŐTT is megvolt, csak az IRÁNYA volt más:
+addig az első Build 100% `Desert`-et adott (sárga), tehát sárga → zöldes
+irányba váltott. Az ND-194 óta az első kép HELYES (az analitikus tengely
+valódi csapadékával), ezért most a sötétzöld osztályok dominálnak az első
+képen, és a váltás zöld → sárga/szürke irányba látszik. **Az ND-194 nem
+okozta a váltást, de láthatóvá/zavaróbbá tette** — korábban a hibás, egyszínű
+sivatag „olvadt fel" a helyes képbe.
+
+#### 5. Opciók
+
+**(a) A gyorsítótár-kulcs perzisztálása lemezre** (`identity → modelIdentity +
+fingerprint` leképezés a meglévő cache-könyvtárban). Ekkor az ND-192 szinkron
+útja már az ELSŐ Buildben bekapcsol: nincs analitikus előnézet, nincs
+átrendeződés. A mért költség, amit a Buildbe beengedünk: 5,7–115 ms
+lemez-olvasás + 2,2–44,6 ms kipakolás, a 6,2–7,4 s-os `field` fázis helyett.
+Biztonsági háló már megvan: a `ThermalClimateDiskCache.TryRead` a KULCCSAL
+validál, tehát egy elavult/hamis perzisztált kulcs elutasításra és
+újraszámolásra vezet, nem rossz adatra.
+
+**(b) A biome kirajzolásának halasztása,** amíg nincs hőmodell (semleges
+felszín az első Buildben). Megszünteti a villogást, de üres/szürke kezdőképet
+ad, és sérti azt az ND-162 szándékot, hogy legyen azonnali kép.
+
+**(c) Marad így,** a panel jelzi az „éghajlat: számítás fut" állapotot (ma is
+jelzi). Nincs költség, de a felhasználó által jelzett zavar megmarad.
+
+**Javaslat: (a).** Ez az egyetlen opció, ami a mérés szerint a VÁRAKOZÁS
+okát szünteti meg (a 90%-os, eredmény nélküli `field` fázist), nem csak a
+tünetet rejti el. A (b) és (c) nem igényel külön döntést, ha az (a) megy.
+
+**Amit ez a kör NEM dönt el:** hogy a két tengely (analitikus vs hőmodell)
+eltérése önmagában indokolt-e ilyen mértékben (medián 0,754 → 0,228). Az a
+csapadék-párolgás kalibrációjának kérdése, és az A24 / ND-165 körébe tartozik
+— külön mérés, nem ennek a tételnek a tárgya.
+
+#### 6. LEZÁRÁS (2026-10-05): az (a) opció, implementálva és megmérve
+
+**A kulcstábla perzisztál.** A `_climateKeyMemory` tartalma a gyorsítótár-
+könyvtárba kerül (`climate_keys.v1.txt`), fejlécében egy **modell-próba
+azonosítóval**. A próba nem egy kézzel másolt paraméter-lista, hanem egy FIX,
+szintetikus (level 1 — a `DenseGridMetrics` legkisebb engedett szintje)
+bemenetre vett `ModelIdentity`: **ugyanaz a kód** (`ComputeModelIdentity`)
+számolja, amelyik a valódi kulcsot is, tehát a paraméter-lista nincs kétszer
+leírva, és egy új modell-paraméter nem tud csendben kimaradni a kapuból.
+
+Ez pótolja azt a biztonsági érvet, amit a perzisztálás elvett (a példány-mező
+„a domain reload kiüríti, tehát elavult kulcsot sosem látunk"). Az
+`identity` a világ-specifikus bemeneteket fedi (szint, seed, tengerszint,
+deep-time, pálya, per-cella típus + eleváció, modell- és generátorverzió), a
+fejléc-próba pedig a modell-paramétereket és a bolygó-sugarat — pont azokat,
+amiket egy A/B-mérés modellverzió-emelés nélkül állít át (ld. az ND-160
+figyelmeztetését ugyanerről).
+
+**A második, mérés közben feltárt rés: a hiányzó `.bin`.** A kulcs mostantól
+túléli a sessiont, a `.bin` fájlokra viszont vonatkozik a kvóta-takarítás
+(`EnforceThermalClimateCacheQuota`, 128 MiB) — tehát előállhat, hogy a kulcsot
+tudjuk, de a fájl már nincs ott. Ha ilyenkor a szinkron útra léptünk volna, a
+`RunThermalClimateJob` a FŐ SZÁLON építene mezőt (6,2–7,4 s) és számolna teljes
+éghajlatot (hidegen ~118 s level 5-on) — azaz a kép megfagy. A szinkron út
+kapuja ezért a fájl létezését is ellenőrzi (`ClimateCacheFileExists`), a
+kulccsal AZONOS fájlnév-számítással. Ez a rés a memóriabeli változatban is
+megvolt elvben, de a perzisztálás tette valóssá.
+
+**Mérve (ugyanaz a mérőpad: friss `PlanetGridMesh` példány = új indítás, mert a
+példány-mezők üresek; level 5, 6144 tile):**
+
+| | előtte | utána |
+|---|---|---|
+| az első Build éghajlata | analitikus előnézet | **Build-ben betöltve** |
+| betöltési idő | 6662 / 7119 / 7872 ms (háttérszálon) | **14 / 16 ms (a Buildben)** |
+| `rebuildRequested` az első Build után | `True` (második teljes Build) | **`False`** |
+| háttérszálas éghajlat-job | elindul | **nem indul** |
+| biome-átrendeződés | **1402 / 6144 tile** | **0 tile** |
+| vágópontok az első Buildben | 0,1536 / 0,4933 / 1,4554 (analitikus) | **0,0315 / 0,1724 / 1,1527** |
+
+**A végállapot bitre azonos.** Az új ELSŐ Build biome-térképe
+**0 / 6144 eltéréssel** egyezik a korábbi kétlépéses út VÉGÁLLAPOTÁVAL
+(`Ocean=3993 Tundra=886 Grassland=316 Rainforest=316 Desert=254
+TemperateForest=204 Savanna=175`). Vagyis nem egy másik képet mutatunk
+hamarabb — ugyanazt a képet mutatjuk, csak elsőre.
+
+**A kapuk külön-külön megmérve, mindhárom úton (PerfLog):**
+
+```
+[ND-195 climate keys] loaded=1                      -> talalat, a kulcs a lemezrol
+[ND-192 build climate load] applied=True ... ms=17.1 -> szinkron betoltes a Buildben
+[ND-195 climate keys] discarded=stale-model-probe    -> elavult fejlec: 0 bejegyzes
+[ND-195 build climate load] skipped=cache-file-missing -> hianyzo .bin: elonezet
+```
+
+- **Elavult fejléc:** a próba-azonosítót nullára írva egy friss példány
+  **0 bejegyzést** töltött be → a régi út fut, nem rossz adat.
+- **Hiányzó `.bin`:** a fájlt elnevezve a Build **4171 ms** (a megszokott
+  előnézet-út) és `climateApplied = null` — **nem fagyott a főszálon**.
+
+**Nincs generátorverzió-emelés.** A Core numerikája és a világadat változatlan;
+a perzisztált tábla gyorsítótár-kulcs, a tartalmat továbbra is a
+`ThermalClimateDiskCache.TryRead` validálja.
+
+**Kapuk:** `dotnet build tests/WorldGen.Viewer.Compile` → 0 error; Unity
+`recompile` → `compilationFailed: false`; `dotnet test
+tests/WorldGen.Viewer.LodChunking.Tests` → **664/664 zöld**; Unity Console
+aktuális hibaszám **0**.
+
+**Továbbra is nyitva:** hogy a két tengely eltérése (csapadék-medián
+0,754 → 0,228) önmagában indokolt-e. A felhasználó ezt most már nem LÁTJA
+váltásként, de a kérdés modellkérdésként megmarad — A24 / ND-165.
+
+### ND-194 — A csapadék-mező és a vágópontok a biome-osztályozás ELÉ kerülnek (LEZÁRVA 2026-10-05, A23; viewer-oldali sorrend: nincs verzió-emelés)
+
+2026-10-05, a todo2 **A23** tétele (eredetileg az ND-164 élő ellenőrzése fogta
+meg). A `PlanetGridMesh.Build()` a `biomeOf` szótárat a geometria-ciklusban
+töltötte fel, a csapadék-mezőt és a három percentilis-vágópontot viszont csak
+a ciklus UTÁN számolta ki — tehát minden Build az **ELŐZŐ** Build mezőjével és
+vágópontjaival osztályozott. Egy friss példány ELSŐ Buildjénél ez `null`
+csapadék-mezőt (`PrecipitationAtCore` → 0) és `(0, 0, 0)` vágópontot jelentett.
+
+**Mérve (élő Editor, friss `PlanetGridMesh` példány, a jelenet Planetjéről
+`CopySerialized`-elt beállításokkal, level 5, 6144 tile) — ELŐTTE:**
+
+```
+build#1: Ocean=3871 Desert=1672 Tundra=255 IceSheet=224 SeaIce=122
+```
+
+A szárazföld MINDEN meleg tile-ja (1672) `Desert` lett, holott ugyanabban a
+Buildben az arid vágópont 0,1536 volt, és a meleg szárazföldi csapadékból
+ténylegesen csak **335** tile esik e alá. A második Build után magától
+helyreállt, ezért maradt észrevétlen. **I4-sértés, amíg tart.**
+
+**A javítás:** a csapadék-blokk (mező + sarok-tábla + vágópontok) egészében a
+geometria-ciklus ELŐTT fut. Ez biztonságos, mert a blokk minden bemenete már
+korábban elő van állítva: `_adaptiveEvaporationTemperatureK` és
+`_adaptiveClimateWind` a hőmodell-kapu után, a `BiomeTemperatureKelvinAt`
+sarok-táblája a `BuildClimateAirCornerTable`-ben — mindkettő a régi helynél is
+KORÁBBAN. A `GetOrComputePrecipitationField` tiszta függvény a serializált
+klíma-paraméterekre és ezekre a mezőkre, tehát a folyó-forrás kiválasztás
+(`SelectRiverSourcesPerBasin`) és a felhő-réteg BITRE ugyanazt a mezőt kapja,
+mint korábban.
+
+**Mérve UTÁNA (ugyanaz a mérőpad):**
+
+```
+build#1: Ocean=3871 Grassland=418 Rainforest=417 Savanna=386 Desert=335
+         Tundra=255 IceSheet=224 SeaIce=122 TemperateForest=116
+```
+
+`Desert` = **335**, pontosan annyi, amennyit az ugyanabban a Buildben érvényes
+vágópont (arid = 0,1536) a meleg szárazföldön kijelöl. Teljes I4-ellenőrzés
+ugyanerre a Buildre: mindhárom bemenetet (`BiomeTemperatureKelvinAt`,
+`PrecipitationAtCore`, `_adaptiveBiomeThresholds`) visszaolvasva és a
+`BiomeClassification.Classify`-t újrafuttatva **6144/6144 tile egyezik,
+mismatch = 0** — a panel biome-térképe tehát pontosan a SAJÁT Buildje
+mezőiből következik.
+
+**Nincs generátorverzió-emelés:** a Core numerikája és a világadat változatlan,
+a sorrend-hiba kizárólag a viewer panel-/osztályozás-állapotát érintette.
+
+**Tanulság a következő körökre:** ha egy Build-fázis egy KÉSŐBBI fázis
+eredményét olvassa mezőn keresztül, a hiba nem bukik el, csak az ELSŐ
+futásban látszik — és utána magát „javítja". Az ilyen sorrend-hibát csak
+FRISS példányon lehet megmérni; a már bejáratott jelenet-objektum
+szisztematikusan elrejti.
+
+### ND-193 — A folyószalag a RENDERELT felszínre vetül (LEZÁRVA 2026-10-05, megjelenítési döntés: nincs verzió-emelés)
+
+2026-10-05, felhasználói visszajelzés képen (`pics/p.png`): pirossal
+„összevissza folyók", lilával „a folyó nem éri el a tavat, vagy épp nagyon
+belenyúlik" — és a felhasználó hipotézise: *„amikor a zoomolás miatt
+pontosabb kalkulációt kap a tó pereme, a folyó végpontja a zoomoláskor nincs
+újraszámolva."* **A hipotézis igaznak bizonyult, és a mért ok nagyobb, mint
+a vágás pontatlansága.**
+
+**1. mérés — a folyóvonal LEBEG.** Az élő Editorban (seed 0xA7C944210000,
+t=0, 96 ág, 484 096 pont, kamera 988 km magasan) megmértem a kirajzolt
+folyóvertex és a RENDERELT terep-háromszög távolságát ugyanazon a
+felületi ponton:
+
+| Mérőszám | Érték |
+|---|---|
+| sugár-irányú eltérés (átlag) | **37,04 km** |
+| képernyő-elcsúszás, átlag / max | **9,9 / 22,7 képpont** (1275×809) |
+| a folytonos mező és a renderelt mesh eltérése, level 8 | átlag 21,5 m, max 147,9 m |
+| ugyanez level 10 / 11 (kamera közelében) | átlag 0,9 / 0,5 m |
+
+A 37 km **teljes egészében** a `riverLineRadialBias = 0,5` Unity-egységből
+jött. A mező doksija szerint ez „~50 m ekvivalens" — ez a RÉGI
+`elevationScale = 0,01` mellett volt igaz. A mai lánccal
+(`elevationScale = 1,3477e-5`, `terrainReliefExaggeration = 111`) ugyanaz a
+0,5 egység **334 világ-méter**, kirajzolva 37,1 km. Ferde rálátásnál ez
+parallaxist ad: a vonal a völgyéből a hegyoldalra, a tóba vagy a parttól
+beljebb csúszik — pontosan a felhasználó piros és lila jelölései.
+**Ez ugyanaz a hibaosztály, amit a hőmodellnél kétszer is elkaptunk: a
+konstans maradt, a mező léptéke változott.**
+
+**2. mérés — a vágás tile-granularitású.** A szalagot az ND-187 óta a
+MEGJELENÍTETT tó-tile-halmaz kapuzza (level 8 ≈ 39 km-es tile). A
+ténylegesen kirajzolt vízfelszín viszont a tó-réteg és a terep metszete.
+Mérve ugyanabban az állapotban: a tó-tile miatt kivágott, de valójában
+SZÁRAZ (renderelt terep a vízszint felett) hossz **715,1 km**, a kirajzolt,
+de valójában víz alatti hossz **32,9 km**, és **56 / 96 ág** a renderelt
+vízvonal FÖLÖTT ér véget.
+
+**Döntés.** A folyószalag mostantól
+1. a **RENDERELT** felszínre vetül (`LodCoverage.FindRenderedLeaf` +
+   `SurfaceQuad.At`, ugyanaz a háromszögelés, amiből a terep-mesh készült),
+   nem a folytonos elevációmezőre;
+2. ott szakad meg, ahol a **renderelt** felület a **kirajzolt** vízszint
+   (tónál a `BuildLakeSurface` gyűrűvel kiterjesztett feltöltési szintje,
+   egyébként a tengerszint) alá kerül — tile-határ helyett a követő
+   lépésközének (50 m) pontosságával;
+3. **újravetül minden LOD-alkalmazás után** (`AdoptRenderedSurface` →
+   `MaintainRiverSurfaceProjection`), tehát zoomoláskor a végpont valóban
+   újraszámolódik;
+4. a sugár-eltolás `riverLineBiasWorldMeters = 10` VILÁG-méter, a terep
+   megjelenítési láncán átszámolva — így a túlrajzolás vagy a lépték
+   változása nem tudja újra elszabadítani.
+
+**Amit tudatosan NEM teszünk:** nem hosszabbítjuk meg a vonalat a renderelt
+partvonalig. A hiányzó véget a modell nem tartalmazza, a toldás dekoratív
+lenne (I3). A rés magától záródik, ahogy a mesh a zoommal a folytonos
+mezőhöz konvergál (mérve: level 11-en 0,5 m eltérés).
+
+**Szálbiztonság.** A vetítés a FŐ szálon fut, miközben egy worker már a
+következő LOD-ot építheti. Ezért csak olyan sarkot olvas, ami adatverseny
+nélkül elérhető: az alap-szinten a statikus, csak-olvasott sarok-tömb, a
+finomított szinteken kizárólag a már feloldott sarok
+(`LodCornerResolver.TryGetResolvedCorner`). Hiányzó sarokra az alap-szintű
+ős négyszögére esik vissza, és ezt a napló `projectionFallbacks`-ként
+számolja.
+
+**Mérés a javítás UTÁN** (ugyanaz a kamera, a KIRAJZOLT mesh
+középvonal-vertexeiből):
+
+| Mérőszám | Előtte | Utána |
+|---|---|---|
+| sugár-irányú eltérés a renderelt mesh-től | 37,04 km | **10,00 világ-méter** |
+| képernyő-elcsúszás, átlag / max | 9,87 / 22,7 px | **0,30 / 0,69 px** |
+| kirajzolt vertex a renderelt víz alatt | 32,9 km hossz | **0** |
+| `projectionMisses` / `projectionFallbacks` | — | **0 / 0** |
+
+Zoom-próba 988 → 222 km: a LOD level 13-14-re finomodott,
+`surfaceRevision` 13 → 15, és a folyómesh is újravetült (mérve 9,99 m,
+0 víz alatti vertex). Újravetítés költsége a finom hálózaton
+`activeMs = 383,8`, `maxSliceMs = 8,4`, `uploadMs = 35,6`.
+
+**Nincs Core-/seed-változás, nincs generátorverzió-emelés** — a modellút
+pontjai bitre változatlanok, csak a megjelenítésük.
+[Napló](../history/2026-10-05-a8-nd193-river-on-rendered-surface.md).
+
+### ND-192 — A deep-time léptetés dupla Buildje (LEZÁRVA 2026-10-03, BITAZONOS: nincs verzió-emelés)
+
+2026-10-03, felhasználói jelzés: „a deep time is megint lassú". Mérve: a
+csúszka elhúzása után **két teljes `Build()` fut le ugyanarra az időpontra**
+(MÉRVE 11 697 + 10 449 ms = **22,1 s**), és a második eldobja az első
+félkész folyómunkáját.
+
+**Miért volt két Build.** Az ND-162 architektúrája szerint (ld. a
+`PlanetGridMesh.ThermalClimate.cs` fejlécét) cache-találatnál „a Build MAGA
+tölti be (ms), és azonnal a hőmodell jeget használja — nincs előnézet, nincs
+csere". A mérés szerint ez **nem teljesült**: a Build csak RÖGZÍTETTE a
+hőmodell bemenetét (`CaptureThermalClimateInputs`), a betöltés viszont a
+következő `Update()` háttérszálán indult, így az első Build mindig az
+analitikus előnézetet rajzolta, és a kész éghajlat egy második, teljes Buildet
+kért.
+
+**A mért ok, amiért a betöltés nem volt „ms".** Új fázismérés
+(`[ND-192 climate job]`) a háttérjobra, cache-találatos menetben:
+
+| fázis | idő | arány |
+|---|---|---|
+| `SurfaceTemperatureField` felépítése | **5838-8487 ms** | **91-94%** |
+| solver-lenyomat (96 tick) | 485-805 ms | 6-8% |
+| **lemez-olvasás** | **5,7 ms** | **0,09%** |
+| kipakolás | 1,3-3,7 ms | 0,03% |
+
+Vagyis a „cache-találat" 6,4-9,0 másodperce szinte teljes egészében a
+cache-KULCS előállítása volt: a mező felépül, kiadja a modellazonosítót és a
+lenyomatot, aztán — találat esetén — az eredménye **eldobódik**.
+
+**A javítás (két lépés, egyik sem változtat numerikát).**
+1. **A cache-kulcs session-memóriája.** A bemenet-azonosító
+   (`ComputeInputsIdentity`, már létezett) mellé eltároljuk a kulcs két
+   komponensét (modellazonosító + solver-lenyomat). A mező felépítése így
+   KÉSŐN történik: csak akkor, ha a kulcsot nem tudjuk, vagy ha a cache
+   téveszt és tényleg számolni kell.
+2. **A Build maga tölt be** (`TryLoadThermalClimateDuringBuild`), ha a kulcs
+   memóriából jön ÉS a lemez talál — így nincs előnézet és nincs második Build.
+   Ha a kulcs nincs memóriában, a metódus AZONNAL visszatér: a kulcs
+   előállítását (6,3-9,0 s) nem tesszük a fő szálra, ott a megszokott út fut.
+
+**Miért biztonságos.** A memória-gyorsítótár nem kerüli meg a cache
+helyesség-ellenőrzését: a beolvasott fájlt a `ThermalClimateDiskCache.TryRead`
+ugyanúgy validálja (modellazonosító, mintanapok, percentilis, lenyomat,
+ellenőrzőösszeg), tehát hibás memória-bejegyzés nem tud rossz tartalmat
+behozni — legrosszabb esetben téveszt, és újraszámolunk. Tévesztéskor a kód a
+mezőből ÚJRASZÁMOLJA a kulcsot, és ha az eltér a memóriabelitől, a memóriát
+eldobja. A gyorsítótár PÉLDÁNY-mező (nem static), ezért a Play közbeni
+szkript-újrafordítás (domain reload) kiüríti: numerikusan megváltozott kód
+sosem lát elavult kulcsot.
+
+**Mért eredmény (élő Editor, seed 184482873278464, level 5, 200 ↔ 400 Myr).**
+
+| menet | klíma-betöltés | Buildek száma | teljes |
+|---|---|---|---|
+| kulcs NINCS memóriában (első látogatás) | 8991 ms (`field` 8487) | 2 (11 697 + 10 449 ms) | **22,1 s** |
+| kulcs memóriában (visszalépés) | **13,2 ms** (`field` 0) | **1** (már `source=thermal`) | **9,0 s** |
+
+**−13,1 s (−59%)** ismételt deep-time léptetésnél. Az első (hideg) léptetés
+változatlan: ott a lemezen sincs adat, az előnézet-út helyes.
+
+**A kimenet BITAZONOS.** Az `[ND-192 build identity]` mérés (a statikus
+alapréteg pozíció- és szín-hashe) a régi, kétBuildes menet végállapotára és az
+új, egyBuildes menetre UGYANAZT adja: `posHash=D91E47AA8ACEB83E`,
+`colorHash=055FD0F4C5AACBB7` (1 572 864 vertex). Ezért a CLAUDE.md szabálya
+szerint ez bitazonos optimalizálás: **nincs generátorverzió-emelés.**
+
+**Melléktermék-mérés, ami megdöntött egy feltevést.** A CLAUDE.md Állapot
+szakasza szerint a hőmodell „cache-találatnál ms" — ez NEM igaz volt: a
+találat 6,4-9,0 s-ot vett, mert a kulcs előállítása dominált. A mostani
+javítás ezt ismételt léptetésnél 13 ms-ra hozza, de EGY SESSION ELSŐ
+látogatásánál (pl. Play-indítás után) továbbra is 6-9 s — a mező felépítése
+ott elkerülhetetlen, mert a lenyomat ellenőrzi a futó kódot. Ennek
+gyorsítása (a `SurfaceTemperatureField` konstruktora) külön, még nem mért
+feladat.
+
+**Ami ebből NEM következik.** A dupla Build nem volt „hiba a modellben": a
+hőmodell bemenete tényleg a Build kimenete. Mérve az is, hogy a második Build
+NEM pusztán színezést változtat — a statikus alapréteg pozíció-hashe is más
+(`692FE8CB34551053` → `441365C915B27373`), tehát egy „csak-színezés"
+újraépítés NEM lett volna helyes megoldás.
+
+### ND-191 — Hideg kiindulású hitch-mérőpad (NYITOTT, az ND-190 blokkolja nélküle)
+
+2026-10-03. Az ND-190 két javítási kísérlete azért nem volt eldönthető, mert a
+jelenlegi mérési eljárás (85 s-os kamerakör élő Play-menetben) **3× szórást**
+ad ugyanazzal a kóddal: 52 és 159 közt a >60 ms-os frame-ek száma, mert a
+geometria-, metrika- és chunk-cache melegedése dominálja az eredményt.
+
+**Amit a mérőpadnak tudnia kell:**
+1. **Hideg, azonos kiindulás minden menethez** — a `_terrainEvaluationCache`,
+   a chunk-cache (`_spareTerrainMeshes`, `_inactiveTerrainChunks`) és a
+   vízréteg cache-e explicit ürítése a menet előtt, ÚJRAÉPÍTÉS nélkül (a
+   hőmodell és a folyóhálózat NE számoljon újra, különben a menet 4 perc).
+2. **Fix kameraút** (már megvan: aranyszög-spirál irányhalmazok) és fix
+   időzítés.
+3. **N ismétlés, medián** — a kiugró menetek ne döntsenek.
+4. **Egy sor gépi kimenet** menetenként (hitch-szám sávonként, max, p99,
+   hitchben töltött idő), hogy A/B-t össze lehessen fűzni.
+
+**Opciók.** (a) Editor-only diagnosztikai komponens a viewerben, menü-
+parancsból indítva. (b) Batch-mód Player-mérés a meglévő `DeepTimePlayerProbe`
+(ND-135) mintájára, CLI-kapcsolóval, JSON-kimenettel — ez determinisztikusabb
+(nincs Editor-overhead, nincs Scene nézet), de a Player-build ideje hozzáadódik
+a körhöz. **Javaslat: (b)**, mert az ND-190 mérései közben az Editor Game és
+Scene nézete is rajzolt, ami önmagában zaj.
+
+**Amíg ez nincs meg, hitch-javítást nem érdemes írni** — nem lehet
+megállapítani, hogy hatott-e.
+
+### ND-190 — A kép-szaggatás mért anatómiája és két elvetett javítás (NYITOTT: mérőpad kell)
+
+2026-10-03, felhasználói jelzés: „a kép generálás megint rendkívüli ütemben
+szaggat". Élő Editor-mérés (Unity 6000.0.77f1, Ryzen 7 5700X 8c/16t, t=200 Myr,
+66 folyóág, 1275×809 Game nézet). **A szaggatás létezik és reprodukálható**, de
+EGYIK javítási jelöltem hatása sem emelkedett ki a mérés zajából — ezért
+mindkettőt visszavontam, és a következő kör NEM kódmódosítás, hanem mérőpad.
+
+**1) Mit mértem meg (ezek a tények).**
+
+| Állapot | Frame-idő |
+|---|---|
+| Nyugalom (nincs LOD-munka) | p50 **3,7-5,2 ms** (190-270 fps), GPU 3,3 ms |
+| Hideg LOD-újraépítés (85 s kamerakör) | **52-159 hitch >60 ms**, 14-59 db >100 ms, max 220-526 ms, 4,7-15,2 s hitchben |
+| Deep-time léptetés (0 → 200 Myr) | egyetlen **9617 ms-os** frame (a Build a fő szálon) |
+
+**2) Mi NEM okozza (mindegyik kizárva méréssel).**
+* **Nem GC:** a hitch-frame-ekben `GC.CollectionCount(0)` delta **0** (110 s-ban
+  összesen 13 kollekció, egyik sem hitch-frame-re esett). Allokáció 22,5 MB/s.
+* **Nem a szeletelt feltöltés CPU-ideje:** `[ND-85 upload slice]` **1-2 ms**.
+* **Nem a script Update/LateUpdate:** `lateUpdateMs` 0,0-3,2.
+* **Nem a diagnosztika:** a `[ND-75 drawn]` fő szálú capture p50 **1,04 ms**
+  (a 17×9-es mérés maga háttérszálon, 171 ms / 2 s).
+* **Nem a rajzolt mennyiség növekedése:** nyugalomban 1609 draw call /
+  3,87 M vertex, a hitch-frame-ekben 1964-2569 draw call / 3,94-4,07 M vertex
+  (+20-60%), miközben a frame-idő **12-28×**.
+
+**3) Hol megy el az idő (Unity Profiler, elkapott hitch-frame-ek).**
+```
+Main Thread  148 ms: TimeUpdate.WaitForLastPresentationAndUpdateTime 134,6 ms
+                     (GfxDeviceD3D12.WaitForLastPresentation) - sajat munka 7 ms
+Render Thread 205 ms: RenderLoop 138,9 (GfxDeviceD3D12.WaitForGPU self 134,4)
+                     + Gfx.WaitForGfxCommandsFromMainThread 66,7
+              104 ms: RenderLoop self 96,4 - a HDRP rajzolas ebbol 3,5 ms
+GPU frame: nyugalomban 3,3 ms -> hitch-frame-ekben 72,3 / 76,2 / 103,2 ms
+```
+Tehát a fő szál **present-várakozásban** áll, mert a render szál és a GPU
+dolgozik — de nem RAJZOL (HDRP 3,5 ms), hanem **GPU-erőforrást készít elő**.
+A legjobb magyarázat, ami az összes számmal konzisztens: a chunk-publikálás
+(ND-85/ND-94) szándékosan **atomikus**, így a több száz ÚJ vertex-buffer első
+használata MIND egyetlen frame-re esik.
+
+**4) Az első jelölt: vertex-alapú szelet-kapu (ELVETVE).** A szelet eddig csak
+fő szálú CPU-ms-ra és tételszámra volt kalibrálva. Új mérés a PerfLogba
+(`sliceVertices`, **ez megmaradt**): egy frame-ben p50 **19 012**, p90 35 692,
+max **54 548** vertex megy a GPU-ra. 16 000-es kapuval, négy 85 s-os kamerakörön:
+
+| kör | kapu | >60 ms | >100 ms | max | hitchben |
+|---|---|---|---|---|---|
+| 0 | ki | 159 | 59 | 220 ms | 15,2 s |
+| 1 | be | 158 | 26 | 219 ms | 13,1 s |
+| 2 | ki | 52 | 14 | 229 ms | 4,7 s |
+| 3 | be | 85 | 24 | 295 ms | 7,9 s |
+
+Az első pár javulást, a második rosszabbodást mutat → **nem igazolt**, a kaput
+(és tesztjeit) visszavontam.
+
+**5) A második jelölt: `Mesh.UploadMeshData(false)` a staging közben
+(ELVETVE).** Ez pontosan a 3) pont mechanizmusára hat: a buffer a MÁR FÉKEZETT
+szeletben menne a GPU-ra, nem a publikálás utáni első rajzoláskor. Négy menet,
+a párok MÁSODIK felében megfordított kapcsoló-sorrenddel:
+
+| fázis | eager | kör | >60 ms | >100 ms | max | hitchben | p50 |
+|---|---|---|---|---|---|---|---|
+| 0 | ki | 0 | 126 | 50 | 526 ms | 13,1 s | 5,62 ms |
+| 1 | **be** | 0 | 73 | 32 | 435 ms | 7,6 s | 6,29 ms |
+| 2 | **be** | 2 | 86 | 48 | 300 ms | 9,2 s | 5,87 ms |
+| 3 | ki | 2 | 76 | 27 | 200 ms | 7,1 s | 6,52 ms |
+
+**Mindkét párban a MÁSODIK menet jobb, a kapcsoló állásától függetlenül** —
+amit mértem, az a cache-melegedés, nem a beavatkozás. Ráadásul a nyugalmi p50
+a bekapcsolt ággal rosszabb (5,62 → 6,29 ms). Visszavontam.
+
+**6) A mért tanulság, ami a következő körre érvényes.** A 85 s-os kamerakör
+mint mérőpad **nem elég felbontású**: ugyanazzal a kóddal 52 és 159 közt
+szór a hitch-szám (3×), mert a `_terrainEvaluationCache` / chunk-cache
+melegedése dominál. Ezen a zajon egy 10-30%-os javítás nem látszik, tehát
+**minden további hitch-javítás előtt mérőpad kell**: azonos, HIDEG kiindulás
+minden menethez (a geometria-/metrika-/chunk-cache explicit ürítése), ugyanaz
+a kameraút, több ismétlés, mediánnal. Ez az ND-191 tárgya.
+
+**Nyitva marad (döntést igényel, mert a KÉPET érinti):** ha a 3) pont
+magyarázata helyes, az érdemi javítás a publikálás atomikusságának
+felbontása - darabokban cserélt fedés, ami átmenetileg lyukat vagy
+átlapolást adhat a képen (az ND-85 pont ezt zárta ki). Ez képi kompromisszum,
+tehát nem dönthető el mérés nélkül és felhasználói elfogadás nélkül.
+
+### ND-189 — Folyóforrás ne induljon tó alól vagy tengerszint alól (LEZÁRVA 2026-10-03, SEED-TÖRŐ: generátor 9 → 10)
+
+2026-10-03. Az ND-187 mérése szerint a 96 forrásból **17 egy látható tó
+alatt**, **2 pedig a tengerszint alatt** van a követő FINOM mezőjén. Az utóbbi
+kettő adja a 0,00 km hosszú ágakat (`#72`, `#81`), az előbbiek pedig azokat a
+folyókat, amelyek „a semmiből”, egy tófelület közepéből indulnak. A
+felhasználó ezt a „nagyon rövid folyók” és a „szárazföldön kezdődik” panasz
+részeként jelezte.
+
+**Ok.** A `SelectRiverSources` / `SelectRiverSourcesPerBasin` a DURVA
+(level 5) csapadék- és elevációmezőn dönt, és a `minElevAboveSeaM` = 300 m
+küszöböt is ott értékeli ki. A nyomkövető viszont a FINOM mezőt
+(`source.Level + DefaultFineDepth`) látja, ahol ugyanaz a tile-középpont már
+tenger alatt vagy egy feltöltött medence alján lehet.
+
+**Opciók:** (A) a forrás-jelöltet a KÖVETŐ saját finom mezőjén ellenőrizzük
+(eleváció > tengerszint, és ne legyen a priority-flood feltöltött szintje
+alatt), és aki elbukik, azt kihagyjuk a kvótából — pontosan a mért hibát
+javítja, de minden forráslista és így minden folyóhálózat új; (B) a durva
+küszöböt emeljük (pl. 300 → 600 m) — olcsóbb, de nem a valódi okot kezeli
+és véletlenszerűen más forrásokat is kidob; (C) marad.
+
+**DÖNTÉS: (A)**, a felhasználó választása szerint. **SEED-TÖRŐ**: a
+generátorverzió **9 → 10**, a régi `worldpkg` elutasítása és a
+hőmodell-gyorsítótár érvénytelenítése automatikus.
+
+**MÉRT EREDMÉNY (t=0, 96 ág):** tengerszint alatt kezdődő ág **2 → 0**,
+teljes hossz 46 641,008 → **47 713,082 km** (+2,3%), összefolyás 18 → 19,
+`Pit` 11 → 10, tóban végződő 32 → 29, tóban kezdődő 17 → **15**.
+
+**A tóban kezdődő 15 ág: MÉRÉSSEL kiderült, hogy ez NEM modellhiba.**
+Megpróbáltam egy második szűrőt is — „álló-víz teszt": a jelölt akkor
+használható forrás, ha a követő saját jelölt-köréből van lefelé vezető
+irány (vagyis a nyomvonal nem futna azonnal medence-átvágásba). A modellből
+jön, determinisztikus, és nem függ a megjelenítés felbontásától (a
+megjelenített tó-rétegből szűrni I1-sértés lenne, mert a `hydrologyLevel`
+beállítás befolyásolná a VILÁGOT). A valódi t=0 hálózaton mérve a kimenet
+**bitre változatlan** lett: 47 713,082 km, 512 398 pont, `startsInLake = 15`
+— vagyis **a szűrő egyetlen forrást sem utasított el**. Ezért visszavontam:
+nem tartunk fenn mérhetetlen hatású kódot a kritikus úton (forrásonként 8
+plusz eleváció-hívás lett volna).
+
+A magyarázat a felbontás-különbség: a „tóban kezdődik" mérés a level 8-as
+tó-RÉTEGEN történik, a forráspont viszont a level 9-es finom mezőn van, és
+ott van lefelé vezető irány — a forrás a tó-tile-on belül egy magasabb
+ponton fakad. A felhasználó ebből semmit nem lát, mert a tó-tile-okon futó
+szakaszt az ND-187 óta nem rajzoljuk: a folyó a tó PARTJÁN kezdődik a képen.
+
 ### ND-185 — Saját HDRP folyójelölő shader és képi elfogadás
 
 2026-10-03. A natív képpárok kézi ellenőrzése cáfolta a korábbi automatikus
@@ -10360,7 +11210,109 @@ Elfogadási ellenőrzés: a scene eredeti kamerája, valamint
 annál távolabbi bolygónézet; a kamera folyóra igazítása nem helyettesíti
 ezt. A teljes áttekintés többletköltségét és az első 6 ág idejét külön mérjük.
 
-### ND-180 — Folyóalak: igazolt modellhiba, numerikus javítási kapu (NYITOTT)
+**Kiegészítés (2026-10-03, MÉRT): miért nem látott a felhasználó egyetlen
+folyót sem.** Két, egymástól független ok, mindkettő az élő Editorban mérve,
+egyik sem a Core-ban — a 96 ágú hálózat KÉSZ volt, csak nem jutott ki a képre.
+
+*(1) A Play-menet megáll, amint a Unity ablak elveszti a fókuszt.*
+`PlayerSettings.runInBackground` 0 volt. A folyó-finomítás dedikált
+(LongRunning) háttérszálon fut, ezért VALÓS időben tovább dolgozott, de a
+`TryApplyCompletedRiverRefinement` a fő szálon van: frame nélkül nincs
+átvétel. A mérés pillanatában `_pendingRiverNetwork` = 96 kész ág
+(114 352 pont), `_adaptiveRefinedRiverPaths` = 6 áttekintő ág,
+`Time.time` = 50,9 s, miközben a folyó-stopper 306,8 s-on állt — vagyis a
+fő szál a Play első 51 másodpercén ragadt. Amint `Application.runInBackground`
+igazra váltott, 9 másodperc alatt `refined = 96`, `preview = False`,
+`fineCompleted = 96`, és felépült a 919 946 vertexes finom folyómesh.
+Javítás: `runInBackground: 1` (ProjectSettings) — a viewer hosszú
+háttérszámítása nem múlhat azon, hogy melyik ablak az aktív.
+
+*(2) A fix ágszám-küszöbök (1/4/6/16/48) 19,5 másodpercre 6 ágon ragadtak.*
+A `BuildContinuousRiverNetworkFromSourcesParallel` a kész ágakat SZIGORÚAN
+forrás-sorrendben commitálja (a `claimed` szemantika reprodukálása —
+determinizmus-követelmény, nem változtatható), ezért a commit-időpontok
+erősen egyenetlenek. Mérve (`RiverBaseline`, seed 0xA7C944210000, level 5,
+4 worker, 1 km-es áttekintés): 1. ág **0,67 s**, 4. ág 1,01 s, 6. ág
+**1,57 s**, 16. ág **21,15 s**, 96. ág **36,53 s** — tehát 1,6 és 21,1 s
+között EGYETLEN frissítés sem volt, és egy másik futásban az utolsó 18 ág
+ugyanazon a 37,67 s-on commitált. A fix küszöbök így nem haladást mutattak,
+hanem véletlen pillanatokat. Javítás: időalapú publikálás
+(`RiverPreviewPublishIntervalSeconds` = 1,0 s; az első és az utolsó ág
+mindig publikál). A hálózat kimenete ettől BITRE változatlan — kizárólag
+megjelenítési ütemezés, nincs generátorverzió-emelés.
+
+*(3) A 6 ág tényleg a túloldalon volt — de nem a priorizálás hibájából.*
+A mért dot-sorozat (forrásirány · kamerairány) a publikált listán teljesen
+vegyes (−0,80 … +0,99; a 96-ból 47 esik a látható féltekére), vagyis a
+sorrend NEM a mérés pillanatának kamerairányára rendezett: a nézet a Build
+óta elfordult, a már commitált sorrend pedig befagyott. Ezt a (2) javítás
+kezeli — ha a hálózat másodpercenként bővül, néhány tíz másodperc múlva
+minden ág látszik, a nézet állásától függetlenül. Kamera-forgatásra NEM
+indítunk új folyó-számítást (az a teljes 37-60 s-os láncot újraindítaná).
+
+### ND-188 — Az áttekintés lépésköze és az escape-emisszió sűrűsége (LEZÁRVA 2026-10-03: A, a MESH-költség miatt)
+
+2026-10-03. Az ND-181 áttekintése azért van, hogy a felhasználó a teljes,
+finom hálózat előtt MÁR lásson valamit. A mérés viszont azt mutatja, hogy az
+áttekintés alig gyorsabb a végleges menetnél: 1 km-es lépésközzel **36,5 s /
+123 926 pont**, az 50 m-es finom menettel 60,8 s / 504 060 pont (ugyanaz a
+seed, 4 worker, ugyanaz a gép). Vagyis a 20-szoros lépésköz-növelés csak
+**1,7-szeres** időnyereséget ad.
+
+MÉRT OK: az ND-186 óta a teljes hossz 58,77%-át adó escape-szakaszokat a
+`DefaultContinuousEscapeEmitMeters` = 250 m FIX sűrűséggel mintavételezzük,
+a lépésköztől függetlenül; a lokális priority-flood költsége pedig szintén
+nem a lépésközzel skálázódik. Az áttekintés tehát ugyanazt a drága
+medence-átvágást végzi el, mint a finom menet.
+
+Opciók: **(A)** az escape-emisszió legyen lépésköz-arányos (pl.
+`max(250 m, 5 × stepMeters)`) — ekkor az áttekintés tényleg durvább és
+gyorsabb, de az áttekintő vonal a medencéken átvágva elszakadhat a
+megjelenített felszíntől (a viewer minden pontot a domborzatra ültet);
+**(B)** az áttekintés hagyja ki az escape-et, és a medencébe érő ágat ott
+zárja le (Pit) — gyors és fizikailag olvasható, de az áttekintésen a folyó
+rövidebbnek látszik, mint a véglegesen; **(C)** marad a mai állapot, és az
+áttekintés helyett a progresszív publikálásra (ND-181 kieg. (2))
+támaszkodunk — nincs új kód, de a féltekét kitöltő hálózat csak ~20-35 s-nál
+áll össze.
+
+**MÉRÉS (2026-10-03).** A `RiverBaseline` `lakecross` módja mostantól a
+lépésközt ÉS az escape-emissziót is söpri. Seed 0xA7C944210000, t=0, 96 ág,
+4 worker, UGYANAZ a bináris és gép:
+
+| lépésköz | escape-emisszió | hálózatidő | pont | csúcsmemória |
+|---|---|---|---|---|
+| 1 km | 250 m (mai) | 40,3 s | 127 514 | 111,4 MB |
+| 1 km | **5 km** | 44,5 s | **25 715** | **89,6 MB** |
+| 1 km | 20 km | 42,4 s | 22 263 | 88,9 MB |
+| 50 m (finom) | 250 m | **85,0 s** | 512 398 | 164,1 MB |
+
+Két dolog derült ki, mindkettő cáfolja a bejegyzés eredeti feltevését:
+
+1. **Az emisszió sűrűsége a hálózatidőt EGYÁLTALÁN nem befolyásolja**
+   (40,3 / 44,5 / 42,4 s — a három érték a futások közti zaj szintjén van).
+   A költség a lokális priority-floodban van, nem a pontok kiírásában. Tehát
+   az (A) opció NEM gyorsítja az áttekintést — az eredeti indoklás hibás volt.
+2. **Az áttekintés a mért 2,0× nyereséget mégis megadja** (40,3 s vs 85,0 s a
+   finom menetre), tehát önálló áttekintő menetre van értelme — a korábban
+   idézett 1,7× két külön futás összevetése volt, ez a szám most ugyanabból a
+   söprésből jön.
+
+**DÖNTÉS: (A), de MÁS indokkal — a MESH-költségért, nem az időért.** Az
+áttekintés escape-emissziója a viewerben 5 km
+(`RiverOverviewEscapeEmitMeters`, = 5× lépésköz): a pontszám ötödére esik
+(127 514 → 25 715), a csúcsmemória 111 → 90 MB, és ezt a VIEWER fizeti meg —
+minden pontot a megjelenített felszínre kell vetíteni és szalaggá építeni. Az
+áttekintő folyómesh így 110 986 vertex helyett ~22 000 lesz, vagyis a
+felhasználó nagyságrenddel hamarabb lát TELJES hálózatot. 20 km-nél a pontszám
+már alig csökken (telítődés), viszont az áttekintő vonal jobban elszakadna a
+domborzattól, ezért 5 km a választás.
+
+**Nem seed-törő:** ez kizárólag az ÁTTEKINTŐ menet paramétere; a végleges
+finom hálózat (és annak minden száma) bitre változatlan. A Core
+`DefaultContinuousEscapeEmitMeters` = 250 m marad.
+
+### ND-180 — Folyóalak: igazolt modellhiba, numerikus javítási kapu (LEZÁRVA, ND-186)
 
 2026-10-02. A teljes aktuális t=0 CLI-hálózat bitazonos A8-hash-sel:
 48 879,793 km összhossz, ebből **58,77%** a 75 méternél hosszabb éleken;
@@ -10395,6 +11347,12 @@ generátor 8 → 9 emelése, explicit régi-worldpkg elutasítás és cache-
 érvénytelenítés ellenőrzése kötelező. E bejegyzés diagnózis és terv:
 a futó Core továbbra is változatlan, nincs csendes numerikus csere.
 Bizonyíték: `artifacts/a8-geometry-current/t0-geometry.csv`.
+
+**LEZÁRVA 2026-10-03, ND-186.** A javasolt „C" opció 1. köre elkészült: mind a
+három hibaosztály (iránykvantálás, hamis/teleportáló összefolyás, finomítatlan
+escape-szakasz) javítva, Python-orákulummal és bitre egyező C# porttal,
+generátorverzió 8 → 9. A medencék TÓ-kérdése külön, mért döntésként nyitva
+marad: **ND-187**. A B3 látványítélet továbbra is a felhasználóé.
 
 ### ND-179 — Folyómesh korlátos feltöltése és atomikus cseréje
 

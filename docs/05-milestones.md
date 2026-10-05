@@ -1,5 +1,92 @@
 # Milestone-terv
 
+**2026-10-05 / A8 ELFOGADVA (100%), ND-193.** A felhasználó képi
+visszajelzése („összevissza folyók" / „nem éri el a tavat, vagy épp nagyon
+belenyúlik") mérésre vezetett: a folyószalag **37,04 km-rel a renderelt
+terep fölött lebegett** (a `riverLineRadialBias = 0,5` egység a RÉGI
+`elevationScale = 0,01`-hez készült), ami **9,87 átlagos / 22,7 maximális
+képpontnyi** parallaxist adott; a vágás pedig level 8-as tó-TILE
+granularitású volt (715,1 km hamisan kivágva, 32,9 km víz fölé rajzolva).
+Javítva: a szalag a RENDERELT felszínre vetül, a KIRAJZOLT vízvonalnál
+vágódik, és minden LOD-alkalmazás után újravetül. Mérve utána:
+**10,00 világ-méter**, **0,30 / 0,69 px**, **0** víz fölé rajzolt vertex;
+zoom 988 → 222 km után a mesh tényleg újravetül. Nincs Core-/seed-változás.
+A felhasználó ezután elfogadta az A8-at és a B3-at.
+**Súlyozott A8-becslés 95% → 100%.** Nyitva marad belőle (külön, mérendő
+modellkérdésként) a hosszú, egyenes medence-átvágó „escape" szakaszok
+ügye. [ND-193](04-decisions.md),
+[napló](../history/2026-10-05-a8-nd193-river-on-rendered-surface.md).
+
+**2026-10-03 / Deep time — A DUPLA BUILD MEGSZÜNTETVE (ND-192, BITAZONOS).**
+A mért 22,1 s-os deep-time léptetés (két teljes `Build()` ugyanarra az
+időpontra: 11 697 + 10 449 ms) **9,0 s**-ra csökkent ismételt léptetésnél, és a
+kép BITRE AZONOS (`posHash=D91E47AA8ACEB83E`, `colorHash=055FD0F4C5AACBB7`
+mindkét úton) — tehát nincs generátorverzió-emelés. A mért ok nem a modellben
+volt: a hőmodell „cache-találata" 6,4-9,0 s-ot vett, amiből a TÉNYLEGES
+lemez-olvasás **5,7 ms (0,09%)**, a `SurfaceTemperatureField` felépítése
+viszont 5838-8487 ms (91-94%) — és annak eredménye találatkor eldobódik, csak
+a cache-kulcshoz kellett. Javítás: a cache-kulcs (modellazonosító +
+solver-lenyomat) session-memóriája a bemenet-azonosító mellé, a mező KÉSŐI
+felépítése, és a Build MAGA tölti be az éghajlatot, ha a kulcs memóriából jön
+(ezzel az ND-162 fejlécében DOKUMENTÁLT, de nem teljesülő szándék valósul
+meg). A klíma-betöltés 8991 → **13,2 ms**, a Buildek száma 2 → **1**.
+A helyességet a lemez-cache saját validációja (modellazonosító, mintanapok,
+percentilis, lenyomat, ellenőrzőösszeg) változatlanul őrzi; a memória
+példány-mező, tehát a domain reload kiüríti. Ellenőrzés: viewer-kapu 0 hiba,
+LodChunking 664/664, Editor-fordítás 0 hiba, konzol 0 piros. E kör durván
+**1,5-2 óra**. Hátra a deep-time oldalon: a `BuildStaticBaseLayer` (6,9-7,3 s,
+a Build 72%-a) és a session ELSŐ léptetésének 6-9 s-os kulcs-előállítása.
+
+**2026-10-03 / Teljesítmény (B3-kapu) — a szaggatás és a deep time MEGMÉRVE
+(ND-190), a javítás mérőpadra vár (ND-191).** Felhasználói jelzésre mindkettőt
+megmértem élő Editorban. *Szaggatás:* nyugalomban p50 **3,7-5,2 ms**
+(190-270 fps), hideg LOD-újraépítéskor 85 s alatt **52-159 hitch >60 ms**, max
+220-526 ms. Profilerrel lebontva: a fő szál 121-134 ms-ot
+`WaitForLastPresentation`-ben, a render szál 96-134 ms-ot GPU-várakozásban áll,
+a HDRP rajzolás ebből 3,5 ms, a GPU-frame 3,3 → 72-103 ms. Kizárva méréssel:
+GC (0 kollekció hitch-frame-ben), a feltöltés CPU-szelete (1-2 ms), a commit, a
+LateUpdate, a diagnosztika, és a rajzolt mennyiség (+20-60% vertex 12-28×
+frame-idő mellett). *Deep time 0 → 200 Myr:* egyetlen **9617 ms-os frame**,
+majd a `Build()` MÉGEGYSZER lefut (9288 ms) és eldobja az első folyómunkáját
+→ **19 s fagyás**; a teljes kép **243 s**-nál áll össze. A Build 72%-a
+**BuildStaticBaseLayer (6935 ms)**, 19%-a hidrológia (1818 ms).
+*Két javítási kísérlet (vertex-alapú szelet-kapu, `Mesh.UploadMeshData` a
+stagingben) MÉRVE és VISSZAVONVA* — a hatás a mérés zajába esett (mindkét
+A/B-párban a második menet lett jobb a kapcsoló állásától függetlenül: a
+cache-melegedést mértem). A kódban csak a mérés maradt (`sliceVertices`:
+p50 19 012, max 54 548 vertex/frame). Viewer-kapu 0 hiba, LodChunking
+664/664, Editor-fordítás 0 hiba. **A B3 teljesítmény-kapu becslése ~25%**
+(a diagnózis kész, a mérőpad és a javítás nincs); az A8 ~95% ettől
+változatlan. E kör durván **3-4 óra**; hátra az ND-191 mérőpad durván
+**2-4 óra**, majd a publikálás-szeletelés **4-8 óra** (képi kompromisszum,
+felhasználói döntés).
+
+**2026-10-03 / A8 — a sor MINDEN általam elvégezhető tétele kész (ND-187,
+ND-188, ND-189; SEED-TÖRŐ, generátor 9 → 10).** A felhasználói visszajelzés
+három pontja (tavakon átfolyó folyók, „sehol sem kezdődő" ágak, nagyon rövid
+folyók) MÉRÉSSEL igazolva és javítva: a t=0 hálózat hosszának 40,58%-a
+látható tavakon fut, és ezt a viewer nem rajzolja folyóként; a tengerszint
+alatt kezdődő ágak 2 → 0; a teljes hossz 46 641 → 47 713 km. Az áttekintés
+escape-emissziója 5 km (ND-188): a hálózatidőt nem változtatja (mérve), a
+viewer mesh-költségét viszont 110 986 → 14 126 vertexre csökkenti.
+Szünet nélküli Editor-menet: áttekintés ~100 s, finom hálózat ~254 s, teljes
+mesh ~272 s (583 780 vertex), 296 fps, 847 MB. Deep-time 0 → 200 Myr:
+újraszámol, nulla kivétel. Release 2007/2007, Core Debug 867/867.
+**Súlyozott durva A8-becslés ~95%** — a maradék KIZÁRÓLAG a felhasználói
+vizuális átvétel (B3).
+
+**2026-10-03 / A8, ND-186 (SEED-TÖRŐ, generátor 8 → 9):** az ND-180 három mért
+modellhibája javítva a folytonos folyó-nyomkövetőben (iránykvantálás,
+összefolyási „teleport", finomítatlan medence-átvágás). Új Python-orákulum +
+bitre egyező C# port. Valódi t=0 hálózat: legnagyobb él **24,113 → 0,499 km**,
+30° feletti irányváltás **93 404 → 673**, hálózatidő **71 950 → 60 831 ms**,
+és a fa megmaradt (összefolyás 19 → 18, Pit 11 → 11). Két csendes I1-sértés is
+megszűnt a folyó kritikus útján (ND-23 `Math.Cos/Sin`, ND-24 `Math.Atan`).
+Az **ND-180 LEZÁRVA**; a medence = tó modellkérdés **ND-187**-ként nyitva.
+**Súlyozott durva A8-becslés ~88%**; a kézi átvétel és az Editor-oldali
+mesh/memória/deep-time kapuk hátra.
+[Napló és durva órabecslések](../history/2026-10-03-a8-nd186-continuous-river-v2.md).
+
 **2026-10-03 / A8, ND-181/185:** korai Core-áttekintés, külön HDRP
 folyójelölő shader; az eredeti 50 m-es finom hálózat kéken látható a natív
 alap-, távoli és közeli képen. A korábbi abszolút RGB-eltérés nem bizonyított

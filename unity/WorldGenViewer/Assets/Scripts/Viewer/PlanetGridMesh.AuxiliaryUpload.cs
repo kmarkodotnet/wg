@@ -83,10 +83,14 @@ namespace WorldGen.Viewer
             return mesh;
         }
 
-        private StagedAuxiliaryMesh StageWaterUpload(string key, WaterMeshData data)
+        private StagedAuxiliaryMesh StageWaterUpload(AdaptiveMeshBuffers buffers, string key, WaterMeshData data)
         {
             var staged = new StagedAuxiliaryMesh { Water = data };
             if (data.Vertices.Count == 0) return staged;
+            // ND-190: a viz-mesh ugyanabba a frame-beli GPU-koltsegbe szamit,
+            // mint a terep-chunkok - egyetlen szeletben nem adodhat hozza
+            // szamolatlanul.
+            buffers.UploadStagedVertices += data.Vertices.Count;
             Mesh mesh = AuxiliarySpare(key);
             mesh.Clear();
             mesh.SetVertices(data.Vertices); mesh.SetNormals(data.Normals); mesh.SetColors(data.Colors);
@@ -103,6 +107,7 @@ namespace WorldGen.Viewer
         {
             var staged = new StagedAuxiliaryMesh();
             if (!buffers.PreparedBordersEnabled || buffers.BorderIndices.Count == 0) return staged;
+            buffers.UploadStagedVertices += buffers.BorderVerts.Count; // ND-190
             Mesh mesh = AuxiliarySpare("Borders");
             mesh.Clear();
             mesh.SetVertices(buffers.BorderVerts);

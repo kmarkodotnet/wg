@@ -1,5 +1,15 @@
 # Backlog — hátralévő feladatok mérföldkövenként
 
+**2026-10-03 / A8, ND-186 (seed-törő, generátor 8 → 9):** az ND-180 három mért
+modellhibája javítva a folytonos folyó-nyomkövetőben, Python-orákulummal és
+bitre egyező C# porttal. Valódi t=0 hálózat: legnagyobb él 24,113 → 0,499 km,
+30° feletti irányváltás 93 404 → 673, hálózatidő 71 950 → 60 831 ms; a fa
+megmaradt (összefolyás 19 → 18, Pit 11 → 11). Két csendes I1-sértés is
+megszűnt (ND-23 `Math.Cos/Sin`, ND-24 `Math.Atan` a kritikus úton).
+**ND-180 LEZÁRVA**, a medence = tó modellkérdés **ND-187**-ként nyitva.
+A kézi átvétel és az Editor-oldali mesh/memória/deep-time kapuk hátra.
+[Napló](../history/2026-10-03-a8-nd186-continuous-river-v2.md).
+
 **2026-10-03 / A8, ND-181/185:** a felhasználó újratesztelt és újra
 elutasította a láthatóságot; a korábbi halasztás lezárult. Saját HDRP
 folyóshaderrel valódi kék vonal látszik a normál, távoli és közeli natív

@@ -314,8 +314,8 @@ public class TraceRiverPathContinuousTests
         double seaLevel = SeaLevel(seeds);
         TileId source = TileId.FromFaceLevelUV(2, Level, 17, 31);
 
-        var a = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, new Dictionary<TileId, RiverPathTracing.ClaimedTileInfo>());
-        var b = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, new Dictionary<TileId, RiverPathTracing.ClaimedTileInfo>());
+        var a = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, claimed: null);
+        var b = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, claimed: null);
 
         Assert.Equal(a.Termination, b.Termination);
         Assert.Equal(a.Points.Count, b.Points.Count);
@@ -334,7 +334,7 @@ public class TraceRiverPathContinuousTests
         double seaLevel = SeaLevel(seeds);
         TileId source = TileId.FromFaceLevelUV(2, Level, 17, 31);
 
-        var river = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, new Dictionary<TileId, RiverPathTracing.ClaimedTileInfo>());
+        var river = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, claimed: null);
 
         Assert.True(river.Points.Count > 2);
         foreach ((double X, double Y, double Z) p in river.Points)
@@ -351,7 +351,7 @@ public class TraceRiverPathContinuousTests
         double seaLevel = SeaLevel(seeds);
         TileId source = TileId.FromFaceLevelUV(2, Level, 17, 31);
 
-        var river = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, new Dictionary<TileId, RiverPathTracing.ClaimedTileInfo>());
+        var river = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, claimed: null);
 
         source.GetUV(out uint su, out uint sv);
         TileId fineSource = TileId.FromFaceLevelUV(source.Face, source.Level + RiverPathTracing.DefaultFineDepth, su << RiverPathTracing.DefaultFineDepth, sv << RiverPathTracing.DefaultFineDepth);
@@ -369,8 +369,8 @@ public class TraceRiverPathContinuousTests
         double seaLevel = SeaLevel(seeds);
         TileId source = TileId.FromFaceLevelUV(2, Level, 17, 31);
 
-        var coarse = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, new Dictionary<TileId, RiverPathTracing.ClaimedTileInfo>(), stepMeters: 500.0);
-        var fine = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, new Dictionary<TileId, RiverPathTracing.ClaimedTileInfo>(), stepMeters: 50.0);
+        var coarse = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, claimed: null, stepMeters: 500.0);
+        var fine = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, claimed: null, stepMeters: 50.0);
 
         Assert.True(fine.Points.Count > coarse.Points.Count,
             $"50m lepeskoznek tobb pontot kellene adnia, mint 500m-nek (kapott: fine={fine.Points.Count}, coarse={coarse.Points.Count}).");
@@ -405,7 +405,7 @@ public class TraceRiverPathContinuousTests
         double seaLevel = SeaLevel(seeds);
         TileId source = TileId.FromFaceLevelUV(face, Level, u, v);
 
-        var river = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, new Dictionary<TileId, RiverPathTracing.ClaimedTileInfo>());
+        var river = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, claimed: null);
 
         Assert.NotEqual(RiverPathTracing.TerminationReason.MaxSteps, river.Termination);
         Assert.True(
@@ -434,15 +434,13 @@ public class TraceRiverPathContinuousTests
         double seaLevel = SeaLevel(seeds);
         TileId source = TileId.FromFaceLevelUV(2, Level, 17, 31);
 
-        var first = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, new Dictionary<TileId, RiverPathTracing.ClaimedTileInfo>());
+        var first = RiverPathTracing.TraceRiverPathContinuous(WorldSeed, seeds, seaLevel, source, 0, RiverPathTracing.DefaultFineDepth, claimed: null);
 
-        var claimed = new Dictionary<TileId, RiverPathTracing.ClaimedTileInfo>();
-        int fineLevel = source.Level + RiverPathTracing.DefaultFineDepth;
+        // ND-186: a lefoglalt pontok VALODI terbeli indexbe kerulnek, nem
+        // egy durva tile-terkepbe - az osszefolyas igy tavolsagon dol el.
+        var claimed = new ClaimedRiverPoints();
         foreach ((double X, double Y, double Z) p in first.Points)
-        {
-            TileId t = TileGeometry.FromPosition(p.X, p.Y, p.Z, fineLevel);
-            if (!claimed.ContainsKey(t)) claimed[t] = new RiverPathTracing.ClaimedTileInfo(0, p);
-        }
+            claimed.Add(p, 0);
 
         // Ugyanabbol a forrasbol indulo "masodik folyo" - a sajat utja MAR
         // teljes egeszeben claimed (az elsotol), tehat MERGED-kent kell

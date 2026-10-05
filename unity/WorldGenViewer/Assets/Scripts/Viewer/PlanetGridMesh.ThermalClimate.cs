@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -106,6 +108,9 @@ namespace WorldGen.Viewer
         private sealed class ThermalClimateInputs
         {
             public int Revision;
+            /// <summary>ND-192: a <see cref="ComputeInputsIdentity"/> eredménye - a
+            /// solver-lenyomat memória-gyorsítótárának kulcsa.</summary>
+            public ulong Identity;
             public int Level;
             public ulong Seed;
             public double SeaLevelM;
@@ -243,6 +248,7 @@ namespace WorldGen.Viewer
                 ElevationM = elevation,
             };
             ulong identity = ComputeInputsIdentity(inputs);
+            inputs.Identity = identity;
             bool sameWorld = _hasClimateInputsIdentity && identity == _climateInputsIdentity;
 
             // Van-e BARMI, ami ebbol az eghajlatbol meg elo? A pending bemenet,
@@ -415,11 +421,37 @@ namespace WorldGen.Viewer
         private void RunThermalClimateJob(ThermalClimateInputs inputs, CancellationToken token)
         {
             var timer = Stopwatch.StartNew();
+            // ND-192 MERES: a job fazisidoi. A `fromCache=True` menetek is
+            // 4,2-6,1 s-ot vettek, ami NEM lehet mind fajlolvasas - a
+            // dupla Build megszunteteséhez tudni kell, melyik fazis mennyi.
+            var phase = Stopwatch.StartNew();
             DenseGridMetrics grid = DenseGridMetrics.Build(inputs.Level);
+            double gridMs = phase.Elapsed.TotalMilliseconds; phase.Restart();
             token.ThrowIfCancellationRequested();
 
+            long[] sampleDays = ThermalAnnualStatisticsCalculator.SampleDayIndices(
+                inputs.Orbit.OrbitalPeriodDays, ThermalAnnualStatisticsCalculator.DefaultSampleDays);
+
+            // ND-192: a MEZO felepitese KESON tortenik - csak akkor, ha tenylegesen
+            // kell. A mezo ket dologhoz kellhet: a cache-KULCSHOZ (modellazonosito
+            // + solver-lenyomat) es a teljes szamitashoz. MERVE: cache-talalatnal a
+            // job 6380 ms-abol a mezo 5838 ms (91%), a lemez-olvasas 5,8 ms (0,09%)
+            // - vagyis az ismetelt deep-time lepteteskor masodpercekig epitunk fel
+            // egy mezot, amit aztan eldobunk. Ezert a KULCSOT session-memoriaban
+            // tartjuk a bemenet-azonosito mellett.
+            //
+            // MIERT BIZTONSAGOS. A memoria-gyorsitotar nem kerüli meg a cache
+            // helyesseg-ellenorzeset: a kulccsal beolvasott fajlt a
+            // ThermalClimateDiskCache.TryRead ugyanugy validalja (modellazonosito,
+            // mintanapok, percentilis, lenyomat, ellenorzoosszeg), tehat egy hibas
+            // memoria-bejegyzes NEM tud rossz tartalmat behozni - legrosszabb
+            // esetben teveszt, es ujraszamolunk. A gyorsitotar PELDANY-mezo (nem
+            // static), ezert a Play kozbeni szkript-ujraforditas (domain reload)
+            // kiuriti - egy numerikusan megvaltozott kod sosem lat elavult kulcsot.
+            //
             // A lenyomathoz es a szamitashoz UGYANAZ a mezo kell, kulonben a
-            // cache nem azt validalna, amit futtatunk.
+            // cache nem azt validalna, amit futtatunk - ezert ha a mezot fel kell
+            // epiteni, MINDKET fogyasztoja ugyanazt a peldanyt kapja.
             // MERVE az Editorban (Mono, level 5, 6144 cella): a parhuzamos
             // lokalis lepes NEM gyorsit - 200 tick szekvencialisan 3,56 ms/tick,
             // parhuzamosan 3,55 ms/tick. A Parallel.For tickenkenti particionalasi
@@ -428,19 +460,60 @@ namespace WorldGen.Viewer
             // is: a TPL ugyanazon a ThreadPoolon versenyez az Editor sajat
             // munkaival. Ezert a viewer-oldali worker SZEKVENCIALISAN lep;
             // a .NET 8 CLI-mérés (ahol a parhuzamositas segit) ettol fuggetlen.
-            var field = new SurfaceTemperatureField(grid, inputs.IceFreeKinds, inputs.ElevationM,
-                inputs.SeaLevelM, inputs.Seed, inputs.TYears, inputs.Orbit);
-            long[] sampleDays = ThermalAnnualStatisticsCalculator.SampleDayIndices(
-                inputs.Orbit.OrbitalPeriodDays, ThermalAnnualStatisticsCalculator.DefaultSampleDays);
-            ulong fingerprint = ThermalClimateDiskCache.ComputeSolverFingerprint(field, 0);
+            SurfaceTemperatureField field = null;
+            double fieldMs = 0, fingerprintMs = 0;
+            long percentileBits = ThermalClimateDiskCache.Key.PercentileBits(
+                ThermalIceClassification.DefaultPermanentIcePercentile);
+            bool keyFromMemory = TryGetCachedClimateKey(inputs.Identity,
+                out string modelIdentity, out ulong fingerprint);
+            if (!keyFromMemory)
+            {
+                field = new SurfaceTemperatureField(grid, inputs.IceFreeKinds, inputs.ElevationM,
+                    inputs.SeaLevelM, inputs.Seed, inputs.TYears, inputs.Orbit);
+                fieldMs = phase.Elapsed.TotalMilliseconds; phase.Restart();
+                modelIdentity = field.ModelIdentity;
+                fingerprint = ThermalClimateDiskCache.ComputeSolverFingerprint(field, 0);
+                fingerprintMs = phase.Elapsed.TotalMilliseconds;
+                RememberClimateKey(inputs.Identity, modelIdentity, fingerprint);
+            }
+            phase.Restart();
             token.ThrowIfCancellationRequested();
 
-            var key = new ThermalClimateDiskCache.Key(field.ModelIdentity, grid.CellCount, sampleDays,
-                ThermalClimateDiskCache.Key.PercentileBits(ThermalIceClassification.DefaultPermanentIcePercentile),
-                fingerprint);
+            var key = new ThermalClimateDiskCache.Key(modelIdentity, grid.CellCount, sampleDays,
+                percentileBits, fingerprint);
 
             ThermalClimateDiskCache.Payload payload = TryLoadThermalClimateFromDisk(key);
+            double diskMs = phase.Elapsed.TotalMilliseconds; phase.Restart();
             bool fromCache = payload != null;
+            if (payload == null)
+            {
+                // Teveszteskor a mezo mindenkeppen kell. Ha a kulcs memoriabol
+                // jott, MOST epitjuk fel - es a kulcsot a mezobol ujraszamoljuk,
+                // hogy a MENTES biztosan a tenyleges tartalomhoz tartozzon.
+                if (field == null)
+                {
+                    field = new SurfaceTemperatureField(grid, inputs.IceFreeKinds, inputs.ElevationM,
+                        inputs.SeaLevelM, inputs.Seed, inputs.TYears, inputs.Orbit);
+                    fieldMs = phase.Elapsed.TotalMilliseconds; phase.Restart();
+                    string verifiedIdentity = field.ModelIdentity;
+                    ulong verifiedFingerprint = ThermalClimateDiskCache.ComputeSolverFingerprint(field, 0);
+                    fingerprintMs = phase.Elapsed.TotalMilliseconds; phase.Restart();
+                    if (verifiedIdentity != modelIdentity || verifiedFingerprint != fingerprint)
+                    {
+                        // Azonos bemenetre azonos kulcs jar, tehat ez nem fordulhat
+                        // elo; ha megis, a memoria-bejegyzes a hibas. Eldobjuk, es a
+                        // TENYLEGES kulccsal meg egyszer megprobaljuk a lemezt.
+                        ForgetClimateKeys();
+                        modelIdentity = verifiedIdentity;
+                        fingerprint = verifiedFingerprint;
+                        RememberClimateKey(inputs.Identity, modelIdentity, fingerprint);
+                        key = new ThermalClimateDiskCache.Key(modelIdentity, grid.CellCount, sampleDays,
+                            percentileBits, fingerprint);
+                        payload = TryLoadThermalClimateFromDisk(key);
+                        fromCache = payload != null;
+                    }
+                }
+            }
             if (payload == null)
             {
                 ThermalClimate climate = ThermalClimateCalculator.Compute(grid, inputs.IceFreeKinds,
@@ -450,6 +523,7 @@ namespace WorldGen.Viewer
                 payload = ThermalClimateDiskCache.Payload.From(climate);
                 SaveThermalClimateToDisk(key, payload);
             }
+            double computeMs = phase.Elapsed.TotalMilliseconds; phase.Restart();
 
             // ND-162: a deep-time glaciacios eltolas (ND-44) EGYELORE a
             // homodell eves atlagara adodik - ld. a fajl fejlecet.
@@ -493,7 +567,332 @@ namespace WorldGen.Viewer
                     }
 
             token.ThrowIfCancellationRequested();
+            PerfLog($"[ND-192 climate job] fromCache={fromCache} keyFromMemory={keyFromMemory} "
+                + $"totalMs={timer.Elapsed.TotalMilliseconds:F1} "
+                + $"grid={gridMs:F1} field={fieldMs:F1} fingerprint={fingerprintMs:F1} disk={diskMs:F1} "
+                + $"compute={computeMs:F1} unpack={phase.Elapsed.TotalMilliseconds:F1}");
             _climateCompleted = result;
+        }
+
+        /// <summary>
+        /// ND-192: bemenet-azonosito -> (modellazonosito, solver-lenyomat), azaz a
+        /// lemez-gyorsitotar KULCSA. A tartalom helyesseget tovabbra is a
+        /// ThermalClimateDiskCache.TryRead ellenorzi.
+        ///
+        /// ND-195 (2026-10-05): a tabla MOSTANTOL LEMEZEN IS megmarad
+        /// (<see cref="ClimateKeyFileName"/>), mert peldany-mezoként minden
+        /// INDITASKOR ures volt - es epp az indulas az az eset, amikor a
+        /// szinkron betoltes (<see cref="TryLoadThermalClimateDuringBuild"/>)
+        /// a legtobbet erne. MERVE harom menetben: a lemez-cache MEGVAN
+        /// (fromCache=True, compute=0,0 ms), megis 6662/7119/7872 ms-ot
+        /// vartunk, amibol 6234/6327/7359 ms (~90%) a SurfaceTemperatureField
+        /// felepitese - KIZAROLAG a kulcs eloallitasahoz. Kozben a tenyleges
+        /// lemez-olvasas 5,7-115,4 ms. A felhasznalo ebbol azt latta, hogy az
+        /// indulas utan par masodperccel a biome atrendezodik (1402/6144 tile).
+        /// </summary>
+        private Dictionary<ulong, (string ModelIdentity, ulong Fingerprint)> _climateKeyMemory;
+
+        /// <summary>Nehany vilag eleg: a felhasznalo par idopont kozott lepteti a csuszkat.</summary>
+        private const int ClimateKeyMemoryLimit = 24;
+
+        /// <summary>ND-195: a perzisztalt kulcstabla fajlneve a gyorsitotar-konyvtarban.</summary>
+        private const string ClimateKeyFileName = "climate_keys.v1.txt";
+
+        /// <summary>ND-195: a fajl elso sorat jelolo magic - formatum-valtasnal emeld.</summary>
+        private const string ClimateKeyFileMagic = "WGTCLIMKEY1";
+
+        private bool _climateKeysLoadedFromDisk;
+        private readonly object _climateKeyFileGate = new object();
+
+        /// <summary>
+        /// ND-195: a MODELL-oldali verzio-kapu a perzisztalt tablahoz, mezo-epites
+        /// NELKUL. Egy FIX, szintetikus (level 1, a DenseGridMetrics legkisebb
+        /// engedett szintje - a level 0 ArgumentOutOfRangeException) bemenetre
+        /// vett ModelIdentity:
+        /// azert pont ez, mert UGYANAZ a kod
+        /// (ThermalCheckpoint.ComputeModelIdentity) szamolja, amelyik a valodi
+        /// kulcsot is - igy a parameter-lista NINCS ketszer leirva, tehat egy uj
+        /// modell-parameter nem tud csendben kimaradni a kapubol.
+        ///
+        /// MIERT KELL. A peldany-mezos valtozat biztonsagi erve az volt, hogy a
+        /// domain reload kiuriti, tehat "egy numerikusan megvaltozott kod sosem
+        /// lat elavult kulcsot". A perzisztalas ezt az ervet elveszi, ezert
+        /// potolni kell. A ComputeInputsIdentity mar olvassa a
+        /// ThermalModelParameters.ModelVersion-t es a
+        /// WorldGeneratorVersion.Current-et, de NEM olvassa a
+        /// ThermalModelParameters.Default egyedi ertekeit (napallando, albedok,
+        /// emisszivitasok, hokapacitasok, meridionalis skala, szezonalis
+        /// fazisok) es a bolygo-sugarat - pont azokat, amiket egy A/B meres
+        /// modellverzio-emeles NELKUL allit at (ld. az ND-160 figyelmezteteset a
+        /// ComputeModelIdentity-ben). A ComputeModelIdentity MINDET olvassa,
+        /// tehat ez a proba-azonosito mindegyiken valt.
+        ///
+        /// Ha a fajl fejlecebe irt proba-azonosito nem egyezik a mostanival, az
+        /// EGESZ tabla elavult: eldobjuk, es a regi ut fut (mezo-epites). Ez
+        /// idobe kerul, tartalmi kovetkezmenye nincs.
+        /// </summary>
+        private static string _climateKeyModelProbe;
+
+        private static string ClimateKeyModelProbe()
+        {
+            if (_climateKeyModelProbe != null) return _climateKeyModelProbe;
+            DenseGridMetrics probeGrid = DenseGridMetrics.Build(1);
+            var kinds = new SurfaceThermalKind[probeGrid.CellCount];
+            var elevation = new double[probeGrid.CellCount];
+            var probe = new SurfaceTemperatureField(probeGrid, kinds, elevation,
+                0.0, 0UL, 0.0, new ThermalOrbit(1.0, 1.0, 0.0));
+            _climateKeyModelProbe = probe.ModelIdentity;
+            return _climateKeyModelProbe;
+        }
+
+        private bool TryGetCachedClimateKey(ulong identity, out string modelIdentity, out ulong fingerprint)
+        {
+            modelIdentity = null;
+            fingerprint = 0;
+            EnsureClimateKeysLoaded();
+            Dictionary<ulong, (string ModelIdentity, ulong Fingerprint)> memory = _climateKeyMemory;
+            if (memory == null) return false;
+            lock (memory)
+            {
+                if (!memory.TryGetValue(identity, out var entry)) return false;
+                modelIdentity = entry.ModelIdentity;
+                fingerprint = entry.Fingerprint;
+            }
+            return modelIdentity != null;
+        }
+
+        private void RememberClimateKey(ulong identity, string modelIdentity, ulong fingerprint)
+        {
+            if (modelIdentity == null) return;
+            Dictionary<ulong, (string, ulong)> memory = _climateKeyMemory;
+            if (memory == null) _climateKeyMemory = memory = new Dictionary<ulong, (string, ulong)>();
+            lock (memory)
+            {
+                // Egyszeru felso korlat: tulcsorduláskor uritunk. A gyorsitotar
+                // kenyelem - egy uritesnek csak ido-, nem tartalom-kovetkezmenye van.
+                if (memory.Count >= ClimateKeyMemoryLimit) memory.Clear();
+                memory[identity] = (modelIdentity, fingerprint);
+            }
+            SaveClimateKeysToDisk();
+        }
+
+        private void ForgetClimateKeys()
+        {
+            Dictionary<ulong, (string, ulong)> memory = _climateKeyMemory;
+            if (memory == null) return;
+            lock (memory) memory.Clear();
+            // ND-195: a lemezrol IS tunjon el - kulonben a hibas bejegyzes a
+            // kovetkezo inditasnal visszajon, es ugyanaz az onjavito kor fut le
+            // megint. A fajl ujrairasa (legfeljebb 24 sor) ms-os muvelet.
+            SaveClimateKeysToDisk();
+        }
+
+        /// <summary>
+        /// ND-195: a perzisztalt kulcstabla betoltese, egyszer peldanyonkent.
+        /// Hibanal (nincs fajl, serult sor, nem egyezo fejlec) CSENDBEN ures
+        /// marad: a kovetkezmeny a REGI ut (mezo-epites), nem rossz adat.
+        ///
+        /// A konyvtarat a FOSZAL rogziti (Application.persistentDataPath Unity
+        /// API) - ha meg nincs, ez a hivas nem tolt be, es a kovetkezo
+        /// (fo szalrol inditott) kor ujraprobalja.
+        /// </summary>
+        private void EnsureClimateKeysLoaded()
+        {
+            if (_climateKeysLoadedFromDisk) return;
+            string directory = ThermalClimateCacheDirectory;
+            if (directory == null) return;
+            lock (_climateKeyFileGate)
+            {
+                if (_climateKeysLoadedFromDisk) return;
+                _climateKeysLoadedFromDisk = true;
+                try
+                {
+                    string path = Path.Combine(directory, ClimateKeyFileName);
+                    if (!File.Exists(path)) return;
+                    string[] lines = File.ReadAllLines(path);
+                    if (lines.Length == 0) return;
+                    string[] header = lines[0].Split(' ');
+                    if (header.Length != 2 || header[0] != ClimateKeyFileMagic) return;
+                    if (header[1] != ClimateKeyModelProbe())
+                    {
+                        // Megvaltozott modell/parameterek: az egesz tabla elavult.
+                        PerfLog("[ND-195 climate keys] discarded=stale-model-probe");
+                        return;
+                    }
+                    var loaded = new Dictionary<ulong, (string, ulong)>();
+                    for (int i = 1; i < lines.Length && loaded.Count < ClimateKeyMemoryLimit; i++)
+                    {
+                        string[] parts = lines[i].Split(' ');
+                        if (parts.Length != 3) continue;
+                        if (!ulong.TryParse(parts[0], NumberStyles.HexNumber,
+                                CultureInfo.InvariantCulture, out ulong identity)) continue;
+                        if (parts[1].Length == 0) continue;
+                        if (!ulong.TryParse(parts[2], NumberStyles.HexNumber,
+                                CultureInfo.InvariantCulture, out ulong fingerprint)) continue;
+                        loaded[identity] = (parts[1], fingerprint);
+                    }
+                    if (loaded.Count == 0) return;
+                    Dictionary<ulong, (string, ulong)> existing = _climateKeyMemory;
+                    if (existing == null)
+                    {
+                        _climateKeyMemory = loaded;
+                    }
+                    else
+                    {
+                        // A MOSTANI session bejegyzesei nyernek: azok a FUTO kodtol
+                        // szarmaznak, nem egy korabbi mentestol.
+                        lock (existing)
+                            foreach (KeyValuePair<ulong, (string, ulong)> kv in loaded)
+                                if (!existing.ContainsKey(kv.Key)) existing[kv.Key] = kv.Value;
+                    }
+                    PerfLog("[ND-195 climate keys] loaded=" + loaded.Count);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning("ND-195: az éghajlat-kulcstábla olvasása nem sikerült ("
+                        + ex.GetType().Name + ": " + ex.Message + ") - mezőépítés következik.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// ND-195: a tabla kiirasa. Teljes ujrairas, mert legfeljebb
+        /// <see cref="ClimateKeyMemoryLimit"/> sor - nincs ertelme inkrementalis
+        /// formatumot epiteni hozza. Hiba eseten csendben kihagyjuk: a
+        /// gyorsitotar kenyelem, nem adat.
+        /// </summary>
+        private void SaveClimateKeysToDisk()
+        {
+            string directory = ThermalClimateCacheDirectory;
+            if (directory == null) return;
+            Dictionary<ulong, (string ModelIdentity, ulong Fingerprint)> memory = _climateKeyMemory;
+            if (memory == null) return;
+            try
+            {
+                var builder = new StringBuilder();
+                builder.Append(ClimateKeyFileMagic).Append(' ').Append(ClimateKeyModelProbe()).Append('\n');
+                lock (memory)
+                {
+                    foreach (KeyValuePair<ulong, (string ModelIdentity, ulong Fingerprint)> kv in memory)
+                        builder.Append(kv.Key.ToString("x16", CultureInfo.InvariantCulture)).Append(' ')
+                            .Append(kv.Value.ModelIdentity).Append(' ')
+                            .Append(kv.Value.Fingerprint.ToString("x16", CultureInfo.InvariantCulture))
+                            .Append('\n');
+                }
+                lock (_climateKeyFileGate)
+                {
+                    Directory.CreateDirectory(directory);
+                    File.WriteAllText(Path.Combine(directory, ClimateKeyFileName), builder.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("ND-195: az éghajlat-kulcstábla írása nem sikerült ("
+                    + ex.GetType().Name + ": " + ex.Message + ") - a gyorsítótár működik, csak nem perzisztál.");
+            }
+        }
+
+        /// <summary>
+        /// ND-192: a Build MAGA tolti be a kesz eghajlatot, ha az ehhez a vilaghoz
+        /// mar a lemezen van ES a cache-kulcsot session-memoriabol tudjuk (tehat a
+        /// betoltes nehany ms). Ezzel a dokumentalt szandek teljesul - "cache-
+        /// talalat: a Build maga tolti be, nincs elonezet, nincs csere" -, es
+        /// elmarad a MASODIK, teljes Build (MERVE 9,0-12,4 s).
+        ///
+        /// Ha a kulcs NINCS memoriaban, ez a metodus AZONNAL visszater: a kulcs
+        /// eloallitasa (mezo + lenyomat) MERVE 6,3 s, amit nem rakunk a fo szalra.
+        /// Olyankor a megszokott ut fut: analitikus elonezet + hatterszal + egy
+        /// ujabb Build.
+        /// </summary>
+        private void TryLoadThermalClimateDuringBuild()
+        {
+            if (!useThermalClimateIce) return;
+            ThermalClimateInputs inputs = _climatePendingInputs;
+            if (inputs == null || inputs.Revision != _climateRevision) return;
+            if (_climateApplied != null && _climateApplied.Revision == _climateRevision) return;
+            if (_climateTask != null) return; // Mar fut a hatterszal: ne ketszerezzuk.
+            // ND-195: a konyvtar MEG a kulcs-kereses elott - a perzisztalt
+            // kulcstabla ebbol a konyvtarbol tolt be, es ez a FOSZAL (a
+            // persistentDataPath Unity API). Enelkul az elso Build sosem latna a
+            // lemezen levo tablat, es epp az inditas maradna a regi uton.
+            EnsureThermalClimateCacheDirectory();
+            if (!TryGetCachedClimateKey(inputs.Identity, out string cachedIdentity, out ulong cachedFingerprint))
+                return;
+            // ND-195: a KULCS megleteben nem szabad megbizni onmagaban. A kulcs
+            // mostantol PERZISZTENS, a .bin fajlokra viszont vonatkozik a
+            // kvota-takaritas (EnforceThermalClimateCacheQuota) - tehat
+            // eloallhat, hogy a kulcsot tudjuk, de a fajl mar nincs ott. Ha
+            // ilyenkor belepnenk a szinkron utra, a RunThermalClimateJob a FO
+            // SZALON epitene mezot (6,2-7,4 s) es szamolna teljes eghajlatot
+            // (hidegen ~118 s level 5-on) - vagyis a kepernyo megfagyna. Ezert
+            // itt a FAJL letezeset is ellenorizzuk; ha nincs, a megszokott ut
+            // fut (analitikus elonezet + hatterszal), ami SOSEM fagyaszt.
+            if (!ClimateCacheFileExists(inputs, cachedIdentity, cachedFingerprint))
+            {
+                PerfLog("[ND-195 build climate load] skipped=cache-file-missing");
+                return;
+            }
+            var timer = Stopwatch.StartNew();
+            try
+            {
+                // Ugyanaz a jobtest fut, csak a FO szalon: a kulcs memoriabol jon,
+                // a lemez-olvasas MERVE 5,8 ms, a kipakolas 1,8 ms.
+                RunThermalClimateJob(inputs, CancellationToken.None);
+            }
+            catch (Exception error)
+            {
+                // A szinkron ut SOSEM allithatja meg a Buildet: ha nem sikerult, a
+                // Build az analitikus elonezettel megy tovabb, es a hatterszal
+                // ujraprobalja.
+                Debug.LogWarning($"ND-192: az éghajlat Build-beli betöltése nem sikerült ({error.GetType().Name}: {error.Message}) - előnézet következik.");
+                PerfLog($"[ND-192 build climate load] failed={error.GetType().Name} ms={timer.Elapsed.TotalMilliseconds:F1}");
+                return;
+            }
+
+            ThermalClimateResult completed = _climateCompleted;
+            if (completed == null || completed.Revision != _climateRevision)
+            {
+                PerfLog($"[ND-192 build climate load] applied=False ms={timer.Elapsed.TotalMilliseconds:F1}");
+                return;
+            }
+            // A Build MOST fogja fogyasztani: a jelolo nelkul a kesz eredmeny egy
+            // ujabb Buildet kerne - epp azt, amit el akarunk kerulni.
+            _climateApplied = completed;
+            _climateRebuildRequested = false;
+            _climateStatus = $"éghajlat: Build-ben betöltve ({completed.ComputeMs:F0} ms)";
+            PerfLog($"[ND-192 build climate load] applied=True fromCache={completed.FromCache} "
+                + $"ms={timer.Elapsed.TotalMilliseconds:F1}");
+        }
+
+        /// <summary>
+        /// ND-195: megvan-e a kulcshoz tartozo gyorsitotar-fajl? A kulcs tobbi
+        /// eleme (cellaszam, mintanapok, jeg-percentilis) a MOSTANI kodbol es a
+        /// MOSTANI bemenetbol szamolodik, pontosan ugy, mint a
+        /// RunThermalClimateJob-ban - igy a vizsgalt fajlnev UGYANAZ, amit a
+        /// betoltes is keresne.
+        /// </summary>
+        private bool ClimateCacheFileExists(ThermalClimateInputs inputs, string modelIdentity, ulong fingerprint)
+        {
+            string directory = ThermalClimateCacheDirectory;
+            if (directory == null || modelIdentity == null) return false;
+            try
+            {
+                long[] sampleDays = ThermalAnnualStatisticsCalculator.SampleDayIndices(
+                    inputs.Orbit.OrbitalPeriodDays, ThermalAnnualStatisticsCalculator.DefaultSampleDays);
+                long percentileBits = ThermalClimateDiskCache.Key.PercentileBits(
+                    ThermalIceClassification.DefaultPermanentIcePercentile);
+                var key = new ThermalClimateDiskCache.Key(modelIdentity,
+                    DenseGridMetrics.Build(inputs.Level).CellCount, sampleDays, percentileBits, fingerprint);
+                return File.Exists(Path.Combine(directory, key.ToFileName()));
+            }
+            catch (Exception ex)
+            {
+                // Nem csendes elnyeles: a kovetkezmeny az, hogy a REGI (mindig
+                // helyes) ut fut, de a kiiras megmutatja, ha ez rendszeres.
+                Debug.LogWarning("ND-195: a gyorsítótár-fájl ellenőrzése nem sikerült ("
+                    + ex.GetType().Name + ": " + ex.Message + ") - előnézet következik.");
+                return false;
+            }
         }
 
         private ThermalClimateDiskCache.Payload TryLoadThermalClimateFromDisk(in ThermalClimateDiskCache.Key key)

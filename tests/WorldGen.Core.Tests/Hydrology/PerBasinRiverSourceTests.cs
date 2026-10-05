@@ -274,4 +274,91 @@ public class PerBasinRiverSourceTests
         Assert.True(mergedPerBasin > mergedGlobal,
             "a medence-kvota nem adott tobb osszefolyast: " + mergedPerBasin + " vs " + mergedGlobal);
     }
+
+    // ------------------------------------------------------------------
+    // ND-189 (2026-10-03, SEED-TORO): a forras nem indulhat olyan pontbol,
+    // ami a KOVETO finom mezojen tengerszint alatt van, sem latható to alol.
+    // ------------------------------------------------------------------
+
+    [Fact]
+    public void FineElevationFilterRemovesSourcesBelowSeaLevel()
+    {
+        const ulong seed = 0xA7C944210000UL;
+        var seeds = PlateGeneration.GenerateSeeds(seed, 20);
+        MoisturePrecipitation.PrecipitationField field = MoisturePrecipitation.Compute(
+            seed, 20, 4, targetWaterFraction: 0.65);
+        FlowNetwork.FloodResult flood = FlowNetwork.PriorityFlood(field.Elevation, field.IsOcean);
+
+        List<TileId> unfiltered = RiverPathTracing.SelectRiverSourcesPerBasin(
+            field.Elevation, field.Precipitation, field.IsOcean, flood.Parent, field.SeaLevel);
+        List<TileId> filtered = RiverPathTracing.SelectRiverSourcesPerBasin(
+            field.Elevation, field.Precipitation, field.IsOcean, flood.Parent, field.SeaLevel,
+            worldSeed: seed, seeds: seeds, floodFilled: flood.Filled);
+
+        // A szures a KVOTAT nem csokkenti: a kiesett jelolt helyere a
+        // kovetkezo lep. (Ha egy medenceben elfogynak a jeloltek, kevesebb
+        // is lehet - ezert <=, nem ==.)
+        Assert.True(filtered.Count <= unfiltered.Count);
+        Assert.True(filtered.Count > 0);
+
+        int BelowSea(List<TileId> sources)
+        {
+            int below = 0;
+            foreach (TileId source in sources)
+            {
+                RiverPathTracing.ContinuousRiverPath path = RiverPathTracing.TraceRiverPathContinuous(
+                    seed, seeds, field.SeaLevel, source, 0, RiverPathTracing.DefaultFineDepth,
+                    claimed: null, maxSteps: 1);
+                // Egyetlen lepes utan Ocean = a FORRASPONT maga van viz alatt.
+                if (path.Termination == RiverPathTracing.TerminationReason.Ocean
+                    && path.Points.Count <= 1) below++;
+            }
+            return below;
+        }
+
+        // A kapu: a szures UTAN egyetlen forras sem indul tengerszint alol.
+        Assert.Equal(0, BelowSea(filtered));
+        _out.WriteLine("forras: szures nelkul=" + unfiltered.Count + " (viz alatt "
+            + BelowSea(unfiltered) + "), szurve=" + filtered.Count);
+    }
+
+    [Fact]
+    public void LakeFilterRejectsSourcesUnderFilledBasins()
+    {
+        BuildSyntheticWorld(20, 12, 3, out var elev, out var precip, out var isOcean,
+            out var parent, out List<TileId> big, out _);
+
+        // A nagy medence ELSO ket forras-jeloltje ala "tavat" teszunk: a
+        // priority-flood feltoltesi szintje 100 meterrel a nyers terep fole.
+        var filled = new Dictionary<TileId, double>();
+        foreach (KeyValuePair<TileId, double> kv in elev) filled[kv.Key] = kv.Value;
+        filled[big[0]] = elev[big[0]] + 100.0;
+        filled[big[1]] = elev[big[1]] + 100.0;
+
+        List<TileId> withoutLakes = RiverPathTracing.SelectRiverSourcesPerBasin(
+            elev, precip, isOcean, parent, seaLevel: 0.0,
+            basinCount: 1, sourcesPerBasin: 2, minElevAboveSeaM: 300.0,
+            minSeparationMeters: 0.0, minBasinTiles: 4);
+        List<TileId> withLakes = RiverPathTracing.SelectRiverSourcesPerBasin(
+            elev, precip, isOcean, parent, seaLevel: 0.0,
+            basinCount: 1, sourcesPerBasin: 2, minElevAboveSeaM: 300.0,
+            minSeparationMeters: 0.0, minBasinTiles: 4,
+            floodFilled: filled, lakeDepthMeters: 40.0);
+
+        // A kvota ugyanannyi, de MAS tile-ok - a to alattiak kiestek.
+        Assert.Equal(2, withoutLakes.Count);
+        Assert.Equal(2, withLakes.Count);
+        Assert.Equal(big[0].Value, withoutLakes[0].Value);
+        Assert.DoesNotContain(withLakes, t => t.Value == big[0].Value);
+        Assert.DoesNotContain(withLakes, t => t.Value == big[1].Value);
+
+        // A kuszob ERDEMBEN hat: 200 meteres kuszobnel a 100 meteres
+        // feltoltes mar nem szamit tonak, tehat visszajon az eredeti lista.
+        List<TileId> shallowThreshold = RiverPathTracing.SelectRiverSourcesPerBasin(
+            elev, precip, isOcean, parent, seaLevel: 0.0,
+            basinCount: 1, sourcesPerBasin: 2, minElevAboveSeaM: 300.0,
+            minSeparationMeters: 0.0, minBasinTiles: 4,
+            floodFilled: filled, lakeDepthMeters: 200.0);
+        Assert.Equal(big[0].Value, shallowThreshold[0].Value);
+    }
 }

@@ -22,12 +22,12 @@ namespace WorldGen.Core.Grid
         // (normalAxis, normalSign, rightAxis, rightSign, upAxis, upSign) - lapanként,
         // 0=X, 1=Y, 2=Z. A konvenció a projekt saját, önkényes de következetes
         // választása - nem külső szabványhoz igazodik.
-        private static readonly int[] NormalAxis = { 0, 0, 1, 1, 2, 2 };
-        private static readonly int[] NormalSign = { 1, -1, 1, -1, 1, -1 };
-        private static readonly int[] RightAxis = { 2, 2, 0, 0, 0, 0 };
-        private static readonly int[] RightSign = { -1, 1, 1, 1, 1, -1 };
-        private static readonly int[] UpAxis = { 1, 1, 2, 2, 1, 1 };
-        private static readonly int[] UpSign = { 1, 1, 1, -1, 1, 1 };
+        internal static readonly int[] NormalAxis = { 0, 0, 1, 1, 2, 2 };
+        internal static readonly int[] NormalSign = { 1, -1, 1, -1, 1, -1 };
+        internal static readonly int[] RightAxis = { 2, 2, 0, 0, 0, 0 };
+        internal static readonly int[] RightSign = { -1, 1, 1, 1, 1, -1 };
+        internal static readonly int[] UpAxis = { 1, 1, 2, 2, 1, 1 };
+        internal static readonly int[] UpSign = { 1, 1, 1, -1, 1, 1 };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static double WarpTan(double t) => Math.Tan(t * Math.PI / 4.0);

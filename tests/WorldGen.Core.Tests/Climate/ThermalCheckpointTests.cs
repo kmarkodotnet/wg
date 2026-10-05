@@ -135,7 +135,12 @@ public class ThermalCheckpointTests
             int generatorLength = (int)BinaryPrimitives.ReadUInt64BigEndian(bytes.AsSpan(8, 8));
             int modelOffset = 16 + generatorLength;
             int dataOffset = bytes.Length - 32 - state.ThetaS.Length * 16;
-            if (damage == "generator") bytes[16] = (byte)'1';
+            // A rontas NEM fix karakter: a generatorverzio '1'-re cserelese a
+            // "10"-es verzional NEM valtoztat semmit (az elso byte mar '1'),
+            // tehat a teszt NEMAN zoldre fordult volna. XOR-ral a verzio
+            // BARMILYEN erteknel garantaltan mas lesz. (Elbukott az ND-189
+            // verzioemelesnel, 9 -> 10.)
+            if (damage == "generator") bytes[16] ^= 0xFF;
             if (damage == "model") BinaryPrimitives.WriteUInt64BigEndian(bytes.AsSpan(modelOffset, 8), 2);
             if (damage == "nan") BinaryPrimitives.WriteInt64BigEndian(bytes.AsSpan(dataOffset, 8), BitConverter.DoubleToInt64Bits(double.NaN));
             if (damage == "tick") BinaryPrimitives.WriteInt64BigEndian(bytes.AsSpan(dataOffset - 8, 8), long.MaxValue);
