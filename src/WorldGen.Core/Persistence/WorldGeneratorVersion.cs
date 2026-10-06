@@ -7,7 +7,14 @@ namespace WorldGen.Core.Persistence
     /// </summary>
     public static class WorldGeneratorVersion
     {
-        // ND-189 (SEED-TÖRŐ, 2026-10-03): a folyó-FORRÁS nem indulhat olyan
+        // ND-196 (b) (SEED-TÖRŐ, 2026-10-06): a folyó-forrás KVÓTÁJA a medencék
+        // CSAPADÉK-ÖSSZEGÉVEL arányos, abszolút alsó kapuval — nem fix 6/medence.
+        // MÉRVE (seed 0xA7C944210000, level 5, a hőmodell párolgásával): a régi
+        // kvótával 48/96 forrás (50%) PONTOSAN nulla csapadékú tile-ról indult,
+        // 7 medence mind a 6 forrása, és a folyó-nyomvonal 55,6%-a nulla
+        // csapadékú szárazföldön futott. A forráslista, és így MINDEN
+        // folyóhálózat új.
+        // Előzmény — ND-189 (SEED-TÖRŐ, 2026-10-03): a folyó-FORRÁS nem indulhat olyan
         // pontból, ami a nyomkövető FINOM mezőjén a tengerszint alatt van,
         // és nem eshet a durva mezőn látható TÓ alá. MÉRVE a t=0 hálózaton:
         // 96 forrásból 17 tó alatt, 2 a tengerszint alatt volt (ez a kettő
@@ -49,6 +56,6 @@ namespace WorldGen.Core.Persistence
         // Előzmény — ND-142: a pillanatnyi levegőanomália visszahat a termikus szélre.
         // ND-165/174/175: analitikus bolygó-albedó, periodikus szezonális energiamérleg
         // és fizikai hó/jégbesorolás.
-        public const string Current = "10";
+        public const string Current = "11";
     }
 }

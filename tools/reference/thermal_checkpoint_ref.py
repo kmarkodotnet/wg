@@ -26,8 +26,8 @@ def main():
     # (ND-108). Verzioemeleskor ITT is emelni kell ES ujra kell generalni a
     # vektorokat - kulonben a checkpoint-KAT elbukik (ez tortent az
     # ND-136 / A19 emelesnel, 2 -> 3, az ND-137-nel, 3 -> 4 -> 5, es az
-    # ND-189-nel, 9 -> 10).
-    generator = "10"
+    # ND-189-nel, 9 -> 10, es az ND-196-nal, 10 -> 11).
+    generator = "11"
     inputs = string("WorldGen.Thermal.Inputs.1") + string(generator) + u64(ref.MODEL_VERSION)
     inputs += u64(ref.LEVEL) + f64(ref.RADIUS_M) + u64(1) + f64(0.0) + f64(0.0)
     inputs += f64(ref.ORBITAL_PERIOD_DAYS) + f64(ref.ROTATION_PERIOD_DAYS) + f64(ref.AXIAL_TILT_RAD)

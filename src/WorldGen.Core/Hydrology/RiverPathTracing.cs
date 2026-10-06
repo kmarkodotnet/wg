@@ -168,6 +168,29 @@ namespace WorldGen.Core.Hydrology
         public const double DefaultSourceSeparationMeters = 150_000.0;
 
         /// <summary>
+        /// ND-196 (b): egy vízgyűjtő FELSŐ forrás-korlátja a csapadék-arányos
+        /// kvótában. A 2 × <see cref="DefaultSourcesPerBasin"/> MÉRT
+        /// kompromisszum: a 16 medencéből 7 teljesen csapadékmentes volt,
+        /// tehát a maradék ~9 nedves medencének kell felszívnia a teljes
+        /// 96-os keretet (átlag 10,7/medence). Korlát nélkül a legnedvesebb
+        /// medence elvinné a keret nagy részét, és visszatérne a MÁSIK
+        /// felhasználói panasz ("az egész bolygón ritkák a folyók"), amiért
+        /// az ND-124 a medencénkénti kvótát egyáltalán bevezette.
+        /// </summary>
+        public const int DefaultMaxSourcesPerBasin = 2 * DefaultSourcesPerBasin;
+
+        /// <summary>
+        /// ND-196 (b): egy jelölt csak akkor lehet forrás, ha a csapadéka
+        /// ENNÉL SZIGORÚAN NAGYOBB. A 0,0 nem kozmetika: a hőmodell
+        /// párolgás-bemenetével a szárazföld 52,3%-ának PONTOSAN nulla a
+        /// csapadéka, és a medencén belüli rendezés egy teljesen száraz
+        /// medencében is kiadta a 6 forrást - mérve 48/96 forrás (50%)
+        /// indult nulla csapadékú tile-ról. Ez az ABSZOLÚT alsó kapu, amit
+        /// az ND-196 (b) a csapadék-arányos kvóta mellé ír elő.
+        /// </summary>
+        public const double DefaultMinSourcePrecip = 0.0;
+
+        /// <summary>
         /// ND-124 (A): forrás-kiválasztás VÍZGYŰJTŐNKÉNT, nem globális
         /// top-K-val.
         ///
@@ -182,7 +205,47 @@ namespace WorldGen.Core.Hydrology
         /// Dendritikus fához a forrásoknak EGY vízgyűjtőn belül kell lenniük -
         /// akkor közös torkolat felé tartanak, és összefolynak. Ez a függvény
         /// a legnagyobb <paramref name="basinCount"/> vízgyűjtőt veszi, és
-        /// mindegyikben <paramref name="sourcesPerBasin"/> forrást választ.
+        /// szétosztja közöttük a <paramref name="basinCount"/> ×
+        /// <paramref name="sourcesPerBasin"/> forrás-keretet.
+        ///
+        /// ND-196 (b) (SEED-TÖRŐ, 2026-10-06): a kvóta NEM fix
+        /// <paramref name="sourcesPerBasin"/>/medence, hanem a medencék
+        /// CSAPADÉK-ÖSSZEGÉVEL arányos, abszolút alsó kapuval.
+        ///
+        /// MIÉRT. A csapadék eddig KIZÁRÓLAG medencén belüli rendezési kulcs
+        /// volt, globális kapu nélkül - így mind a 16 legnagyobb vízgyűjtő
+        /// megkapta a 6 forrását akkor is, ha egyetlen csapadékos tile sem
+        /// volt benne. MÉRVE (seed 0xA7C944210000, level 5, a hőmodell
+        /// párolgásával): 7 medence MIND a 6 forrása nulla csapadékú tile-on
+        /// indult, összesen 48/96 forrás (50%), és a folyóhosszban a
+        /// `Desert` 2,45×, a `Rainforest` 0,51× volt a szárazföldi
+        /// arányához képest - azaz a felhasználói kérés (csapadékos
+        /// területen legyenek a folyók) nem teljesült.
+        ///
+        /// A KVÓTA-KÉPZÉS (determinisztikus, nincs benne lebegőpontos
+        /// rendezés-érzékenység):
+        /// 1. egy medence SÚLYA a saját JELÖLT-tile-jainak csapadék-összege
+        ///    (jelölt = hegyvidéki ÉS pozitív csapadékú) - a súly tehát azt
+        ///    méri, van-e egyáltalán nedves forrásvidék a medencében, nem
+        ///    pedig azt, mekkora a medence;
+        /// 2. nulla súlyú medence SOHA nem kap forrást, és nem is foglal
+        ///    medence-HELYET: a <paramref name="basinCount"/> slot a következő,
+        ///    NEDVES vízgyűjtőre csúszik. MÉRVE: enélkül a 16 legnagyobb
+        ///    vízgyűjtő közül 7 száraz volt, és a 96-os keretből csak 66
+        ///    forrás valósult meg (-31% folyó);
+        /// 3. minden megmaradt (pozitív súlyú) medence kap egyet — ez tartja
+        ///    meg a folyórendszerek bolygó-léptékű szétszórtságát;
+        /// 4. a maradék keret a `súly / (eddigi forrás + 1)` legnagyobb
+        ///    hányadosa szerint oszlik (Jefferson/D'Hondt-menet), döntetlennél
+        ///    a kisebb medence-index javára, legfeljebb
+        ///    <paramref name="maxSourcesPerBasin"/>-ig;
+        /// 5. a kiosztás INKREMENTÁLIS: minden keret-egység azonnal megpróbál
+        ///    forrást felvenni, és ha a medence kimerült (nincs több használható
+        ///    jelölt, vagy a szeparáció nem enged többet), az egység a következő
+        ///    legjobb medencére szállt át. MÉRVE: előre kiosztott kvótával a
+        ///    96-os keretből csak 70 forrás valósult meg.
+        /// A súly-összegzés a MÁR RENDEZETT jelölt-listán fut, tehát a
+        /// szótár-bejárási sorrend nem befolyásolja a bitpontos összeget.
         ///
         /// A CSAPADÉK-KÜSZÖB MEDENCÉN BELÜL RELATÍV - és ez nem kozmetika.
         /// Mérve (seed 0xA7C944210000, level 6): a 6 legnagyobb vízgyűjtőben
@@ -218,7 +281,9 @@ namespace WorldGen.Core.Hydrology
             DeepTimeContext context = default,
             int fineDepth = DefaultFineDepth,
             Dictionary<TileId, double>? floodFilled = null,
-            double lakeDepthMeters = DefaultSubmergedMinDepthMeters)
+            double lakeDepthMeters = DefaultSubmergedMinDepthMeters,
+            int maxSourcesPerBasin = DefaultMaxSourcesPerBasin,
+            double minSourcePrecip = DefaultMinSourcePrecip)
         {
             if (elevField == null) throw new ArgumentNullException(nameof(elevField));
             if (precipField == null) throw new ArgumentNullException(nameof(precipField));
@@ -226,6 +291,7 @@ namespace WorldGen.Core.Hydrology
             if (floodParent == null) throw new ArgumentNullException(nameof(floodParent));
             if (basinCount < 1) throw new ArgumentOutOfRangeException(nameof(basinCount));
             if (sourcesPerBasin < 1) throw new ArgumentOutOfRangeException(nameof(sourcesPerBasin));
+            if (maxSourcesPerBasin < 1) throw new ArgumentOutOfRangeException(nameof(maxSourcesPerBasin));
 
             Dictionary<TileId, List<TileId>> basins =
                 Features.FeatureSegmentation.FindWatershedRegions(floodParent, isOcean);
@@ -243,20 +309,27 @@ namespace WorldGen.Core.Hydrology
             double minSeparationCos = Numerics.DeterministicMath.Cos(
                 Math.Max(0.0, minSeparationMeters) / PlanetConstants.RadiusMeters);
 
-            var sources = new List<TileId>();
+            // 1. MENET: jelolt-listak es medence-sulyok. A sulyozas miatt a
+            // TELJES jelolt-halmaz kell, mielott barmit valasztunk - ezert
+            // van ket menet (korabban egy volt, fix kvotaval).
+            var basinCandidates = new List<List<TileId>>();
+            var basinWeights = new List<double>();
             int basinsUsed = 0;
             for (int b = 0; b < outlets.Count && basinsUsed < basinCount; b++)
             {
                 List<TileId> basin = basins[outlets[b]];
                 if (basin.Count < minBasinTiles) break; // meret szerint rendezve: innentol mind kisebb
-                basinsUsed++;
 
                 var candidates = new List<TileId>();
                 foreach (TileId t in basin)
                 {
                     if (!elevField.TryGetValue(t, out double elevation)) continue;
                     if (elevation < seaLevel + minElevAboveSeaM) continue;
-                    if (!precipField.ContainsKey(t)) continue;
+                    if (!precipField.TryGetValue(t, out double precipHere)) continue;
+                    // ND-196 (b): ABSZOLUT also kapu - nulla (vagy negativ)
+                    // csapadeku tile nem forrasvidek, akkor sem, ha a sajat
+                    // medencejen belul eppen o a legnedvesebb.
+                    if (precipHere <= minSourcePrecip) continue;
                     candidates.Add(t);
                 }
                 candidates.Sort((x, y) =>
@@ -265,9 +338,56 @@ namespace WorldGen.Core.Hydrology
                     return byPrecip != 0 ? byPrecip : x.Value.CompareTo(y.Value);
                 });
 
-                // Moho, minimalis-tavolsagu valasztas a medencen belul.
-                var chosen = new List<(double X, double Y, double Z)>(sourcesPerBasin);
-                for (int c = 0; c < candidates.Count && chosen.Count < sourcesPerBasin; c++)
+                // A suly a RENDEZETT listan ossszegzodik, tehat a szotar-
+                // bejarasi sorrend nem valtoztatja meg a bitpontos osszeget.
+                double weight = 0.0;
+                for (int c = 0; c < candidates.Count; c++) weight += precipField[candidates[c]];
+
+                // ND-196 (b): a TELJESEN SZARAZ medence nem foglal medence-
+                // HELYET sem. MERVE: a 16 legnagyobb vizgyujtobol 7-nek
+                // pontosan nulla a jelolt-csapadeka, tehat a "16 medence"
+                // valojaban 9-et jelentett, es a 96-os keretbol csak 66
+                // forras valosult meg (-31% folyo). Igy viszont a kovetkezo,
+                // NEDVES medence lep a helyere - a keret betoltheto marad.
+                if (weight <= 0.0) continue;
+                basinsUsed++;
+
+                basinCandidates.Add(candidates);
+                basinWeights.Add(weight);
+            }
+
+            // 2. MENET: a keret szetosztasa csapadek-aranyosan, INKREMENTALISAN.
+            //
+            // A keret FIX (basinCount x sourcesPerBasin) - ez a (b) opcio
+            // igerete: a forras-SZAM megmarad, csak a HELYE lesz
+            // csapadek-vezerelt.
+            //
+            // MIERT INKREMENTALIS (es nem elore kiszamolt kvota). MERVE: az
+            // elore kiosztott kvotabol a 96-os keretnek csak 70 forrasa
+            // valosult meg, mert a kvota olyan medencekbe is jutott, ahol
+            // elfogytak a jeloltek (kevés nedves hegyvidek, vagy a 150 km-es
+            // forras-szeparacio nem enged tobbet). Igy viszont minden
+            // keret-egyseg oda kerul, ahol tenylegesen van hova: a soron levo
+            // medence AZONNAL megprobalja a valasztast, es ha nem megy, a
+            // keret-egyseg a kovetkezo legjobb medencere szall at.
+            var basinChosen = new List<List<TileId>>(basinCandidates.Count);
+            var basinChosenPositions = new List<List<(double X, double Y, double Z)>>(basinCandidates.Count);
+            var basinCursor = new int[basinCandidates.Count];
+            var basinExhausted = new bool[basinCandidates.Count];
+            for (int b = 0; b < basinCandidates.Count; b++)
+            {
+                basinChosen.Add(new List<TileId>());
+                basinChosenPositions.Add(new List<(double X, double Y, double Z)>());
+            }
+
+            // Egy forras felvetele a(z) `b` medencebe, a jelolt-sorrendben
+            // elorehaladva. Hamis, ha a medence KIMERULT (nincs tobb
+            // hasznalhato jelolt) - ekkor a keret masik medencere szall at.
+            bool TryAddSource(int b)
+            {
+                List<TileId> candidates = basinCandidates[b];
+                List<(double X, double Y, double Z)> chosen = basinChosenPositions[b];
+                for (int c = basinCursor[b]; c < candidates.Count; c++)
                 {
                     // ND-189 (SEED-TORO, 2026-10-03): a jelolt a DURVA mezon
                     // felelt meg, de a nyomkoveto a FINOM mezot latja. MERVE a
@@ -294,9 +414,48 @@ namespace WorldGen.Core.Hydrology
                     }
                     if (tooClose) continue;
                     chosen.Add((x, y, z));
-                    sources.Add(candidates[c]);
+                    basinChosen[b].Add(candidates[c]);
+                    basinCursor[b] = c + 1;
+                    return true;
                 }
+                basinCursor[b] = candidates.Count;
+                basinExhausted[b] = true;
+                return false;
             }
+
+            int budget = basinCount * sourcesPerBasin;
+            int placed = 0;
+
+            // ELSO KOR: minden megmaradt (pozitiv sulyu) medence kap egyet -
+            // ez tartja meg a folyorendszerek bolygo-leptéku szetszortsagat.
+            for (int b = 0; b < basinCandidates.Count && placed < budget; b++)
+                if (TryAddSource(b)) placed++;
+
+            // UTANA: a maradek keret a `suly / (eddigi forras + 1)` legnagyobb
+            // hanyadosa szerint (Jefferson/D'Hondt-menet), dontetlennel a
+            // kisebb medence-index javara, legfeljebb maxSourcesPerBasin-ig.
+            while (placed < budget)
+            {
+                int best = -1;
+                double bestQuotient = 0.0;
+                for (int b = 0; b < basinCandidates.Count; b++)
+                {
+                    if (basinExhausted[b]) continue;
+                    int count = basinChosen[b].Count;
+                    if (count >= maxSourcesPerBasin) continue;
+                    double quotient = basinWeights[b] / (count + 1);
+                    if (quotient > bestQuotient) { bestQuotient = quotient; best = b; }
+                }
+                if (best < 0) break; // nincs tobb hely: a keret maradeka elesik
+                if (TryAddSource(best)) placed++;
+            }
+
+            // 3. MENET: a kimenet MEDENCE SZERINT csoportositva - ugyanaz a
+            // sorrend-konvencio, mint a fix kvotanal (a diagnosztika es a
+            // nyomkoveto sorrend-fuggo allapota erre epul).
+            var sources = new List<TileId>(placed);
+            for (int b = 0; b < basinChosen.Count; b++)
+                sources.AddRange(basinChosen[b]);
             return sources;
         }
 

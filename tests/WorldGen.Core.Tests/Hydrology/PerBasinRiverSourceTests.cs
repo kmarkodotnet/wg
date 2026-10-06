@@ -80,8 +80,15 @@ public class PerBasinRiverSourceTests
         parent = parentLocal;
     }
 
+    /// <summary>
+    /// ND-196 (b): a KERET (basinCount x sourcesPerBasin) megmarad, de a
+    /// medencek kozott a CSAPADEK-OSSZEGGEL aranyosan oszlik - nem fix
+    /// sourcesPerBasin/medence. A szintetikus vilagban a nagy medence
+    /// csapadek-osszege 2210, a kicsie 678 (3,26x), tehat a 6-os keretbol
+    /// 5 : 1 lesz. A medence-SORREND valtozatlan: meret szerint csokkeno.
+    /// </summary>
     [Fact]
-    public void QuotaIsPerBasinAndBasinsAreOrderedBySize()
+    public void QuotaIsProportionalToBasinPrecipitationAndBasinsAreOrderedBySize()
     {
         BuildSyntheticWorld(20, 12, 3, out var elev, out var precip, out var isOcean,
             out var parent, out List<TileId> big, out List<TileId> small);
@@ -91,33 +98,153 @@ public class PerBasinRiverSourceTests
             basinCount: 2, sourcesPerBasin: 3, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 4);
 
-        // 2 medence x 3 forras, es a NAGYOBB medence (20 tile) forrasai
-        // allnak elol - a rendezes meret szerint csokkeno.
+        // A keret ugyanaz (2 x 3 = 6), a megoszlas viszont csapadek-aranyos.
         Assert.Equal(6, sources.Count);
-        for (int i = 0; i < 3; i++) Assert.Equal(big[i].Value, sources[i].Value);
-        for (int i = 0; i < 3; i++) Assert.Equal(small[i].Value, sources[3 + i].Value);
+        for (int i = 0; i < 5; i++) Assert.Equal(big[i].Value, sources[i].Value);
+        Assert.Equal(small[0].Value, sources[5].Value);
     }
 
+    /// <summary>
+    /// ND-196 (b) ABSZOLUT KAPU: nulla osszcsapadeku medence SOSEM kap
+    /// forrast, es a keretet a nedves medence szivja fel. Ez a mert hiba
+    /// kozvetlen kapuja: 7 medence mind a 6 forrasa nulla csapadeku tile-on
+    /// indult (ND-196, 48/96 forras).
+    /// </summary>
+    [Fact]
+    public void ZeroPrecipitationBasinGetsNoSources()
+    {
+        BuildSyntheticWorld(20, 12, 3, out var elev, out var precip, out var isOcean,
+            out var parent, out List<TileId> big, out List<TileId> small);
+
+        // A kisebb medence TELJESEN kiszarad.
+        foreach (TileId t in small) precip[t] = 0.0;
+
+        List<TileId> sources = RiverPathTracing.SelectRiverSourcesPerBasin(
+            elev, precip, isOcean, parent, seaLevel: 0.0,
+            basinCount: 2, sourcesPerBasin: 3, minElevAboveSeaM: 300.0,
+            minSeparationMeters: 0.0, minBasinTiles: 4);
+
+        // A keret (6) megmarad, de MIND a nedves medencebol jon.
+        Assert.Equal(6, sources.Count);
+        foreach (TileId source in sources)
+            Assert.DoesNotContain(small, t => t.Value == source.Value);
+        for (int i = 0; i < 6; i++) Assert.Equal(big[i].Value, sources[i].Value);
+    }
+
+    /// <summary>
+    /// ND-196 (b): egyetlen forras sem indulhat NULLA csapadeku tile-rol,
+    /// akkor sem, ha a sajat medencejen belul eppen o a legnedvesebb.
+    /// </summary>
+    [Fact]
+    public void NoSourceStartsOnZeroPrecipitationTile()
+    {
+        BuildSyntheticWorld(20, 12, 3, out var elev, out var precip, out var isOcean,
+            out var parent, out List<TileId> big, out _);
+
+        // A medence LEGNEDVESEBB ket tile-ja kiszarad: a kvota a kovetkezo
+        // kettore csuszik, nem rajuk.
+        precip[big[0]] = 0.0;
+        precip[big[1]] = 0.0;
+
+        List<TileId> sources = RiverPathTracing.SelectRiverSourcesPerBasin(
+            elev, precip, isOcean, parent, seaLevel: 0.0,
+            basinCount: 1, sourcesPerBasin: 2, minElevAboveSeaM: 300.0,
+            minSeparationMeters: 0.0, minBasinTiles: 4);
+
+        Assert.Equal(2, sources.Count);
+        Assert.Equal(big[2].Value, sources[0].Value);
+        Assert.Equal(big[3].Value, sources[1].Value);
+        foreach (TileId source in sources) Assert.True(precip[source] > 0.0);
+    }
+
+    /// <summary>
+    /// ND-196 (b): a felso korlat ERDEMBEN hat. Ugyanazon a vilagon 3-as
+    /// korlattal a nagy medence nem viheti el a keret otodet - a megoszlas
+    /// visszaall 3 : 3-ra.
+    /// </summary>
+    [Fact]
+    public void MaxSourcesPerBasinCapsTheProportionalQuota()
+    {
+        BuildSyntheticWorld(20, 12, 3, out var elev, out var precip, out var isOcean,
+            out var parent, out List<TileId> big, out List<TileId> small);
+
+        List<TileId> capped = RiverPathTracing.SelectRiverSourcesPerBasin(
+            elev, precip, isOcean, parent, seaLevel: 0.0,
+            basinCount: 2, sourcesPerBasin: 3, minElevAboveSeaM: 300.0,
+            minSeparationMeters: 0.0, minBasinTiles: 4,
+            maxSourcesPerBasin: 3);
+
+        Assert.Equal(6, capped.Count);
+        for (int i = 0; i < 3; i++) Assert.Equal(big[i].Value, capped[i].Value);
+        for (int i = 0; i < 3; i++) Assert.Equal(small[i].Value, capped[3 + i].Value);
+    }
+
+    /// <summary>
+    /// ND-196 (b): a csapadek ERDEMBEN hat a kvotara - ha a kisebb medence
+    /// lesz a nedvesebb, a forrasok TOBBSEGE oda kerul, a medence-sorrend
+    /// (meret szerint) valtozatlansaga mellett.
+    /// </summary>
+    [Fact]
+    public void WetterBasinGetsMoreSourcesEvenIfItIsSmaller()
+    {
+        BuildSyntheticWorld(20, 12, 3, out var elev, out var precip, out var isOcean,
+            out var parent, out List<TileId> big, out List<TileId> small);
+
+        // A kis medence csapadeka tizszeresere no (osszeg 678 -> 6780), a
+        // nagye valtozatlan (2210).
+        foreach (TileId t in small) precip[t] *= 10.0;
+
+        List<TileId> sources = RiverPathTracing.SelectRiverSourcesPerBasin(
+            elev, precip, isOcean, parent, seaLevel: 0.0,
+            basinCount: 2, sourcesPerBasin: 3, minElevAboveSeaM: 300.0,
+            minSeparationMeters: 0.0, minBasinTiles: 4);
+
+        Assert.Equal(6, sources.Count);
+        int fromSmall = 0;
+        foreach (TileId source in sources)
+            foreach (TileId t in small)
+                if (t.Value == source.Value) fromSmall++;
+        Assert.True(fromSmall > 3, "a nedvesebb medence nem kapott tobb forrast: " + fromSmall);
+    }
+
+    /// <summary>
+    /// A meret-kuszob alatti medence nem kap forrast.
+    ///
+    /// ND-196 (b): a KERET mostantol FIX (basinCount x sourcesPerBasin),
+    /// tehat a kimaradt medence kvotaja NEM vesz el - a tobbi medence szivja
+    /// fel. A teszt ezert nem a DARABSZAMOT meri (az mindkét esetben a keret),
+    /// hanem azt, hogy a kis medence tile-jai kozul valasztunk-e.
+    /// </summary>
     [Fact]
     public void BasinsSmallerThanMinTilesAreSkipped()
     {
         BuildSyntheticWorld(20, 12, 3, out var elev, out var precip, out var isOcean,
             out var parent, out _, out _);
+        // A harmadik lanc 3 tile-ja (face 0, v = 2) - ezek nem lehetnek
+        // forrasok, amig a kuszob 4.
+        var tiny = new List<TileId>();
+        for (uint u = 0; u < 3; u++) tiny.Add(TileId.FromFaceLevelUV(0, Level, u, 2));
 
-        // A harmadik lanc csak 3 tile - a 4-es kuszob alatt, tehat 3 medencet
-        // kerve is csak 2-bol kapunk forrast.
         List<TileId> sources = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
             basinCount: 3, sourcesPerBasin: 2, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 4);
-        Assert.Equal(4, sources.Count);
+        Assert.Equal(6, sources.Count); // a fix keret: 3 x 2
+        foreach (TileId source in sources)
+            Assert.DoesNotContain(tiny, t => t.Value == source.Value);
 
-        // Ha viszont a kuszobot leengedjuk, a harmadik medence is bejon.
+        // Ha a kuszobot leengedjuk, a harmadik medence is bejon - es kap is
+        // forrast (a sulya pozitiv, tehat az elso korben egyet biztosan).
         List<TileId> withTiny = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
             basinCount: 3, sourcesPerBasin: 2, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 2);
         Assert.Equal(6, withTiny.Count);
+        int fromTiny = 0;
+        foreach (TileId source in withTiny)
+            foreach (TileId t in tiny)
+                if (t.Value == source.Value) fromTiny++;
+        Assert.True(fromTiny > 0, "a legkisebb medence nem kapott forrast");
     }
 
     [Fact]

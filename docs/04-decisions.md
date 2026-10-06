@@ -10539,7 +10539,7 @@ mért), nem a megjelenítés kapuja.
 fog egybeesni. Ha a tó-réteg egyszer a követő felbontására kerül, a vágás
 visszatérhet a span-okra — az új, önálló döntés lesz.
 
-### ND-196 — A folyók a SZÁRAZ biome-okban gazdagodnak, mert a medence-kvóta nem küszöböl csapadékra (NYITOTT)
+### ND-196 — A folyók a SZÁRAZ biome-okban gazdagodnak, mert a medence-kvóta nem küszöböl csapadékra (LEZÁRVA 2026-10-06, a (b) opció; SEED-TÖRŐ, generátor 10 → 11)
 
 2026-10-05, felhasználói visszajelzés: „a folyók gyakran sárga biomon
 láthatóak, a zöld biomban nem vettem észre… azt kértem, hogy a csapadékos
@@ -10655,6 +10655,100 @@ ugyanúgy, mint az ND-189-nél.
 az A24 / ND-165 körében a párolgás kalibrációja változik, a (b) automatikusan
 jobb elhelyezést ad — a két kérdés független, és a sorrend szabadon
 választható.
+
+#### 5. LEZÁRVA (2026-10-06, a (b) opció; SEED-TÖRŐ, generátor 10 → 11)
+
+A felhasználó a (b) opciót választotta. Megvalósítva, és a hatás MÉRVE —
+ugyanazon a mezőn, amin a hiba keletkezett (a hőmodell párolgásával), nem
+az analitikus előnézeten.
+
+**A mérőpad először MEGBÍZHATÓSÁGOT kapott.** Az 1-4. pont mérése élő Unity
+Editorban, reflexióval készült, tehát nem volt újrafuttatható. Új, offline
+mérőpad: `tools/diagnostics/RiverBaseline` `thermal` módja ugyanazt a
+Core-láncot futtatja, amit a viewer háttérszála
+(`ThermalClimateCalculator.Compute` → `Refined.MeanSurfaceK` + éves szél →
+`MoisturePrecipitation.ComputeWithClimateFields`). **Az egyezés nem feltételezés,
+hanem mért:** a nulla csapadékú szárazföld `52,3%` (1124/2151), a nulla
+csapadékú forrás `48/96`, a szárazföldi nyomvonal-pont `468 619` — mind a
+HÁROM megegyezik az 1-4. pont Editor-beli számával, és a medencénkénti
+percentilis-lista is (93,4 / 92,9 / 91,9 …; 98,5 / 98,3 / 96,7 …).
+
+**A megvalósítás (`SelectRiverSourcesPerBasin`):**
+
+1. egy medence SÚLYA a saját JELÖLT-tile-jainak csapadék-összege (jelölt =
+   hegyvidéki ÉS pozitív csapadékú);
+2. ABSZOLÚT alsó kapu: nulla csapadékú tile nem lehet forrás, akkor sem, ha a
+   medencéjén belül éppen ő a legnedvesebb (`DefaultMinSourcePrecip = 0,0`,
+   szigorú >);
+3. nulla súlyú medence nem kap forrást, és **nem is foglal medence-HELYET** —
+   a `basinCount` slot a következő, NEDVES vízgyűjtőre csúszik;
+4. a keret FIX (`basinCount × sourcesPerBasin` = 96), és a súlyokkal
+   arányosan oszlik (Jefferson/D'Hondt-menet, döntetlennél a kisebb
+   medence-index javára), felső korláttal
+   (`DefaultMaxSourcesPerBasin = 2 × 6 = 12`);
+5. a kiosztás INKREMENTÁLIS: minden keret-egység azonnal megpróbál forrást
+   felvenni, és ha a medence kimerült, az egység a következő legjobb
+   medencére szállt át.
+
+**A 3. és az 5. pont MÉRÉSBŐL jött, nem tervből.** A naiv (b) — előre
+kiosztott kvóta, a 16 legnagyobb medencére — a 96-os keretből csak **66**
+forrást valósított meg (−31% folyó), mert a 16 legnagyobb vízgyűjtőből 7
+teljesen száraz, és a kvóta olyan medencékbe is jutott, ahol elfogytak a
+jelöltek. A száraz medencék slot-jának átengedése 66 → **70**, az
+inkrementális kiosztás 70 → **96** forrás. A (b) ígérete („megtartja a
+forrás-számot") csak így teljesül.
+
+**Mért hatás (seed 0xA7C944210000, level 5, t = 0, a hőmodell mezője):**
+
+| metrika | előtte | utána |
+|---|---|---|
+| forrás | 96 | **96** |
+| nulla csapadékú forrás | 48 (**50,0%**) | **0 (0,0%)** |
+| forrás csapadék-percentilis (medián) | 52,3 | **69,7** |
+| nyomvonal-pont percentilise (medián) | **0,0** | **75,4** |
+| nyomvonal-pont percentilise (átlag) | 32,7 | **68,3** |
+| nyomvonal nulla csapadékú szárazföldön | **55,6%** | **8,1%** |
+| szárazföldi folyóhossz | 43 852 km | **44 995 km** (+2,6%) |
+
+Az ELSŐDLEGES mérték szándékosan a csapadék-percentilis, nem a biome:
+ez nem függ a biome-vágópontoktól és az interpolációs konvenciótól. A
+maradék 8,1% nem hiba: a forrás nedves, a folyó viszont lefelé folyik, és
+átszelhet száraz medencét is.
+
+A biome-gazdagodás ugyanezen a mezőn (a mérőpad NYERS tile-értékkel
+osztályoz, a viewer az interpolált sarok-táblával — ezért ezek az arányok
+a viewer 1. pontbeli táblájával nem azonos populációra vonatkoznak):
+
+| biome | gazdagodás előtte | utána |
+|---|---|---|
+| Desert | 0,89 | **0,48** |
+| Tundra | 1,06 | **0,08** |
+| Grassland | 1,51 | 2,18 |
+| Savanna | 0,21 | **3,98** |
+| TemperateForest | 1,01 | 2,11 |
+| Rainforest | 0,79 | **1,03** |
+
+Az analitikus (előnézeti) mezőn ugyanez: 96 forrás, nulla csapadékú forrás
+15 → **0**, a nyomvonal 2,7%-a fut nulla csapadékú szárazföldön, hossz
+46 588 → 47 269 km.
+
+**Ellenőrzés:** 1995/1995 teljes regresszió Release ÉS Debug (Core 871,
+Viewer LodChunking 664, App 452, CLI 24; a Core-ban 4 új ND-196-teszt), a
+`thermal_checkpoint_vectors.json` a Python orákulumból újragenerálva (a
+diff PONTOSAN a `"10"` → `"11"` generátor-sztring és a belőle származó két
+hash), ND-20 Burst-kapu OK, mindkét Unity offline fordítási kapu 0 hiba.
+
+**Gyorsítótár-következmény:** a `ThermalCheckpoint` a generátorverziót a
+fejlécbe írja, tehát a `ModelIdentity` és vele MINDEN hőmodell-gyorsítótár
+kulcsa megváltozik — az első Build a 10 → 11 emelés után újraszámolja az éves
+éghajlatot (az ND-192/195 szinkron útja téveszt, a `climate_keys.v1.txt`
+fejléce elavul), utána ismét ms-os a betöltés. Ez az ND-160 és az ND-189
+emelésekkel azonos, ismert költség.
+
+**NYITVA marad:** (a) a biome-gazdagodás VIEWER-oldali, interpolált táblája
+csak élő Play-menetben mérhető — ez a B-sor tárgya; (b) az, hogy a
+csapadék-mező 52,3%-os nulla-aránya helyes-e, továbbra is az A24 / ND-165
+kérdése, és ettől a döntéstől független.
 
 ### ND-195 — Az indítás utáni biome-átrendeződés (zöld → sárga) és a nem perzisztens éghajlat-kulcs (LEZÁRVA 2026-10-05, az (a) opció; viewer-oldali gyorsítótár: nincs verzió-emelés)
 
