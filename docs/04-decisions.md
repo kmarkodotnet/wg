@@ -10539,6 +10539,275 @@ mért), nem a megjelenítés kapuja.
 fog egybeesni. Ha a tó-réteg egyszer a követő felbontására kerül, a vágás
 visszatérhet a span-okra — az új, önálló döntés lesz.
 
+### ND-197 — A folyók eloszlása nem követi a nedvességet: a NEDVES szárazföld több mint fele folyó nélkül marad (LEZÁRVA 2026-10-06, a (b) opció; SEED-TÖRŐ, generátor 11 → 12)
+
+2026-10-06, felhasználói visszajelzés: „a bolygón nem egyenletes az eloszlása,
+sok zöld terület van most is, ahol nincs folyó". MEGMÉRVE: igaz, és a mérték
+nagy.
+
+#### 1. A mérés
+
+Seed 0xA7C944210000, level 5, t = 0, a HŐMODELL csapadék-mezője (ez van a
+képernyőn), az ND-196 utáni, 96 forrásos hálózat. „Nedves szárazföld" =
+a pozitív csapadékú tile-ok FELSŐ FELE (medián fölött, 514 tile).
+
+| mérték | érték |
+|---|---|
+| szárazföldi tile | 2151 |
+| nedves tile | 514 |
+| folyót tartalmazó tile | 198 |
+| nedves tile, amiben FUT folyó | **13,8%** |
+| nedves tile 1 szomszédnyira (≈313 km) | 23,0% |
+| nedves tile 2 lépésre | 32,1% |
+| nedves tile 4 lépésre (≈1250 km) | 45,5% |
+| nedves tile, ahonnan szárazföldön NEM érhető el folyó | 108 |
+
+Összefüggő nedves foltok: **105 darab, ebből 92-ben (87,6%) EGYETLEN folyó
+sincs**; ezek adják a nedves szárazföld **51,8%-át**, és a legnagyobb ilyen
+folt **66 tile** (nagyságrendileg 6 millió km²) — azaz egy kontinensnyi,
+csapadékos terület teljesen folyó nélkül.
+
+#### 2. A gyökérok
+
+A forrás-keret FIX 96, és az ND-124 óta a **16 LEGNAGYOBB** vízgyűjtő kapja
+(az ND-196 óta: a 16 legnagyobb NEDVES). A bolygón viszont a mérés szerint
+33 vízgyűjtő van a 12 tile-os méretküszöb fölött, és közülük több nedves
+is kimarad pusztán azért, mert KISEBB. A „16" soha nem a nedvesség, hanem a
+MÉRET szerinti vágás volt — a felhasználó pont ezt látja.
+
+#### 3. Opciók
+
+**(a) `basinCount` emelése (16 → 32-48), változatlan 96-os kerettel.** Egy
+konstans, azonnal mérhető. Kockázat: medencénként átlag 2-3 forrás marad,
+tehát sekélyebb lesz a dendritikus fa — épp az, amit az ND-124 mért
+nyereségként épített be (összefolyás-arány 42%).
+
+**(b) A keret a VÍZHOZAMMAL skálázódjon, és MINDEN vízgyűjtő versenyezzen
+érte.** A „16 legnagyobb" szabály megszűnik: a D'Hondt-kiosztás az összes,
+méretküszöb fölötti vízgyűjtő között fut, a keret pedig a szárazföldi
+összcsapadékból származik (folyósűrűség = forrás / vízhozam-egység). A
+nedves, de kis vízgyűjtők is kapnak, a nagy nedvesek pedig továbbra is
+többet — a fa mélysége ott megmarad. Költség: több forrás → arányosan
+hosszabb finomítás (ma 96 forrás ≈ 88 s négy workerrel).
+**Javaslat: ez.**
+
+**(c) Kétszintű hálózat:** marad a 96 „fő" folyó, és melléjük egy olcsóbb,
+rövidebb „mellék" szint, ami minden folyó nélküli nedves foltba tesz egyet.
+Garantált lefedettség a fa-szerkezet érintése nélkül, de két külön
+folyó-fogalmat vezet be a modellbe és a megjelenítésbe.
+
+**SEED-TÖRŐ** mindhárom (új forráslista → új hálózat), generátorverzió-emelés
+kell.
+
+---
+
+#### 4. LEZÁRVA (2026-10-06, a (b) opció; SEED-TÖRŐ, generátor 11 → 12)
+
+A felhasználó a (b) opciót választotta. A megvalósítás **két konstanst és egy
+szabályt** változtat, és mindhárom MÉRÉSBŐL jött:
+
+1. a `basinCount` „16 legnagyobb" vágása megszűnt — MINDEN méretküszöb fölötti,
+   pozitív csapadékú vízgyűjtő versenyez a keretért;
+2. `DefaultMinBasinTiles` **12 → 2** (level 5-ön egy tile ~313 km, tehát a 12-es
+   küszöb ~1,2 millió km²-nél kisebb vízgyűjtőket zárt ki);
+3. `DefaultMinElevAboveSeaM` **300 → 150 m**;
+4. a keret a FORRÁSKÉPES TILE-OK SZÁMÁBÓL jön
+   (`DefaultSourcesPerCandidate = 0,52`), nem fix 96.
+
+#### 4.1 A szűk keresztmetszet MÉRVE (ez döntötte el, mit kell változtatni)
+
+Először a keretet söpörtem: 96 → 192 → 288. A forrás-szám **117-nél elakadt**,
+a lefedettség (51,2% → 50,8%) alig mozdult. Tehát NEM a keret volt a korlát.
+
+A szűrő-anatómia (514 nedves tile-ra, a hőmodell mezőjén):
+
+| szűrő | átmegy |
+|---|---|
+| csapadék > 0 | 514 (100%) |
+| magasság ≥ tengerszint + 300 m | 198 (38,5%) |
+| vízgyűjtő ≥ 12 tile | 101 (19,6%) |
+| **MINDKETTŐ** | **42 (8,2%)** |
+
+Jelölt-kínálat ugyanitt: alapértelmezéssel **120**; a 150 km-es szeparáció
+kikapcsolva szintén 120 (tehát **nem köt**); `minBasinTiles = 2`-vel **376**;
+`minElev = 0`-val 190. A korlát tehát a két küszöb volt, nem a keret és nem a
+szeparáció.
+
+#### 4.2 A kiválasztott pont (söprés)
+
+| konfiguráció | forrás | nedves tile-ban folyó | ≤1 szomszéd | folyó nélküli nedves föld | hálózat (4 worker) |
+|---|---|---|---|---|---|
+| **előtte** (12 / 300 m / 96) | 96 | 15,6% | 25,5% | **51,2%** | 91 s |
+| 4 / 150 m / 250 | 250 | 46,3% | 68,3% | 23,7% | 127 s |
+| **2 / 150 m / ~320 (ez lett)** | **321** | **56,4%** | **76,8%** | **19,5%** | **165 s** |
+| 2 / 0 m / 400 | 400 | 65,4% | 83,1% | 16,7% | 175 s |
+| 2 / 150 m / 512 | 512 | 58,2% | 78,6% | 19,5% | 279 s |
+
+A legnagyobb, folyó nélküli nedves folt **66 tile → 10 tile**.
+
+A keret alapja MÉRÉSSEL változott: az első változat a csapadék ÖSSZEGÉBŐL
+számolt, és megbukott — a csapadék egysége önkényes (ND-126), ezért ugyanaz a
+konstans a hőmodell mezőjén 320, az analitikus előnézeten 512 (plafonos)
+forrást adott volna. A jelöltszám geometriai mennyiség, tehát nézetfüggetlen.
+Ez ugyanaz a hibaosztály, mint az ND-159/164 abszolút hőmérséklet-küszöbei.
+
+#### 4.3 Amit ez ELRONT, és miért vállaljuk
+
+A dendritikus fa ARÁNYA romlik: az összefolyó ágak hányada **29,2% → 15,6%**.
+ABSZOLÚT értékben viszont TÖBB összefolyás van (28 → 50), és a leghosszabb ág
+is nőtt (17 520 → 18 350 pont). Az ok: a sok új, KICSI vízgyűjtő egyágú patakot
+kap — ezek hígítják az arányt. Az ND-124 mért nyeresége (a nagy vízgyűjtők mély
+fája) megmarad.
+
+Emiatt az `PerBasinQuotaGivesDeeperTreeThanGlobalTopKOnRealWorld` teszt
+kritériuma érvényét vesztette (level 6, 512 forrás: medence 33, globális 127
+összefolyás) — a teszt átírva arra, amit a modell MOST garantál: a
+medencénkénti választás lényegesen több vízgyűjtőt érint, és keletkezik
+összefolyás.
+
+**Ára:** a hálózat-építés 4 workerrel 91 s → 165 s (CLI). A viewerben ez
+arányosan hosszabb várakozás a TELJES folyóhálózatra; az áttekintő réteg
+továbbra is korábban megjelenik.
+
+**Nyitva marad:** a 19,5% folyó nélküli nedves föld nagy része olyan kis folt,
+ahol a forrás-feltételek (hegyvidék, pozitív csapadék, medence) nem
+teljesülnek; ennek a további csökkentése a csapadék-mező kalibrációján
+(A24 / ND-165) múlik, nem a forrás-kiválasztáson.
+
+---
+
+### ND-198 — A tavak VÍZMÉRLEG NÉLKÜL keletkeznek: a térfogat 84%-át semmi nem táplálja (LEZÁRVA 2026-10-06, a (b) opció; SEED-TÖRŐ, generátor 11 → 12)
+
+2026-10-06, felhasználói visszajelzés: „vannak olyan szárazföldi tektonikus
+lemezen lévő tavak, amiket sem csapadék, sem pedig folyó nem tölt, ezek mégis
+sok vizet tárolnak, ez életszerűtlen. Tó akkor legyen, ha van elegendő
+csapadék és tölti is valamilyen folyó." MEGMÉRVE: a megfigyelés helyes, és a
+hiba nagyobb, mint a megfogalmazás sejteti.
+
+#### 1. A mérés
+
+Ugyanaz a világ, a MEGJELENÍTETT tavak (level 8, ≥ 6 tile, ≥ 40 m mélység),
+a vízgyűjtő a lefolyás-fa felfelé bejárásával, a csapadék a hőmodell mezőjéből:
+
+| mérték | érték |
+|---|---|
+| látható tó | 531 |
+| összes tó-térfogat | **1 967 814 km³** |
+| tó, aminek a vízgyűjtőjében PONTOSAN nulla a csapadék | **227 (42,7%)** |
+| tó, amit semmilyen folyó nem ér el (sem a tóban, sem a vízgyűjtőjében) | **474 (89,3%)** — a térfogat **83,7%-a** |
+| tó, amit SEM csapadék, SEM folyó nem táplál | **227 (42,7%)** — a térfogat **41,3%-a** |
+
+Független valószerűségi jelzés: a Föld összes tavának édesvíz-készlete
+nagyságrendileg 180 000 km³ — a modell tavai ennek **több mint tízszeresét**
+tárolják.
+
+#### 2. A gyökérok
+
+A tó ma TISZTÁN TOPOGRÁFIAI: a `FlowNetwork.PriorityFlood` minden zárt
+mélyedést feltölt a kifolyási (spill) szintig, a `LakesIceErosion.IdentifyLakes`
+pedig ebből a feltöltésből veszi a tavakat. A vízmérleg (beáramlás vs.
+párolgás) SEHOL nem szerepel a láncban — egy 3000 m mély, nulla csapadékú
+medence ugyanúgy színültig telik, mint egy esős hegyvidéki katlan.
+
+#### 3. Opciók
+
+**(a) Kapu:** tó csak ott marad, ahol a vízgyűjtő csapadéka pozitív (vagy egy
+küszöb fölötti). Olcsó, nincs új mező. A mérés szerint a tavak 42,7%-át és a
+térfogat 41,3%-át azonnal megszünteti. Nem javítja viszont a MARADÉK tavak
+túlméretezettségét (a Föld-összevetés szerint ez a nagyobb hiba).
+
+**(b) VÍZMÉRLEG-SZINT (javaslat).** A tó nem a topográfiai kifolyási szintig
+telik, hanem addig a szintig, ahol a BEÁRAMLÁS = PÁROLGÁS:
+beáramlás = a vízgyűjtő csapadéka × lefolyási hányad, párolgás = a tó
+FELSZÍNE × a hőmodell párolgási üteme (a `WindPrecipitation.Evaporation`
+már létezik és a hőmérsékletből/szélből számol). A szint csökkentésével a
+felszín is csökken, tehát a mérleg monoton — egyértelmű, determinisztikus
+megoldás. Következmény: a nedves katlan marad tele, a száraz medence
+összezsugorodik sekély sós tóvá vagy eltűnik (nulla beáramlásnál a (a)
+viselkedést adja), és a bolygó összes tó-térfogata a vízhozamhoz kötődik.
+**Ez az, ami a felhasználó szabályát („legyen elegendő csapadék") fizikai
+mennyiségként valósítja meg.**
+
+**(c) Folyó-feltétel szó szerint:** tó csak ott, ahova FOLYÓ ér be. A mérés
+szerint ez a tavak 89,3%-át törölné — de ez félrevezető szám: a folyó-réteg
+csak 96 forrásból épül (ND-197!), tehát a „nincs folyó" ma a folyó-modell
+ritkaságát is méri, nem csak a vízhiányt. Ezért a folyó-feltételt NEM
+javaslom önálló kapunak; az ND-197 rendezése után a (b) beáramlás-tagja
+természetesen magában foglalja a folyós utánpótlást is.
+
+**SEED-/KÉPTÖRŐ:** a tavak mérete és száma minden világban változik; a
+hidrológia, a biome párolgás-tagja és a hőmodell `Freshwater` felszíntípusa is
+érintett lehet. Generátorverzió-emelés kell.
+
+#### 4. Sorrend
+
+Az ND-198 (b) beáramlás-tagja jobb lesz, ha az ND-197 már megtörtént (több
+folyó = pontosabb utánpótlás-kép), de a kettő FÜGGETLENÜL is elvégezhető: a
+beáramlást a vízgyűjtő csapadékából számoljuk, nem a folyó-nyomvonalakból.
+
+---
+
+#### 4. LEZÁRVA (2026-10-06, a (b) opció; SEED-TÖRŐ, generátor 11 → 12)
+
+A felhasználó a (b) opciót választotta: a tó szintje ott áll be, ahol a
+BEÁRAMLÁS fedezi a tófelszín PÁROLGÁSÁT.
+
+**A modell** (`src/WorldGen.Core/Hydrology/LakeWaterBalance.cs`):
+
+```
+beáramlás = Σ(vízgyűjtő csapadéka) × lefolyási hányad + Σ(a tóra hulló csapadék)
+párolgás  = Σ(nyílt vízfelszín párolgása) a VÍZ ALATTI tile-okon
+```
+
+A tó tile-jait magasság szerint növekvően vesszük, és a LEGMAGASABB olyan
+szintet tartjuk meg, ahol a párolgás még nem haladja meg a beáramlást. Ha már
+a legalsó tile párolgása is több, a tó eltűnik (száraz medence, sós lapos).
+Mivel a felszín a szinttel monoton nő, az egyensúly egyértelmű.
+
+**Egységek.** A párolgás a modell saját `WindPrecipitation.Evaporation`
+képletéből jön — UGYANABBÓL, amiből a csapadék forrástagja is —, tehát a két
+oldal azonos (önkényes) nedvesség-egységben van, és a mérleg dimenziótlan
+hányadosként értelmes. Ehhez a `MoisturePrecipitation.PrecipitationField`
+kapott egy `OpenWaterEvaporation` mezőt: a nyílt vízfelszín párolgási üteme
+MINDEN tile-on (vízhányad = 1,0). Ez a csapadék-számításra bitre semleges —
+a saját forrástagja változatlanul a tényleges felszíntípussal számol.
+
+**Mért hatás** (seed 0xA7C944210000, level 8 hidrológia, a hőmodell csapadéka,
+lefolyási hányad 0,30):
+
+| metrika | előtte | utána |
+|---|---|---|
+| látható tó | 531 | **190** |
+| tó-térfogat | 1 967 814 km³ | **513 262 km³** (26,1%) |
+| számítási költség | — | **78 ms** (level 8, teljes bolygó) |
+
+A lefolyási hányad ÉRDEMBEN NEM SZABAD PARAMÉTER: 0,10 → 25,3%, 0,30 → 26,1%,
+0,60 → 27,0% megtartott térfogat. A mérleget a vízgyűjtő/tófelszín arány és a
+csapadék nulla-aránya dönti el, nem a hányad — ezért nem rejtett hangoló
+csavar. Az alapérték 0,30 (szokásos lefolyási arány).
+
+**Mit NEM modellez (tudatosan, dokumentáltan):**
+
+1. **A túlfolyás továbbadását.** Minden tó ELNYELŐ: a felette fekvő tó vize
+   nem folyik tovább az alsóba. A valóságban egy megtelt tó túlfolyik. A
+   javítás a tavak lefolyási sorrendben való feldolgozása lenne — következő kör.
+2. A szezonalitást (a tó éves egyensúlyban van) és a beszivárgást.
+
+**Egy SŰRŰ (tömbindexelt) változat is elkészült**, mert a viewer hidrológiája
+azon az úton dolgozik — de egy valódi világon MÉRVE a két út **nem egyezett**
+(362 tóból 80-nál más tile-szám, a szótáras út következetesen nagyobb
+beáramlással). Nem szállítunk nem bizonyítottan azonos második utat a kritikus
+úton: a sűrű változat törölve, a viewer a verifikált szótáras úton számol (a
+két szótárat a sűrű állapotból építi). Ha visszajön, ELŐBB kell a bitazonosságot
+igazoló teszt — ugyanaz a minta, mint a `DenseLakeEquivalenceTests`-nél.
+
+**A viewer bekötése** az ND-194 (A23) tanulságát követi: a topográfiai
+tó-detektálás marad a hidrológia-fázisban, a mérleg szerinti SZINT viszont a
+csapadék-mező elkészülte UTÁN áll be (`ApplyLakeWaterBalance`) — különben a
+mérleg az ELŐZŐ Build csapadékát látná.
+
+---
+
 ### ND-196 — A folyók a SZÁRAZ biome-okban gazdagodnak, mert a medence-kvóta nem küszöböl csapadékra (LEZÁRVA 2026-10-06, a (b) opció; SEED-TÖRŐ, generátor 10 → 11)
 
 2026-10-05, felhasználói visszajelzés: „a folyók gyakran sárga biomon

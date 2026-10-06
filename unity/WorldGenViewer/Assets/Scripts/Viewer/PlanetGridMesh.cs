@@ -2979,6 +2979,19 @@ namespace WorldGen.Viewer
             HashSet<TileId> lakeTiles = new HashSet<TileId>();
             Dictionary<TileId, TileId> riverParent = null;
             Dictionary<TileId, double> lakeSurface = null;
+            // ND-198: a to-VIZMERLEGHEZ (LakeWaterBalance) a hidrologiai
+            // allapotot megtartjuk, mert a csapadek-mezo csak KESOBB, a
+            // klima-blokkban keszul el. A topografiai to-detektalas itt fut,
+            // a merleg szerinti SZINT viszont ott all be - igy a merleg
+            // UGYANANNAK a Buildnek a csapadekat latja (ND-194 tanulsaga).
+            FlowNetwork.DenseGridTopology balanceTopology = null;
+            double[] balanceDenseTerrain = null;
+            FlowNetwork.DenseFloodResult balanceDenseFlood = null;
+            LakesIceErosion.DenseLakeResult balanceDenseLakes = null;
+            Dictionary<TileId, double> balanceTerrain = null;
+            Dictionary<TileId, TileId?> balanceParent = null;
+            LakesIceErosion.LakeResult balanceLakes = null;
+            int balanceHydroLevel = 0;
             double hydroFieldMs = 0.0;
             double hydroFloodMs = 0.0;
             double hydroLakesMs = 0.0;
@@ -3045,11 +3058,16 @@ namespace WorldGen.Viewer
                     denseFilledForLakes = denseFlood.Filled;
                     hydroDenseConversionMs = 0.0;
                     denseFloodUsed = true;
+                    balanceTopology = lakeTopology;
+                    balanceDenseTerrain = hydroDenseField;
+                    balanceDenseFlood = denseFlood;
                 }
                 else
                 {
                     FlowNetwork.FloodResult flood = FlowNetwork.PriorityFlood(hydroField, hydroOcean);
                     filledForLakes = flood.Filled;
+                    balanceTerrain = hydroField;
+                    balanceParent = flood.Parent;
                 }
                 hydroFloodMs = hydrologySubphaseStopwatch.Elapsed.TotalMilliseconds;
 
@@ -3069,12 +3087,25 @@ namespace WorldGen.Viewer
                 // es a tile-listak ELEMSORRENDJEIG igazol.
                 // MERVE (level 7, 98 304 tile): 17,9 ms -> 1,0 ms (18,3x);
                 // a naplo szerint elesben a `lakes=` sor 180-190 ms volt.
-                List<LakesIceErosion.LakeInfo> lakeInfos =
-                    denseFilledForLakes != null && lakeTopology != null
-                        && hydroDenseField != null && hydroDenseOcean != null
-                    ? LakesIceErosion.IdentifyLakesDense(
-                        lakeTopology, hydroDenseField, denseFilledForLakes, hydroDenseOcean).Lakes
-                    : LakesIceErosion.IdentifyLakes(hydroField, filledForLakes!, hydroOcean).Lakes;
+                List<LakesIceErosion.LakeInfo> lakeInfos;
+                if (denseFilledForLakes != null && lakeTopology != null
+                    && hydroDenseField != null && hydroDenseOcean != null)
+                {
+                    balanceDenseLakes = LakesIceErosion.IdentifyLakesDense(
+                        lakeTopology, hydroDenseField, denseFilledForLakes, hydroDenseOcean);
+                    lakeInfos = balanceDenseLakes.Lakes;
+                }
+                else
+                {
+                    balanceLakes = LakesIceErosion.IdentifyLakes(hydroField, filledForLakes!, hydroOcean);
+                    lakeInfos = balanceLakes.Lakes;
+                }
+                balanceHydroLevel = hydroLevel;
+                // A TOPOGRAFIAI to-halmaz: ez a KIINDULAS. A vegleges szintet
+                // az ND-198 vizmerlege adja, a csapadek-mezo elkeszulte utan
+                // (ApplyLakeWaterBalance) - addig ez a lista all itt, hogy a
+                // regi viselkedes akkor is megmaradjon, ha a merleg barmiert
+                // nem fut le (pl. nincs csapadek-mezo).
                 lakeSurface = new Dictionary<TileId, double>();
                 foreach (LakesIceErosion.LakeInfo lake in lakeInfos)
                 {
@@ -3247,6 +3278,21 @@ namespace WorldGen.Viewer
                     _adaptiveEvaporationTemperatureK, _adaptiveClimateWind)
                 : null;
             _adaptivePrecip = precipField?.Precipitation;
+
+            // ND-198 (2026-10-06): A TAVAK VIZMERLEGE. A topografiai
+            // to-detektalas minden zart melyedest a kifolyasi szintig toltott,
+            // vizmerleg nelkul - MERVE: 531 lathato toból 227 (42,7%)
+            // vizgyujtojeben PONTOSAN nulla a csapadek, es a teljes terfogat a
+            // Fold tavainak tobb mint tizszerese. Itt a szint oda all be, ahol
+            // a bearamlas (vizgyujto-csapadek x lefolyasi hanyad) fedezi a
+            // tofelszin parolgasat.
+            if (showLakesIce && precipField != null && balanceHydroLevel > 0)
+            {
+                ApplyLakeWaterBalance(precipField, level, minLakeTiles, minLakeDepthMeters,
+                    balanceTopology, balanceDenseTerrain, balanceDenseFlood, balanceDenseLakes,
+                    balanceTerrain, balanceParent, balanceLakes,
+                    ref lakeTiles, ref lakeSurface);
+            }
             // ND-130: a sarok-tabla MEG a vagopontok elott - a kuszoboket
             // UGYANABBOL a (mar interpolalt) fuggvenybol kell szamolni, amivel
             // kesobb osztalyozunk, kulonben a 20/45/75 percentilis mas
@@ -6865,6 +6911,123 @@ namespace WorldGen.Viewer
         /// </summary>
         private Dictionary<TileId, double> _pcEvaporationTemperatureK;
         private Dictionary<TileId, SurfaceWindSample> _pcClimateWind;
+
+        /// <summary>
+        /// ND-198 (2026-10-06): a TOPOGRAFIAI to-halmazt a VIZMERLEG szerinti
+        /// szintre allitja.
+        ///
+        /// MIERT ITT. A to-detektalas a hidrologia-fazisban fut, a csapadek-
+        /// mezo viszont csak a klima-blokkban keszul el. Ha a merleget ott
+        /// szamolnank, az ELOZO Build csapadekat latna - pontosan az a
+        /// hibaosztaly, amit az ND-194 (A23) mert es javitott a biome-nal.
+        /// Ezert a detektalas marad a helyen, a SZINT viszont itt all be.
+        ///
+        /// A merleg a Core-ban van (LakeWaterBalance); itt csak a ket ut
+        /// (suru tombos / Dictionary) bekotese es a megjelenitesi kuszobok
+        /// (minLakeTiles, minLakeDepthMeters) UJRA alkalmazasa tortenik - a
+        /// zsugorodott to kieshet a lathato halmazbol.
+        /// </summary>
+        private void ApplyLakeWaterBalance(
+            MoisturePrecipitation.PrecipitationField precipField,
+            int climateLevel,
+            int minTiles,
+            double minDepthMeters,
+            FlowNetwork.DenseGridTopology denseTopology,
+            double[] denseTerrain,
+            FlowNetwork.DenseFloodResult denseFlood,
+            LakesIceErosion.DenseLakeResult denseLakes,
+            Dictionary<TileId, double> terrain,
+            Dictionary<TileId, TileId?> drainageParent,
+            LakesIceErosion.LakeResult lakes,
+            ref HashSet<TileId> lakeTiles,
+            ref Dictionary<TileId, double> lakeSurface)
+        {
+            var balanceStopwatch = Stopwatch.StartNew();
+            List<LakeWaterBalance.BalancedLake> balanced;
+            List<LakesIceErosion.LakeInfo> infos;
+            System.Func<TileId, double> terrainAt;
+
+            if (denseTopology != null && denseTerrain != null && denseFlood != null && denseLakes != null)
+            {
+                // A merleg a VERIFIKALT, szotaras Core-uton fut (ld. a
+                // LakeWaterBalance megjegyzeset: a suru valtozat MERVE nem
+                // egyezett, ezert nem szallitjuk). A ket szotar felepitese a
+                // suru allapotbol tortenik - ez a merleg ara.
+                int count = denseTopology.Count;
+                var terrainFromDense = new Dictionary<TileId, double>(count);
+                var parentFromDense = new Dictionary<TileId, TileId?>(count);
+                for (int i = 0; i < count; i++)
+                {
+                    TileId tile = denseTopology.TileAt(i);
+                    terrainFromDense[tile] = denseTerrain[i];
+                    int parentIndex = denseFlood.ParentIndex[i];
+                    parentFromDense[tile] = parentIndex >= 0 && parentIndex != i
+                        ? (TileId?)denseTopology.TileAt(parentIndex)
+                        : null;
+                }
+                LakesIceErosion.LakeResult denseAsDictionary = denseLakes.ToLakeResult(denseTopology);
+                balanced = LakeWaterBalance.Balance(
+                    denseAsDictionary, terrainFromDense, parentFromDense,
+                    precipField.Precipitation, precipField.OpenWaterEvaporation, climateLevel);
+                infos = denseAsDictionary.Lakes;
+                Dictionary<TileId, double> denseField = terrainFromDense;
+                terrainAt = tile => denseField.TryGetValue(tile, out double v) ? v : 0.0;
+            }
+            else if (terrain != null && drainageParent != null && lakes != null)
+            {
+                balanced = LakeWaterBalance.Balance(
+                    lakes, terrain, drainageParent,
+                    precipField.Precipitation, precipField.OpenWaterEvaporation, climateLevel);
+                infos = lakes.Lakes;
+                Dictionary<TileId, double> field = terrain;
+                terrainAt = tile => field.TryGetValue(tile, out double v) ? v : 0.0;
+            }
+            else
+            {
+                return; // nincs mibol merleget szamolni - marad a topografiai halmaz
+            }
+
+            var balancedById = new Dictionary<int, LakeWaterBalance.BalancedLake>(balanced.Count);
+            for (int i = 0; i < balanced.Count; i++) balancedById[balanced[i].Id] = balanced[i];
+
+            int beforeVisible = 0, afterVisible = 0;
+            foreach (LakesIceErosion.LakeInfo lake in infos)
+                if (lake.TileCount >= minTiles && lake.MaxDepth >= minDepthMeters) beforeVisible++;
+
+            var newTiles = new HashSet<TileId>();
+            var newSurface = new Dictionary<TileId, double>();
+            foreach (LakesIceErosion.LakeInfo lake in infos)
+            {
+                if (!balancedById.TryGetValue(lake.Id, out LakeWaterBalance.BalancedLake b) || !b.Exists)
+                    continue;
+
+                // A ZSUGORODOTT to geometriaja: csak azok a tile-ok maradnak,
+                // amik a merleg szerinti szint ALATT vannak.
+                int tiles = 0;
+                double maxDepth = 0.0;
+                foreach (TileId t in lake.Tiles)
+                {
+                    double depth = b.SurfaceElevation - terrainAt(t);
+                    if (depth <= 0.0) continue;
+                    tiles++;
+                    if (depth > maxDepth) maxDepth = depth;
+                }
+                if (tiles < minTiles || maxDepth < minDepthMeters) continue;
+
+                afterVisible++;
+                foreach (TileId t in lake.Tiles)
+                {
+                    if (b.SurfaceElevation - terrainAt(t) <= 0.0) continue;
+                    newTiles.Add(t);
+                    newSurface[t] = b.SurfaceElevation;
+                }
+            }
+
+            lakeTiles = newTiles;
+            lakeSurface = newSurface;
+            PerfLog($"Build() lakeWaterBalance(visible={beforeVisible} -> {afterVisible}, "
+                + $"tiles={newTiles.Count})={balanceStopwatch.Elapsed.TotalMilliseconds:F1}ms");
+        }
 
         private MoisturePrecipitation.PrecipitationField GetOrComputePrecipitationField(
             ulong precipSeed, int precipPlateCount, int precipLevel, double precipTargetWater,

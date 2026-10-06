@@ -7,7 +7,15 @@ namespace WorldGen.Core.Persistence
     /// </summary>
     public static class WorldGeneratorVersion
     {
-        // ND-196 (b) (SEED-TÖRŐ, 2026-10-06): a folyó-forrás KVÓTÁJA a medencék
+        // ND-197 (b) + ND-198 (SEED-TÖRŐ, 2026-10-06): (1) a folyó-forrás KERETE a
+        // forrásképes (nedves, hegyvidéki) tile-ok SZÁMÁBÓL jön, és MINDEN
+        // méretküszöb fölötti vízgyűjtő versenyez érte — a „16 legnagyobb"
+        // vágás megszűnt, a méret- és magasság-küszöb 12 → 2 tile, 300 → 150 m.
+        // MÉRVE: a nedves szárazföld 51,2%-a volt folyó nélkül, most 19,5%.
+        // (2) A TAVAK VÍZMÉRLEGET kaptak: a szint ott áll be, ahol a vízgyűjtő
+        // beáramlása fedezi a tófelszín párolgását — a csapadékmentes medencék
+        // tavai eltűnnek, a többi a mérleg szerinti szintre áll.
+        // Előzmény — ND-196 (b) (SEED-TÖRŐ, 2026-10-06): a folyó-forrás KVÓTÁJA a medencék
         // CSAPADÉK-ÖSSZEGÉVEL arányos, abszolút alsó kapuval — nem fix 6/medence.
         // MÉRVE (seed 0xA7C944210000, level 5, a hőmodell párolgásával): a régi
         // kvótával 48/96 forrás (50%) PONTOSAN nulla csapadékú tile-ról indult,
@@ -56,6 +64,6 @@ namespace WorldGen.Core.Persistence
         // Előzmény — ND-142: a pillanatnyi levegőanomália visszahat a termikus szélre.
         // ND-165/174/175: analitikus bolygó-albedó, periodikus szezonális energiamérleg
         // és fizikai hó/jégbesorolás.
-        public const string Current = "11";
+        public const string Current = "12";
     }
 }

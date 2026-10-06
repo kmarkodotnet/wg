@@ -352,7 +352,7 @@ internal static class Program
         double mergeRadius = args.Length > 4
             ? double.Parse(args[4], CultureInfo.InvariantCulture)
             : ClaimedRiverPoints.DefaultMergeRadiusMeters;
-        int limit = args.Length > 2 && args[2] != "endcheck" && args[2] != "biome" && args[2] != "thermal" && args[2] != "independent" && args[2] != "coarse" && args[2] != "lakecross" && args[2] != "parallel" && args[2] != "parallel2" && args[2] != "parallel4"
+        int limit = args.Length > 2 && args[2] != "endcheck" && args[2] != "biome" && args[2] != "thermal" && args[2] != "coverage" && args[2] != "filters" && args[2] != "lakebalance" && args[2] != "independent" && args[2] != "coarse" && args[2] != "lakecross" && args[2] != "parallel" && args[2] != "parallel2" && args[2] != "parallel4"
             ? int.Parse(args[2], CultureInfo.InvariantCulture) : 96;
         Directory.CreateDirectory(output);
         var preparation = Stopwatch.StartNew();
@@ -427,6 +427,418 @@ internal static class Program
                 $"networkMs={nd196Timer.Elapsed.TotalMilliseconds:F0} sources={measuredSources.Count}"));
             ReportNd196(prefix, args[2], measured, biomeTemperatureK, permanentIce,
                 measuredFlood, measuredSources, nd196Network, 5);
+            return 0;
+        }
+
+        // ND-197 / ND-198 MEROPAD (2026-10-06, felhasznaloi visszajelzes):
+        // (1) "sok zold terulet van, ahol nincs folyo" - a folyo-LEFEDETTSEG
+        //     a NEDVES szarazfoldon;
+        // (2) "vannak tavak, amiket sem csapadek, sem folyo nem tolt" - a
+        //     tavak VIZMERLEGE (vizgyujto-csapadek es folyo-bekotes).
+        // A mezo a HOMODELL eves eghajlatabol szamolt csapadek (ugyanaz,
+        // amit a kepernyon latsz), ld. a ReportNd196 fejlecet.
+        if (args.Length > 2 && args[2] == "coverage")
+        {
+            double axialTiltDegrees = 23.44;
+            MoisturePrecipitation.PrecipitationField measured = ComputeThermalPrecipitation(
+                precipitation, 5, axialTiltDegrees, out _, out _);
+            FlowNetwork.FloodResult measuredFlood =
+                FlowNetwork.PriorityFlood(measured.Elevation, measured.IsOcean);
+            // ND-197 kalibracio: a keret soporheto (args[5]); 0 = a Core sajat,
+            // csapadekbol szarmazo kerete.
+            int sweepBudget = args.Length > 5
+                ? int.Parse(args[5], CultureInfo.InvariantCulture) : 0;
+            List<TileId> measuredSources = RiverPathTracing.SelectRiverSourcesPerBasin(
+                measured.Elevation, measured.Precipitation, measured.IsOcean,
+                measuredFlood.Parent, measured.SeaLevel,
+                sourceBudget: sweepBudget > 0 ? (int?)sweepBudget : null,
+                minElevAboveSeaM: args.Length > 7
+                    ? double.Parse(args[7], CultureInfo.InvariantCulture)
+                    : RiverPathTracing.DefaultMinElevAboveSeaM,
+                minBasinTiles: args.Length > 6
+                    ? int.Parse(args[6], CultureInfo.InvariantCulture)
+                    : RiverPathTracing.DefaultMinBasinTiles,
+                worldSeed: Seed, seeds: movedSeeds,
+                context: DeepTimeContext.AtPlateTime(timeMyr),
+                floodFilled: measuredFlood.Filled);
+
+            // A KERET alapja: a medencek jelolt-csapadekanak osszege (ugyanaz a
+            // halmaz, amit a Core sulyoz) - ebbol szamoljuk a kalibraciot.
+            Dictionary<TileId, List<TileId>> weightBasins =
+                WorldGen.Core.Features.FeatureSegmentation.FindWatershedRegions(
+                    measuredFlood.Parent, measured.IsOcean);
+            double totalCandidatePrecip = 0.0;
+            int eligibleBasins = 0, wetBasins = 0;
+            foreach (KeyValuePair<TileId, List<TileId>> basin in weightBasins)
+            {
+                if (basin.Value.Count < RiverPathTracing.DefaultMinBasinTiles) continue;
+                eligibleBasins++;
+                double w = 0.0;
+                foreach (TileId t in basin.Value)
+                {
+                    if (!measured.Elevation.TryGetValue(t, out double elevation)) continue;
+                    if (elevation < measured.SeaLevel + RiverPathTracing.DefaultMinElevAboveSeaM) continue;
+                    if (!measured.Precipitation.TryGetValue(t, out double pr) || pr <= 0.0) continue;
+                    w += pr;
+                }
+                if (w > 0.0) { wetBasins++; totalCandidatePrecip += w; }
+            }
+            Console.WriteLine(FormattableString.Invariant(
+                $"budget: requested={sweepBudget} sources={measuredSources.Count} eligibleBasins={eligibleBasins} wetBasins={wetBasins} totalCandidatePrecip={totalCandidatePrecip:R}"));
+            var coverageTimer = Stopwatch.StartNew();
+            List<RiverPathTracing.ContinuousRiverPath> network =
+                RiverPathTracing.BuildContinuousRiverNetworkFromSourcesParallel(
+                    Seed, movedSeeds, measured.SeaLevel, measuredSources,
+                    RiverPathTracing.DefaultFineDepth, stepMeters: traceStep,
+                    maxDegreeOfParallelism: 4, context: DeepTimeContext.AtPlateTime(timeMyr),
+                    mergeRadiusMeters: mergeRadius);
+            Console.WriteLine(FormattableString.Invariant(
+                $"networkMs={coverageTimer.Elapsed.TotalMilliseconds:F0} sources={measuredSources.Count}"));
+
+            // ---------- (1) LEFEDETTSEG ----------
+            // Melyik level 5-os tile-ban fut folyo?
+            var riverTiles = new HashSet<TileId>();
+            foreach (var river in network)
+                foreach (var p in river.Points)
+                    riverTiles.Add(TileGeometry.FromPosition(p.X, p.Y, p.Z, 5));
+
+            // Szelessegi kereses a szarazfoldi tile-grafon: hany LEPESRE van a
+            // legkozelebbi folyos tile. A level 5-os tile kb. 313 km.
+            var hops = new Dictionary<TileId, int>();
+            var queue = new Queue<TileId>();
+            foreach (TileId t in riverTiles)
+            {
+                if (!measured.IsOcean.TryGetValue(t, out bool oc) || oc) continue;
+                hops[t] = 0;
+                queue.Enqueue(t);
+            }
+            while (queue.Count > 0)
+            {
+                TileId current = queue.Dequeue();
+                int next = hops[current] + 1;
+                TileNeighbors.GetAll(current, out TileId r, out TileId l, out TileId u, out TileId d);
+                foreach (TileId n in new[] { r, l, u, d })
+                {
+                    if (!measured.IsOcean.TryGetValue(n, out bool oc) || oc) continue;
+                    if (hops.ContainsKey(n)) continue;
+                    hops[n] = next;
+                    queue.Enqueue(n);
+                }
+            }
+
+            // A NEDVES szarazfold: a pozitiv csapadeku tile-ok felso fele
+            // (median felett) - ez a "zold terulet" operativ definicioja.
+            var positivePrecip = new List<double>();
+            foreach (KeyValuePair<TileId, bool> kv in measured.IsOcean)
+                if (!kv.Value && measured.Precipitation[kv.Key] > 0.0)
+                    positivePrecip.Add(measured.Precipitation[kv.Key]);
+            positivePrecip.Sort();
+            double wetThreshold = positivePrecip.Count == 0 ? 0.0
+                : positivePrecip[positivePrecip.Count / 2];
+
+            int landTiles = 0, wetTiles = 0;
+            var wetHopHistogram = new Dictionary<int, int>();
+            int wetUnreached = 0;
+            foreach (KeyValuePair<TileId, bool> kv in measured.IsOcean)
+            {
+                if (kv.Value) continue;
+                landTiles++;
+                if (measured.Precipitation[kv.Key] < wetThreshold) continue;
+                wetTiles++;
+                if (!hops.TryGetValue(kv.Key, out int h)) { wetUnreached++; continue; }
+                wetHopHistogram.TryGetValue(h, out int c);
+                wetHopHistogram[h] = c + 1;
+            }
+            int within0 = 0, within1 = 0, within2 = 0, within4 = 0;
+            foreach (KeyValuePair<int, int> kv in wetHopHistogram)
+            {
+                if (kv.Key <= 0) within0 += kv.Value;
+                if (kv.Key <= 1) within1 += kv.Value;
+                if (kv.Key <= 2) within2 += kv.Value;
+                if (kv.Key <= 4) within4 += kv.Value;
+            }
+            int merged = 0, longest = 0;
+            foreach (var river in network)
+            {
+                if (river.Termination == RiverPathTracing.TerminationReason.Merged) merged++;
+                if (river.Points.Count > longest) longest = river.Points.Count;
+            }
+            Console.WriteLine(FormattableString.Invariant(
+                $"tree: rivers={network.Count} merged={merged} ({100.0 * merged / Math.Max(1, network.Count):F1}%) longestPoints={longest}"));
+            Console.WriteLine(FormattableString.Invariant(
+                $"coverage: landTiles={landTiles} wetTiles={wetTiles} (precip>={wetThreshold:R}) riverTiles={riverTiles.Count}"));
+            Console.WriteLine(FormattableString.Invariant(
+                $"coverage: wet with river IN tile={100.0 * within0 / Math.Max(1, wetTiles):F1}% <=1 hop={100.0 * within1 / Math.Max(1, wetTiles):F1}% <=2 hops={100.0 * within2 / Math.Max(1, wetTiles):F1}% <=4 hops={100.0 * within4 / Math.Max(1, wetTiles):F1}% unreachable={wetUnreached}"));
+
+            // Osszefuggo NEDVES foltok, amelyekben NINCS egyetlen folyos tile sem.
+            var visited = new HashSet<TileId>();
+            int patches = 0, patchesWithoutRiver = 0, tilesWithoutRiver = 0, biggestWithout = 0;
+            foreach (KeyValuePair<TileId, bool> kv in measured.IsOcean)
+            {
+                if (kv.Value || visited.Contains(kv.Key)) continue;
+                if (measured.Precipitation[kv.Key] < wetThreshold) continue;
+                var stack = new Stack<TileId>();
+                stack.Push(kv.Key);
+                visited.Add(kv.Key);
+                int size = 0; bool hasRiver = false;
+                while (stack.Count > 0)
+                {
+                    TileId current = stack.Pop();
+                    size++;
+                    if (riverTiles.Contains(current)) hasRiver = true;
+                    TileNeighbors.GetAll(current, out TileId r, out TileId l, out TileId u, out TileId d);
+                    foreach (TileId n in new[] { r, l, u, d })
+                    {
+                        if (visited.Contains(n)) continue;
+                        if (!measured.IsOcean.TryGetValue(n, out bool noc) || noc) continue;
+                        if (measured.Precipitation[n] < wetThreshold) continue;
+                        visited.Add(n);
+                        stack.Push(n);
+                    }
+                }
+                patches++;
+                if (!hasRiver) { patchesWithoutRiver++; tilesWithoutRiver += size; if (size > biggestWithout) biggestWithout = size; }
+            }
+            Console.WriteLine(FormattableString.Invariant(
+                $"coverage: wetPatches={patches} withoutRiver={patchesWithoutRiver} tilesInThem={tilesWithoutRiver} ({100.0 * tilesWithoutRiver / Math.Max(1, wetTiles):F1}% of wet land) biggest={biggestWithout} tiles"));
+
+            // ---------- (2) TAVAK VIZMERLEGE ----------
+            var terrain = SeaLevelCalibration.ComputeElevationFieldAtTime(
+                Seed, 20, 8, DeepTimeContext.AtPlateTime(timeMyr));
+            var ocean = FlowNetwork.ComputeOceanField(terrain, measured.SeaLevel);
+            var drainage = FlowNetwork.PriorityFlood(terrain, ocean);
+            var lakeResult = LakesIceErosion.IdentifyLakes(terrain, drainage.Filled, ocean);
+
+            // Melyik level 8-as tile-ban van folyo?
+            var riverFineTiles = new HashSet<TileId>();
+            foreach (var river in network)
+                foreach (var p in river.Points)
+                    riverFineTiles.Add(TileGeometry.FromPosition(p.X, p.Y, p.Z, 8));
+
+            // Gyerek-lista a lefolyas-szulokbol: ezzel jarjuk be a vizgyujtot.
+            var children = new Dictionary<TileId, List<TileId>>();
+            foreach (KeyValuePair<TileId, TileId?> kv in drainage.Parent)
+            {
+                if (kv.Value == null) continue;
+                TileId parent = kv.Value.Value;
+                if (!children.TryGetValue(parent, out List<TileId>? list))
+                {
+                    list = new List<TileId>();
+                    children[parent] = list;
+                }
+                list.Add(kv.Key);
+            }
+
+            double tileAreaM2 = 4.0 * Math.PI * WorldGen.Core.PlanetConstants.RadiusMeters * WorldGen.Core.PlanetConstants.RadiusMeters
+                / (6.0 * 256.0 * 256.0); // level 8: 6 x 256 x 256 tile
+            using var lakeReport = new StreamWriter(prefix + "-nd198-lakes.csv");
+            lakeReport.WriteLine("lakeId,tiles,maxDepthM,volumeKm3,catchmentTiles,catchmentPrecipSum,lakePrecipSum,riverTilesInCatchment,riverInLake");
+            int visibleLakes = 0, lakesNoPrecip = 0, lakesNoRiver = 0, lakesNoBoth = 0;
+            double volumeAll = 0.0, volumeNoBoth = 0.0, volumeNoRiver = 0.0;
+            foreach (LakesIceErosion.LakeInfo lake in lakeResult.Lakes)
+            {
+                if (lake.TileCount < 6 || lake.MaxDepth < 40.0) continue;
+                visibleLakes++;
+                double volume = 0.0;
+                foreach (TileId t in lake.Tiles)
+                    volume += Math.Max(0.0, drainage.Filled[t] - terrain[t]) * tileAreaM2;
+                volumeAll += volume;
+
+                // Vizgyujto: a to fole folyo osszes tile (a lefolyas-fan felfele).
+                var lakeTiles = new HashSet<TileId>(lake.Tiles);
+                var catchment = new HashSet<TileId>();
+                var upstream = new Stack<TileId>();
+                foreach (TileId t in lake.Tiles) upstream.Push(t);
+                while (upstream.Count > 0)
+                {
+                    TileId current = upstream.Pop();
+                    if (!children.TryGetValue(current, out List<TileId>? kids)) continue;
+                    foreach (TileId kid in kids)
+                    {
+                        if (lakeTiles.Contains(kid) || !catchment.Add(kid)) continue;
+                        upstream.Push(kid);
+                    }
+                }
+                double catchmentPrecip = 0.0, lakePrecip = 0.0;
+                int riverInCatchment = 0;
+                foreach (TileId t in catchment)
+                {
+                    TileId coarse = t;
+                    while (coarse.Level > 5) coarse = coarse.Parent();
+                    if (measured.Precipitation.TryGetValue(coarse, out double p)) catchmentPrecip += p;
+                    if (riverFineTiles.Contains(t)) riverInCatchment++;
+                }
+                foreach (TileId t in lake.Tiles)
+                {
+                    TileId coarse = t;
+                    while (coarse.Level > 5) coarse = coarse.Parent();
+                    if (measured.Precipitation.TryGetValue(coarse, out double p)) lakePrecip += p;
+                }
+                bool riverInLake = false;
+                foreach (TileId t in lake.Tiles) if (riverFineTiles.Contains(t)) { riverInLake = true; break; }
+
+                bool noPrecip = catchmentPrecip <= 0.0 && lakePrecip <= 0.0;
+                bool noRiver = riverInCatchment == 0 && !riverInLake;
+                if (noPrecip) lakesNoPrecip++;
+                if (noRiver) { lakesNoRiver++; volumeNoRiver += volume; }
+                if (noPrecip && noRiver) { lakesNoBoth++; volumeNoBoth += volume; }
+
+                lakeReport.WriteLine(FormattableString.Invariant(
+                    $"{lake.Id},{lake.TileCount},{lake.MaxDepth:R},{volume / 1.0e9:R},{catchment.Count},{catchmentPrecip:R},{lakePrecip:R},{riverInCatchment},{riverInLake}"));
+            }
+            Console.WriteLine(FormattableString.Invariant(
+                $"lakes: visible={visibleLakes} totalVolumeKm3={volumeAll / 1.0e9:F0}"));
+            Console.WriteLine(FormattableString.Invariant(
+                $"lakes: noCatchmentPrecip={lakesNoPrecip} ({100.0 * lakesNoPrecip / Math.Max(1, visibleLakes):F1}%) noRiver={lakesNoRiver} ({100.0 * lakesNoRiver / Math.Max(1, visibleLakes):F1}%, volume {100.0 * volumeNoRiver / Math.Max(1.0, volumeAll):F1}%) neither={lakesNoBoth} ({100.0 * lakesNoBoth / Math.Max(1, visibleLakes):F1}%, volume {100.0 * volumeNoBoth / Math.Max(1.0, volumeAll):F1}%)"));
+            return 0;
+        }
+
+        // ND-197 szuro-anatomia (2026-10-06): MELYIK feltetel korlatozza a
+        // folyo-forrasok szamat es a lefedettseget? Halozat-epites NELKUL fut,
+        // tehat gyors (csak a homodell ~20 s).
+        if (args.Length > 2 && args[2] == "filters")
+        {
+            MoisturePrecipitation.PrecipitationField f = ComputeThermalPrecipitation(
+                precipitation, 5, 23.44, out _, out _);
+            FlowNetwork.FloodResult fl = FlowNetwork.PriorityFlood(f.Elevation, f.IsOcean);
+            Dictionary<TileId, List<TileId>> basins =
+                WorldGen.Core.Features.FeatureSegmentation.FindWatershedRegions(fl.Parent, f.IsOcean);
+            var basinSizeOfTile = new Dictionary<TileId, int>();
+            foreach (KeyValuePair<TileId, List<TileId>> b in basins)
+                foreach (TileId t in b.Value) basinSizeOfTile[t] = b.Value.Count;
+
+            var positive = new List<double>();
+            foreach (KeyValuePair<TileId, bool> kv in f.IsOcean)
+                if (!kv.Value && f.Precipitation[kv.Key] > 0.0) positive.Add(f.Precipitation[kv.Key]);
+            positive.Sort();
+            double wetThreshold = positive.Count == 0 ? 0.0 : positive[positive.Count / 2];
+
+            int land = 0, wet = 0, wetPositive = 0, wetHigh = 0, wetBigBasin = 0, wetAll = 0;
+            var sizeHistogram = new Dictionary<int, int>();
+            foreach (KeyValuePair<TileId, bool> kv in f.IsOcean)
+            {
+                if (kv.Value) continue;
+                land++;
+                double p = f.Precipitation[kv.Key];
+                if (p < wetThreshold) continue;
+                wet++;
+                if (p > 0.0) wetPositive++;
+                bool high = f.Elevation[kv.Key] >= f.SeaLevel + RiverPathTracing.DefaultMinElevAboveSeaM;
+                int basinSize = basinSizeOfTile.TryGetValue(kv.Key, out int bs) ? bs : 0;
+                if (high) wetHigh++;
+                if (basinSize >= RiverPathTracing.DefaultMinBasinTiles) wetBigBasin++;
+                if (high && basinSize >= RiverPathTracing.DefaultMinBasinTiles) wetAll++;
+                int bucket = basinSize >= 12 ? 12 : basinSize >= 6 ? 6 : basinSize >= 3 ? 3 : 1;
+                sizeHistogram.TryGetValue(bucket, out int c);
+                sizeHistogram[bucket] = c + 1;
+            }
+            Console.WriteLine(FormattableString.Invariant(
+                $"filters: land={land} wet={wet} wetPositivePrecip={wetPositive} wetAbove300m={wetHigh} wetInBasin>=12={wetBigBasin} wetPassingBoth={wetAll}"));
+            var buckets = new List<int>(sizeHistogram.Keys);
+            buckets.Sort();
+            foreach (int b in buckets)
+                Console.WriteLine(FormattableString.Invariant(
+                    $"filters: wet tiles in basins of size>={b}: {sizeHistogram[b]}"));
+
+            // Hany JELOLT van osszesen (a Core szabalyai szerint), es hany marad
+            // a 150 km-es szeparacio utan medencenkent?
+            int candidates = 0;
+            foreach (KeyValuePair<TileId, List<TileId>> b in basins)
+            {
+                if (b.Value.Count < RiverPathTracing.DefaultMinBasinTiles) continue;
+                foreach (TileId t in b.Value)
+                {
+                    if (!f.Elevation.TryGetValue(t, out double e)) continue;
+                    if (e < f.SeaLevel + RiverPathTracing.DefaultMinElevAboveSeaM) continue;
+                    if (!f.Precipitation.TryGetValue(t, out double p) || p <= 0.0) continue;
+                    candidates++;
+                }
+            }
+            List<TileId> withSeparation = RiverPathTracing.SelectRiverSourcesPerBasin(
+                f.Elevation, f.Precipitation, f.IsOcean, fl.Parent, f.SeaLevel,
+                sourceBudget: 100000, worldSeed: Seed, seeds: movedSeeds,
+                context: DeepTimeContext.AtPlateTime(timeMyr), floodFilled: fl.Filled,
+                maxSourcesPerBasin: int.MaxValue);
+            List<TileId> noSeparation = RiverPathTracing.SelectRiverSourcesPerBasin(
+                f.Elevation, f.Precipitation, f.IsOcean, fl.Parent, f.SeaLevel,
+                sourceBudget: 100000, minSeparationMeters: 0.0,
+                worldSeed: Seed, seeds: movedSeeds,
+                context: DeepTimeContext.AtPlateTime(timeMyr), floodFilled: fl.Filled,
+                maxSourcesPerBasin: int.MaxValue);
+            List<TileId> smallBasins = RiverPathTracing.SelectRiverSourcesPerBasin(
+                f.Elevation, f.Precipitation, f.IsOcean, fl.Parent, f.SeaLevel,
+                sourceBudget: 100000, minBasinTiles: 2,
+                worldSeed: Seed, seeds: movedSeeds,
+                context: DeepTimeContext.AtPlateTime(timeMyr), floodFilled: fl.Filled,
+                maxSourcesPerBasin: int.MaxValue);
+            List<TileId> lowSources = RiverPathTracing.SelectRiverSourcesPerBasin(
+                f.Elevation, f.Precipitation, f.IsOcean, fl.Parent, f.SeaLevel,
+                sourceBudget: 100000, minElevAboveSeaM: 0.0,
+                worldSeed: Seed, seeds: movedSeeds,
+                context: DeepTimeContext.AtPlateTime(timeMyr), floodFilled: fl.Filled,
+                maxSourcesPerBasin: int.MaxValue);
+            Console.WriteLine(FormattableString.Invariant(
+                $"filters: rawCandidates={candidates} maxSources(default)={withSeparation.Count} noSeparation={noSeparation.Count} minBasinTiles2={smallBasins.Count} minElev0={lowSources.Count}"));
+            return 0;
+        }
+
+        // ND-198 (2026-10-06): a TO-VIZMERLEG hatasa, sopörhetö lefolyasi
+        // hanyaddal (args[5]). Halozat-epites NELKUL fut.
+        if (args.Length > 2 && args[2] == "lakebalance")
+        {
+            double runoff = args.Length > 5
+                ? double.Parse(args[5], CultureInfo.InvariantCulture)
+                : LakeWaterBalance.DefaultRunoffCoefficient;
+            MoisturePrecipitation.PrecipitationField climate = ComputeThermalPrecipitation(
+                precipitation, 5, 23.44, out _, out _);
+            var terrain8 = SeaLevelCalibration.ComputeElevationFieldAtTime(
+                Seed, 20, 8, DeepTimeContext.AtPlateTime(timeMyr));
+            var ocean8 = FlowNetwork.ComputeOceanField(terrain8, climate.SeaLevel);
+            var drainage8 = FlowNetwork.PriorityFlood(terrain8, ocean8);
+            var lakes8 = LakesIceErosion.IdentifyLakes(terrain8, drainage8.Filled, ocean8);
+
+            double tileArea = 4.0 * Math.PI * WorldGen.Core.PlanetConstants.RadiusMeters
+                * WorldGen.Core.PlanetConstants.RadiusMeters / (6.0 * 256.0 * 256.0);
+
+            var balanceTimer = Stopwatch.StartNew();
+            List<LakeWaterBalance.BalancedLake> balanced = LakeWaterBalance.Balance(
+                lakes8, terrain8, drainage8.Parent, climate.Precipitation,
+                climate.OpenWaterEvaporation, 5, runoff);
+            double balanceMs = balanceTimer.Elapsed.TotalMilliseconds;
+            var balancedById = new Dictionary<int, LakeWaterBalance.BalancedLake>();
+            foreach (var b in balanced) balancedById[b.Id] = b;
+
+            int beforeVisible = 0, afterVisible = 0, vanished = 0;
+            double beforeVolume = 0.0, afterVolume = 0.0;
+            foreach (LakesIceErosion.LakeInfo lake in lakes8.Lakes)
+            {
+                double volumeBefore = 0.0;
+                foreach (TileId t in lake.Tiles)
+                    volumeBefore += Math.Max(0.0, drainage8.Filled[t] - terrain8[t]) * tileArea;
+                bool visibleBefore = lake.TileCount >= 6 && lake.MaxDepth >= 40.0;
+                if (visibleBefore) { beforeVisible++; beforeVolume += volumeBefore; }
+
+                if (!balancedById.TryGetValue(lake.Id, out LakeWaterBalance.BalancedLake b) || !b.Exists)
+                {
+                    if (visibleBefore) vanished++;
+                    continue;
+                }
+                double volumeAfter = 0.0, maxDepth = 0.0;
+                int tilesAfter = 0;
+                foreach (TileId t in lake.Tiles)
+                {
+                    double depth = b.SurfaceElevation - terrain8[t];
+                    if (depth <= 0.0) continue;
+                    tilesAfter++;
+                    volumeAfter += depth * tileArea;
+                    if (depth > maxDepth) maxDepth = depth;
+                }
+                bool visibleAfter = tilesAfter >= 6 && maxDepth >= 40.0;
+                if (visibleAfter) { afterVisible++; afterVolume += volumeAfter; }
+                else if (visibleBefore) vanished++;
+            }
+            Console.WriteLine(FormattableString.Invariant(
+                $"lakebalance: runoff={runoff:R} balanceMs={balanceMs:F0} visibleBefore={beforeVisible} visibleAfter={afterVisible} vanished={vanished} volumeBeforeKm3={beforeVolume / 1.0e9:F0} volumeAfterKm3={afterVolume / 1.0e9:F0} volumeKept={100.0 * afterVolume / Math.Max(1.0, beforeVolume):F1}%"));
             return 0;
         }
 

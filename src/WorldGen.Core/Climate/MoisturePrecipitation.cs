@@ -41,6 +41,24 @@ namespace WorldGen.Core.Climate
             public Dictionary<TileId, double> Precipitation = new Dictionary<TileId, double>();
             public Dictionary<TileId, double> Elevation = new Dictionary<TileId, double>();
             public Dictionary<TileId, bool> IsOcean = new Dictionary<TileId, bool>();
+
+            /// <summary>
+            /// ND-198 (2026-10-06): NYÍLT VÍZFELSZÍN párolgási üteme MINDEN
+            /// tile-on (vízhányad = 1,0), függetlenül attól, hogy ott ma
+            /// szárazföld van-e. A tó-vízmérleghez kell: egy szárazföldi
+            /// mélyedésben álló tó párolgását a HELYI hőmérséklet és szél
+            /// szabja meg, a modell saját <see cref="WindPrecipitation.Evaporation"/>
+            /// képletével — ugyanazzal, amiből a csapadék forrástagja is jön,
+            /// tehát a két oldal AZONOS egységben van, és a mérleg
+            /// dimenziótlan hányadosként értelmes.
+            ///
+            /// A csapadék-számítás saját forrástagja ettől FÜGGETLEN (ott a
+            /// szárazföld vízhányada 0,0) — ez a mező tehát SEMMIT nem változtat
+            /// a csapadék-mezőn, csak elérhetővé tesz egy már kiszámolt
+            /// mennyiséget.
+            /// </summary>
+            public Dictionary<TileId, double> OpenWaterEvaporation = new Dictionary<TileId, double>();
+
             public double SeaLevel;
         }
 
@@ -210,6 +228,7 @@ namespace WorldGen.Core.Climate
             var weightsOf = new Dictionary<TileId, double[]>(keys.Count);
             var precipFracOf = new Dictionary<TileId, double>(keys.Count);
             var evapSourceOf = new Dictionary<TileId, double>(keys.Count);
+            var openWaterEvapOf = new Dictionary<TileId, double>(keys.Count);
 
             foreach (TileId k in keys)
             {
@@ -248,6 +267,11 @@ namespace WorldGen.Core.Climate
                     throw new ArgumentException($"A megadott szélmezőből hiányzik a(z) {k} tile.", nameof(wind));
                 }
                 evapSourceOf[k] = WindPrecipitation.Evaporation(temp, speed, oc ? 1.0 : 0.0);
+                // ND-198: ugyanaz a keplet VIZFELSZINRE, minden tile-on. Az
+                // oceani tile-oknal ez bitre az elozo sor erteke.
+                openWaterEvapOf[k] = oc
+                    ? evapSourceOf[k]
+                    : WindPrecipitation.Evaporation(temp, speed, 1.0);
 
                 var nbs = new TileId[4];
                 var weights = new double[4];
@@ -314,7 +338,11 @@ namespace WorldGen.Core.Climate
                 moisture = newM;
             }
 
-            var result = new PrecipitationField { SeaLevel = seaLevel, Elevation = field, IsOcean = isOcean };
+            var result = new PrecipitationField
+            {
+                SeaLevel = seaLevel, Elevation = field, IsOcean = isOcean,
+                OpenWaterEvaporation = openWaterEvapOf,
+            };
             foreach (TileId k in keys)
                 result.Precipitation[k] = moisture[k] * precipFracOf[k];
             return result;

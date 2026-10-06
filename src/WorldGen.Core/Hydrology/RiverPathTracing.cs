@@ -73,7 +73,15 @@ namespace WorldGen.Core.Hydrology
         /// az kell. Ez kulon lepes, ld. ND-124.
         /// </summary>
         public const int DefaultSourceTopK = 48;
-        public const double DefaultMinElevAboveSeaM = 300.0;
+        /// <summary>
+        /// ND-197 (b) (2026-10-06): a forrás MINIMÁLIS magassága a tengerszint
+        /// fölött. 300 → 150 m, MÉRÉS alapján: a 300 m-es küszöb a nedves
+        /// szárazföld 61,5%-át zárta ki a forrás-jelöltségből (514 nedves
+        /// tile-ból csak 198 volt 300 m fölött), és a két szűrő (ez + a
+        /// medence-méret) együtt a nedves föld 91,8%-át — ez volt a mért oka
+        /// annak, hogy „sok zöld területen nincs folyó".
+        /// </summary>
+        public const double DefaultMinElevAboveSeaM = 150.0;
         public const double DefaultPrecipPercentile = 0.80;
         public const int DefaultMaxSteps = 2000;
         public const int DefaultEscapeNodeBudget = 400;
@@ -143,7 +151,43 @@ namespace WorldGen.Core.Hydrology
         /// ("az egész bolygón ritkák a folyók"). 16 külön folyórendszer
         /// eloszlik a szárazföldeken, és a fa is többszintű marad.
         /// </summary>
-        public const int DefaultSourceBasinCount = 16;
+        /// <summary>
+        /// ND-197 (b) (2026-10-06): hány vízgyűjtő VERSENYEZHET a forrás-keretért.
+        /// Az alapértelmezés MINDEGYIK (a méretküszöb fölött, pozitív csapadékkal) —
+        /// a korábbi „16 legnagyobb" vágás MÉRT hibát okozott: a nedves szárazföld
+        /// 51,8%-a (105 összefüggő nedves foltból 92, a legnagyobb 66 tile) EGYETLEN
+        /// folyót sem kapott, mert a vízgyűjtője nem fért be a legnagyobb 16-ba.
+        /// A keret maga a csapadékból származik, ld. <see cref="DefaultSourcesPerCandidate"/>.
+        /// </summary>
+        public const int DefaultSourceBasinCount = int.MaxValue;
+
+        /// <summary>
+        /// ND-197 (b): hány forrás jut egy JELÖLT tile-ra. A forrás-keret
+        /// ebből származik (keret = jelöltek száma × ez az érték), tehát a
+        /// folyók SZÁMA a bolygó forrásképes, nedves hegyvidékének MÉRETÉT
+        /// követi — nem egy fix 96-os szám, ami egyetlen Föld-szerű esetre
+        /// volt hangolva.
+        ///
+        /// MIÉRT A JELÖLTSZÁM, ÉS NEM A CSAPADÉK-ÖSSZEG. Az első változat a
+        /// szárazföldi csapadék ÖSSZEGÉBŐL számolta a keretet, és ez MÉRÉSSEL
+        /// megbukott: a csapadék egysége önkényes (ND-126), ezért ugyanaz a
+        /// konstans a hőmodell mezőjén 320, az analitikus előnézeten viszont
+        /// 512 (plafonos) forrást adott — a nézet váltásakor megugrott volna a
+        /// folyók száma. A jelöltszám GEOMETRIAI mennyiség, tehát a mező
+        /// skálájától független. Ugyanaz a hibaosztály, mint az ND-159/164
+        /// abszolút hőmérséklet-küszöbeinél.
+        ///
+        /// MÉRT KALIBRÁCIÓ (seed 0xA7C944210000, level 5, hőmodell-csapadék):
+        /// ~320 forrásnál áll be a jó lefedettség/költség arány — a nedves
+        /// szárazföld 1 szomszédon belüli lefedettsége 25,5% → 76,8%, a
+        /// hálózat-építés 4 workerrel 91 s → 165 s. 512 forrásnál a
+        /// lefedettség már csak 78,6% (+1,8 százalékpont), a költség viszont
+        /// 279 s.
+        /// </summary>
+        public const double DefaultSourcesPerCandidate = 0.52;
+
+        /// <summary>Biztonsági plafon: a keret ennél több forrást sosem ad (védelem egy elszálló csapadék-mező ellen).</summary>
+        public const int DefaultMaxSources = 512;
 
         /// <summary>
         /// Hány forrás egy vízgyűjtőn belül. A 6 MÉRT érték: 4-nél a
@@ -154,10 +198,20 @@ namespace WorldGen.Core.Hydrology
         public const int DefaultSourcesPerBasin = 6;
 
         /// <summary>
-        /// Ennél kevesebb tile-os vízgyűjtőbe nem teszünk forrást - egy
-        /// 2-3 tile-os parti lefolyásban nincs hova összefolyni.
+        /// Ennél kevesebb tile-os vízgyűjtőbe nem teszünk forrást.
+        ///
+        /// ND-197 (b) (2026-10-06): 12 → 2, MÉRÉS alapján. Az eredeti indok
+        /// („egy 2-3 tile-os parti lefolyásban nincs hova összefolyni") a
+        /// FA-MÉLYSÉGRE szólt, de a mellékhatása sokkal nagyobb volt: a
+        /// referencia-szinten (level 5) EGY tile ~313 km, tehát a 12-es
+        /// küszöb ~1,2 millió km²-nél kisebb vízgyűjtőket zárt ki — a nedves
+        /// szárazföld 80,4%-át. MÉRVE: a jelölt-kínálat 120 → 376 forrás, a
+        /// nedves szárazföld folyó-lefedettsége (1 szomszédon belül)
+        /// 25,5% → 76,8%. A mély, dendritikus fát továbbra is a NAGY
+        /// vízgyűjtők adják (oda megy a kvóta nagy része), a kicsik rövid,
+        /// egyágú patakokat kapnak — ahogy a valóságban is.
         /// </summary>
-        public const int DefaultMinBasinTiles = 12;
+        public const int DefaultMinBasinTiles = 2;
 
         /// <summary>
         /// Két forrás MINIMÁLIS távolsága egy vízgyűjtőn belül. Enélkül a
@@ -204,13 +258,15 @@ namespace WorldGen.Core.Hydrology
         ///
         /// Dendritikus fához a forrásoknak EGY vízgyűjtőn belül kell lenniük -
         /// akkor közös torkolat felé tartanak, és összefolynak. Ez a függvény
-        /// a legnagyobb <paramref name="basinCount"/> vízgyűjtőt veszi, és
-        /// szétosztja közöttük a <paramref name="basinCount"/> ×
-        /// <paramref name="sourcesPerBasin"/> forrás-keretet.
+        /// a méretküszöb fölötti vízgyűjtőket veszi (legfeljebb
+        /// <paramref name="basinCount"/> darabot), és szétosztja közöttük a
+        /// forrás-keretet.
         ///
-        /// ND-196 (b) (SEED-TÖRŐ, 2026-10-06): a kvóta NEM fix
-        /// <paramref name="sourcesPerBasin"/>/medence, hanem a medencék
-        /// CSAPADÉK-ÖSSZEGÉVEL arányos, abszolút alsó kapuval.
+        /// ND-196 (b) (SEED-TÖRŐ, 2026-10-06): a kvóta NEM fix forrás/medence,
+        /// hanem a medencék CSAPADÉK-ÖSSZEGÉVEL arányos, abszolút alsó kapuval.
+        /// ND-197 (b) (SEED-TÖRŐ, 2026-10-06): a KERET is a csapadékból jön
+        /// (<paramref name="sourcesPerCandidate"/>), és MINDEN méretküszöb fölötti
+        /// vízgyűjtő versenyez érte — nem csak a legnagyobb 16.
         ///
         /// MIÉRT. A csapadék eddig KIZÁRÓLAG medencén belüli rendezési kulcs
         /// volt, globális kapu nélkül - így mind a 16 legnagyobb vízgyűjtő
@@ -272,7 +328,7 @@ namespace WorldGen.Core.Hydrology
             Dictionary<TileId, bool> isOcean, Dictionary<TileId, TileId?> floodParent,
             double seaLevel,
             int basinCount = DefaultSourceBasinCount,
-            int sourcesPerBasin = DefaultSourcesPerBasin,
+            int? sourceBudget = null,
             double minElevAboveSeaM = DefaultMinElevAboveSeaM,
             double minSeparationMeters = DefaultSourceSeparationMeters,
             int minBasinTiles = DefaultMinBasinTiles,
@@ -283,14 +339,18 @@ namespace WorldGen.Core.Hydrology
             Dictionary<TileId, double>? floodFilled = null,
             double lakeDepthMeters = DefaultSubmergedMinDepthMeters,
             int maxSourcesPerBasin = DefaultMaxSourcesPerBasin,
-            double minSourcePrecip = DefaultMinSourcePrecip)
+            double minSourcePrecip = DefaultMinSourcePrecip,
+            double sourcesPerCandidate = DefaultSourcesPerCandidate,
+            int maxSources = DefaultMaxSources)
         {
             if (elevField == null) throw new ArgumentNullException(nameof(elevField));
             if (precipField == null) throw new ArgumentNullException(nameof(precipField));
             if (isOcean == null) throw new ArgumentNullException(nameof(isOcean));
             if (floodParent == null) throw new ArgumentNullException(nameof(floodParent));
             if (basinCount < 1) throw new ArgumentOutOfRangeException(nameof(basinCount));
-            if (sourcesPerBasin < 1) throw new ArgumentOutOfRangeException(nameof(sourcesPerBasin));
+            if (sourceBudget.HasValue && sourceBudget.Value < 1)
+                throw new ArgumentOutOfRangeException(nameof(sourceBudget));
+            if (sourcesPerCandidate <= 0.0) throw new ArgumentOutOfRangeException(nameof(sourcesPerCandidate));
             if (maxSourcesPerBasin < 1) throw new ArgumentOutOfRangeException(nameof(maxSourcesPerBasin));
 
             Dictionary<TileId, List<TileId>> basins =
@@ -358,9 +418,10 @@ namespace WorldGen.Core.Hydrology
 
             // 2. MENET: a keret szetosztasa csapadek-aranyosan, INKREMENTALISAN.
             //
-            // A keret FIX (basinCount x sourcesPerBasin) - ez a (b) opcio
-            // igerete: a forras-SZAM megmarad, csak a HELYE lesz
-            // csapadek-vezerelt.
+            // A keret az ND-196-ban meg FIX volt (basinCount x sourcesPerBasin);
+            // az ND-197 (b) ota a SZARAZFOLDI VIZHOZAMBOL szarmazik, ha a hivo
+            // nem ad explicit keretet - igy a folyok SZAMA a bolygo
+            // csapadekat koveti, es nem egy fix szam.
             //
             // MIERT INKREMENTALIS (es nem elore kiszamolt kvota). MERVE: az
             // elore kiosztott kvotabol a 96-os keretnek csak 70 forrasa
@@ -423,7 +484,21 @@ namespace WorldGen.Core.Hydrology
                 return false;
             }
 
-            int budget = basinCount * sourcesPerBasin;
+            int budget;
+            if (sourceBudget.HasValue)
+            {
+                budget = sourceBudget.Value;
+            }
+            else
+            {
+                // A jelolteket a mar eloallitott, DETERMINISZTIKUS sorrendu
+                // medence-listakbol szamoljuk, nem a szotarbol.
+                int candidateCount = 0;
+                for (int b = 0; b < basinCandidates.Count; b++) candidateCount += basinCandidates[b].Count;
+                double raw = candidateCount * sourcesPerCandidate;
+                budget = raw >= maxSources ? maxSources : (int)raw;
+                if (budget < 1) budget = 1;
+            }
             int placed = 0;
 
             // ELSO KOR: minden megmaradt (pozitiv sulyu) medence kap egyet -
@@ -1687,7 +1762,7 @@ namespace WorldGen.Core.Hydrology
             Dictionary<TileId, bool> isOcean, double seaLevel,
             int fineDepth = DefaultFineDepth,
             int basinCount = DefaultSourceBasinCount,
-            int sourcesPerBasin = DefaultSourcesPerBasin,
+            int? sourceBudget = null,
             double minElevAboveSeaM = DefaultMinElevAboveSeaM,
             double minSeparationMeters = DefaultSourceSeparationMeters,
             int maxSteps = DefaultMaxSteps, int escapeNodeBudget = DefaultEscapeNodeBudget,
@@ -1696,7 +1771,7 @@ namespace WorldGen.Core.Hydrology
             FlowNetwork.FloodResult flood = FlowNetwork.PriorityFlood(elevField, isOcean);
             List<TileId> sources = SelectRiverSourcesPerBasin(
                 elevField, precipField, isOcean, flood.Parent, seaLevel,
-                basinCount, sourcesPerBasin, minElevAboveSeaM, minSeparationMeters);
+                basinCount, sourceBudget, minElevAboveSeaM, minSeparationMeters);
             return BuildRiverNetworkFromSources(worldSeed, seeds, seaLevel, sources, fineDepth, maxSteps, escapeNodeBudget, context);
         }
 

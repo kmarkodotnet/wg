@@ -95,7 +95,7 @@ public class PerBasinRiverSourceTests
 
         List<TileId> sources = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
-            basinCount: 2, sourcesPerBasin: 3, minElevAboveSeaM: 300.0,
+            basinCount: 2, sourceBudget: 6, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 4);
 
         // A keret ugyanaz (2 x 3 = 6), a megoszlas viszont csapadek-aranyos.
@@ -121,7 +121,7 @@ public class PerBasinRiverSourceTests
 
         List<TileId> sources = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
-            basinCount: 2, sourcesPerBasin: 3, minElevAboveSeaM: 300.0,
+            basinCount: 2, sourceBudget: 6, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 4);
 
         // A keret (6) megmarad, de MIND a nedves medencebol jon.
@@ -148,7 +148,7 @@ public class PerBasinRiverSourceTests
 
         List<TileId> sources = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
-            basinCount: 1, sourcesPerBasin: 2, minElevAboveSeaM: 300.0,
+            basinCount: 1, sourceBudget: 2, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 4);
 
         Assert.Equal(2, sources.Count);
@@ -170,7 +170,7 @@ public class PerBasinRiverSourceTests
 
         List<TileId> capped = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
-            basinCount: 2, sourcesPerBasin: 3, minElevAboveSeaM: 300.0,
+            basinCount: 2, sourceBudget: 6, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 4,
             maxSourcesPerBasin: 3);
 
@@ -196,7 +196,7 @@ public class PerBasinRiverSourceTests
 
         List<TileId> sources = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
-            basinCount: 2, sourcesPerBasin: 3, minElevAboveSeaM: 300.0,
+            basinCount: 2, sourceBudget: 6, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 4);
 
         Assert.Equal(6, sources.Count);
@@ -227,7 +227,7 @@ public class PerBasinRiverSourceTests
 
         List<TileId> sources = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
-            basinCount: 3, sourcesPerBasin: 2, minElevAboveSeaM: 300.0,
+            basinCount: 3, sourceBudget: 6, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 4);
         Assert.Equal(6, sources.Count); // a fix keret: 3 x 2
         foreach (TileId source in sources)
@@ -237,7 +237,7 @@ public class PerBasinRiverSourceTests
         // forrast (a sulya pozitiv, tehat az elso korben egyet biztosan).
         List<TileId> withTiny = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
-            basinCount: 3, sourcesPerBasin: 2, minElevAboveSeaM: 300.0,
+            basinCount: 3, sourceBudget: 6, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 2);
         Assert.Equal(6, withTiny.Count);
         int fromTiny = 0;
@@ -255,7 +255,7 @@ public class PerBasinRiverSourceTests
 
         List<TileId> dense = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
-            basinCount: 1, sourcesPerBasin: 5, minElevAboveSeaM: 300.0,
+            basinCount: 1, sourceBudget: 5, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 4);
         Assert.Equal(5, dense.Count);
 
@@ -263,7 +263,7 @@ public class PerBasinRiverSourceTests
         // szomszedos jeloltek kiesnek, tehat KEVESEBB forras marad.
         List<TileId> sparse = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
-            basinCount: 1, sourcesPerBasin: 5, minElevAboveSeaM: 300.0,
+            basinCount: 1, sourceBudget: 5, minElevAboveSeaM: 300.0,
             minSeparationMeters: 3_000_000.0, minBasinTiles: 4);
         Assert.True(sparse.Count < dense.Count,
             "a minimalis tavolsag nem ritkitott: " + sparse.Count + " vs " + dense.Count);
@@ -295,7 +295,7 @@ public class PerBasinRiverSourceTests
 
         List<TileId> sources = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
-            basinCount: 1, sourcesPerBasin: 2, minElevAboveSeaM: 300.0,
+            basinCount: 1, sourceBudget: 2, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 4);
 
         Assert.Equal(2, sources.Count);
@@ -310,9 +310,9 @@ public class PerBasinRiverSourceTests
             out var parent, out _, out _);
 
         List<TileId> a = RiverPathTracing.SelectRiverSourcesPerBasin(
-            elev, precip, isOcean, parent, 0.0, 2, 3, 300.0, 0.0, 4);
+            elev, precip, isOcean, parent, 0.0, 2, 6, 300.0, 0.0, 4);
         List<TileId> b = RiverPathTracing.SelectRiverSourcesPerBasin(
-            elev, precip, isOcean, parent, 0.0, 2, 3, 300.0, 0.0, 4);
+            elev, precip, isOcean, parent, 0.0, 2, 6, 300.0, 0.0, 4);
 
         Assert.Equal(a.Count, b.Count);
         for (int i = 0; i < a.Count; i++) Assert.Equal(a[i].Value, b[i].Value);
@@ -335,7 +335,7 @@ public class PerBasinRiverSourceTests
         }
 
         List<TileId> c = RiverPathTracing.SelectRiverSourcesPerBasin(
-            elev2, precip2, isOcean2, parent2, 0.0, 2, 3, 300.0, 0.0, 4);
+            elev2, precip2, isOcean2, parent2, 0.0, 2, 6, 300.0, 0.0, 4);
         Assert.Equal(a.Count, c.Count);
         for (int i = 0; i < a.Count; i++) Assert.Equal(a[i].Value, c[i].Value);
     }
@@ -353,19 +353,32 @@ public class PerBasinRiverSourceTests
         Assert.Throws<ArgumentOutOfRangeException>(() => RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, 0.0, basinCount: 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => RiverPathTracing.SelectRiverSourcesPerBasin(
-            elev, precip, isOcean, parent, 0.0, sourcesPerBasin: 0));
+            elev, precip, isOcean, parent, 0.0, sourceBudget: 0));
         Assert.Throws<ArgumentNullException>(() => RiverPathTracing.SelectRiverSourcesPerBasin(
             null!, precip, isOcean, parent, 0.0));
     }
 
     /// <summary>
-    /// A LENYEG, valodi vilagon: a vizgyujtonkenti kvota TOBB osszefolyast ad,
-    /// mint az UGYANANNYI forrast hasznalo globalis top-K. A DURVA
-    /// (tile-szintu) halozatot hasznaljuk, mert az olcso - a folytonos koveto
-    /// ugyanezt mutatja, csak 20-30 masodpercert.
+    /// A LENYEG, valodi vilagon. AZ ND-197 (b) ELOTT ez a teszt azt merte,
+    /// hogy a vizgyujtonkenti kvota TOBB osszefolyast ad, mint az ugyanannyi
+    /// forrast hasznalo globalis top-K. Ez a kriterium az ND-197 (b)-vel
+    /// ERVENYET VESZTETTE, es ezt MERES mutatta meg: mivel a forrasok
+    /// mostantol MINDEN meretkuszob folotti vizgyujto kozott oszlanak
+    /// (hogy a nedves teruletek ne maradjanak folyo nelkul), a sok KICSI
+    /// medence egyagu patakot kap - a globalis top-K viszont a legnedvesebb
+    /// foltokba surit, ahol sok az osszefolyas. MERVE (level 6, 512 forras):
+    /// medence 33, globalis 127 osszefolyas.
+    ///
+    /// Amit a modell ETTOL FUGGETLENUL garantal, es amit ez a teszt MOST mer:
+    /// (1) a medencenkenti valasztas LENYEGESEN tobb kulon vizgyujtot erint -
+    ///     ez a lefedettseg, a felhasznaloi keres targya;
+    /// (2) attol meg VAN dendritikus szerkezet: szuletik osszefolyas.
+    /// A teljes halozat fa-melyseget a termekben merjuk (ND-197: 96 forrasnal
+    /// 28 osszefolyas, 321 forrasnal 50 - tehat ABSZOLUT tobb, csak a sok uj
+    /// egyagu patak miatt kisebb az ARANY).
     /// </summary>
     [Fact]
-    public void PerBasinQuotaGivesDeeperTreeThanGlobalTopKOnRealWorld()
+    public void PerBasinSelectionSpreadsAcrossMoreWatershedsAndKeepsConfluences()
     {
         const ulong seed = 0xA7C944210000UL;
         const int level = 6;
@@ -383,6 +396,20 @@ public class PerBasinRiverSourceTests
 
         Assert.Equal(globalTopK.Count, perBasin.Count);
 
+        Dictionary<TileId, List<TileId>> basins =
+            WorldGen.Core.Features.FeatureSegmentation.FindWatershedRegions(flood.Parent, isOcean);
+        var basinOfTile = new Dictionary<TileId, TileId>();
+        foreach (KeyValuePair<TileId, List<TileId>> basin in basins)
+            foreach (TileId t in basin.Value) basinOfTile[t] = basin.Key;
+
+        int DistinctBasins(List<TileId> sources)
+        {
+            var distinct = new HashSet<TileId>();
+            foreach (TileId s in sources)
+                if (basinOfTile.TryGetValue(s, out TileId outlet)) distinct.Add(outlet);
+            return distinct.Count;
+        }
+
         int MergeCount(List<TileId> sources)
         {
             var rivers = RiverPathTracing.BuildRiverNetworkFromSources(
@@ -393,13 +420,17 @@ public class PerBasinRiverSourceTests
             return merged;
         }
 
+        int basinsPerBasin = DistinctBasins(perBasin);
+        int basinsGlobal = DistinctBasins(globalTopK);
         int mergedPerBasin = MergeCount(perBasin);
-        int mergedGlobal = MergeCount(globalTopK);
-        _out.WriteLine("forras=" + perBasin.Count + "  osszefolyas: medence="
-            + mergedPerBasin + ", globalis=" + mergedGlobal);
+        _out.WriteLine("forras=" + perBasin.Count + "  erintett vizgyujto: medence="
+            + basinsPerBasin + ", globalis=" + basinsGlobal
+            + "; osszefolyas (medence)=" + mergedPerBasin);
 
-        Assert.True(mergedPerBasin > mergedGlobal,
-            "a medence-kvota nem adott tobb osszefolyast: " + mergedPerBasin + " vs " + mergedGlobal);
+        Assert.True(basinsPerBasin > basinsGlobal,
+            "a medencenkenti valasztas nem erintett tobb vizgyujtot: "
+            + basinsPerBasin + " vs " + basinsGlobal);
+        Assert.True(mergedPerBasin > 0, "egyetlen osszefolyas sem keletkezett");
     }
 
     // ------------------------------------------------------------------
@@ -464,11 +495,11 @@ public class PerBasinRiverSourceTests
 
         List<TileId> withoutLakes = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
-            basinCount: 1, sourcesPerBasin: 2, minElevAboveSeaM: 300.0,
+            basinCount: 1, sourceBudget: 2, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 4);
         List<TileId> withLakes = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
-            basinCount: 1, sourcesPerBasin: 2, minElevAboveSeaM: 300.0,
+            basinCount: 1, sourceBudget: 2, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 4,
             floodFilled: filled, lakeDepthMeters: 40.0);
 
@@ -483,7 +514,7 @@ public class PerBasinRiverSourceTests
         // feltoltes mar nem szamit tonak, tehat visszajon az eredeti lista.
         List<TileId> shallowThreshold = RiverPathTracing.SelectRiverSourcesPerBasin(
             elev, precip, isOcean, parent, seaLevel: 0.0,
-            basinCount: 1, sourcesPerBasin: 2, minElevAboveSeaM: 300.0,
+            basinCount: 1, sourceBudget: 2, minElevAboveSeaM: 300.0,
             minSeparationMeters: 0.0, minBasinTiles: 4,
             floodFilled: filled, lakeDepthMeters: 200.0);
         Assert.Equal(big[0].Value, shallowThreshold[0].Value);
